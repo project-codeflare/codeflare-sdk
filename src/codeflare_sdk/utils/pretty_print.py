@@ -20,6 +20,14 @@ class RayCluster:
     worker_cpu: int
     worker_gpu: int
 
+@dataclass
+class AppWrapper:
+    name: str
+    status:str
+    can_run: bool
+    job_state: str
+
+
 def _print_no_cluster_found():
     pass
 
