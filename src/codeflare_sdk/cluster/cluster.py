@@ -10,16 +10,15 @@ class Cluster:
         self.config = config
 
     # creates a new cluser with the provided or default spec
-    def up(self):
-        pass
+    def up(self, namespace='default'):
+        with oc.project(namespace):
+            oc.invoke("apply", ["-f", 
+            "https://raw.githubusercontent.com/IBM/multi-cluster-app-dispatcher/quota-management/doc/usage/examples/kuberay/config/aw-raycluster.yaml"])
 
-    def down(self, name):
-        # FIXME on what the exact details should be
-        # 1. delete the appwrapper and that should delete the cluster
-        # FIXME on what the exact details should be
-        # 1. delete the appwrapper and that should delete the cluster
-        pass
-
+    def down(self, name, namespace='default'):
+        with oc.project(namespace):
+            oc.invoke("delete",["AppWrapper", self.config.name])
+        
     def status(self, print_to_console=True):
         cluster = _ray_cluster_status(self.config.name)
         if cluster:
