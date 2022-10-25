@@ -94,7 +94,7 @@ spec:
                     requiredDuringSchedulingIgnoredDuringExecution:
                       nodeSelectorTerms:
                       - matchExpressions:
-                        - key: role
+                        - key: aw-kuberay-glue #--> key changed to AW name
                           operator: In
                           values:
                           - "aw-kuberay-glue"
@@ -175,7 +175,7 @@ spec:
                     requiredDuringSchedulingIgnoredDuringExecution:
                       nodeSelectorTerms:
                       - matchExpressions:
-                        - key: role
+                        - key: aw-kuberay-glue #--> key changed to AW name
                           operator: In
                           values:
                           - "aw-kuberay-glue"

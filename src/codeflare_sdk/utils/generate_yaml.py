@@ -3,7 +3,7 @@ import sys
 import argparse
 import uuid
 
-def readTemplate(template):
+def read_template(template):
     with open(template, "r") as stream:
         try:
             return yaml.safe_load(stream)
@@ -23,7 +23,7 @@ def update_names(yaml, item, appwrapper_name, cluster_name):
     lower_meta["labels"]["appwrapper.mcad.ibm.com"] = appwrapper_name
     lower_meta["name"] = cluster_name
 
-def updateCustompodresources(item, cpu, memory, gpu, workers):
+def update_custompodresources(item, cpu, memory, gpu, workers):
     if 'custompodresources' in item.keys():
         custompodresources = item.get('custompodresources')
         for resource in custompodresources:
@@ -44,6 +44,7 @@ def updateCustompodresources(item, cpu, memory, gpu, workers):
 def update_affinity(spec, appwrapper_name):
     node_selector_terms = spec.get("affinity").get("nodeAffinity").get("requiredDuringSchedulingIgnoredDuringExecution").get("nodeSelectorTerms")
     node_selector_terms[0]["matchExpressions"][0]["values"][0] = appwrapper_name
+    node_selector_terms[0]["matchExpressions"][0]["key"] = appwrapper_name
 
 def update_resources(spec, cpu, memory, gpu):
     container = spec.get("containers")
@@ -74,24 +75,24 @@ def update_nodes(item, appwrapper_name, cpu, memory, gpu, workers):
             update_affinity(spec, appwrapper_name)
             update_resources(spec, cpu, memory, gpu)
 
-def generateAppwrapper(cpu, memory, gpu, workers, template):
-        user_yaml = readTemplate(template)
+def write_user_appwrapper(user_yaml, appwrapper_name):
+    with open(f'{appwrapper_name}.yaml','w') as outfile:
+        yaml.dump(user_yaml, outfile, default_flow_style=False)
+
+def generate_appwrapper(cpu, memory, gpu, workers, template):
+        user_yaml = read_template(template)
         appwrapper_name, cluster_name = gen_names()
         resources = user_yaml.get("spec","resources")
         item = resources["resources"].get("GenericItems")[0]
         update_names(user_yaml, item, appwrapper_name, cluster_name)
-        updateCustompodresources(item, cpu, memory, gpu, workers)
+        update_custompodresources(item, cpu, memory, gpu, workers)
         update_nodes(item, appwrapper_name, cpu, memory, gpu, workers)
-        writeUserAppwrapper(user_yaml, appwrapper_name)
-
-def writeUserAppwrapper(user_yaml, appwrapper_name):
-    with open(f'{appwrapper_name}.yaml','w') as outfile:
-        yaml.dump(user_yaml, outfile, default_flow_style=False)
+        write_user_appwrapper(user_yaml, appwrapper_name)
 
 def main():
     parser = argparse.ArgumentParser(description='Generate user AppWrapper')
     parser.add_argument("--cpu", type=int, required=True, help="number of CPU(s) in a worker required for running job")
-    parser.add_argument("--memory", required=True, help="RAM required in a worker for running job")
+    parser.add_argument("--memory", type=int, required=True, help="RAM required in a worker for running job, in GB")
     parser.add_argument("--gpu",type=int, required=True, help="GPU(s) required in a worker for running job")
     parser.add_argument("--workers", type=int, required=True, help="How many workers are required in the cluster")
     parser.add_argument("--template", required=True, help="Template AppWrapper yaml file")
@@ -103,7 +104,7 @@ def main():
     workers = args.workers
     template = args.template
 
-    generateAppwrapper(cpu, memory, gpu, workers, template)
+    generate_appwrapper(cpu, memory, gpu, workers, template)
 
 if __name__=="__main__":
     main()
