@@ -1,0 +1,2 @@
+openshift-client==1.0.18
+rich==12.5.1
