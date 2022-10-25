@@ -16,6 +16,8 @@ class Cluster:
     def down(self, name):
         # FIXME on what the exact details should be
         # 1. delete the appwrapper and that should delete the cluster
+        # FIXME on what the exact details should be
+        # 1. delete the appwrapper and that should delete the cluster
         pass
 
     def status(self, print_to_console=True):
@@ -42,7 +44,7 @@ def _get_appwrappers(namespace='default'):
         app_wrappers = oc.selector('appwrappers').qnames()
     return app_wrappers
 
-
+    
 def _app_wrapper_status(name, namespace='default') -> Optional[AppWrapper]:
     with oc.project(namespace), oc.timeout(10*60):
         cluster = oc.selector(f'appwrapper/{name}').object()

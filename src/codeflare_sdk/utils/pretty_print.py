@@ -7,7 +7,6 @@ from rich import box
 from typing import List
 from ..cluster.model import RayCluster, AppWrapper
 
-
 def _print_no_cluster_found():
     pass
 
