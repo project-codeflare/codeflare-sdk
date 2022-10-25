@@ -75,9 +75,10 @@ def update_nodes(item, appwrapper_name, cpu, memory, gpu, workers):
             update_affinity(spec, appwrapper_name)
             update_resources(spec, cpu, memory, gpu)
 
-def write_user_appwrapper(user_yaml, appwrapper_name):
-    with open(f'{appwrapper_name}.yaml','w') as outfile:
+def write_user_appwrapper(user_yaml, output_file_name):
+    with open(output_file_name,'w') as outfile:
         yaml.dump(user_yaml, outfile, default_flow_style=False)
+    print(f"Written to: {output_file_name}")
 
 def generate_appwrapper(cpu, memory, gpu, workers, template):
         user_yaml = read_template(template)
@@ -87,7 +88,10 @@ def generate_appwrapper(cpu, memory, gpu, workers, template):
         update_names(user_yaml, item, appwrapper_name, cluster_name)
         update_custompodresources(item, cpu, memory, gpu, workers)
         update_nodes(item, appwrapper_name, cpu, memory, gpu, workers)
-        write_user_appwrapper(user_yaml, appwrapper_name)
+        outfile = appwrapper_name + ".yaml"
+        write_user_appwrapper(user_yaml, outfile)
+        return outfile
+        
 
 def main():
     parser = argparse.ArgumentParser(description='Generate user AppWrapper')
@@ -104,7 +108,8 @@ def main():
     workers = args.workers
     template = args.template
 
-    generate_appwrapper(cpu, memory, gpu, workers, template)
+    outfile = generate_appwrapper(cpu, memory, gpu, workers, template)
+    return outfile
 
 if __name__=="__main__":
     main()
