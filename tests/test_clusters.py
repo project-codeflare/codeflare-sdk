@@ -12,4 +12,3 @@ def test_cluster_status():
 def test_app_wrapper_status():
     print(_app_wrapper_status('raycluster-autoscaler'))
     
-
