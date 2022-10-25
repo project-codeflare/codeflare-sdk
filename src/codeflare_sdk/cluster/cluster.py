@@ -1,5 +1,5 @@
 from .config import ClusterConfiguration
-from ..utils.pretty_print import RayCluster, AppWrapper
+from .model import RayCluster, AppWrapper
 from ..utils import pretty_print
 import openshift as oc
 from typing import List, Optional

@@ -1,31 +1,11 @@
-from ast import Str
-from turtle import st
 from rich import print
 from rich.table import Table
 from rich.console import Console
 from rich.layout import Layout
 from rich.panel import Panel
 from rich import box
-from dataclasses import dataclass
 from typing import List
-
-@dataclass
-class RayCluster:
-    name: str
-    status: str
-    min_workers: int
-    max_workers: int
-    worker_mem_min: str
-    worker_mem_max: str
-    worker_cpu: int
-    worker_gpu: int
-
-@dataclass
-class AppWrapper:
-    name: str
-    status:str
-    can_run: bool
-    job_state: str
+from ..cluster.model import RayCluster, AppWrapper
 
 
 def _print_no_cluster_found():
