@@ -20,10 +20,16 @@ class RayCluster:
     worker_cpu: int
     worker_gpu: int
 
+def _print_no_cluster_found():
+    pass
+
 def print_clusters(clusters:List[RayCluster], verbose=True):
     console = Console()
-
     title_printed = False
+    #FIXME handle case where no clusters are found
+    if len(clusters) == 0:
+        _print_no_cluster_found()
+        return #exit early
 
     for cluster in clusters:
         status = "Active :white_heavy_check_mark:" if cluster.status.lower() == 'ready' else "InActive :x:"
