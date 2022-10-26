@@ -41,16 +41,18 @@ class Cluster:
             oc.invoke("delete", ["AppWrapper", self.app_wrapper_yaml])
 
     def status(self, print_to_console=True):
-        cluster = _ray_cluster_status(self.config.name)
+        cluster = _ray_cluster_status(self.config.name)        
         if cluster:
             if print_to_console:
                 pretty_print.print_clusters([cluster])
             return cluster.status
         else:
+            if print_to_console:
+                pretty_print.print_no_resources_found()
             return None
 
     # checks whether the ray cluster is ready
-    def is_ready(self):
+    def is_ready(self, print_to_console=True):
         ready = False
         status = CodeFlareClusterStatus.UNKNOWN
         # check the app wrapper status
@@ -73,11 +75,13 @@ class Cluster:
         if cluster:
             if cluster.status == RayClusterStatus.READY:
                 ready = True
-                status = CodeFlareClusterStatus.READY
+                status = CodeFlareClusterStatus.READY                
             elif cluster.status in [RayClusterStatus.UNHEALTHY, RayClusterStatus.FAILED]:
                 ready = False
                 status = CodeFlareClusterStatus.FAILED
-
+            
+            if print_to_console:
+                    pretty_print.print_clusters([cluster])
         return status, ready
 
 

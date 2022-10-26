@@ -5,21 +5,30 @@ from rich.layout import Layout
 from rich.panel import Panel
 from rich import box
 from typing import List
-from ..cluster.model import RayCluster, AppWrapper
+from ..cluster.model import RayCluster, AppWrapper, RayClusterStatus
 
-def _print_no_cluster_found():
+def print_no_resources_found():
+    console = Console()
+    console.print(Panel("[red]No resources found"))
+
+
+def print_appwrappers_status():
     pass
 
 def print_clusters(clusters:List[RayCluster], verbose=True):
+    if not clusters == 0:
+        print_no_resources_found()
+        return #shortcircuit
+
     console = Console()
     title_printed = False
     #FIXME handle case where no clusters are found
     if len(clusters) == 0:
-        _print_no_cluster_found()
+        print_no_resources_found()
         return #exit early
 
     for cluster in clusters:
-        status = "Active :white_heavy_check_mark:" if cluster.status.lower() == 'ready' else "InActive :x:"
+        status = "Active :white_heavy_check_mark:" if cluster.status == RayClusterStatus.READY else "InActive :x:"
         name = cluster.name
         dashboard = f"https://codeflare-raydashboard.research.ibm.com?rayclustername={name}"
         mincount = str(cluster.min_workers)
@@ -38,7 +47,7 @@ def print_clusters(clusters:List[RayCluster], verbose=True):
             table0.add_row("")
         table0.add_row("[bold underline]"+name,status)
         table0.add_row()
-        table0.add_row(f"[bold]URI:[/bold] ray://{name}-head.codeflare.svc:1001")
+        table0.add_row(f"[bold]URI:[/bold] ray://{name}-head-svc:1001") #format that is used to generate the name of the service
         table0.add_row()
         table0.add_row(f"[link={dashboard} blue underline]Dashboard:link:[/link]")
         table0.add_row("") #empty row for spacing
