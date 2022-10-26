@@ -12,8 +12,24 @@ def print_no_resources_found():
     console.print(Panel("[red]No resources found"))
 
 
-def print_appwrappers_status():
-    pass
+def print_appwrappers_status(app_wrappers:List[AppWrapper]):
+    if not app_wrappers == 0:
+        print_no_resources_found()
+        return #shortcircuit
+    
+    console = Console()
+    for app_wrapper in app_wrappers:
+        name = app_wrapper.name
+        status = app_wrapper.status.value
+
+        table = Table(box=None, title="[bold] :rocket: List of CodeFlare clusters in queue:rocket:")
+        table.add_column("Name", style="cyan", no_wrap=True)
+        table.add_column("Status", style="magenta")
+        table.add_row("[bold underline]"+name,status)        
+        table.add_row("") #empty row for spacing
+        console.print(Panel.fit(table))
+
+
 
 def print_clusters(clusters:List[RayCluster], verbose=True):
     if not clusters == 0:
@@ -22,10 +38,6 @@ def print_clusters(clusters:List[RayCluster], verbose=True):
 
     console = Console()
     title_printed = False
-    #FIXME handle case where no clusters are found
-    if len(clusters) == 0:
-        print_no_resources_found()
-        return #exit early
 
     for cluster in clusters:
         status = "Active :white_heavy_check_mark:" if cluster.status == RayClusterStatus.READY else "InActive :x:"

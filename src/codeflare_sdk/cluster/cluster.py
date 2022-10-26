@@ -92,12 +92,15 @@ def list_all_clusters(print_to_console=True):
     return clusters
 
 
-# private methods
-
-def _get_appwrappers(namespace='default'):
-    with oc.project(namespace), oc.timeout(10*60):
-        app_wrappers = oc.selector('appwrappers').qnames()
+def list_all_queued(print_to_console=True):
+    app_wrappers = _get_app_wrappers(filter=[AppWrapperStatus.RUNNING, AppWrapperStatus.PENDING])
+    if print_to_console:
+        pretty_print.print_appwrappers_status(app_wrappers)
     return app_wrappers
+   
+
+
+# private methods
 
 
 def _app_wrapper_status(name, namespace='default') -> Optional[AppWrapper]:
@@ -125,6 +128,22 @@ def _get_ray_clusters(namespace='default') -> List[RayCluster]:
     for cluster in ray_clusters:
         list_of_clusters.append(_map_to_ray_cluster(cluster))
     return list_of_clusters
+
+
+
+def _get_app_wrappers(filter:List[AppWrapperStatus], namespace='default') -> List[AppWrapper]:
+    list_of_app_wrappers = []
+
+    with oc.project(namespace), oc.timeout(10*60):
+        app_wrappers = oc.selector('appwrappers').objects()
+
+    for item in app_wrappers:
+        app_wrapper = _map_to_app_wrapper(item)
+        if filter and app_wrapper.status in filter:
+            list_of_app_wrappers.append(app_wrapper)
+        else:
+            list_of_app_wrappers.append(app_wrapper)
+    return list_of_app_wrappers
 
 
 def _map_to_ray_cluster(cluster) -> RayCluster:
