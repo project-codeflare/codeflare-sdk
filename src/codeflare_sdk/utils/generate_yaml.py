@@ -10,11 +10,14 @@ def read_template(template):
         except yaml.YAMLError as exc:
             print(exc)
 
-def gen_names():
-    gen_id = str(uuid.uuid4())
-    appwrapper_name = "appwrapper-" + gen_id
-    cluster_name = "cluster-" + gen_id
-    return appwrapper_name, cluster_name
+def gen_names(name):
+    if not name:
+        gen_id = str(uuid.uuid4())
+        appwrapper_name = "appwrapper-" + gen_id
+        cluster_name = "cluster-" + gen_id
+        return appwrapper_name, cluster_name
+    else:
+        return name, name
 
 def update_names(yaml, item, appwrapper_name, cluster_name):
     metadata = yaml.get("metadata")
@@ -122,9 +125,9 @@ def write_user_appwrapper(user_yaml, output_file_name):
         yaml.dump(user_yaml, outfile, default_flow_style=False)
     print(f"Written to: {output_file_name}")
 
-def generate_appwrapper(min_cpu, max_cpu, min_memory, max_memory, gpu, workers, template, image, instascale, instance_types, env):
+def generate_appwrapper(name, min_cpu, max_cpu, min_memory, max_memory, gpu, workers, template, image, instascale, instance_types, env):
         user_yaml = read_template(template)
-        appwrapper_name, cluster_name = gen_names()
+        appwrapper_name, cluster_name = gen_names(name)
         resources = user_yaml.get("spec","resources")
         item = resources["resources"].get("GenericItems")[0]
         update_names(user_yaml, item, appwrapper_name, cluster_name)
@@ -138,6 +141,7 @@ def generate_appwrapper(min_cpu, max_cpu, min_memory, max_memory, gpu, workers, 
 
 def main():
     parser = argparse.ArgumentParser(description='Generate user AppWrapper')
+    parser.add_argument("--name", required=False, default="", help="User selected name for AppWrapper and Ray Cluster (auto-generated if not provided)")
     parser.add_argument("--min-cpu", type=int, required=True, help="min number of CPU(s) in a worker required for running job")
     parser.add_argument("--max-cpu", type=int, required=True, help="max number of CPU(s) in a worker required for running job")
     parser.add_argument("--min-memory", type=int, required=True, help="min RAM required in a worker for running job, in GB")
@@ -150,6 +154,7 @@ def main():
     parser.add_argument("--instance-types", type=str, nargs='+', default=[], required=False, help="Head,worker instance types (space separated)")
     
     args = parser.parse_args()
+    name = args.name
     min_cpu = args.min_cpu
     max_cpu = args.max_cpu
     min_memory = args.min_memory
@@ -162,7 +167,7 @@ def main():
     instance_types = args.instance_types
     env = {}
 
-    outfile = generate_appwrapper(min_cpu, max_cpu, min_memory, max_memory, gpu, workers, template, image, instascale, instance_types, env)
+    outfile = generate_appwrapper(name, min_cpu, max_cpu, min_memory, max_memory, gpu, workers, template, image, instascale, instance_types, env)
     return outfile
 
 if __name__=="__main__":

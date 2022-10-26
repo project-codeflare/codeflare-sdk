@@ -16,6 +16,7 @@ class Cluster:
         self.app_wrapper_yaml = self.create_app_wrapper()
 
     def create_app_wrapper(self):
+        name=self.config.name
         min_cpu=self.config.min_cpus
         max_cpu=self.config.max_cpus
         min_memory=self.config.min_memory
@@ -27,7 +28,7 @@ class Cluster:
         instascale=self.config.instascale
         instance_types=self.config.machine_types
         env=self.config.envs
-        return generate_appwrapper(min_cpu=min_cpu, max_cpu=max_cpu, min_memory=min_memory, 
+        return generate_appwrapper(name=name, min_cpu=min_cpu, max_cpu=max_cpu, min_memory=min_memory, 
                                    max_memory=max_memory, gpu=gpu, workers=workers, template=template,
                                    image=image, instascale=instascale, instance_types=instance_types, env=env)
 
