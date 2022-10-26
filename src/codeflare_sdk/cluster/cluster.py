@@ -77,6 +77,8 @@ class Cluster:
             elif appwrapper.status in [AppWrapperStatus.PENDING]:
                 ready = False
                 status = CodeFlareClusterStatus.QUEUED 
+                if print_to_console:
+                    pretty_print.print_app_wrappers_status([appwrapper])
                 return ready, status# no need to check the ray status since still in queue
 
         # check the ray cluster status
