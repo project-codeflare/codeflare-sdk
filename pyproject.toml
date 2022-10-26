@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "codeflare-sdk"
-version = "0.0.2"
+version = "0.0.3"
 description = "Python SDK for codeflare client"
 
 license = "GPL-3.0-only"
@@ -21,4 +21,5 @@ keywords = ['codeflare', 'python', 'sdk', 'client', 'batch', 'scale']
 
 [tool.poetry.dependencies]
 python = "^3.6"
-openshift = ">= 0.12.0"
+openshift-client = "1.0.18"
+rich = "^12.5"
