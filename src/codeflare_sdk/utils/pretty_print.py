@@ -12,7 +12,7 @@ def print_no_resources_found():
     console.print(Panel("[red]No resources found"))
 
 
-def print_appwrappsers_status(app_wrappers:List[AppWrapper]):
+def print_app_wrappers_status(app_wrappers:List[AppWrapper]):
     if not app_wrappers:
         print_no_resources_found()
         return #shortcircuit
