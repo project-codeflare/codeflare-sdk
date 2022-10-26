@@ -104,7 +104,7 @@ def list_all_clusters(print_to_console=True):
 def list_all_queued(print_to_console=True):
     app_wrappers = _get_app_wrappers(filter=[AppWrapperStatus.RUNNING, AppWrapperStatus.PENDING])
     if print_to_console:
-        pretty_print.print_appwrappers_status(app_wrappers)
+        pretty_print.print_app_wrappers_status(app_wrappers)
     return app_wrappers
    
 
