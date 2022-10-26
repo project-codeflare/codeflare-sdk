@@ -98,7 +98,7 @@ spec:
               # The value of `resources` is a string-integer mapping.
               # Currently, `resources` must be provided in the specific format demonstrated below:
               # resources: '"{\"Custom1\": 1, \"Custom2\": 5}"'
-              num-gpus: 0
+              num-gpus: '0'
             #pod template
             template:
               spec:

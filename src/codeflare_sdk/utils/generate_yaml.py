@@ -108,7 +108,7 @@ def update_nodes(item, appwrapper_name, min_cpu, max_cpu, min_memory, max_memory
         worker["replicas"] = workers
         worker["minReplicas"] = workers
         worker["maxReplicas"] = workers
-        worker["rayStartParams"]["num-gpus"] = int(gpu)
+        worker["rayStartParams"]["num-gpus"] = str(int(gpu))
 
         for comp in [head, worker]:
             spec = comp.get("template").get("spec")
