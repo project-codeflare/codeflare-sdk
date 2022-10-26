@@ -32,7 +32,7 @@ def print_appwrappers_status(app_wrappers:List[AppWrapper]):
 
 
 def print_clusters(clusters:List[RayCluster], verbose=True):
-    if not clusters == 0:
+    if not clusters:
         print_no_resources_found()
         return #shortcircuit
 

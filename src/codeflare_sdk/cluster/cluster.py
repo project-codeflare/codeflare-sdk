@@ -52,6 +52,10 @@ class Cluster:
             if print_to_console:
                 pretty_print.print_no_resources_found()
             return None
+    
+    def cluster_uri(self):        
+        return f'ray://{self.config.name}-head-svc:1001'
+
 
     # checks whether the ray cluster is ready
     def is_ready(self, print_to_console=True):
@@ -116,7 +120,7 @@ def _ray_cluster_status(name, namespace='default') -> Optional[RayCluster]:
     # FIXME should we check the appwrapper first
     with oc.project(namespace), oc.timeout(10*60):
         cluster = oc.selector(f'rayclusters/{name}').object()
-
+    
     if cluster:
         return _map_to_ray_cluster(cluster)
 
