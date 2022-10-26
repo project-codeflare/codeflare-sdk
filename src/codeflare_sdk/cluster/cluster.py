@@ -16,14 +16,20 @@ class Cluster:
         self.app_wrapper_yaml = self.create_app_wrapper()
 
     def create_app_wrapper(self):
-        cpu = self.config.max_cpus
-        memory = self.config.max_memory
-        gpu = self.config.gpu
-        workers = self.config.max_worker
-        template = self.config.template
-        return generate_appwrapper(cpu=cpu, memory=memory,
-                                   gpu=gpu, workers=workers,
-                                   template=template)
+        min_cpu=self.config.min_cpus
+        max_cpu=self.config.max_cpus
+        min_memory=self.config.min_memory
+        max_memory=self.config.max_memory
+        gpu=self.config.gpu
+        workers=self.config.max_worker
+        template=self.config.template
+        image=self.config.image
+        instascale=self.config.instascale
+        instance_types=self.config.machine_types
+        env=self.config.envs
+        return generate_appwrapper(min_cpu=min_cpu, max_cpu=max_cpu, min_memory=min_memory, 
+                                   max_memory=max_memory, gpu=gpu, workers=workers, template=template,
+                                   image=image, instascale=instascale, instance_types=instance_types, env=env)
 
     # creates a new cluster with the provided or default spec
     def up(self, namespace='default'):
