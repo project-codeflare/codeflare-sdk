@@ -54,7 +54,7 @@ class Cluster:
             return None
     
     def cluster_uri(self):        
-        return f'ray://{self.config.name}-head-svc:1001'
+        return f'ray://{self.config.name}-head-svc:10001'
 
 
     # checks whether the ray cluster is ready
