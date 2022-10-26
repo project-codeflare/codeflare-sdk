@@ -4,7 +4,7 @@ from dataclasses import dataclass
 class ClusterConfiguration:
     name: str
     head_info: list = []
-    machine_types: list = ["m4.xlarge", "g4dn.xlarge"]
+    machine_types: list = [] #["m4.xlarge", "g4dn.xlarge"]
     min_cpus: int = 1
     max_cpus: int = 1
     min_worker: int = 1
