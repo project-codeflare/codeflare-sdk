@@ -1,4 +1,4 @@
-from codeflare_sdk.cluster.cluster import list_all_clusters, _app_wrapper_status
+from codeflare_sdk.cluster.cluster import list_all_clusters, list_all_queued, _app_wrapper_status
 from codeflare_sdk.cluster.cluster import Cluster, ClusterConfiguration
 
 import time
@@ -26,3 +26,7 @@ def test_cluster_down():
 def test_no_resources_found():
     from codeflare_sdk.utils import pretty_print
     pretty_print.print_no_resources_found()
+
+def test_list_app_wrappers():
+    app_wrappers = list_all_queued()
+    
