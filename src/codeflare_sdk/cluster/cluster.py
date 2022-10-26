@@ -17,7 +17,7 @@ class Cluster:
 
     def create_app_wrapper(self):
         cpu = self.config.max_cpus
-        memory = self.config.memory
+        memory = self.config.max_memory
         gpu = self.config.gpu
         workers = self.config.max_worker
         template = self.config.template

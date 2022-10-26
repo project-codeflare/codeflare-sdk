@@ -19,5 +19,5 @@ def test_app_wrapper_status():
 
 def test_cluster_down():
     cluster = Cluster(ClusterConfiguration(name='raycluster-autoscaler'))
-    cluster.down(name='raycluster-autoscaler')
+    cluster.down()
 
