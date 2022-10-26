@@ -53,8 +53,11 @@ class Cluster:
                 pretty_print.print_no_resources_found()
             return None
     
-    def cluster_uri(self):        
-        return f'ray://{self.config.name}-head-svc:10001'
+    def cluster_uri(self, namespace='default'):
+        return f'ray://{self.config.name}-head-svc.{namespace}.svc:10001'
+
+    def cluster_dashboard_uri(self, namespace='default'):
+        return f'http://{self.config.name}-head-svc.{namespace}.svc:8265'
 
 
     # checks whether the ray cluster is ready
