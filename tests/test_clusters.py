@@ -4,7 +4,7 @@ import time
 
 def test_cluster_up():
      cluster = Cluster(ClusterConfiguration(name='raycluster-autoscaler'))
-     cluster.up()
+     cluster.up()     
      time.sleep(15)
 
 def test_list_clusters():
@@ -19,5 +19,5 @@ def test_app_wrapper_status():
 
 def test_cluster_down():
     cluster = Cluster(ClusterConfiguration(name='raycluster-autoscaler'))
-    cluster.down(name='raycluster-autoscaler')
+    cluster.down()
 
