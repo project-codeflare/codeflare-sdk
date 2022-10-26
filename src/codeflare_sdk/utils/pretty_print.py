@@ -13,7 +13,7 @@ def print_no_resources_found():
 
 
 def print_appwrappers_status(app_wrappers:List[AppWrapper]):
-    if not app_wrappers == 0:
+    if not app_wrappers:
         print_no_resources_found()
         return #shortcircuit
     
