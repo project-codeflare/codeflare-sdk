@@ -1,5 +1,6 @@
 from codeflare_sdk.cluster.cluster import list_all_clusters, _app_wrapper_status
 from codeflare_sdk.cluster.cluster import Cluster, ClusterConfiguration
+
 import time
 
 def test_cluster_up():
@@ -21,3 +22,7 @@ def test_cluster_down():
     cluster = Cluster(ClusterConfiguration(name='raycluster-autoscaler'))
     cluster.down()
 
+
+def test_no_resources_found():
+    from codeflare_sdk.utils import pretty_print
+    pretty_print.print_no_resources_found()
