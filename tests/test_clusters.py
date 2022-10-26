@@ -4,7 +4,7 @@ import time
 
 def test_cluster_up():
      cluster = Cluster(ClusterConfiguration(name='raycluster-autoscaler'))
-     cluster.up()
+     cluster.up()     
      time.sleep(15)
 
 def test_list_clusters():
