@@ -1,9 +1,24 @@
-[build-system]
-requires = ["setuptools"]
-build-backend = "setuptools.build_meta"
-[project]
-name = "codeflare_sdk"
+[tool.poetry]
+name = "codeflare-sdk"
 version = "0.0.1"
-dependencies = [
-    
+description = "Python SDK for codeflare client"
+
+license = "GPL-3.0-only"
+
+authors = [
+    "Atin Sood <asood@us.ibm.com>",
+    "Abhishek Malvankar <asmalvan@us.ibm.com>",
+    "Michael Clifford <mcliffor@redhat.com>",
+    "Mustafa Eyceoz <meyceoz@redhat.com>",
 ]
+
+readme = 'README.md'
+
+repository = "https://github.com/openshift-psap/codeflare-sdk"
+homepage = "https://github.com/openshift-psap/codeflare-sdk"
+
+keywords = ['codeflare', 'python', 'sdk', 'client', 'batch', 'scale']
+
+[tool.poetry.dependencies]
+python = "^3.6"
+openshift = ">= 0.12.0"
