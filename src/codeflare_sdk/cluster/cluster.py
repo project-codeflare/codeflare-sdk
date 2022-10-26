@@ -1,6 +1,7 @@
 from .config import ClusterConfiguration
 from .model import RayCluster, AppWrapper
 from ..utils import pretty_print
+from ..utils.generate_yaml import generate_appwrapper
 import openshift as oc
 from typing import List, Optional
 
@@ -8,16 +9,26 @@ from typing import List, Optional
 class Cluster:
     def __init__(self, config: ClusterConfiguration):
         self.config = config
+        self.app_wrapper_yaml = self.create_app_wrapper() 
 
-    # creates a new cluser with the provided or default spec
+    def create_app_wrapper(self):
+        cpu=self.config.max_cpus
+        memory=self.config.memory
+        gpu=self.config.gpu
+        workers=self.config.max_worker
+        template=self.config.template
+        return generate_appwrapper(cpu=cpu, memory=memory, 
+                                   gpu=gpu,workers=workers,
+                                   template=template)
+
+    # creates a new cluster with the provided or default spec
     def up(self, namespace='default'):
         with oc.project(namespace):
-            oc.invoke("apply", ["-f", 
-            "https://raw.githubusercontent.com/IBM/multi-cluster-app-dispatcher/quota-management/doc/usage/examples/kuberay/config/aw-raycluster.yaml"])
+            oc.invoke("apply", ["-f", self.app_wrapper_yaml ])
 
-    def down(self, name, namespace='default'):
+    def down(self, namespace='default'):
         with oc.project(namespace):
-            oc.invoke("delete",["AppWrapper", self.config.name])
+            oc.invoke("delete",["AppWrapper", self.app_wrapper_yaml])
         
     def status(self, print_to_console=True):
         cluster = _ray_cluster_status(self.config.name)
