@@ -15,4 +15,4 @@ class ClusterConfiguration:
     template: str = "src/codeflare_sdk/templates/new-template.yaml"
     instascale: bool = False
     envs: dict = {}
-    image: str = "rayproject/ray:latest"
+    image: str = "ghcr.io/ibm-ai-foundation/base:ray1.13.0-py38-gpu-pytorch1.12.0cu116-20220826-202124"
