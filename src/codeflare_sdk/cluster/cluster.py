@@ -14,6 +14,7 @@ class Cluster:
     def __init__(self, config: ClusterConfiguration):
         self.config = config
         self.app_wrapper_yaml = self.create_app_wrapper()
+        self.app_wrapper_name = self.app_wrapper_yaml.split(".")[0]
 
     def create_app_wrapper(self):
         name=self.config.name
@@ -39,7 +40,7 @@ class Cluster:
 
     def down(self, namespace='default'):
         with oc.project(namespace):
-            oc.invoke("delete", ["AppWrapper", self.app_wrapper_yaml])
+            oc.invoke("delete", ["AppWrapper", self.app_wrapper_name])
 
     def status(self, print_to_console=True):
         cluster = _ray_cluster_status(self.config.name)        
