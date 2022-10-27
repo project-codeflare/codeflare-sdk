@@ -119,8 +119,9 @@ def update_nodes(item, appwrapper_name, min_cpu, max_cpu, min_memory, max_memory
             update_image(spec, image)
             update_env(spec, env)
             if comp == head:
-                gpu = 0
-            update_resources(spec, min_cpu, max_cpu, min_memory, max_memory, gpu)
+                update_resources(spec, min_cpu, max_cpu, min_memory, max_memory, 0)
+            else:
+                update_resources(spec, min_cpu, max_cpu, min_memory, max_memory, gpu)
 
 def write_user_appwrapper(user_yaml, output_file_name):
     with open(output_file_name,'w') as outfile:
