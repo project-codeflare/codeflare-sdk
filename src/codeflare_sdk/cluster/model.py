@@ -31,6 +31,7 @@ class RayCluster:
     worker_mem_max: str
     worker_cpu: int
     worker_gpu: int
+    namespace: str
 
 @dataclass
 class AppWrapper:

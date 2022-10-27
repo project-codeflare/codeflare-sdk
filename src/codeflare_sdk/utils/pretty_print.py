@@ -22,10 +22,11 @@ def print_app_wrappers_status(app_wrappers:List[AppWrapper]):
         name = app_wrapper.name
         status = app_wrapper.status.value
 
-        table = Table(box=None, title="[bold] :rocket: List of CodeFlare clusters in queue:rocket:")
+        table = Table(box=box.ASCII_DOUBLE_HEAD, title="[bold] :rocket: List of CodeFlare clusters in queue:rocket:")
+        table.add_row("") #empty row for spacing
         table.add_column("Name", style="cyan", no_wrap=True)
         table.add_column("Status", style="magenta")
-        table.add_row("[bold underline]"+name,status)        
+        table.add_row(name,status)        
         table.add_row("") #empty row for spacing
         console.print(Panel.fit(table))
 
@@ -47,7 +48,7 @@ def print_clusters(clusters:List[RayCluster], verbose=True):
         maxcount = str(cluster.max_workers)
         memory = cluster.worker_mem_min+"~"+cluster.worker_mem_max
         cpu = str(cluster.worker_cpu)
-        gpu = str(cluster.worker_mem_max)
+        gpu = str(cluster.worker_gpu)
         #owned = bool(cluster["userOwned"])
         owned = True
 
@@ -59,7 +60,8 @@ def print_clusters(clusters:List[RayCluster], verbose=True):
             table0.add_row("")
         table0.add_row("[bold underline]"+name,status)
         table0.add_row()
-        table0.add_row(f"[bold]URI:[/bold] ray://{name}-head-svc:1001") #format that is used to generate the name of the service
+        #fixme harcded to default for now
+        table0.add_row(f"[bold]URI:[/bold] ray://{cluster.name}-head-svc.{cluster.namespace}.svc:10001") #format that is used to generate the name of the service
         table0.add_row()
         table0.add_row(f"[link={dashboard} blue underline]Dashboard:link:[/link]")
         table0.add_row("") #empty row for spacing

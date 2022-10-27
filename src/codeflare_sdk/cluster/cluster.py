@@ -43,8 +43,10 @@ class Cluster:
             oc.invoke("delete", ["AppWrapper", self.app_wrapper_name])
 
     def status(self, print_to_console=True):
-        cluster = _ray_cluster_status(self.config.name)        
+        cluster = _ray_cluster_status(self.config.name)
         if cluster:
+            #overriding the number of gpus with requested
+            cluster.worker_gpu = self.config.gpu
             if print_to_console:
                 pretty_print.print_clusters([cluster])
             return cluster.status
@@ -92,6 +94,8 @@ class Cluster:
                 status = CodeFlareClusterStatus.FAILED
             
             if print_to_console:
+                    #overriding the number of gpus with requested
+                    cluster.worker_gpu = self.config.gpu
                     pretty_print.print_clusters([cluster])
         return status, ready
 
@@ -123,11 +127,16 @@ def _app_wrapper_status(name, namespace='default') -> Optional[AppWrapper]:
 
 def _ray_cluster_status(name, namespace='default') -> Optional[RayCluster]:
     # FIXME should we check the appwrapper first
-    with oc.project(namespace), oc.timeout(10*60):
-        cluster = oc.selector(f'rayclusters/{name}').object()
-    
-    if cluster:
-        return _map_to_ray_cluster(cluster)
+    cluster = None
+    try:
+        with oc.project(namespace), oc.timeout(10*60):
+            cluster = oc.selector(f'rayclusters/{name}').object()
+        
+        if cluster:
+            return _map_to_ray_cluster(cluster)
+    except:
+        pass
+    return cluster
 
 
 def _get_ray_clusters(namespace='default') -> List[RayCluster]:
@@ -161,6 +170,7 @@ def _map_to_ray_cluster(cluster) -> RayCluster:
     cluster_model = cluster.model
     return RayCluster(
         name=cluster.name(), status=RayClusterStatus(cluster_model.status.state.lower()),
+        #for now we are not using autoscaling so same replicas is fine
         min_workers=cluster_model.spec.workerGroupSpecs[0].replicas,
         max_workers=cluster_model.spec.workerGroupSpecs[0].replicas,
         worker_mem_max=cluster_model.spec.workerGroupSpecs[
@@ -168,7 +178,8 @@ def _map_to_ray_cluster(cluster) -> RayCluster:
         worker_mem_min=cluster_model.spec.workerGroupSpecs[
             0].template.spec.containers[0].resources.requests.memory,
         worker_cpu=cluster_model.spec.workerGroupSpecs[0].template.spec.containers[0].resources.limits.cpu,
-        worker_gpu=0)
+        worker_gpu=0, #hard to detect currently how many gpus, can override it with what the user asked for
+        namespace=cluster.namespace())
 
 
 def _map_to_app_wrapper(cluster) -> AppWrapper:
