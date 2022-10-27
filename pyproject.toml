@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "codeflare-sdk"
-version = "0.1.1"
+version = "0.1.2"
 description = "Python SDK for codeflare client"
 
 license = "GPL-3.0-only"
