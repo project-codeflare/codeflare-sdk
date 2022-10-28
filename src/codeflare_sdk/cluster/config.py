@@ -6,6 +6,7 @@ dir = pathlib.Path(__file__).parent.parent.resolve()
 @dataclass
 class ClusterConfiguration:
     name: str
+    namespace: str = "default"
     head_info: list = field(default_factory=list)
     machine_types: list = field(default_factory=list) #["m4.xlarge", "g4dn.xlarge"]
     min_cpus: int = 1
