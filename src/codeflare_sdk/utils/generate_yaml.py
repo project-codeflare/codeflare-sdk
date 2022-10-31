@@ -19,6 +19,13 @@ def gen_names(name):
     else:
         return name, name
 
+def update_dashboard_route(route_item, cluster_name):
+    metadata = route_item.get("generictemplate", {}).get("metadata")
+    metadata["name"] = f'ray-dashboard-{cluster_name}'
+    metadata["labels"]["odh-ray-cluster-service"] = f'{cluster_name}-head-svc'
+    spec = route_item.get("generictemplate", {}).get("spec")
+    spec["to"]["name"] = f'{cluster_name}-head-svc'
+
 def update_names(yaml, item, appwrapper_name, cluster_name):
     metadata = yaml.get("metadata")
     metadata["name"] = appwrapper_name
@@ -133,10 +140,12 @@ def generate_appwrapper(name, min_cpu, max_cpu, min_memory, max_memory, gpu, wor
         appwrapper_name, cluster_name = gen_names(name)
         resources = user_yaml.get("spec","resources")
         item = resources["resources"].get("GenericItems")[0]
+        route_item = resources["resources"].get("GenericItems")[1]
         update_names(user_yaml, item, appwrapper_name, cluster_name)
         update_labels(user_yaml, instascale, instance_types)
         update_custompodresources(item, min_cpu, max_cpu, min_memory, max_memory, gpu, workers)
         update_nodes(item, appwrapper_name, min_cpu, max_cpu, min_memory, max_memory, gpu, workers, image, instascale, env)
+        update_dashboard_route(route_item, cluster_name)
         outfile = appwrapper_name + ".yaml"
         write_user_appwrapper(user_yaml, outfile)
         return outfile
