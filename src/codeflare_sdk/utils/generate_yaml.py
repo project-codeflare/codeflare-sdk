@@ -50,6 +50,9 @@ def update_custompodresources(item, min_cpu, max_cpu, min_memory, max_memory, gp
     if 'custompodresources' in item.keys():
         custompodresources = item.get('custompodresources')
         for i in range(len(custompodresources)):
+            if i == 0:
+                # Leave head node resources as template default
+                continue
             resource = custompodresources[i]
             for k,v in resource.items():
                 if k == "replicas" and i == 1:
@@ -90,10 +93,11 @@ def update_image(spec, image):
 def update_env(spec, env):
     containers = spec.get("containers")
     for container in containers:
-        if not env:
-            container.pop("env")
-        else:
-            container["env"] = env
+        if env:
+            if "env" in container:
+                container["env"].extend(env)
+            else:
+                container["env"] = env
 
 def update_resources(spec, min_cpu, max_cpu, min_memory, max_memory, gpu):
     container = spec.get("containers")
@@ -126,7 +130,7 @@ def update_nodes(item, appwrapper_name, min_cpu, max_cpu, min_memory, max_memory
             update_image(spec, image)
             update_env(spec, env)
             if comp == head:
-                update_resources(spec, min_cpu, max_cpu, min_memory, max_memory, 0)
+                update_resources(spec, 2, 2, 8, 8, 0)
             else:
                 update_resources(spec, min_cpu, max_cpu, min_memory, max_memory, gpu)
 
