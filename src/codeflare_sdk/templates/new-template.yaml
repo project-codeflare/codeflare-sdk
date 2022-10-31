@@ -17,11 +17,11 @@ spec:
       - replicas: 1
         requests:
           cpu: 2
-          memory: 12G
+          memory: 8G
           nvidia.com/gpu: 0
         limits:
           cpu: 2
-          memory: 12G
+          memory: 8G
           nvidia.com/gpu: 0
       - replicas: 3
         requests:
