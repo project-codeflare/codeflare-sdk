@@ -32,6 +32,7 @@ class RayCluster:
     worker_cpu: int
     worker_gpu: int
     namespace: str
+    dashboard: str
 
 @dataclass
 class AppWrapper:

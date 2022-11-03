@@ -175,6 +175,10 @@ def _get_app_wrappers(filter:List[AppWrapperStatus], namespace='default') -> Lis
 
 def _map_to_ray_cluster(cluster) -> RayCluster:
     cluster_model = cluster.model
+
+    with oc.project(cluster.namespace()), oc.timeout(10*60):
+        route = oc.selector(f'route/ray-dashboard-{cluster.name()}').object().model.spec.host
+    
     return RayCluster(
         name=cluster.name(), status=RayClusterStatus(cluster_model.status.state.lower()),
         #for now we are not using autoscaling so same replicas is fine
@@ -186,7 +190,8 @@ def _map_to_ray_cluster(cluster) -> RayCluster:
             0].template.spec.containers[0].resources.requests.memory,
         worker_cpu=cluster_model.spec.workerGroupSpecs[0].template.spec.containers[0].resources.limits.cpu,
         worker_gpu=0, #hard to detect currently how many gpus, can override it with what the user asked for
-        namespace=cluster.namespace())
+        namespace=cluster.namespace(),
+        dashboard = route)
 
 
 def _map_to_app_wrapper(cluster) -> AppWrapper:
