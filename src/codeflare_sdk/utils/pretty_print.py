@@ -23,7 +23,6 @@ def print_app_wrappers_status(app_wrappers:List[AppWrapper]):
         status = app_wrapper.status.value
 
         table = Table(box=box.ASCII_DOUBLE_HEAD, title="[bold] :rocket: List of CodeFlare clusters in queue:rocket:")
-        table.add_row("") #empty row for spacing
         table.add_column("Name", style="cyan", no_wrap=True)
         table.add_column("Status", style="magenta")
         table.add_row(name,status)        
