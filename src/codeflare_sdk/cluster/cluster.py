@@ -59,7 +59,14 @@ class Cluster:
         return f'ray://{self.config.name}-head-svc.{namespace}.svc:10001'
 
     def cluster_dashboard_uri(self, namespace='default'):
-        return f'http://{self.config.name}-head-svc.{namespace}.svc:8265'
+        try:
+            with oc.project(namespace):
+                route =  oc.invoke("get", ["route", "-o","jsonpath='{$.items[0].spec.host}'"])
+                route = route.out().strip().strip("'")
+            return f"http://{route}"
+        except:
+            return "Dashboard route not available yet. Did you run cluster.up()?"
+
 
 
     # checks whether the ray cluster is ready
