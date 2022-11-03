@@ -42,7 +42,7 @@ def print_clusters(clusters:List[RayCluster], verbose=True):
     for cluster in clusters:
         status = "Active :white_heavy_check_mark:" if cluster.status == RayClusterStatus.READY else "InActive :x:"
         name = cluster.name
-        dashboard = f"https://codeflare-raydashboard.research.ibm.com?rayclustername={name}"
+        dashboard = cluster.dashboard
         mincount = str(cluster.min_workers)
         maxcount = str(cluster.max_workers)
         memory = cluster.worker_mem_min+"~"+cluster.worker_mem_max
