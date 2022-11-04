@@ -122,6 +122,7 @@ def update_nodes(item, appwrapper_name, min_cpu, max_cpu, min_memory, max_memory
         worker["replicas"] = workers
         worker["minReplicas"] = workers
         worker["maxReplicas"] = workers
+        worker["groupName"] = "small-group-" + appwrapper_name
         worker["rayStartParams"]["num-gpus"] = str(int(gpu))
 
         for comp in [head, worker]:
