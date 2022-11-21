@@ -32,6 +32,7 @@ class Cluster:
 
     def create_app_wrapper(self):
         name=self.config.name
+        namespace=self.config.namespace
         min_cpu=self.config.min_cpus
         max_cpu=self.config.max_cpus
         min_memory=self.config.min_memory
@@ -43,21 +44,23 @@ class Cluster:
         instascale=self.config.instascale
         instance_types=self.config.machine_types
         env=self.config.envs
-        return generate_appwrapper(name=name, min_cpu=min_cpu, max_cpu=max_cpu, min_memory=min_memory, 
+        return generate_appwrapper(name=name, namespace=namespace, min_cpu=min_cpu, max_cpu=max_cpu, min_memory=min_memory, 
                                    max_memory=max_memory, gpu=gpu, workers=workers, template=template,
                                    image=image, instascale=instascale, instance_types=instance_types, env=env)
 
-    # creates a new cluster with the provided or default spec
-    def up(self, namespace='default'):
+    # creates a new cluster with the provided or default spec    
+    def up(self):
+        namespace = self.config.namespace
         with oc.project(namespace):
             oc.invoke("apply", ["-f", self.app_wrapper_yaml])
 
-    def down(self, namespace='default'):
+    def down(self):
+        namespace = self.config.namespace
         with oc.project(namespace):
             oc.invoke("delete", ["AppWrapper", self.app_wrapper_name])
 
     def status(self, print_to_console=True):
-        cluster = _ray_cluster_status(self.config.name)
+        cluster = _ray_cluster_status(self.config.name, self.config.namespace)
         if cluster:
             #overriding the number of gpus with requested
             cluster.worker_gpu = self.config.gpu
@@ -69,8 +72,8 @@ class Cluster:
                 pretty_print.print_no_resources_found()
             return None
     
-    def cluster_uri(self, namespace='default'):
-        return f'ray://{self.config.name}-head-svc.{namespace}.svc:10001'
+    def cluster_uri(self):
+        return f'ray://{self.config.name}-head-svc.{self.config.namespace}.svc:10001'
 
     def cluster_dashboard_uri(self, namespace='default'):
         try:
@@ -82,13 +85,12 @@ class Cluster:
             return "Dashboard route not available yet. Did you run cluster.up()?"
 
 
-
     # checks whether the ray cluster is ready
     def is_ready(self, print_to_console=True):
         ready = False
         status = CodeFlareClusterStatus.UNKNOWN
         # check the app wrapper status
-        appwrapper = _app_wrapper_status(self.config.name)
+        appwrapper = _app_wrapper_status(self.config.name, self.config.namespace)
         if appwrapper:
             if appwrapper.status in [AppWrapperStatus.RUNNING, AppWrapperStatus.COMPLETED, AppWrapperStatus.RUNNING_HOLD_COMPLETION]:
                 ready = False
@@ -105,7 +107,7 @@ class Cluster:
                 return ready, status# no need to check the ray status since still in queue
 
         # check the ray cluster status
-        cluster = _ray_cluster_status(self.config.name)
+        cluster = _ray_cluster_status(self.config.name, self.config.namespace)
         if cluster:
             if cluster.status == RayClusterStatus.READY:
                 ready = True
@@ -120,16 +122,19 @@ class Cluster:
                     pretty_print.print_clusters([cluster])
         return status, ready
 
+def get_current_namespace():
+    namespace = oc.invoke("project",["-q"]).actions()[0].out.strip()
+    return namespace
 
-def list_all_clusters(print_to_console=True):
-    clusters = _get_ray_clusters()
+def list_all_clusters(namespace, print_to_console=True):
+    clusters = _get_ray_clusters(namespace)
     if print_to_console:
         pretty_print.print_clusters(clusters)
     return clusters
 
 
-def list_all_queued(print_to_console=True):
-    app_wrappers = _get_app_wrappers(filter=[AppWrapperStatus.RUNNING, AppWrapperStatus.PENDING])
+def list_all_queued(namespace, print_to_console=True):
+    app_wrappers = _get_app_wrappers( namespace, filter=[AppWrapperStatus.RUNNING, AppWrapperStatus.PENDING])
     if print_to_console:
         pretty_print.print_app_wrappers_status(app_wrappers)
     return app_wrappers
@@ -172,7 +177,7 @@ def _get_ray_clusters(namespace='default') -> List[RayCluster]:
 
 
 
-def _get_app_wrappers(filter:List[AppWrapperStatus], namespace='default') -> List[AppWrapper]:
+def _get_app_wrappers(namespace='default', filter=List[AppWrapperStatus]) -> List[AppWrapper]:
     list_of_app_wrappers = []
 
     with oc.project(namespace), oc.timeout(10*60):

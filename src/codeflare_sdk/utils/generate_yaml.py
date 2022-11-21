@@ -33,19 +33,22 @@ def gen_names(name):
     else:
         return name, name
 
-def update_dashboard_route(route_item, cluster_name):
+def update_dashboard_route(route_item, cluster_name, namespace):
     metadata = route_item.get("generictemplate", {}).get("metadata")
     metadata["name"] = f'ray-dashboard-{cluster_name}'
+    metadata["namespace"] = namespace
     metadata["labels"]["odh-ray-cluster-service"] = f'{cluster_name}-head-svc'
     spec = route_item.get("generictemplate", {}).get("spec")
     spec["to"]["name"] = f'{cluster_name}-head-svc'
 
-def update_names(yaml, item, appwrapper_name, cluster_name):
+def update_names(yaml, item, appwrapper_name, cluster_name, namespace):
     metadata = yaml.get("metadata")
     metadata["name"] = appwrapper_name
+    metadata["namespace"] = namespace
     lower_meta = item.get("generictemplate", {}).get("metadata")
     lower_meta["labels"]["appwrapper.mcad.ibm.com"] = appwrapper_name
     lower_meta["name"] = cluster_name
+    lower_meta["namespace"] = namespace
 
 def update_labels(yaml, instascale, instance_types):
     metadata = yaml.get("metadata")
@@ -154,17 +157,17 @@ def write_user_appwrapper(user_yaml, output_file_name):
         yaml.dump(user_yaml, outfile, default_flow_style=False)
     print(f"Written to: {output_file_name}")
 
-def generate_appwrapper(name, min_cpu, max_cpu, min_memory, max_memory, gpu, workers, template, image, instascale, instance_types, env):
+def generate_appwrapper(name, namespace, min_cpu, max_cpu, min_memory, max_memory, gpu, workers, template, image, instascale, instance_types, env):
         user_yaml = read_template(template)
         appwrapper_name, cluster_name = gen_names(name)
         resources = user_yaml.get("spec","resources")
         item = resources["resources"].get("GenericItems")[0]
         route_item = resources["resources"].get("GenericItems")[1]
-        update_names(user_yaml, item, appwrapper_name, cluster_name)
+        update_names(user_yaml, item, appwrapper_name, cluster_name, namespace)
         update_labels(user_yaml, instascale, instance_types)
         update_custompodresources(item, min_cpu, max_cpu, min_memory, max_memory, gpu, workers)
         update_nodes(item, appwrapper_name, min_cpu, max_cpu, min_memory, max_memory, gpu, workers, image, instascale, env)
-        update_dashboard_route(route_item, cluster_name)
+        update_dashboard_route(route_item, cluster_name, namespace)
         outfile = appwrapper_name + ".yaml"
         write_user_appwrapper(user_yaml, outfile)
         return outfile
@@ -183,6 +186,7 @@ def main():
     parser.add_argument("--image", required=False, default="rayproject/ray:latest", help="Ray image to be used (defaults to rayproject/ray:latest)")
     parser.add_argument("--instascale", default=False, required=False, action='store_true', help="Indicates that instascale is installed on the cluster")
     parser.add_argument("--instance-types", type=str, nargs='+', default=[], required=False, help="Head,worker instance types (space separated)")
+    parser.add_argument("--namespace", required=False, default="default", help="Set the kubernetes namespace you want to deploy your cluster to. Default. If left blank, uses the 'default' namespace")
     
     args = parser.parse_args()
     name = args.name
@@ -196,9 +200,10 @@ def main():
     image = args.image
     instascale = args.instascale
     instance_types = args.instance_types
+    namespace = args.namespace
     env = {}
 
-    outfile = generate_appwrapper(name, min_cpu, max_cpu, min_memory, max_memory, gpu, workers, template, image, instascale, instance_types, env)
+    outfile = generate_appwrapper(name,namespace, min_cpu, max_cpu, min_memory, max_memory, gpu, workers, template, image, instascale, instance_types, env)
     return outfile
 
 if __name__=="__main__":
