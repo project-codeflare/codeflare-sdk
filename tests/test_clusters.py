@@ -17,6 +17,8 @@ from codeflare_sdk.cluster.cluster import Cluster, ClusterConfiguration
 
 import time
 
+# FIXME - These tests currently assume OC logged in, and not self-contained unit/funcitonal tests
+
 def test_cluster_up():
      cluster = Cluster(ClusterConfiguration(name='raycluster-autoscaler'))
      cluster.up()     

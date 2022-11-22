@@ -14,8 +14,8 @@ authors = [
 
 readme = 'README.md'
 
-repository = "https://github.com/openshift-psap/codeflare-sdk"
-homepage = "https://github.com/openshift-psap/codeflare-sdk"
+repository = "https://github.com/project-codeflare/codeflare-sdk"
+homepage = "https://github.com/project-codeflare/codeflare-sdk"
 
 keywords = ['codeflare', 'python', 'sdk', 'client', 'batch', 'scale']
 
