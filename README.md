@@ -13,6 +13,7 @@ Can be installed via `pip`: `pip install codeflare-sdk`
 For testing, make sure to have installed:
  - `pytest`
  - The remaining dependencies located in `requirements.txt`
+
 NOTE: Self-contained unit/functional tests coming soon, will live in `tests` folder
 
 To build the python package:
