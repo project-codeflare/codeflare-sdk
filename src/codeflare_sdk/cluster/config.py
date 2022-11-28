@@ -19,6 +19,7 @@ Cluster object.
 """
 
 from dataclasses import dataclass, field
+from .auth import Authentication
 import pathlib
 
 dir = pathlib.Path(__file__).parent.parent.resolve()
@@ -46,3 +47,4 @@ class ClusterConfiguration:
     instascale: bool = False
     envs: dict = field(default_factory=dict)
     image: str = "ghcr.io/ibm-ai-foundation/base:ray1.13.0-py38-gpu-pytorch1.12.0cu116-20220826-202124"
+    auth: Authentication = Authentication()
