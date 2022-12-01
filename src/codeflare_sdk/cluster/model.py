@@ -12,14 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from dataclasses import dataclass
-from enum import Enum
-
 """
 The model sub-module defines Enums containing information for Ray cluster
 states and AppWrapper states, and CodeFlare cluster states, as well as
 dataclasses to store information for Ray clusters and AppWrappers.
 """
+
+from dataclasses import dataclass
+from enum import Enum
 
 
 class RayClusterStatus(Enum):
