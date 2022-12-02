@@ -12,17 +12,33 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""
+The model sub-module defines Enums containing information for Ray cluster
+states and AppWrapper states, and CodeFlare cluster states, as well as
+dataclasses to store information for Ray clusters and AppWrappers.
+"""
+
 from dataclasses import dataclass
 from enum import Enum
 
+
 class RayClusterStatus(Enum):
-    #https://github.com/ray-project/kuberay/blob/master/ray-operator/apis/ray/v1alpha1/raycluster_types.go#L95
+    """
+    Defines the possible reportable states of a Ray cluster.
+    """
+
+    # https://github.com/ray-project/kuberay/blob/master/ray-operator/apis/ray/v1alpha1/raycluster_types.go#L95
     READY = "ready"
     UNHEALTHY = "unhealthy"
     FAILED = "failed"
     UNKNOWN = "unknown"
 
+
 class AppWrapperStatus(Enum):
+    """
+    Defines the possible reportable states of an AppWrapper.
+    """
+
     PENDING = "pending"
     RUNNING = "running"
     FAILED = "failed"
@@ -30,13 +46,24 @@ class AppWrapperStatus(Enum):
     COMPLETED = "completed"
     RUNNING_HOLD_COMPLETION = "runningholdcompletion"
 
+
 class CodeFlareClusterStatus(Enum):
+    """
+    Defines the possible reportable states of a Codeflare cluster.
+    """
+
     READY = 1
     QUEUED = 2
     FAILED = 3
     UNKNOWN = 4
+
+
 @dataclass
 class RayCluster:
+    """
+    For storing information about a Ray cluster.
+    """
+
     name: str
     status: RayClusterStatus
     min_workers: int
@@ -48,10 +75,14 @@ class RayCluster:
     namespace: str
     dashboard: str
 
+
 @dataclass
 class AppWrapper:
+    """
+    For storing information about an AppWrapper.
+    """
+
     name: str
-    status:AppWrapperStatus
+    status: AppWrapperStatus
     can_run: bool
     job_state: str
-
