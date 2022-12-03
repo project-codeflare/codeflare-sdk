@@ -1,0 +1,873 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
+<meta name="generator" content="pdoc 0.10.0" />
+<title>codeflare_sdk.cluster.cluster API documentation</title>
+<meta name="description" content="The cluster sub-module contains the definition of the Cluster object, which represents
+the resources requested by the user. It also contains functions …" />
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/sanitize.min.css" integrity="sha256-PK9q560IAAa6WVRRh76LtCaI8pjTJ2z11v0miyNNjrs=" crossorigin>
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/typography.min.css" integrity="sha256-7l/o7C8jubJiy74VsKTidCy1yBkRtiUGbVkYBylBqUg=" crossorigin>
+<link rel="stylesheet preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/styles/github.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:30px;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:1em 0 .50em 0}h3{font-size:1.4em;margin:25px 0 10px 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .3s ease-in-out}a:hover{color:#e82}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900}pre code{background:#f8f8f8;font-size:.8em;line-height:1.4em}code{background:#f2f2f1;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{background:#f8f8f8;border:0;border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0;padding:1ex}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-weight:bold;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em .5em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.item .name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul{padding-left:1.5em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/highlight.min.js" integrity="sha256-Uv3H6lx7dJmRfRvH8TH6kJD1TSK1aFcwgx+mdg3epi8=" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => hljs.initHighlighting())</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>codeflare_sdk.cluster.cluster</code></h1>
+</header>
+<section id="section-intro">
+<p>The cluster sub-module contains the definition of the Cluster object, which represents
+the resources requested by the user. It also contains functions for checking the
+cluster setup queue, a list of all existing clusters, and the user's working namespace.</p>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python"># Copyright 2022 IBM, Red Hat
+#
+# Licensed under the Apache License, Version 2.0 (the &#34;License&#34;);
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an &#34;AS IS&#34; BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+&#34;&#34;&#34;
+The cluster sub-module contains the definition of the Cluster object, which represents
+the resources requested by the user. It also contains functions for checking the
+cluster setup queue, a list of all existing clusters, and the user&#39;s working namespace.
+&#34;&#34;&#34;
+
+from os import stat
+from typing import List, Optional, Tuple
+
+import openshift as oc
+
+from ..utils import pretty_print
+from ..utils.generate_yaml import generate_appwrapper
+from .config import ClusterConfiguration
+from .model import (
+    AppWrapper,
+    AppWrapperStatus,
+    CodeFlareClusterStatus,
+    RayCluster,
+    RayClusterStatus,
+)
+
+
+class Cluster:
+    &#34;&#34;&#34;
+    An object for requesting, bringing up, and taking down resources.
+    Can also be used for seeing the resource cluster status and details.
+
+    Note that currently, the underlying implementation is a Ray cluster.
+    &#34;&#34;&#34;
+
+    def __init__(self, config: ClusterConfiguration):
+        &#34;&#34;&#34;
+        Create the resource cluster object by passing in a ClusterConfiguration
+        (defined in the config sub-module). An AppWrapper will then be generated
+        based off of the configured resources to represent the desired cluster
+        request.
+        &#34;&#34;&#34;
+        self.config = config
+        self.app_wrapper_yaml = self.create_app_wrapper()
+        self.app_wrapper_name = self.app_wrapper_yaml.split(&#34;.&#34;)[0]
+
+    def create_app_wrapper(self):
+        &#34;&#34;&#34;
+        Called upon cluster object creation, creates an AppWrapper yaml based on
+        the specifications of the ClusterConfiguration.
+        &#34;&#34;&#34;
+        name = self.config.name
+        namespace = self.config.namespace
+        min_cpu = self.config.min_cpus
+        max_cpu = self.config.max_cpus
+        min_memory = self.config.min_memory
+        max_memory = self.config.max_memory
+        gpu = self.config.gpu
+        workers = self.config.max_worker
+        template = self.config.template
+        image = self.config.image
+        instascale = self.config.instascale
+        instance_types = self.config.machine_types
+        env = self.config.envs
+        return generate_appwrapper(
+            name=name,
+            namespace=namespace,
+            min_cpu=min_cpu,
+            max_cpu=max_cpu,
+            min_memory=min_memory,
+            max_memory=max_memory,
+            gpu=gpu,
+            workers=workers,
+            template=template,
+            image=image,
+            instascale=instascale,
+            instance_types=instance_types,
+            env=env,
+        )
+
+    # creates a new cluster with the provided or default spec
+    def up(self):
+        &#34;&#34;&#34;
+        Applies the AppWrapper yaml, pushing the resource request onto
+        the MCAD queue.
+        &#34;&#34;&#34;
+        namespace = self.config.namespace
+        with oc.project(namespace):
+            oc.invoke(&#34;apply&#34;, [&#34;-f&#34;, self.app_wrapper_yaml])
+
+    def down(self):
+        &#34;&#34;&#34;
+        Deletes the AppWrapper yaml, scaling-down and deleting all resources
+        associated with the cluster.
+        &#34;&#34;&#34;
+        namespace = self.config.namespace
+        with oc.project(namespace):
+            oc.invoke(&#34;delete&#34;, [&#34;AppWrapper&#34;, self.app_wrapper_name])
+
+    def status(self, print_to_console: bool = True):
+        &#34;&#34;&#34;
+        TO BE UPDATED: Will soon return (and print by default) the cluster&#39;s
+        status, from AppWrapper submission to setup completion. All resource
+        details will be moved to cluster.details().
+        &#34;&#34;&#34;
+        cluster = _ray_cluster_status(self.config.name, self.config.namespace)
+        if cluster:
+            # overriding the number of gpus with requested
+            cluster.worker_gpu = self.config.gpu
+            if print_to_console:
+                pretty_print.print_clusters([cluster])
+            return cluster.status
+        else:
+            if print_to_console:
+                pretty_print.print_no_resources_found()
+            return None
+
+    def cluster_uri(self) -&gt; str:
+        &#34;&#34;&#34;
+        Returns a string containing the cluster&#39;s URI.
+        &#34;&#34;&#34;
+        return f&#34;ray://{self.config.name}-head-svc.{self.config.namespace}.svc:10001&#34;
+
+    def cluster_dashboard_uri(self, namespace: str = &#34;default&#34;) -&gt; str:
+        &#34;&#34;&#34;
+        Returns a string containing the cluster&#39;s dashboard URI.
+        &#34;&#34;&#34;
+        try:
+            with oc.project(namespace):
+                route = oc.invoke(
+                    &#34;get&#34;, [&#34;route&#34;, &#34;-o&#34;, &#34;jsonpath=&#39;{$.items[0].spec.host}&#39;&#34;]
+                )
+                route = route.out().strip().strip(&#34;&#39;&#34;)
+            return f&#34;http://{route}&#34;
+        except:
+            return &#34;Dashboard route not available yet. Did you run cluster.up()?&#34;
+
+    # checks whether the ray cluster is ready
+    def is_ready(self, print_to_console: bool = True):
+        &#34;&#34;&#34;
+        TO BE DEPRECATED: functionality will be added into cluster.status().
+        &#34;&#34;&#34;
+        ready = False
+        status = CodeFlareClusterStatus.UNKNOWN
+        # check the app wrapper status
+        appwrapper = _app_wrapper_status(self.config.name, self.config.namespace)
+        if appwrapper:
+            if appwrapper.status in [
+                AppWrapperStatus.RUNNING,
+                AppWrapperStatus.COMPLETED,
+                AppWrapperStatus.RUNNING_HOLD_COMPLETION,
+            ]:
+                ready = False
+                status = CodeFlareClusterStatus.QUEUED
+            elif appwrapper.status in [
+                AppWrapperStatus.FAILED,
+                AppWrapperStatus.DELETED,
+            ]:
+                ready = False
+                status = CodeFlareClusterStatus.FAILED  # should deleted be separate
+                return ready, status  # exit early, no need to check ray status
+            elif appwrapper.status in [AppWrapperStatus.PENDING]:
+                ready = False
+                status = CodeFlareClusterStatus.QUEUED
+                if print_to_console:
+                    pretty_print.print_app_wrappers_status([appwrapper])
+                return (
+                    ready,
+                    status,
+                )  # no need to check the ray status since still in queue
+
+        # check the ray cluster status
+        cluster = _ray_cluster_status(self.config.name, self.config.namespace)
+        if cluster:
+            if cluster.status == RayClusterStatus.READY:
+                ready = True
+                status = CodeFlareClusterStatus.READY
+            elif cluster.status in [
+                RayClusterStatus.UNHEALTHY,
+                RayClusterStatus.FAILED,
+            ]:
+                ready = False
+                status = CodeFlareClusterStatus.FAILED
+
+            if print_to_console:
+                # overriding the number of gpus with requested
+                cluster.worker_gpu = self.config.gpu
+                pretty_print.print_clusters([cluster])
+        return status, ready
+
+
+def get_current_namespace() -&gt; str:
+    &#34;&#34;&#34;
+    Returns the user&#39;s current working namespace.
+    &#34;&#34;&#34;
+    namespace = oc.invoke(&#34;project&#34;, [&#34;-q&#34;]).actions()[0].out.strip()
+    return namespace
+
+
+def list_all_clusters(namespace: str, print_to_console: bool = True):
+    &#34;&#34;&#34;
+    Returns (and prints by default) a list of all clusters in a given namespace.
+    &#34;&#34;&#34;
+    clusters = _get_ray_clusters(namespace)
+    if print_to_console:
+        pretty_print.print_clusters(clusters)
+    return clusters
+
+
+def list_all_queued(namespace: str, print_to_console: bool = True):
+    &#34;&#34;&#34;
+    Returns (and prints by default) a list of all currently queued-up AppWrappers
+    in a given namespace.
+    &#34;&#34;&#34;
+    app_wrappers = _get_app_wrappers(
+        namespace, filter=[AppWrapperStatus.RUNNING, AppWrapperStatus.PENDING]
+    )
+    if print_to_console:
+        pretty_print.print_app_wrappers_status(app_wrappers)
+    return app_wrappers
+
+
+# private methods
+
+
+def _app_wrapper_status(name, namespace=&#34;default&#34;) -&gt; Optional[AppWrapper]:
+    with oc.project(namespace), oc.timeout(10 * 60):
+        cluster = oc.selector(f&#34;appwrapper/{name}&#34;).object()
+    if cluster:
+        return _map_to_app_wrapper(cluster)
+
+
+def _ray_cluster_status(name, namespace=&#34;default&#34;) -&gt; Optional[RayCluster]:
+    # FIXME should we check the appwrapper first
+    cluster = None
+    try:
+        with oc.project(namespace), oc.timeout(10 * 60):
+            cluster = oc.selector(f&#34;rayclusters/{name}&#34;).object()
+
+        if cluster:
+            return _map_to_ray_cluster(cluster)
+    except:
+        pass
+    return cluster
+
+
+def _get_ray_clusters(namespace=&#34;default&#34;) -&gt; List[RayCluster]:
+    list_of_clusters = []
+
+    with oc.project(namespace), oc.timeout(10 * 60):
+        ray_clusters = oc.selector(&#34;rayclusters&#34;).objects()
+
+    for cluster in ray_clusters:
+        list_of_clusters.append(_map_to_ray_cluster(cluster))
+    return list_of_clusters
+
+
+def _get_app_wrappers(
+    namespace=&#34;default&#34;, filter=List[AppWrapperStatus]
+) -&gt; List[AppWrapper]:
+    list_of_app_wrappers = []
+
+    with oc.project(namespace), oc.timeout(10 * 60):
+        app_wrappers = oc.selector(&#34;appwrappers&#34;).objects()
+
+    for item in app_wrappers:
+        app_wrapper = _map_to_app_wrapper(item)
+        if filter and app_wrapper.status in filter:
+            list_of_app_wrappers.append(app_wrapper)
+        else:
+            list_of_app_wrappers.append(app_wrapper)
+    return list_of_app_wrappers
+
+
+def _map_to_ray_cluster(cluster) -&gt; RayCluster:
+    cluster_model = cluster.model
+
+    with oc.project(cluster.namespace()), oc.timeout(10 * 60):
+        route = (
+            oc.selector(f&#34;route/ray-dashboard-{cluster.name()}&#34;)
+            .object()
+            .model.spec.host
+        )
+
+    return RayCluster(
+        name=cluster.name(),
+        status=RayClusterStatus(cluster_model.status.state.lower()),
+        # for now we are not using autoscaling so same replicas is fine
+        min_workers=cluster_model.spec.workerGroupSpecs[0].replicas,
+        max_workers=cluster_model.spec.workerGroupSpecs[0].replicas,
+        worker_mem_max=cluster_model.spec.workerGroupSpecs[0]
+        .template.spec.containers[0]
+        .resources.limits.memory,
+        worker_mem_min=cluster_model.spec.workerGroupSpecs[0]
+        .template.spec.containers[0]
+        .resources.requests.memory,
+        worker_cpu=cluster_model.spec.workerGroupSpecs[0]
+        .template.spec.containers[0]
+        .resources.limits.cpu,
+        worker_gpu=0,  # hard to detect currently how many gpus, can override it with what the user asked for
+        namespace=cluster.namespace(),
+        dashboard=route,
+    )
+
+
+def _map_to_app_wrapper(cluster) -&gt; AppWrapper:
+    cluster_model = cluster.model
+    return AppWrapper(
+        name=cluster.name(),
+        status=AppWrapperStatus(cluster_model.status.state.lower()),
+        can_run=cluster_model.status.canrun,
+        job_state=cluster_model.status.queuejobstate,
+    )</code></pre>
+</details>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="codeflare_sdk.cluster.cluster.get_current_namespace"><code class="name flex">
+<span>def <span class="ident">get_current_namespace</span></span>(<span>) ‑> str</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Returns the user's current working namespace.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_current_namespace() -&gt; str:
+    &#34;&#34;&#34;
+    Returns the user&#39;s current working namespace.
+    &#34;&#34;&#34;
+    namespace = oc.invoke(&#34;project&#34;, [&#34;-q&#34;]).actions()[0].out.strip()
+    return namespace</code></pre>
+</details>
+</dd>
+<dt id="codeflare_sdk.cluster.cluster.list_all_clusters"><code class="name flex">
+<span>def <span class="ident">list_all_clusters</span></span>(<span>namespace: str, print_to_console: bool = True)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Returns (and prints by default) a list of all clusters in a given namespace.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def list_all_clusters(namespace: str, print_to_console: bool = True):
+    &#34;&#34;&#34;
+    Returns (and prints by default) a list of all clusters in a given namespace.
+    &#34;&#34;&#34;
+    clusters = _get_ray_clusters(namespace)
+    if print_to_console:
+        pretty_print.print_clusters(clusters)
+    return clusters</code></pre>
+</details>
+</dd>
+<dt id="codeflare_sdk.cluster.cluster.list_all_queued"><code class="name flex">
+<span>def <span class="ident">list_all_queued</span></span>(<span>namespace: str, print_to_console: bool = True)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Returns (and prints by default) a list of all currently queued-up AppWrappers
+in a given namespace.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def list_all_queued(namespace: str, print_to_console: bool = True):
+    &#34;&#34;&#34;
+    Returns (and prints by default) a list of all currently queued-up AppWrappers
+    in a given namespace.
+    &#34;&#34;&#34;
+    app_wrappers = _get_app_wrappers(
+        namespace, filter=[AppWrapperStatus.RUNNING, AppWrapperStatus.PENDING]
+    )
+    if print_to_console:
+        pretty_print.print_app_wrappers_status(app_wrappers)
+    return app_wrappers</code></pre>
+</details>
+</dd>
+</dl>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="codeflare_sdk.cluster.cluster.Cluster"><code class="flex name class">
+<span>class <span class="ident">Cluster</span></span>
+<span>(</span><span>config: <a title="codeflare_sdk.cluster.config.ClusterConfiguration" href="config.html#codeflare_sdk.cluster.config.ClusterConfiguration">ClusterConfiguration</a>)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>An object for requesting, bringing up, and taking down resources.
+Can also be used for seeing the resource cluster status and details.</p>
+<p>Note that currently, the underlying implementation is a Ray cluster.</p>
+<p>Create the resource cluster object by passing in a ClusterConfiguration
+(defined in the config sub-module). An AppWrapper will then be generated
+based off of the configured resources to represent the desired cluster
+request.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Cluster:
+    &#34;&#34;&#34;
+    An object for requesting, bringing up, and taking down resources.
+    Can also be used for seeing the resource cluster status and details.
+
+    Note that currently, the underlying implementation is a Ray cluster.
+    &#34;&#34;&#34;
+
+    def __init__(self, config: ClusterConfiguration):
+        &#34;&#34;&#34;
+        Create the resource cluster object by passing in a ClusterConfiguration
+        (defined in the config sub-module). An AppWrapper will then be generated
+        based off of the configured resources to represent the desired cluster
+        request.
+        &#34;&#34;&#34;
+        self.config = config
+        self.app_wrapper_yaml = self.create_app_wrapper()
+        self.app_wrapper_name = self.app_wrapper_yaml.split(&#34;.&#34;)[0]
+
+    def create_app_wrapper(self):
+        &#34;&#34;&#34;
+        Called upon cluster object creation, creates an AppWrapper yaml based on
+        the specifications of the ClusterConfiguration.
+        &#34;&#34;&#34;
+        name = self.config.name
+        namespace = self.config.namespace
+        min_cpu = self.config.min_cpus
+        max_cpu = self.config.max_cpus
+        min_memory = self.config.min_memory
+        max_memory = self.config.max_memory
+        gpu = self.config.gpu
+        workers = self.config.max_worker
+        template = self.config.template
+        image = self.config.image
+        instascale = self.config.instascale
+        instance_types = self.config.machine_types
+        env = self.config.envs
+        return generate_appwrapper(
+            name=name,
+            namespace=namespace,
+            min_cpu=min_cpu,
+            max_cpu=max_cpu,
+            min_memory=min_memory,
+            max_memory=max_memory,
+            gpu=gpu,
+            workers=workers,
+            template=template,
+            image=image,
+            instascale=instascale,
+            instance_types=instance_types,
+            env=env,
+        )
+
+    # creates a new cluster with the provided or default spec
+    def up(self):
+        &#34;&#34;&#34;
+        Applies the AppWrapper yaml, pushing the resource request onto
+        the MCAD queue.
+        &#34;&#34;&#34;
+        namespace = self.config.namespace
+        with oc.project(namespace):
+            oc.invoke(&#34;apply&#34;, [&#34;-f&#34;, self.app_wrapper_yaml])
+
+    def down(self):
+        &#34;&#34;&#34;
+        Deletes the AppWrapper yaml, scaling-down and deleting all resources
+        associated with the cluster.
+        &#34;&#34;&#34;
+        namespace = self.config.namespace
+        with oc.project(namespace):
+            oc.invoke(&#34;delete&#34;, [&#34;AppWrapper&#34;, self.app_wrapper_name])
+
+    def status(self, print_to_console: bool = True):
+        &#34;&#34;&#34;
+        TO BE UPDATED: Will soon return (and print by default) the cluster&#39;s
+        status, from AppWrapper submission to setup completion. All resource
+        details will be moved to cluster.details().
+        &#34;&#34;&#34;
+        cluster = _ray_cluster_status(self.config.name, self.config.namespace)
+        if cluster:
+            # overriding the number of gpus with requested
+            cluster.worker_gpu = self.config.gpu
+            if print_to_console:
+                pretty_print.print_clusters([cluster])
+            return cluster.status
+        else:
+            if print_to_console:
+                pretty_print.print_no_resources_found()
+            return None
+
+    def cluster_uri(self) -&gt; str:
+        &#34;&#34;&#34;
+        Returns a string containing the cluster&#39;s URI.
+        &#34;&#34;&#34;
+        return f&#34;ray://{self.config.name}-head-svc.{self.config.namespace}.svc:10001&#34;
+
+    def cluster_dashboard_uri(self, namespace: str = &#34;default&#34;) -&gt; str:
+        &#34;&#34;&#34;
+        Returns a string containing the cluster&#39;s dashboard URI.
+        &#34;&#34;&#34;
+        try:
+            with oc.project(namespace):
+                route = oc.invoke(
+                    &#34;get&#34;, [&#34;route&#34;, &#34;-o&#34;, &#34;jsonpath=&#39;{$.items[0].spec.host}&#39;&#34;]
+                )
+                route = route.out().strip().strip(&#34;&#39;&#34;)
+            return f&#34;http://{route}&#34;
+        except:
+            return &#34;Dashboard route not available yet. Did you run cluster.up()?&#34;
+
+    # checks whether the ray cluster is ready
+    def is_ready(self, print_to_console: bool = True):
+        &#34;&#34;&#34;
+        TO BE DEPRECATED: functionality will be added into cluster.status().
+        &#34;&#34;&#34;
+        ready = False
+        status = CodeFlareClusterStatus.UNKNOWN
+        # check the app wrapper status
+        appwrapper = _app_wrapper_status(self.config.name, self.config.namespace)
+        if appwrapper:
+            if appwrapper.status in [
+                AppWrapperStatus.RUNNING,
+                AppWrapperStatus.COMPLETED,
+                AppWrapperStatus.RUNNING_HOLD_COMPLETION,
+            ]:
+                ready = False
+                status = CodeFlareClusterStatus.QUEUED
+            elif appwrapper.status in [
+                AppWrapperStatus.FAILED,
+                AppWrapperStatus.DELETED,
+            ]:
+                ready = False
+                status = CodeFlareClusterStatus.FAILED  # should deleted be separate
+                return ready, status  # exit early, no need to check ray status
+            elif appwrapper.status in [AppWrapperStatus.PENDING]:
+                ready = False
+                status = CodeFlareClusterStatus.QUEUED
+                if print_to_console:
+                    pretty_print.print_app_wrappers_status([appwrapper])
+                return (
+                    ready,
+                    status,
+                )  # no need to check the ray status since still in queue
+
+        # check the ray cluster status
+        cluster = _ray_cluster_status(self.config.name, self.config.namespace)
+        if cluster:
+            if cluster.status == RayClusterStatus.READY:
+                ready = True
+                status = CodeFlareClusterStatus.READY
+            elif cluster.status in [
+                RayClusterStatus.UNHEALTHY,
+                RayClusterStatus.FAILED,
+            ]:
+                ready = False
+                status = CodeFlareClusterStatus.FAILED
+
+            if print_to_console:
+                # overriding the number of gpus with requested
+                cluster.worker_gpu = self.config.gpu
+                pretty_print.print_clusters([cluster])
+        return status, ready</code></pre>
+</details>
+<h3>Methods</h3>
+<dl>
+<dt id="codeflare_sdk.cluster.cluster.Cluster.cluster_dashboard_uri"><code class="name flex">
+<span>def <span class="ident">cluster_dashboard_uri</span></span>(<span>self, namespace: str = 'default') ‑> str</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Returns a string containing the cluster's dashboard URI.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def cluster_dashboard_uri(self, namespace: str = &#34;default&#34;) -&gt; str:
+    &#34;&#34;&#34;
+    Returns a string containing the cluster&#39;s dashboard URI.
+    &#34;&#34;&#34;
+    try:
+        with oc.project(namespace):
+            route = oc.invoke(
+                &#34;get&#34;, [&#34;route&#34;, &#34;-o&#34;, &#34;jsonpath=&#39;{$.items[0].spec.host}&#39;&#34;]
+            )
+            route = route.out().strip().strip(&#34;&#39;&#34;)
+        return f&#34;http://{route}&#34;
+    except:
+        return &#34;Dashboard route not available yet. Did you run cluster.up()?&#34;</code></pre>
+</details>
+</dd>
+<dt id="codeflare_sdk.cluster.cluster.Cluster.cluster_uri"><code class="name flex">
+<span>def <span class="ident">cluster_uri</span></span>(<span>self) ‑> str</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Returns a string containing the cluster's URI.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def cluster_uri(self) -&gt; str:
+    &#34;&#34;&#34;
+    Returns a string containing the cluster&#39;s URI.
+    &#34;&#34;&#34;
+    return f&#34;ray://{self.config.name}-head-svc.{self.config.namespace}.svc:10001&#34;</code></pre>
+</details>
+</dd>
+<dt id="codeflare_sdk.cluster.cluster.Cluster.create_app_wrapper"><code class="name flex">
+<span>def <span class="ident">create_app_wrapper</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Called upon cluster object creation, creates an AppWrapper yaml based on
+the specifications of the ClusterConfiguration.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def create_app_wrapper(self):
+    &#34;&#34;&#34;
+    Called upon cluster object creation, creates an AppWrapper yaml based on
+    the specifications of the ClusterConfiguration.
+    &#34;&#34;&#34;
+    name = self.config.name
+    namespace = self.config.namespace
+    min_cpu = self.config.min_cpus
+    max_cpu = self.config.max_cpus
+    min_memory = self.config.min_memory
+    max_memory = self.config.max_memory
+    gpu = self.config.gpu
+    workers = self.config.max_worker
+    template = self.config.template
+    image = self.config.image
+    instascale = self.config.instascale
+    instance_types = self.config.machine_types
+    env = self.config.envs
+    return generate_appwrapper(
+        name=name,
+        namespace=namespace,
+        min_cpu=min_cpu,
+        max_cpu=max_cpu,
+        min_memory=min_memory,
+        max_memory=max_memory,
+        gpu=gpu,
+        workers=workers,
+        template=template,
+        image=image,
+        instascale=instascale,
+        instance_types=instance_types,
+        env=env,
+    )</code></pre>
+</details>
+</dd>
+<dt id="codeflare_sdk.cluster.cluster.Cluster.down"><code class="name flex">
+<span>def <span class="ident">down</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Deletes the AppWrapper yaml, scaling-down and deleting all resources
+associated with the cluster.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def down(self):
+    &#34;&#34;&#34;
+    Deletes the AppWrapper yaml, scaling-down and deleting all resources
+    associated with the cluster.
+    &#34;&#34;&#34;
+    namespace = self.config.namespace
+    with oc.project(namespace):
+        oc.invoke(&#34;delete&#34;, [&#34;AppWrapper&#34;, self.app_wrapper_name])</code></pre>
+</details>
+</dd>
+<dt id="codeflare_sdk.cluster.cluster.Cluster.is_ready"><code class="name flex">
+<span>def <span class="ident">is_ready</span></span>(<span>self, print_to_console: bool = True)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>TO BE DEPRECATED: functionality will be added into cluster.status().</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def is_ready(self, print_to_console: bool = True):
+    &#34;&#34;&#34;
+    TO BE DEPRECATED: functionality will be added into cluster.status().
+    &#34;&#34;&#34;
+    ready = False
+    status = CodeFlareClusterStatus.UNKNOWN
+    # check the app wrapper status
+    appwrapper = _app_wrapper_status(self.config.name, self.config.namespace)
+    if appwrapper:
+        if appwrapper.status in [
+            AppWrapperStatus.RUNNING,
+            AppWrapperStatus.COMPLETED,
+            AppWrapperStatus.RUNNING_HOLD_COMPLETION,
+        ]:
+            ready = False
+            status = CodeFlareClusterStatus.QUEUED
+        elif appwrapper.status in [
+            AppWrapperStatus.FAILED,
+            AppWrapperStatus.DELETED,
+        ]:
+            ready = False
+            status = CodeFlareClusterStatus.FAILED  # should deleted be separate
+            return ready, status  # exit early, no need to check ray status
+        elif appwrapper.status in [AppWrapperStatus.PENDING]:
+            ready = False
+            status = CodeFlareClusterStatus.QUEUED
+            if print_to_console:
+                pretty_print.print_app_wrappers_status([appwrapper])
+            return (
+                ready,
+                status,
+            )  # no need to check the ray status since still in queue
+
+    # check the ray cluster status
+    cluster = _ray_cluster_status(self.config.name, self.config.namespace)
+    if cluster:
+        if cluster.status == RayClusterStatus.READY:
+            ready = True
+            status = CodeFlareClusterStatus.READY
+        elif cluster.status in [
+            RayClusterStatus.UNHEALTHY,
+            RayClusterStatus.FAILED,
+        ]:
+            ready = False
+            status = CodeFlareClusterStatus.FAILED
+
+        if print_to_console:
+            # overriding the number of gpus with requested
+            cluster.worker_gpu = self.config.gpu
+            pretty_print.print_clusters([cluster])
+    return status, ready</code></pre>
+</details>
+</dd>
+<dt id="codeflare_sdk.cluster.cluster.Cluster.status"><code class="name flex">
+<span>def <span class="ident">status</span></span>(<span>self, print_to_console: bool = True)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>TO BE UPDATED: Will soon return (and print by default) the cluster's
+status, from AppWrapper submission to setup completion. All resource
+details will be moved to cluster.details().</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def status(self, print_to_console: bool = True):
+    &#34;&#34;&#34;
+    TO BE UPDATED: Will soon return (and print by default) the cluster&#39;s
+    status, from AppWrapper submission to setup completion. All resource
+    details will be moved to cluster.details().
+    &#34;&#34;&#34;
+    cluster = _ray_cluster_status(self.config.name, self.config.namespace)
+    if cluster:
+        # overriding the number of gpus with requested
+        cluster.worker_gpu = self.config.gpu
+        if print_to_console:
+            pretty_print.print_clusters([cluster])
+        return cluster.status
+    else:
+        if print_to_console:
+            pretty_print.print_no_resources_found()
+        return None</code></pre>
+</details>
+</dd>
+<dt id="codeflare_sdk.cluster.cluster.Cluster.up"><code class="name flex">
+<span>def <span class="ident">up</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Applies the AppWrapper yaml, pushing the resource request onto
+the MCAD queue.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def up(self):
+    &#34;&#34;&#34;
+    Applies the AppWrapper yaml, pushing the resource request onto
+    the MCAD queue.
+    &#34;&#34;&#34;
+    namespace = self.config.namespace
+    with oc.project(namespace):
+        oc.invoke(&#34;apply&#34;, [&#34;-f&#34;, self.app_wrapper_yaml])</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<h1>Index</h1>
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="codeflare_sdk.cluster" href="index.html">codeflare_sdk.cluster</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="">
+<li><code><a title="codeflare_sdk.cluster.cluster.get_current_namespace" href="#codeflare_sdk.cluster.cluster.get_current_namespace">get_current_namespace</a></code></li>
+<li><code><a title="codeflare_sdk.cluster.cluster.list_all_clusters" href="#codeflare_sdk.cluster.cluster.list_all_clusters">list_all_clusters</a></code></li>
+<li><code><a title="codeflare_sdk.cluster.cluster.list_all_queued" href="#codeflare_sdk.cluster.cluster.list_all_queued">list_all_queued</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="codeflare_sdk.cluster.cluster.Cluster" href="#codeflare_sdk.cluster.cluster.Cluster">Cluster</a></code></h4>
+<ul class="">
+<li><code><a title="codeflare_sdk.cluster.cluster.Cluster.cluster_dashboard_uri" href="#codeflare_sdk.cluster.cluster.Cluster.cluster_dashboard_uri">cluster_dashboard_uri</a></code></li>
+<li><code><a title="codeflare_sdk.cluster.cluster.Cluster.cluster_uri" href="#codeflare_sdk.cluster.cluster.Cluster.cluster_uri">cluster_uri</a></code></li>
+<li><code><a title="codeflare_sdk.cluster.cluster.Cluster.create_app_wrapper" href="#codeflare_sdk.cluster.cluster.Cluster.create_app_wrapper">create_app_wrapper</a></code></li>
+<li><code><a title="codeflare_sdk.cluster.cluster.Cluster.down" href="#codeflare_sdk.cluster.cluster.Cluster.down">down</a></code></li>
+<li><code><a title="codeflare_sdk.cluster.cluster.Cluster.is_ready" href="#codeflare_sdk.cluster.cluster.Cluster.is_ready">is_ready</a></code></li>
+<li><code><a title="codeflare_sdk.cluster.cluster.Cluster.status" href="#codeflare_sdk.cluster.cluster.Cluster.status">status</a></code></li>
+<li><code><a title="codeflare_sdk.cluster.cluster.Cluster.up" href="#codeflare_sdk.cluster.cluster.Cluster.up">up</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.10.0</a>.</p>
+</footer>
+</body>
+</html>
