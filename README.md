@@ -2,7 +2,9 @@
 
 An intuitive, easy-to-use python interface for batch resource requesting, access, job submission, and observation. Simplifying the developer's life while enabling access to high-performance compute resources, either in the cloud or on-prem.
 
-Documentation site coming soon, link will be provided here
+Tutorial and basics walkthrough coming soon!
+
+Full documentation can be found [here](https://project-codeflare.github.io/codeflare-sdk/)
 
 ## Installation
 
