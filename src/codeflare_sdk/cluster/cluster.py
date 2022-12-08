@@ -22,6 +22,7 @@ from os import stat
 from typing import List, Optional, Tuple
 
 import openshift as oc
+from ray.job_submission import JobSubmissionClient
 
 from ..utils import pretty_print
 from ..utils.generate_yaml import generate_appwrapper
@@ -140,9 +141,11 @@ class Cluster:
         try:
             with oc.project(namespace):
                 route = oc.invoke(
-                    "get", ["route", "-o", "jsonpath='{$.items[0].spec.host}'"]
+                    "get", ["route", "-o", "jsonpath='{$.items[*].spec.host}'"]
                 )
-                route = route.out().strip().strip("'")
+                route = route.out().split(" ")
+                route = [x for x in route if f"ray-dashboard-{self.config.name}" in x]
+                route = route[0].strip().strip("'")
             return f"http://{route}"
         except:
             return "Dashboard route not available yet. Did you run cluster.up()?"
@@ -199,6 +202,30 @@ class Cluster:
                 cluster.worker_gpu = self.config.gpu
                 pretty_print.print_clusters([cluster])
         return status, ready
+
+    def list_jobs(self) -> List:
+        """
+        This method accesses the head ray node in your cluster and lists the running jobs.
+        """
+        dashboard_route = self.cluster_dashboard_uri(namespace=self.config.namespace)
+        client = JobSubmissionClient(dashboard_route)
+        return client.list_jobs()
+
+    def job_status(self, job_id: str) -> str:
+        """
+        This method accesses the head ray node in your cluster and returns the job status for the provided job id.
+        """
+        dashboard_route = self.cluster_dashboard_uri(namespace=self.config.namespace)
+        client = JobSubmissionClient(dashboard_route)
+        return client.get_job_status(job_id)
+
+    def job_logs(self, job_id: str) -> str:
+        """
+        This method accesses the head ray node in your cluster and returns the logs for the provided job id.
+        """
+        dashboard_route = self.cluster_dashboard_uri(namespace=self.config.namespace)
+        client = JobSubmissionClient(dashboard_route)
+        return client.get_job_logs(job_id)
 
 
 def get_current_namespace() -> str:
