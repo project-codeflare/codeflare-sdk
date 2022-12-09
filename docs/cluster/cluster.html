@@ -126,6 +126,7 @@ class Cluster:
         Applies the AppWrapper yaml, pushing the resource request onto
         the MCAD queue.
         &#34;&#34;&#34;
+        self.config.auth.login()
         namespace = self.config.namespace
         with oc.project(namespace):
             oc.invoke(&#34;apply&#34;, [&#34;-f&#34;, self.app_wrapper_yaml])
@@ -138,6 +139,7 @@ class Cluster:
         namespace = self.config.namespace
         with oc.project(namespace):
             oc.invoke(&#34;delete&#34;, [&#34;AppWrapper&#34;, self.app_wrapper_name])
+        self.config.auth.logout()
 
     def status(self, print_to_console: bool = True):
         &#34;&#34;&#34;
@@ -501,6 +503,7 @@ request.</p></div>
         Applies the AppWrapper yaml, pushing the resource request onto
         the MCAD queue.
         &#34;&#34;&#34;
+        self.config.auth.login()
         namespace = self.config.namespace
         with oc.project(namespace):
             oc.invoke(&#34;apply&#34;, [&#34;-f&#34;, self.app_wrapper_yaml])
@@ -513,6 +516,7 @@ request.</p></div>
         namespace = self.config.namespace
         with oc.project(namespace):
             oc.invoke(&#34;delete&#34;, [&#34;AppWrapper&#34;, self.app_wrapper_name])
+        self.config.auth.logout()
 
     def status(self, print_to_console: bool = True):
         &#34;&#34;&#34;
@@ -709,7 +713,8 @@ associated with the cluster.</p></div>
     &#34;&#34;&#34;
     namespace = self.config.namespace
     with oc.project(namespace):
-        oc.invoke(&#34;delete&#34;, [&#34;AppWrapper&#34;, self.app_wrapper_name])</code></pre>
+        oc.invoke(&#34;delete&#34;, [&#34;AppWrapper&#34;, self.app_wrapper_name])
+    self.config.auth.logout()</code></pre>
 </details>
 </dd>
 <dt id="codeflare_sdk.cluster.cluster.Cluster.is_ready"><code class="name flex">
@@ -819,6 +824,7 @@ the MCAD queue.</p></div>
     Applies the AppWrapper yaml, pushing the resource request onto
     the MCAD queue.
     &#34;&#34;&#34;
+    self.config.auth.login()
     namespace = self.config.namespace
     with oc.project(namespace):
         oc.invoke(&#34;apply&#34;, [&#34;-f&#34;, self.app_wrapper_yaml])</code></pre>
