@@ -12,6 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from pathlib import Path
+import sys
+parent = Path(__file__).resolve().parents[1]
+sys.path.append(str(parent) + "/src")
+
 from codeflare_sdk.cluster.cluster import Cluster, ClusterConfiguration
 from codeflare_sdk.cluster.auth import TokenAuthentication, PasswordUserAuthentication
 import openshift
