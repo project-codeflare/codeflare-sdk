@@ -12,6 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""
+These were the old tests used during initial demo building, and they will soon be fully deprecated.
+"""
+
 from codeflare_sdk.cluster.cluster import (
     list_all_clusters,
     list_all_queued,

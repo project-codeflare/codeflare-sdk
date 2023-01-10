@@ -13,10 +13,12 @@ Can be installed via `pip`: `pip install codeflare-sdk`
 ## Development
 
 For testing, make sure to have installed:
- - `pytest`
+ - `pytest`, `pytest-mock` (can both be installed with `pip`)
  - The remaining dependencies located in `requirements.txt`
+ - To run the unit tests, run `pytest -v tests/unit_test.py`)
+ - Any new test functions/scripts can be added into the `tests` folder
 
-NOTE: Self-contained unit/functional tests coming soon, will live in `tests` folder
+NOTE: Functional tests coming soon, will live in `tests/func_test.py`
 
 For formatting:
  - Currently using black v22.3.0 for format checking
