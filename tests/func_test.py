@@ -14,6 +14,7 @@
 
 from pathlib import Path
 import sys
+
 parent = Path(__file__).resolve().parents[1]
 sys.path.append(str(parent) + "/src")
 
