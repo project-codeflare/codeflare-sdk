@@ -46,5 +46,5 @@ class ClusterConfiguration:
     template: str = f"{dir}/templates/new-template.yaml"
     instascale: bool = False
     envs: dict = field(default_factory=dict)
-    image: str = "ghcr.io/ibm-ai-foundation/base:ray1.13.0-py38-gpu-pytorch1.12.0cu116-20220826-202124"
+    image: str = "ghcr.io/foundation-model-stack/base:ray2.1.0-py38-gpu-pytorch1.12.0cu116-20221213-193103"
     auth: Authentication = Authentication()
