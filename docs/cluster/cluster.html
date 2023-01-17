@@ -54,6 +54,7 @@ from os import stat
 from typing import List, Optional, Tuple
 
 import openshift as oc
+from ray.job_submission import JobSubmissionClient
 
 from ..utils import pretty_print
 from ..utils.generate_yaml import generate_appwrapper
@@ -172,9 +173,11 @@ class Cluster:
         try:
             with oc.project(namespace):
                 route = oc.invoke(
-                    &#34;get&#34;, [&#34;route&#34;, &#34;-o&#34;, &#34;jsonpath=&#39;{$.items[0].spec.host}&#39;&#34;]
+                    &#34;get&#34;, [&#34;route&#34;, &#34;-o&#34;, &#34;jsonpath=&#39;{$.items[*].spec.host}&#39;&#34;]
                 )
-                route = route.out().strip().strip(&#34;&#39;&#34;)
+                route = route.out().split(&#34; &#34;)
+                route = [x for x in route if f&#34;ray-dashboard-{self.config.name}&#34; in x]
+                route = route[0].strip().strip(&#34;&#39;&#34;)
             return f&#34;http://{route}&#34;
         except:
             return &#34;Dashboard route not available yet. Did you run cluster.up()?&#34;
@@ -231,6 +234,30 @@ class Cluster:
                 cluster.worker_gpu = self.config.gpu
                 pretty_print.print_clusters([cluster])
         return status, ready
+
+    def list_jobs(self) -&gt; List:
+        &#34;&#34;&#34;
+        This method accesses the head ray node in your cluster and lists the running jobs.
+        &#34;&#34;&#34;
+        dashboard_route = self.cluster_dashboard_uri(namespace=self.config.namespace)
+        client = JobSubmissionClient(dashboard_route)
+        return client.list_jobs()
+
+    def job_status(self, job_id: str) -&gt; str:
+        &#34;&#34;&#34;
+        This method accesses the head ray node in your cluster and returns the job status for the provided job id.
+        &#34;&#34;&#34;
+        dashboard_route = self.cluster_dashboard_uri(namespace=self.config.namespace)
+        client = JobSubmissionClient(dashboard_route)
+        return client.get_job_status(job_id)
+
+    def job_logs(self, job_id: str) -&gt; str:
+        &#34;&#34;&#34;
+        This method accesses the head ray node in your cluster and returns the logs for the provided job id.
+        &#34;&#34;&#34;
+        dashboard_route = self.cluster_dashboard_uri(namespace=self.config.namespace)
+        client = JobSubmissionClient(dashboard_route)
+        return client.get_job_logs(job_id)
 
 
 def get_current_namespace() -&gt; str:
@@ -549,9 +576,11 @@ request.</p></div>
         try:
             with oc.project(namespace):
                 route = oc.invoke(
-                    &#34;get&#34;, [&#34;route&#34;, &#34;-o&#34;, &#34;jsonpath=&#39;{$.items[0].spec.host}&#39;&#34;]
+                    &#34;get&#34;, [&#34;route&#34;, &#34;-o&#34;, &#34;jsonpath=&#39;{$.items[*].spec.host}&#39;&#34;]
                 )
-                route = route.out().strip().strip(&#34;&#39;&#34;)
+                route = route.out().split(&#34; &#34;)
+                route = [x for x in route if f&#34;ray-dashboard-{self.config.name}&#34; in x]
+                route = route[0].strip().strip(&#34;&#39;&#34;)
             return f&#34;http://{route}&#34;
         except:
             return &#34;Dashboard route not available yet. Did you run cluster.up()?&#34;
@@ -607,7 +636,31 @@ request.</p></div>
                 # overriding the number of gpus with requested
                 cluster.worker_gpu = self.config.gpu
                 pretty_print.print_clusters([cluster])
-        return status, ready</code></pre>
+        return status, ready
+
+    def list_jobs(self) -&gt; List:
+        &#34;&#34;&#34;
+        This method accesses the head ray node in your cluster and lists the running jobs.
+        &#34;&#34;&#34;
+        dashboard_route = self.cluster_dashboard_uri(namespace=self.config.namespace)
+        client = JobSubmissionClient(dashboard_route)
+        return client.list_jobs()
+
+    def job_status(self, job_id: str) -&gt; str:
+        &#34;&#34;&#34;
+        This method accesses the head ray node in your cluster and returns the job status for the provided job id.
+        &#34;&#34;&#34;
+        dashboard_route = self.cluster_dashboard_uri(namespace=self.config.namespace)
+        client = JobSubmissionClient(dashboard_route)
+        return client.get_job_status(job_id)
+
+    def job_logs(self, job_id: str) -&gt; str:
+        &#34;&#34;&#34;
+        This method accesses the head ray node in your cluster and returns the logs for the provided job id.
+        &#34;&#34;&#34;
+        dashboard_route = self.cluster_dashboard_uri(namespace=self.config.namespace)
+        client = JobSubmissionClient(dashboard_route)
+        return client.get_job_logs(job_id)</code></pre>
 </details>
 <h3>Methods</h3>
 <dl>
@@ -627,9 +680,11 @@ request.</p></div>
     try:
         with oc.project(namespace):
             route = oc.invoke(
-                &#34;get&#34;, [&#34;route&#34;, &#34;-o&#34;, &#34;jsonpath=&#39;{$.items[0].spec.host}&#39;&#34;]
+                &#34;get&#34;, [&#34;route&#34;, &#34;-o&#34;, &#34;jsonpath=&#39;{$.items[*].spec.host}&#39;&#34;]
             )
-            route = route.out().strip().strip(&#34;&#39;&#34;)
+            route = route.out().split(&#34; &#34;)
+            route = [x for x in route if f&#34;ray-dashboard-{self.config.name}&#34; in x]
+            route = route[0].strip().strip(&#34;&#39;&#34;)
         return f&#34;http://{route}&#34;
     except:
         return &#34;Dashboard route not available yet. Did you run cluster.up()?&#34;</code></pre>
@@ -779,6 +834,60 @@ associated with the cluster.</p></div>
     return status, ready</code></pre>
 </details>
 </dd>
+<dt id="codeflare_sdk.cluster.cluster.Cluster.job_logs"><code class="name flex">
+<span>def <span class="ident">job_logs</span></span>(<span>self, job_id: str) ‑> str</span>
+</code></dt>
+<dd>
+<div class="desc"><p>This method accesses the head ray node in your cluster and returns the logs for the provided job id.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def job_logs(self, job_id: str) -&gt; str:
+    &#34;&#34;&#34;
+    This method accesses the head ray node in your cluster and returns the logs for the provided job id.
+    &#34;&#34;&#34;
+    dashboard_route = self.cluster_dashboard_uri(namespace=self.config.namespace)
+    client = JobSubmissionClient(dashboard_route)
+    return client.get_job_logs(job_id)</code></pre>
+</details>
+</dd>
+<dt id="codeflare_sdk.cluster.cluster.Cluster.job_status"><code class="name flex">
+<span>def <span class="ident">job_status</span></span>(<span>self, job_id: str) ‑> str</span>
+</code></dt>
+<dd>
+<div class="desc"><p>This method accesses the head ray node in your cluster and returns the job status for the provided job id.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def job_status(self, job_id: str) -&gt; str:
+    &#34;&#34;&#34;
+    This method accesses the head ray node in your cluster and returns the job status for the provided job id.
+    &#34;&#34;&#34;
+    dashboard_route = self.cluster_dashboard_uri(namespace=self.config.namespace)
+    client = JobSubmissionClient(dashboard_route)
+    return client.get_job_status(job_id)</code></pre>
+</details>
+</dd>
+<dt id="codeflare_sdk.cluster.cluster.Cluster.list_jobs"><code class="name flex">
+<span>def <span class="ident">list_jobs</span></span>(<span>self) ‑> List</span>
+</code></dt>
+<dd>
+<div class="desc"><p>This method accesses the head ray node in your cluster and lists the running jobs.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def list_jobs(self) -&gt; List:
+    &#34;&#34;&#34;
+    This method accesses the head ray node in your cluster and lists the running jobs.
+    &#34;&#34;&#34;
+    dashboard_route = self.cluster_dashboard_uri(namespace=self.config.namespace)
+    client = JobSubmissionClient(dashboard_route)
+    return client.list_jobs()</code></pre>
+</details>
+</dd>
 <dt id="codeflare_sdk.cluster.cluster.Cluster.status"><code class="name flex">
 <span>def <span class="ident">status</span></span>(<span>self, print_to_console: bool = True)</span>
 </code></dt>
@@ -863,6 +972,9 @@ the MCAD queue.</p></div>
 <li><code><a title="codeflare_sdk.cluster.cluster.Cluster.create_app_wrapper" href="#codeflare_sdk.cluster.cluster.Cluster.create_app_wrapper">create_app_wrapper</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.cluster.Cluster.down" href="#codeflare_sdk.cluster.cluster.Cluster.down">down</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.cluster.Cluster.is_ready" href="#codeflare_sdk.cluster.cluster.Cluster.is_ready">is_ready</a></code></li>
+<li><code><a title="codeflare_sdk.cluster.cluster.Cluster.job_logs" href="#codeflare_sdk.cluster.cluster.Cluster.job_logs">job_logs</a></code></li>
+<li><code><a title="codeflare_sdk.cluster.cluster.Cluster.job_status" href="#codeflare_sdk.cluster.cluster.Cluster.job_status">job_status</a></code></li>
+<li><code><a title="codeflare_sdk.cluster.cluster.Cluster.list_jobs" href="#codeflare_sdk.cluster.cluster.Cluster.list_jobs">list_jobs</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.cluster.Cluster.status" href="#codeflare_sdk.cluster.cluster.Cluster.status">status</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.cluster.Cluster.up" href="#codeflare_sdk.cluster.cluster.Cluster.up">up</a></code></li>
 </ul>
