@@ -78,7 +78,7 @@ class ClusterConfiguration:
     template: str = f&#34;{dir}/templates/new-template.yaml&#34;
     instascale: bool = False
     envs: dict = field(default_factory=dict)
-    image: str = &#34;ghcr.io/ibm-ai-foundation/base:ray1.13.0-py38-gpu-pytorch1.12.0cu116-20220826-202124&#34;
+    image: str = &#34;ghcr.io/foundation-model-stack/base:ray2.1.0-py38-gpu-pytorch1.12.0cu116-20221213-193103&#34;
     auth: Authentication = Authentication()</code></pre>
 </details>
 </section>
@@ -93,7 +93,7 @@ class ClusterConfiguration:
 <dl>
 <dt id="codeflare_sdk.cluster.config.ClusterConfiguration"><code class="flex name class">
 <span>class <span class="ident">ClusterConfiguration</span></span>
-<span>(</span><span>name: str, namespace: str = 'default', head_info: list = &lt;factory&gt;, machine_types: list = &lt;factory&gt;, min_cpus: int = 1, max_cpus: int = 1, min_worker: int = 1, max_worker: int = 1, min_memory: int = 2, max_memory: int = 2, gpu: int = 0, template: str = '/home/meyceoz/Documents/codeflare-sdk/src/codeflare_sdk/templates/new-template.yaml', instascale: bool = False, envs: dict = &lt;factory&gt;, image: str = 'ghcr.io/ibm-ai-foundation/base:ray1.13.0-py38-gpu-pytorch1.12.0cu116-20220826-202124', auth: <a title="codeflare_sdk.cluster.auth.Authentication" href="auth.html#codeflare_sdk.cluster.auth.Authentication">Authentication</a> = &lt;codeflare_sdk.cluster.auth.Authentication object&gt;)</span>
+<span>(</span><span>name: str, namespace: str = 'default', head_info: list = &lt;factory&gt;, machine_types: list = &lt;factory&gt;, min_cpus: int = 1, max_cpus: int = 1, min_worker: int = 1, max_worker: int = 1, min_memory: int = 2, max_memory: int = 2, gpu: int = 0, template: str = '/home/meyceoz/Documents/codeflare-sdk/src/codeflare_sdk/templates/new-template.yaml', instascale: bool = False, envs: dict = &lt;factory&gt;, image: str = 'ghcr.io/foundation-model-stack/base:ray2.1.0-py38-gpu-pytorch1.12.0cu116-20221213-193103', auth: <a title="codeflare_sdk.cluster.auth.Authentication" href="auth.html#codeflare_sdk.cluster.auth.Authentication">Authentication</a> = &lt;codeflare_sdk.cluster.auth.Authentication object&gt;)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>This dataclass is used to specify resource requirements and other details, and
@@ -122,7 +122,7 @@ is passed in as an argument when creating a Cluster object.</p></div>
     template: str = f&#34;{dir}/templates/new-template.yaml&#34;
     instascale: bool = False
     envs: dict = field(default_factory=dict)
-    image: str = &#34;ghcr.io/ibm-ai-foundation/base:ray1.13.0-py38-gpu-pytorch1.12.0cu116-20220826-202124&#34;
+    image: str = &#34;ghcr.io/foundation-model-stack/base:ray2.1.0-py38-gpu-pytorch1.12.0cu116-20221213-193103&#34;
     auth: Authentication = Authentication()</code></pre>
 </details>
 <h3>Class variables</h3>

@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "codeflare-sdk"
-version = "0.1.7"
+version = "0.2.0"
 description = "Python SDK for codeflare client"
 
 license = "Apache-2.0"
@@ -23,3 +23,4 @@ keywords = ['codeflare', 'python', 'sdk', 'client', 'batch', 'scale']
 python = "^3.6"
 openshift-client = "1.0.18"
 rich = "^12.5"
+ray = "2.1.0"
