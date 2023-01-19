@@ -21,6 +21,7 @@ authenticate to their cluster or add their own custom concrete classes here.
 
 import abc
 import openshift as oc
+from openshift import OpenShiftPythonException
 
 
 class Authentication(metaclass=abc.ABCMeta):
@@ -48,11 +49,7 @@ class TokenAuthentication(Authentication):
     cluster when the user has an API token and the API server address.
     """
 
-    def __init__(
-        self,
-        token: str = None,
-        server: str = None,
-    ):
+    def __init__(self, token: str = None, server: str = None, skip_tls: bool = False):
         """
         Initialize a TokenAuthentication object that requires a value for `token`, the API Token
         and `server`, the API server address for authenticating to an OpenShift cluster.
@@ -60,14 +57,25 @@ class TokenAuthentication(Authentication):
 
         self.token = token
         self.server = server
+        self.skip_tls = skip_tls
 
     def login(self):
         """
         This function is used to login to an OpenShift cluster using the user's API token and API server address.
+        Depending on the cluster, a user can choose to login in with "--insecure-skip-tls-verify` by setting `skip_tls`
+        to `True`.
         """
-        token = self.token
-        server = self.server
-        response = oc.invoke("login", [f"--token={token}", f"--server={server}:6443"])
+        args = [f"--token={self.token}", f"--server={self.server}:6443"]
+        if self.skip_tls:
+            args.append("--insecure-skip-tls-verify")
+        try:
+            response = oc.invoke("login", args)
+        except OpenShiftPythonException as osp:
+            error_msg = osp.result.err()
+            if "The server uses a certificate signed by unknown authority" in error_msg:
+                return "Error: certificate auth failure, please set `skip_tls=True` in TokenAuthentication"
+            else:
+                return error_msg
         return response.out()
 
     def logout(self):
