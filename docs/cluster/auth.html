@@ -54,6 +54,7 @@ authenticate to their cluster or add their own custom concrete classes here.
 
 import abc
 import openshift as oc
+from openshift import OpenShiftPythonException
 
 
 class Authentication(metaclass=abc.ABCMeta):
@@ -81,11 +82,7 @@ class TokenAuthentication(Authentication):
     cluster when the user has an API token and the API server address.
     &#34;&#34;&#34;
 
-    def __init__(
-        self,
-        token: str = None,
-        server: str = None,
-    ):
+    def __init__(self, token: str = None, server: str = None, skip_tls: bool = False):
         &#34;&#34;&#34;
         Initialize a TokenAuthentication object that requires a value for `token`, the API Token
         and `server`, the API server address for authenticating to an OpenShift cluster.
@@ -93,14 +90,25 @@ class TokenAuthentication(Authentication):
 
         self.token = token
         self.server = server
+        self.skip_tls = skip_tls
 
     def login(self):
         &#34;&#34;&#34;
         This function is used to login to an OpenShift cluster using the user&#39;s API token and API server address.
+        Depending on the cluster, a user can choose to login in with &#34;--insecure-skip-tls-verify` by setting `skip_tls`
+        to `True`.
         &#34;&#34;&#34;
-        token = self.token
-        server = self.server
-        response = oc.invoke(&#34;login&#34;, [f&#34;--token={token}&#34;, f&#34;--server={server}:6443&#34;])
+        args = [f&#34;--token={self.token}&#34;, f&#34;--server={self.server}:6443&#34;]
+        if self.skip_tls:
+            args.append(&#34;--insecure-skip-tls-verify&#34;)
+        try:
+            response = oc.invoke(&#34;login&#34;, args)
+        except OpenShiftPythonException as osp:
+            error_msg = osp.result.err()
+            if &#34;The server uses a certificate signed by unknown authority&#34; in error_msg:
+                return &#34;Error: certificate auth failure, please set `skip_tls=True` in TokenAuthentication&#34;
+            else:
+                return error_msg
         return response.out()
 
     def logout(self):
@@ -311,7 +319,7 @@ and <code>password</code> for authenticating to an OpenShift cluster.</p></div>
 </dd>
 <dt id="codeflare_sdk.cluster.auth.TokenAuthentication"><code class="flex name class">
 <span>class <span class="ident">TokenAuthentication</span></span>
-<span>(</span><span>token: str = None, server: str = None)</span>
+<span>(</span><span>token: str = None, server: str = None, skip_tls: bool = False)</span>
 </code></dt>
 <dd>
 <div class="desc"><p><code><a title="codeflare_sdk.cluster.auth.TokenAuthentication" href="#codeflare_sdk.cluster.auth.TokenAuthentication">TokenAuthentication</a></code> is a subclass of <code><a title="codeflare_sdk.cluster.auth.Authentication" href="#codeflare_sdk.cluster.auth.Authentication">Authentication</a></code>. It can be used to authenticate to an OpenShift
@@ -328,11 +336,7 @@ and <code>server</code>, the API server address for authenticating to an OpenShi
     cluster when the user has an API token and the API server address.
     &#34;&#34;&#34;
 
-    def __init__(
-        self,
-        token: str = None,
-        server: str = None,
-    ):
+    def __init__(self, token: str = None, server: str = None, skip_tls: bool = False):
         &#34;&#34;&#34;
         Initialize a TokenAuthentication object that requires a value for `token`, the API Token
         and `server`, the API server address for authenticating to an OpenShift cluster.
@@ -340,14 +344,25 @@ and <code>server</code>, the API server address for authenticating to an OpenShi
 
         self.token = token
         self.server = server
+        self.skip_tls = skip_tls
 
     def login(self):
         &#34;&#34;&#34;
         This function is used to login to an OpenShift cluster using the user&#39;s API token and API server address.
+        Depending on the cluster, a user can choose to login in with &#34;--insecure-skip-tls-verify` by setting `skip_tls`
+        to `True`.
         &#34;&#34;&#34;
-        token = self.token
-        server = self.server
-        response = oc.invoke(&#34;login&#34;, [f&#34;--token={token}&#34;, f&#34;--server={server}:6443&#34;])
+        args = [f&#34;--token={self.token}&#34;, f&#34;--server={self.server}:6443&#34;]
+        if self.skip_tls:
+            args.append(&#34;--insecure-skip-tls-verify&#34;)
+        try:
+            response = oc.invoke(&#34;login&#34;, args)
+        except OpenShiftPythonException as osp:
+            error_msg = osp.result.err()
+            if &#34;The server uses a certificate signed by unknown authority&#34; in error_msg:
+                return &#34;Error: certificate auth failure, please set `skip_tls=True` in TokenAuthentication&#34;
+            else:
+                return error_msg
         return response.out()
 
     def logout(self):
@@ -367,7 +382,9 @@ and <code>server</code>, the API server address for authenticating to an OpenShi
 <span>def <span class="ident">login</span></span>(<span>self)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>This function is used to login to an OpenShift cluster using the user's API token and API server address.</p></div>
+<div class="desc"><p>This function is used to login to an OpenShift cluster using the user's API token and API server address.
+Depending on the cluster, a user can choose to login in with "&ndash;insecure-skip-tls-verify<code> by setting </code>skip_tls`
+to <code>True</code>.</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -375,10 +392,20 @@ and <code>server</code>, the API server address for authenticating to an OpenShi
 <pre><code class="python">def login(self):
     &#34;&#34;&#34;
     This function is used to login to an OpenShift cluster using the user&#39;s API token and API server address.
+    Depending on the cluster, a user can choose to login in with &#34;--insecure-skip-tls-verify` by setting `skip_tls`
+    to `True`.
     &#34;&#34;&#34;
-    token = self.token
-    server = self.server
-    response = oc.invoke(&#34;login&#34;, [f&#34;--token={token}&#34;, f&#34;--server={server}:6443&#34;])
+    args = [f&#34;--token={self.token}&#34;, f&#34;--server={self.server}:6443&#34;]
+    if self.skip_tls:
+        args.append(&#34;--insecure-skip-tls-verify&#34;)
+    try:
+        response = oc.invoke(&#34;login&#34;, args)
+    except OpenShiftPythonException as osp:
+        error_msg = osp.result.err()
+        if &#34;The server uses a certificate signed by unknown authority&#34; in error_msg:
+            return &#34;Error: certificate auth failure, please set `skip_tls=True` in TokenAuthentication&#34;
+        else:
+            return error_msg
     return response.out()</code></pre>
 </details>
 </dd>
