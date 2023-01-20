@@ -1,15 +1,15 @@
 [tool.poetry]
 name = "codeflare-sdk"
-version = "0.2.0"
+version = "0.2.1"
 description = "Python SDK for codeflare client"
 
 license = "Apache-2.0"
 
 authors = [
-    "Atin Sood <asood@us.ibm.com>",
-    "Abhishek Malvankar <asmalvan@us.ibm.com>",
     "Michael Clifford <mcliffor@redhat.com>",
     "Mustafa Eyceoz <meyceoz@redhat.com>",
+    "Abhishek Malvankar <asmalvan@us.ibm.com>",
+    "Atin Sood <asood@us.ibm.com>",
 ]
 
 readme = 'README.md'
