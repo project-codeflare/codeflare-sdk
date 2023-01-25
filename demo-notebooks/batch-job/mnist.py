@@ -31,9 +31,10 @@ PATH_DATASETS = os.environ.get("PATH_DATASETS", ".")
 BATCH_SIZE = 256 if torch.cuda.is_available() else 64
 # %%
 
-print('prior to running the trainer')
+print("prior to running the trainer")
 print("MASTER_ADDR: is ", os.getenv("MASTER_ADDR"))
 print("MASTER_PORT: is ", os.getenv("MASTER_PORT"))
+
 
 class LitMNIST(LightningModule):
     def __init__(self, data_dir=PATH_DATASETS, hidden_size=64, learning_rate=2e-4):
@@ -126,7 +127,9 @@ class LitMNIST(LightningModule):
 
         # Assign test dataset for use in dataloader(s)
         if stage == "test" or stage is None:
-            self.mnist_test = MNIST(self.data_dir, train=False, transform=self.transform)
+            self.mnist_test = MNIST(
+                self.data_dir, train=False, transform=self.transform
+            )
 
     def train_dataloader(self):
         return DataLoader(self.mnist_train, batch_size=BATCH_SIZE)
@@ -136,6 +139,7 @@ class LitMNIST(LightningModule):
 
     def test_dataloader(self):
         return DataLoader(self.mnist_test, batch_size=BATCH_SIZE)
+
 
 # Init DataLoader from MNIST Dataset
 
