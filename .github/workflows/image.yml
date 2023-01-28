@@ -1,4 +1,4 @@
-# This workflow will build an image for the instascale-controller, then push the image to the `project-codeflare` quay repo
+# This workflow will build an image for the codeflare notebook image, then push the image to the `project-codeflare` quay repo
 
 name: Image
 
