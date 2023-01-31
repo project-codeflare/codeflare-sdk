@@ -22,9 +22,6 @@ RUN pip install -r requirements.txt
 
 RUN pip uninstall pickle5 -y 
 
-# Pull notebooks in
-ADD codeflare/ /home/codeflare
-
 # Install codeflare-cli and other libraries
 RUN pip install codeflare-sdk==0.2.1 \
 				datasets==2.6.1 \
