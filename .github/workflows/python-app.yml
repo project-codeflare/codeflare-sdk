@@ -28,7 +28,6 @@ jobs:
         pip install coverage
         pip install black==22.3.0
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-        pip install ray[default]
     - name: Check formatting with black
       run: |
         black --check .
