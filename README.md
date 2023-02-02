@@ -1,5 +1,8 @@
 # Codeflare-SDK
 
+[![Python application](https://github.com/project-codeflare/codeflare-sdk/actions/workflows/python-app.yml/badge.svg?branch=main)](https://github.com/project-codeflare/codeflare-sdk/actions/workflows/python-app.yml)
+![coverage badge](./coverage.svg)
+
 An intuitive, easy-to-use python interface for batch resource requesting, access, job submission, and observation. Simplifying the developer's life while enabling access to high-performance compute resources, either in the cloud or on-prem.
 
 Tutorial and basics walkthrough coming soon!
