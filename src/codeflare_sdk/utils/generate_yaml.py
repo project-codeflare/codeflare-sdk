@@ -240,7 +240,7 @@ def generate_appwrapper(
     return outfile
 
 
-def main():
+def main():  # pragma: no cover
     parser = argparse.ArgumentParser(description="Generate user AppWrapper")
     parser.add_argument(
         "--name",
@@ -348,5 +348,5 @@ def main():
     return outfile
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     main()

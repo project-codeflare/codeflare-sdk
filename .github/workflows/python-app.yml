@@ -30,6 +30,8 @@ jobs:
     - name: Check formatting with black
       run: |
         black --check .
-    - name: Test with pytest
+    - name: Test with pytest and check coverage
       run: |
-        pytest -v tests/unit_test.py
+        coverage run -m --source=src pytest -v tests/unit_test.py
+        coverage=coverage report -m | tail -1 | tail -c 4 | head -c 2
+        if (( $coverage < 90 )); then exit 1; fi

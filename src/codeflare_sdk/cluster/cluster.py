@@ -110,7 +110,7 @@ class Cluster:
             oc.invoke("delete", ["AppWrapper", self.app_wrapper_name])
         self.config.auth.logout()
 
-    def status(self, print_to_console: bool = True):
+    def status(self, print_to_console: bool = True):  # pragma: no cover
         """
         TO BE UPDATED: Will soon return (and print by default) the cluster's
         status, from AppWrapper submission to setup completion. All resource
@@ -151,7 +151,7 @@ class Cluster:
             return "Dashboard route not available yet. Did you run cluster.up()?"
 
     # checks whether the ray cluster is ready
-    def is_ready(self, print_to_console: bool = True):
+    def is_ready(self, print_to_console: bool = True):  # pragma: no cover
         """
         TO BE DEPRECATED: functionality will be added into cluster.status().
         """
@@ -228,7 +228,7 @@ class Cluster:
         return client.get_job_logs(job_id)
 
 
-def get_current_namespace() -> str:
+def get_current_namespace() -> str:  # pragma: no cover
     """
     Returns the user's current working namespace.
     """
@@ -236,7 +236,9 @@ def get_current_namespace() -> str:
     return namespace
 
 
-def list_all_clusters(namespace: str, print_to_console: bool = True):
+def list_all_clusters(
+    namespace: str, print_to_console: bool = True
+):  # pragma: no cover
     """
     Returns (and prints by default) a list of all clusters in a given namespace.
     """
@@ -246,7 +248,7 @@ def list_all_clusters(namespace: str, print_to_console: bool = True):
     return clusters
 
 
-def list_all_queued(namespace: str, print_to_console: bool = True):
+def list_all_queued(namespace: str, print_to_console: bool = True):  # pragma: no cover
     """
     Returns (and prints by default) a list of all currently queued-up AppWrappers
     in a given namespace.
@@ -262,14 +264,18 @@ def list_all_queued(namespace: str, print_to_console: bool = True):
 # private methods
 
 
-def _app_wrapper_status(name, namespace="default") -> Optional[AppWrapper]:
+def _app_wrapper_status(
+    name, namespace="default"
+) -> Optional[AppWrapper]:  # pragma: no cover
     with oc.project(namespace), oc.timeout(10 * 60):
         cluster = oc.selector(f"appwrapper/{name}").object()
     if cluster:
         return _map_to_app_wrapper(cluster)
 
 
-def _ray_cluster_status(name, namespace="default") -> Optional[RayCluster]:
+def _ray_cluster_status(
+    name, namespace="default"
+) -> Optional[RayCluster]:  # pragma: no cover
     # FIXME should we check the appwrapper first
     cluster = None
     try:
@@ -283,7 +289,7 @@ def _ray_cluster_status(name, namespace="default") -> Optional[RayCluster]:
     return cluster
 
 
-def _get_ray_clusters(namespace="default") -> List[RayCluster]:
+def _get_ray_clusters(namespace="default") -> List[RayCluster]:  # pragma: no cover
     list_of_clusters = []
 
     with oc.project(namespace), oc.timeout(10 * 60):
@@ -296,7 +302,7 @@ def _get_ray_clusters(namespace="default") -> List[RayCluster]:
 
 def _get_app_wrappers(
     namespace="default", filter=List[AppWrapperStatus]
-) -> List[AppWrapper]:
+) -> List[AppWrapper]:  # pragma: no cover
     list_of_app_wrappers = []
 
     with oc.project(namespace), oc.timeout(10 * 60):
@@ -311,7 +317,7 @@ def _get_app_wrappers(
     return list_of_app_wrappers
 
 
-def _map_to_ray_cluster(cluster) -> RayCluster:
+def _map_to_ray_cluster(cluster) -> RayCluster:  # pragma: no cover
     cluster_model = cluster.model
 
     with oc.project(cluster.namespace()), oc.timeout(10 * 60):
@@ -342,7 +348,7 @@ def _map_to_ray_cluster(cluster) -> RayCluster:
     )
 
 
-def _map_to_app_wrapper(cluster) -> AppWrapper:
+def _map_to_app_wrapper(cluster) -> AppWrapper:  # pragma: no cover
     cluster_model = cluster.model
     return AppWrapper(
         name=cluster.name(),

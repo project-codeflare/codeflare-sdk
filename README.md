@@ -20,6 +20,11 @@ For testing, make sure to have installed:
 
 NOTE: Functional tests coming soon, will live in `tests/func_test.py`
 
+For checking code coverage while testing:
+ - Start by installing `coverage` (can be done via `pip`)
+ - Now instead when testing run `coverage run -m --source=src pytest tests/unit_test.py`
+ - To then view a code coverage report w/ missing lines, run `coverage report -m`
+
 For formatting:
  - Currently using black v22.3.0 for format checking
  - To install, run `pip install black==22.3.0`

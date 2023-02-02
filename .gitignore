@@ -1,3 +1,4 @@
 dist/
 .python-version
 __pycache__/
+.coverage
