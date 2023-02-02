@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM quay.io/thoth-station/s2i-minimal-py38-notebook:latest
+FROM  quay.io/opendatahub/notebooks:jupyter-minimal-ubi8-python-3.8-4c8f26e
 
 # Install: torch (v1.12), ray (v2.1.0) and others
 
