@@ -24,6 +24,7 @@ jobs:
         pip install pytest-mock
         pip install coverage
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        pip install ray[default]
     - name: Generate coverage report
       run: |
         coverage run -m --source=src pytest -v tests/unit_test.py
