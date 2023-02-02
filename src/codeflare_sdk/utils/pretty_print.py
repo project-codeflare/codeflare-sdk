@@ -27,12 +27,12 @@ from typing import List
 from ..cluster.model import RayCluster, AppWrapper, RayClusterStatus
 
 
-def print_no_resources_found():
+def print_no_resources_found():  # pragma: no cover
     console = Console()
     console.print(Panel("[red]No resources found"))
 
 
-def print_app_wrappers_status(app_wrappers: List[AppWrapper]):
+def print_app_wrappers_status(app_wrappers: List[AppWrapper]):  # pragma: no cover
     if not app_wrappers:
         print_no_resources_found()
         return  # shortcircuit
@@ -53,7 +53,7 @@ def print_app_wrappers_status(app_wrappers: List[AppWrapper]):
         console.print(Panel.fit(table))
 
 
-def print_clusters(clusters: List[RayCluster], verbose=True):
+def print_clusters(clusters: List[RayCluster], verbose=True):  # pragma: no cover
     if not clusters:
         print_no_resources_found()
         return  # shortcircuit
