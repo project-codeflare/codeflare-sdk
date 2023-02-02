@@ -45,9 +45,9 @@ jobs:
         git add coverage.svg
         git commit -m "Updated coverage.svg"
 
-    - name: Push changes
+    - name: Create Pull Request
       if: steps.changed_files.outputs.files_changed == 'true'
-      uses: ad-m/github-push-action@master
+      uses: peter-evans/create-pull-request@v4
       with:
-        github_token: ${{ secrets.CI_PUSH_TOKEN }}
-        branch: ${{ github.ref }}
+        token: ${{ secrets.GITHUB_TOKEN }}
+        title: "[Automatic] Coverage Badge Update"
