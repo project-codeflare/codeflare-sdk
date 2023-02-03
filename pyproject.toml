@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "codeflare-sdk"
-version = "0.2.1"
+version = "0.2.2"
 description = "Python SDK for codeflare client"
 
 license = "Apache-2.0"
@@ -20,7 +20,7 @@ homepage = "https://github.com/project-codeflare/codeflare-sdk"
 keywords = ['codeflare', 'python', 'sdk', 'client', 'batch', 'scale']
 
 [tool.poetry.dependencies]
-python = "^3.6"
+python = "^3.6.3"
 openshift-client = "1.0.18"
 rich = "^12.5"
-ray = "2.1.0"
+ray = {version = "2.1.0", extras = ["default"]}
