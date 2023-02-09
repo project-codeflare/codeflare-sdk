@@ -29,7 +29,7 @@ class JobConfiguration:
     is passed in as an argument when creating a Job object.
     """
 
-    name: str
+    name: str = None
+    script: str = None
+    requirements: str = None
     scheduler: str = "ray"
-    cluster: Cluster = Cluster()
-    script: str
