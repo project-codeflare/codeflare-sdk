@@ -20,11 +20,12 @@ access the jobs logs.
 
 import abc
 from typing import List
+from pathlib import Path
 
 from ray.job_submission import JobSubmissionClient
 from torchx.components.dist import ddp
 from torchx.runner import get_runner, Runner
-from torchx.specs import AppHandle, parse_app_handle
+from torchx.specs import AppHandle, parse_app_handle, AppDryRunInfo
 
 from .config import JobConfiguration
 
@@ -35,16 +36,19 @@ if typing.TYPE_CHECKING:
 all_jobs: List["Job"] = []
 torchx_runner: Runner = get_runner()
 
-torchx_runner.run(app, scheduler, cfg, workspace)
-
-torchx_runner.run_component(component, component_args, scheduler, cfg, workspace)
-
 class JobDefinition(metaclass=abc.ABCMeta):
     """
     A job definition to be submitted to a generic backend cluster.
     """
 
-    def submit(self, cluster: Cluster):
+    def _dry_run(self, cluster) -> str:
+        """
+        Create job definition, but do not submit.
+
+        The primary purpose of this function is to facilitate unit testing.
+        """
+
+    def submit(self, cluster: "Cluster"):
         """
         Method for creating a job on a specific cluster
         """
@@ -76,7 +80,40 @@ class TorchXJobDefinition(JobDefinition):
         """
         self.config = config
 
-    def submit(self, cluster: Cluster) -> "TorchXRayJob":
+    def _dry_run(self, cluster: "Cluster", *script_args) -> AppDryRunInfo:
+        """
+        Create job definition, but do not submit.
+
+        The primary purpose of this function is to facilitate unit testing.
+        """
+        j = f"{cluster.config.max_worker}x{max(cluster.config.gpu, 1)}"  # # of proc. = # of gpus
+        dashboard_address = f"{cluster.cluster_dashboard_uri(cluster.config.namespace).lstrip('http://')}"
+        return torchx_runner.dryrun(
+            app=ddp(
+                *script_args,
+                script = self.config.script,
+                m=self.config.m,
+                name=self.config.name,
+                h=None,  # for custom resource types
+                cpu=cluster.config.max_cpus,
+                gpu = cluster.config.gpu,
+                memMB = 1024 * cluster.config.max_memory,  # cluster memory is in GB
+                j=j,
+                env=self.config.env,
+                # max_retries=0,  # default
+                # mounts=None,  # default
+            ),
+            scheduler="ray",  # can be determined by type of cluster if more are introduced
+            cfg={
+                "cluster_name": cluster.config.name,
+                "dashboard_address": dashboard_address,
+                "working_dir": self.config.working_dir,
+                "requirements": self.config.requirements,
+            },
+            workspace=f"file://{Path.cwd()}"
+        )
+
+    def submit(self, cluster: "Cluster") -> "TorchXRayJob":
         """
         Submit the job definition to a specific cluster, resulting in a Job object.
         """
@@ -87,48 +124,31 @@ class TorchXRayJob(Job):
     """
     Active submission of a dist.ddp job to a Ray cluster which can be used to get logs and status.
     """
-    def __init__(self, job_definition: TorchXJobDefinition, cluster: Cluster, *script_args):
+    def __init__(self, job_definition: TorchXJobDefinition, cluster: "Cluster", *script_args):
         """
-        TODO
+        Creates job which maximizes resource usage on the passed cluster.
         """
         self.job_definition: TorchXJobDefinition = job_definition
-        self.cluster: Cluster = cluster
-        j = f"{cluster.config.max_worker}x{max(cluster.config.gpu, 1)}"  # # of proc. = # of gpus
-        # TODO: allow user to override resource allocation for job
-        _app_handle: AppHandle = torchx_runner.run(
-            app=ddp(
-                *script_args,
-                script = job_definition.config.script,
-                m=None,  # python module to run (might be worth exposing)
-                name = job_definition.config.name,
-                h=None,  # for custom resource types
-                cpu=cluster.config.max_cpus,  # TODO: get from cluster config
-                gpu = cluster.config.gpu,
-                memMB = 1024 * cluster.config.max_memory,  # cluster memory is in GB
-                j=j,
-                env=None,  # TODO: should definitely expose Dict[str, str]
-                max_retries = 0,  # TODO: maybe expose
-                mounts=None,  # TODO: maybe expose
-                debug=False  # TODO: expose
-            ),
-            scheduler="ray", cfg="fo",
-        )
-
-        _, _, self.job_id = parse_app_handle(_app_handle)
+        self.cluster: "Cluster" = cluster
+        self._app_handle = torchx_runner.schedule(job_definition._dry_run(cluster, *script_args))
         all_jobs.append(self)
 
-    def status(self):
-        """
-        TODO
-        """
-        dashboard_route = self.cluster.cluster_dashboard_uri()
-        client = JobSubmissionClient(dashboard_route)
-        return client.get_job_status(self.job_id)
+    @property
+    def job_id(self):
+        if hasattr(self, "_job_id"):
+            return self._job_id
+        dashboard_address = f"{self.cluster.cluster_dashboard_uri(self.cluster.config.namespace).lstrip('http://')}:8265"
+        _, _, job_id = parse_app_handle(self._app_handle)
+        self._job_id = job_id.lstrip(f"{dashboard_address}-")
 
-    def logs(self):
+    def status(self) -> str:
         """
-        TODO
+        Get running job status.
         """
-        dashboard_route = self.cluster_dashboard_uri(namespace=self.config.namespace)
-        client = JobSubmissionClient(dashboard_route)
-        return client.get_job_logs(job_id)
+        return torchx_runner.status(self._app_handle)
+
+    def logs(self) -> str:
+        """
+        Get job logs.
+        """
+        return "".join(torchx_runner.log_lines(self._app_handle, None))

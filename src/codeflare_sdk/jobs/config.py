@@ -19,8 +19,7 @@ Job object.
 """
 
 from dataclasses import dataclass, field
-from ..cluster.cluster import Cluster
-
+from typing import Optional, Dict
 
 @dataclass
 class JobConfiguration:
@@ -29,7 +28,10 @@ class JobConfiguration:
     is passed in as an argument when creating a Job object.
     """
 
-    name: str = None
-    script: str = None
-    requirements: str = None
-    scheduler: str = "ray"
+    name: Optional[str] = None
+    script: Optional[str] = None
+    m: Optional[str] = None
+    h: Optional[str] = None  # custom resource types
+    env: Optional[Dict[str, str]] = None
+    working_dir: Optional[str] = None
+    requirements: Optional[str] = None
