@@ -29,7 +29,7 @@ from ..cluster.model import RayCluster, AppWrapper, RayClusterStatus
 
 def print_no_resources_found():  # pragma: no cover
     console = Console()
-    console.print(Panel("[red]No resources found"))
+    console.print(Panel("[red]No resources found, have you run cluster.up() yet?"))
 
 
 def print_app_wrappers_status(app_wrappers: List[AppWrapper]):  # pragma: no cover
@@ -44,7 +44,7 @@ def print_app_wrappers_status(app_wrappers: List[AppWrapper]):  # pragma: no cov
 
         table = Table(
             box=box.ASCII_DOUBLE_HEAD,
-            title="[bold] :rocket: List of CodeFlare clusters in queue:rocket:",
+            title="[bold] :rocket: Cluster Queue Status :rocket:",
         )
         table.add_column("Name", style="cyan", no_wrap=True)
         table.add_column("Status", style="magenta")
@@ -52,8 +52,51 @@ def print_app_wrappers_status(app_wrappers: List[AppWrapper]):  # pragma: no cov
         table.add_row("")  # empty row for spacing
         console.print(Panel.fit(table))
 
+def print_cluster_status(cluster: RayCluster):
+    "Pretty prints the status of a passed-in cluster"
+    if not cluster:
+        print_no_resources_found
+        return
 
-def print_clusters(clusters: List[RayCluster], verbose=True):  # pragma: no cover
+    console = Console()
+    status = (
+            "Active :white_heavy_check_mark:"
+            if cluster.status == RayClusterStatus.READY
+            else "InActive :x:"
+    )
+    name = cluster.name
+    dashboard = cluster.dashboard
+    # owned = bool(cluster["userOwned"])
+    owned = True
+
+    #'table0' to display the cluster name, status, url, and dashboard link
+    table0 = Table(box=None, show_header=False)
+    if owned:
+        table0.add_row("[white on green][bold]Name")
+    else:
+        table0.add_row("")
+    table0.add_row("[bold underline]" + name, status)
+    table0.add_row()
+    # fixme harcded to default for now
+    table0.add_row(
+        f"[bold]URI:[/bold] ray://{cluster.name}-head-svc.{cluster.namespace}.svc:10001"
+    )  # format that is used to generate the name of the service
+    table0.add_row()
+    table0.add_row(f"[link={dashboard} blue underline]Dashboard:link:[/link]")
+    table0.add_row("")  # empty row for spacing
+
+    # table4 to display table0 and table3, one below the other
+    table4 = Table(box=None, show_header=False)
+    table4.add_row(table0)
+
+    # Encompass all details of the cluster in a single panel
+    table5 = Table(
+        box=None, title="[bold] :rocket: CodeFlare Cluster Status :rocket:"
+    )
+    table5.add_row(Panel.fit(table4))
+    console.print(table5)
+
+def print_clusters(clusters: List[RayCluster]):  # pragma: no cover
     if not clusters:
         print_no_resources_found()
         return  # shortcircuit
@@ -80,7 +123,7 @@ def print_clusters(clusters: List[RayCluster], verbose=True):  # pragma: no cove
         #'table0' to display the cluster name, status, url, and dashboard link
         table0 = Table(box=None, show_header=False)
         if owned:
-            table0.add_row("[white on green][bold]Owner")
+            table0.add_row("[white on green][bold]Name")
         else:
             table0.add_row("")
         table0.add_row("[bold underline]" + name, status)
@@ -131,7 +174,7 @@ def print_clusters(clusters: List[RayCluster], verbose=True):  # pragma: no cove
             # than being center aligned on the console/terminal if we simply use console.print(title)
 
             table5 = Table(
-                box=None, title="[bold] :rocket: List of CodeFlare clusters :rocket:"
+                box=None, title="[bold] :rocket: CodeFlare Cluster Details :rocket:"
             )
             table5.add_row(Panel.fit(table4))
             console.print(table5)

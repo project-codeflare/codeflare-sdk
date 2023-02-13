@@ -53,9 +53,10 @@ class CodeFlareClusterStatus(Enum):
     """
 
     READY = 1
-    QUEUED = 2
-    FAILED = 3
-    UNKNOWN = 4
+    STARTING = 2
+    QUEUED = 3
+    FAILED = 4
+    UNKNOWN = 5
 
 
 @dataclass

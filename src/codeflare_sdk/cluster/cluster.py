@@ -19,6 +19,7 @@ cluster setup queue, a list of all existing clusters, and the user's working nam
 """
 
 from os import stat
+from time import sleep
 from typing import List, Optional, Tuple
 
 import openshift as oc
@@ -97,8 +98,15 @@ class Cluster:
         """
         self.config.auth.login()
         namespace = self.config.namespace
-        with oc.project(namespace):
-            oc.invoke("apply", ["-f", self.app_wrapper_yaml])
+        try:
+            with oc.project(namespace):
+                oc.invoke("apply", ["-f", self.app_wrapper_yaml])
+        except oc.OpenShiftPythonException as osp:
+            error_msg = osp.result.err()
+            if "Unauthorized" in error_msg:
+                raise PermissionError(
+                    "Action not permitted, have you put in the correct auth credentials?"
+                )
 
     def down(self):
         """
@@ -106,54 +114,29 @@ class Cluster:
         associated with the cluster.
         """
         namespace = self.config.namespace
-        with oc.project(namespace):
-            oc.invoke("delete", ["AppWrapper", self.app_wrapper_name])
-        self.config.auth.logout()
-
-    def status(self, print_to_console: bool = True):  # pragma: no cover
-        """
-        TO BE UPDATED: Will soon return (and print by default) the cluster's
-        status, from AppWrapper submission to setup completion. All resource
-        details will be moved to cluster.details().
-        """
-        cluster = _ray_cluster_status(self.config.name, self.config.namespace)
-        if cluster:
-            # overriding the number of gpus with requested
-            cluster.worker_gpu = self.config.gpu
-            if print_to_console:
-                pretty_print.print_clusters([cluster])
-            return cluster.status
-        else:
-            if print_to_console:
-                pretty_print.print_no_resources_found()
-            return None
-
-    def cluster_uri(self) -> str:
-        """
-        Returns a string containing the cluster's URI.
-        """
-        return f"ray://{self.config.name}-head-svc.{self.config.namespace}.svc:10001"
-
-    def cluster_dashboard_uri(self, namespace: str = "default") -> str:
-        """
-        Returns a string containing the cluster's dashboard URI.
-        """
         try:
             with oc.project(namespace):
-                route = oc.invoke(
-                    "get", ["route", "-o", "jsonpath='{$.items[*].spec.host}'"]
+                oc.invoke("delete", ["AppWrapper", self.app_wrapper_name])
+        except oc.OpenShiftPythonException as osp:
+            error_msg = osp.result.err()
+            if (
+                'the server doesn\'t have a resource type "AppWrapper"' in error_msg
+                or "forbidden" in error_msg
+                or "Unauthorized" in error_msg
+            ):
+                raise PermissionError(
+                    "Action not permitted, have you run cluster.up() yet?"
                 )
-                route = route.out().split(" ")
-                route = [x for x in route if f"ray-dashboard-{self.config.name}" in x]
-                route = route[0].strip().strip("'")
-            return f"http://{route}"
-        except:
-            return "Dashboard route not available yet. Did you run cluster.up()?"
+            else:
+                raise osp
+        self.config.auth.logout()
 
-    # checks whether the ray cluster is ready
-    def is_ready(self, print_to_console: bool = True):  # pragma: no cover
+    def status(
+        self, print_to_console: bool = True
+    ) -> Tuple[CodeFlareClusterStatus, bool]:
         """
-        TO BE DEPRECATED: functionality will be added into cluster.status().
+        Returns the requested cluster's status, as well as whether or not
+        it is ready for use.
         """
         ready = False
         status = CodeFlareClusterStatus.UNKNOWN
@@ -166,7 +149,7 @@ class Cluster:
                 AppWrapperStatus.RUNNING_HOLD_COMPLETION,
             ]:
                 ready = False
-                status = CodeFlareClusterStatus.QUEUED
+                status = CodeFlareClusterStatus.STARTING
             elif appwrapper.status in [
                 AppWrapperStatus.FAILED,
                 AppWrapperStatus.DELETED,
@@ -200,8 +183,64 @@ class Cluster:
             if print_to_console:
                 # overriding the number of gpus with requested
                 cluster.worker_gpu = self.config.gpu
-                pretty_print.print_clusters([cluster])
+                pretty_print.print_cluster_status(cluster)
+        elif print_to_console:
+            if status == CodeFlareClusterStatus.UNKNOWN:
+                pretty_print.print_no_resources_found()
+            else:
+                pretty_print.print_app_wrappers_status([appwrapper])
+
         return status, ready
+
+    def wait_ready(self, timeout: Optional[int] = None):
+        """
+        Waits for requested cluster to be ready, up to an optional timeout (s).
+        Checks every five seconds.
+        """
+        # FIXME - BREAKING EARLY
+        print("Waiting for requested resources to be set up...")
+        ready = False
+        status = None
+        time = 0
+        while not ready:
+            status, ready = self.status(print_to_console=False)
+            if status == CodeFlareClusterStatus.UNKNOWN:
+                print(
+                    "WARNING: Current cluster status is unknown, have you run cluster.up yet?"
+                )
+            if not ready:
+                if timeout and time >= timeout:
+                    raise TimeoutError(f"wait() timed out after waiting {timeout}s")
+                sleep(5)
+                time += 5
+        print("Requested cluster up and running!")
+
+    def details(self, print_to_console: bool = True):
+        # FIXME - Add a return as well?
+        # FIXME - When not up?
+        pretty_print.print_cluster_status(self)
+
+    def cluster_uri(self) -> str:
+        """
+        Returns a string containing the cluster's URI.
+        """
+        return f"ray://{self.config.name}-head-svc.{self.config.namespace}.svc:10001"
+
+    def cluster_dashboard_uri(self) -> str:
+        """
+        Returns a string containing the cluster's dashboard URI.
+        """
+        try:
+            with oc.project(self.config.namespace):
+                route = oc.invoke(
+                    "get", ["route", "-o", "jsonpath='{$.items[*].spec.host}'"]
+                )
+                route = route.out().split(" ")
+                route = [x for x in route if f"ray-dashboard-{self.config.name}" in x]
+                route = route[0].strip().strip("'")
+            return f"http://{route}"
+        except:
+            return "Dashboard route not available yet, have you run cluster.up()?"
 
     def list_jobs(self) -> List:
         """
@@ -232,7 +271,16 @@ def get_current_namespace() -> str:  # pragma: no cover
     """
     Returns the user's current working namespace.
     """
-    namespace = oc.invoke("project", ["-q"]).actions()[0].out.strip()
+    try:
+        namespace = oc.invoke("project", ["-q"]).actions()[0].out.strip()
+    except oc.OpenShiftPythonException as osp:
+        error_msg = osp.result.err()
+        if "do not have rights" in error_msg:
+            raise PermissionError(
+                "Action not permitted, have you run auth.login() or cluster.up()?"
+            )
+        else:
+            raise osp
     return namespace
 
 
@@ -242,6 +290,7 @@ def list_all_clusters(
     """
     Returns (and prints by default) a list of all clusters in a given namespace.
     """
+    # FIXME - NOT RUNNING BREAK
     clusters = _get_ray_clusters(namespace)
     if print_to_console:
         pretty_print.print_clusters(clusters)
@@ -253,6 +302,7 @@ def list_all_queued(namespace: str, print_to_console: bool = True):  # pragma: n
     Returns (and prints by default) a list of all currently queued-up AppWrappers
     in a given namespace.
     """
+    # FIXME - FORMATTING ISSUES
     app_wrappers = _get_app_wrappers(
         namespace, filter=[AppWrapperStatus.RUNNING, AppWrapperStatus.PENDING]
     )
@@ -267,25 +317,44 @@ def list_all_queued(namespace: str, print_to_console: bool = True):  # pragma: n
 def _app_wrapper_status(
     name, namespace="default"
 ) -> Optional[AppWrapper]:  # pragma: no cover
-    with oc.project(namespace), oc.timeout(10 * 60):
-        cluster = oc.selector(f"appwrapper/{name}").object()
+    cluster = None
+    try:
+        with oc.project(namespace), oc.timeout(10 * 60):
+            cluster = oc.selector(f"appwrapper/{name}").object()
+    except oc.OpenShiftPythonException as osp:
+        error_msg = osp.result.err()
+        if not (
+            'the server doesn\'t have a resource type "appwrapper"' in error_msg
+            or "forbidden" in error_msg
+            or "Unauthorized" in error_msg
+        ):
+            raise osp
+
     if cluster:
         return _map_to_app_wrapper(cluster)
+
+    return cluster
 
 
 def _ray_cluster_status(
     name, namespace="default"
 ) -> Optional[RayCluster]:  # pragma: no cover
-    # FIXME should we check the appwrapper first
     cluster = None
     try:
         with oc.project(namespace), oc.timeout(10 * 60):
             cluster = oc.selector(f"rayclusters/{name}").object()
+    except oc.OpenShiftPythonException as osp:
+        error_msg = osp.result.err()
+        if not (
+            'the server doesn\'t have a resource type "rayclusters"' in error_msg
+            or "forbidden" in error_msg
+            or "Unauthorized" in error_msg
+        ):
+            raise osp
 
-        if cluster:
-            return _map_to_ray_cluster(cluster)
-    except:
-        pass
+    if cluster:
+        return _map_to_ray_cluster(cluster)
+
     return cluster
 
 
@@ -317,8 +386,10 @@ def _get_app_wrappers(
     return list_of_app_wrappers
 
 
-def _map_to_ray_cluster(cluster) -> RayCluster:  # pragma: no cover
+def _map_to_ray_cluster(cluster) -> Optional[RayCluster]:  # pragma: no cover
     cluster_model = cluster.model
+    if type(cluster_model.status.state) == oc.model.MissingModel:
+        return None
 
     with oc.project(cluster.namespace()), oc.timeout(10 * 60):
         route = (
