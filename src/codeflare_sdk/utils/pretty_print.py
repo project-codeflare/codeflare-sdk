@@ -52,6 +52,7 @@ def print_app_wrappers_status(app_wrappers: List[AppWrapper]):  # pragma: no cov
         table.add_row("")  # empty row for spacing
         console.print(Panel.fit(table))
 
+
 def print_cluster_status(cluster: RayCluster):
     "Pretty prints the status of a passed-in cluster"
     if not cluster:
@@ -60,9 +61,9 @@ def print_cluster_status(cluster: RayCluster):
 
     console = Console()
     status = (
-            "Active :white_heavy_check_mark:"
-            if cluster.status == RayClusterStatus.READY
-            else "InActive :x:"
+        "Active :white_heavy_check_mark:"
+        if cluster.status == RayClusterStatus.READY
+        else "InActive :x:"
     )
     name = cluster.name
     dashboard = cluster.dashboard
@@ -90,11 +91,10 @@ def print_cluster_status(cluster: RayCluster):
     table4.add_row(table0)
 
     # Encompass all details of the cluster in a single panel
-    table5 = Table(
-        box=None, title="[bold] :rocket: CodeFlare Cluster Status :rocket:"
-    )
+    table5 = Table(box=None, title="[bold] :rocket: CodeFlare Cluster Status :rocket:")
     table5.add_row(Panel.fit(table4))
     console.print(table5)
+
 
 def print_clusters(clusters: List[RayCluster]):  # pragma: no cover
     if not clusters:
