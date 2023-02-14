@@ -255,7 +255,7 @@ def test_cluster_uris(mocker):
     cluster.config.name = "fake"
     assert (
         cluster.cluster_dashboard_uri()
-        == "Dashboard route not available yet. Did you run cluster.up()?"
+        == "Dashboard route not available yet, have you run cluster.up()?"
     )
 
 

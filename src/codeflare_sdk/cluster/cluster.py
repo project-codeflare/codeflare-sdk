@@ -246,7 +246,7 @@ class Cluster:
         """
         This method accesses the head ray node in your cluster and lists the running jobs.
         """
-        dashboard_route = self.cluster_dashboard_uri(namespace=self.config.namespace)
+        dashboard_route = self.cluster_dashboard_uri()
         client = JobSubmissionClient(dashboard_route)
         return client.list_jobs()
 
@@ -254,7 +254,7 @@ class Cluster:
         """
         This method accesses the head ray node in your cluster and returns the job status for the provided job id.
         """
-        dashboard_route = self.cluster_dashboard_uri(namespace=self.config.namespace)
+        dashboard_route = self.cluster_dashboard_uri()
         client = JobSubmissionClient(dashboard_route)
         return client.get_job_status(job_id)
 
@@ -262,7 +262,7 @@ class Cluster:
         """
         This method accesses the head ray node in your cluster and returns the logs for the provided job id.
         """
-        dashboard_route = self.cluster_dashboard_uri(namespace=self.config.namespace)
+        dashboard_route = self.cluster_dashboard_uri()
         client = JobSubmissionClient(dashboard_route)
         return client.get_job_logs(job_id)
 
