@@ -96,7 +96,9 @@ class Cluster:
         Applies the AppWrapper yaml, pushing the resource request onto
         the MCAD queue.
         """
-        self.config.auth.login()
+        resp = self.config.auth.login()
+        if "invalid" in resp:
+            raise PermissionError(resp)
         namespace = self.config.namespace
         try:
             with oc.project(namespace):
@@ -105,8 +107,9 @@ class Cluster:
             error_msg = osp.result.err()
             if "Unauthorized" in error_msg:
                 raise PermissionError(
-                    "Action not permitted, have you put in the correct auth credentials?"
+                    "Action not permitted, have you put in correct/up-to-date auth credentials?"
                 )
+            raise osp
 
     def down(self):
         """
@@ -218,7 +221,8 @@ class Cluster:
     def details(self, print_to_console: bool = True):
         # FIXME - Add a return as well?
         # FIXME - When not up?
-        pretty_print.print_cluster_status(self)
+        cluster = _copy_to_ray(self)
+        pretty_print.print_clusters([cluster])
 
     def cluster_uri(self) -> str:
         """
@@ -427,3 +431,19 @@ def _map_to_app_wrapper(cluster) -> AppWrapper:  # pragma: no cover
         can_run=cluster_model.status.canrun,
         job_state=cluster_model.status.queuejobstate,
     )
+
+
+def _copy_to_ray(cluster: Cluster) -> RayCluster:
+    ray = RayCluster(
+        name=cluster.config.name,
+        status=cluster.status(print_to_console=False)[0],
+        min_workers=cluster.config.min_worker,
+        max_workers=cluster.config.max_worker,
+        worker_mem_min=cluster.config.min_memory,
+        worker_mem_max=cluster.config.max_memory,
+        worker_cpu=cluster.config.min_cpus,
+        worker_gpu=cluster.config.gpu,
+        namespace=cluster.config.namespace,
+        dashboard=cluster.cluster_dashboard_uri(),
+    )
+    return ray

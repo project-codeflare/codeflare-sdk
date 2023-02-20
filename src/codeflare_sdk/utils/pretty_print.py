@@ -108,13 +108,13 @@ def print_clusters(clusters: List[RayCluster]):  # pragma: no cover
         status = (
             "Active :white_heavy_check_mark:"
             if cluster.status == RayClusterStatus.READY
-            else "InActive :x:"
+            else "Inactive :x:"
         )
         name = cluster.name
         dashboard = cluster.dashboard
         mincount = str(cluster.min_workers)
         maxcount = str(cluster.max_workers)
-        memory = cluster.worker_mem_min + "~" + cluster.worker_mem_max
+        memory = str(cluster.worker_mem_min) + "~" + str(cluster.worker_mem_max)
         cpu = str(cluster.worker_cpu)
         gpu = str(cluster.worker_gpu)
         # owned = bool(cluster["userOwned"])
