@@ -166,13 +166,13 @@ class Cluster:
                 if print_to_console:
                     pretty_print.print_app_wrappers_status([appwrapper])
                 return (
-                    ready,
                     status,
+                    ready,
                 )  # no need to check the ray status since still in queue
 
         # check the ray cluster status
         cluster = _ray_cluster_status(self.config.name, self.config.namespace)
-        if cluster:
+        if cluster and not cluster.status == RayClusterStatus.UNKNOWN:
             if cluster.status == RayClusterStatus.READY:
                 ready = True
                 status = CodeFlareClusterStatus.READY
@@ -200,7 +200,6 @@ class Cluster:
         Waits for requested cluster to be ready, up to an optional timeout (s).
         Checks every five seconds.
         """
-        # FIXME - BREAKING EARLY
         print("Waiting for requested resources to be set up...")
         ready = False
         status = None
@@ -218,11 +217,11 @@ class Cluster:
                 time += 5
         print("Requested cluster up and running!")
 
-    def details(self, print_to_console: bool = True):
-        # FIXME - Add a return as well?
-        # FIXME - When not up?
+    def details(self, print_to_console: bool = True) -> RayCluster:
         cluster = _copy_to_ray(self)
-        pretty_print.print_clusters([cluster])
+        if print_to_console:
+            pretty_print.print_clusters([cluster])
+        return cluster
 
     def cluster_uri(self) -> str:
         """
@@ -294,7 +293,6 @@ def list_all_clusters(
     """
     Returns (and prints by default) a list of all clusters in a given namespace.
     """
-    # FIXME - NOT RUNNING BREAK
     clusters = _get_ray_clusters(namespace)
     if print_to_console:
         pretty_print.print_clusters(clusters)
@@ -306,7 +304,6 @@ def list_all_queued(namespace: str, print_to_console: bool = True):  # pragma: n
     Returns (and prints by default) a list of all currently queued-up AppWrappers
     in a given namespace.
     """
-    # FIXME - FORMATTING ISSUES
     app_wrappers = _get_app_wrappers(
         namespace, filter=[AppWrapperStatus.RUNNING, AppWrapperStatus.PENDING]
     )
@@ -393,7 +390,9 @@ def _get_app_wrappers(
 def _map_to_ray_cluster(cluster) -> Optional[RayCluster]:  # pragma: no cover
     cluster_model = cluster.model
     if type(cluster_model.status.state) == oc.model.MissingModel:
-        return None
+        status = RayClusterStatus.UNKNOWN
+    else:
+        status = RayClusterStatus(cluster_model.status.state.lower())
 
     with oc.project(cluster.namespace()), oc.timeout(10 * 60):
         route = (
@@ -404,7 +403,7 @@ def _map_to_ray_cluster(cluster) -> Optional[RayCluster]:  # pragma: no cover
 
     return RayCluster(
         name=cluster.name(),
-        status=RayClusterStatus(cluster_model.status.state.lower()),
+        status=status,
         # for now we are not using autoscaling so same replicas is fine
         min_workers=cluster_model.spec.workerGroupSpecs[0].replicas,
         max_workers=cluster_model.spec.workerGroupSpecs[0].replicas,
@@ -446,4 +445,6 @@ def _copy_to_ray(cluster: Cluster) -> RayCluster:
         namespace=cluster.config.namespace,
         dashboard=cluster.cluster_dashboard_uri(),
     )
+    if ray.status == CodeFlareClusterStatus.READY:
+        ray.status = RayClusterStatus.READY
     return ray
