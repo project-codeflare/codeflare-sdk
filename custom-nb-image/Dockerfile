@@ -27,4 +27,4 @@ RUN pip install codeflare-sdk==0.3.0 \
 				datasets==2.6.1 \
 				transformers==4.23.1 \
 				evaluate==0.3.0 \
-				git+https://github.com/MichaelClifford/torchx.git@ray2-patch
+				git+https://github.com/project-codeflare/torchx.git@OCP
