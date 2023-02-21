@@ -30,11 +30,13 @@ from torchx.specs import AppHandle, parse_app_handle, AppDryRunInfo
 from .config import JobConfiguration
 
 import typing
+
 if typing.TYPE_CHECKING:
     from ..cluster.cluster import Cluster
 
 all_jobs: List["Job"] = []
 torchx_runner: Runner = get_runner()
+
 
 class JobDefinition(metaclass=abc.ABCMeta):
     """
@@ -53,6 +55,7 @@ class JobDefinition(metaclass=abc.ABCMeta):
         Method for creating a job on a specific cluster
         """
         pass
+
 
 class Job(metaclass=abc.ABCMeta):
     """
@@ -91,13 +94,13 @@ class TorchXJobDefinition(JobDefinition):
         return torchx_runner.dryrun(
             app=ddp(
                 *script_args,
-                script = self.config.script,
+                script=self.config.script,
                 m=self.config.m,
                 name=self.config.name,
                 h=None,  # for custom resource types
                 cpu=cluster.config.max_cpus,
-                gpu = cluster.config.gpu,
-                memMB = 1024 * cluster.config.max_memory,  # cluster memory is in GB
+                gpu=cluster.config.gpu,
+                memMB=1024 * cluster.config.max_memory,  # cluster memory is in GB
                 j=j,
                 env=self.config.env,
                 # max_retries=0,  # default
@@ -110,7 +113,7 @@ class TorchXJobDefinition(JobDefinition):
                 "working_dir": self.config.working_dir,
                 "requirements": self.config.requirements,
             },
-            workspace=f"file://{Path.cwd()}"
+            workspace=f"file://{Path.cwd()}",
         )
 
     def submit(self, cluster: "Cluster") -> "TorchXRayJob":
@@ -124,13 +127,18 @@ class TorchXRayJob(Job):
     """
     Active submission of a dist.ddp job to a Ray cluster which can be used to get logs and status.
     """
-    def __init__(self, job_definition: TorchXJobDefinition, cluster: "Cluster", *script_args):
+
+    def __init__(
+        self, job_definition: TorchXJobDefinition, cluster: "Cluster", *script_args
+    ):
         """
         Creates job which maximizes resource usage on the passed cluster.
         """
         self.job_definition: TorchXJobDefinition = job_definition
         self.cluster: "Cluster" = cluster
-        self._app_handle = torchx_runner.schedule(job_definition._dry_run(cluster, *script_args))
+        self._app_handle = torchx_runner.schedule(
+            job_definition._dry_run(cluster, *script_args)
+        )
         all_jobs.append(self)
 
     @property

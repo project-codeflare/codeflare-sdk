@@ -21,6 +21,7 @@ Job object.
 from dataclasses import dataclass, field
 from typing import Optional, Dict
 
+
 @dataclass
 class JobConfiguration:
     """
