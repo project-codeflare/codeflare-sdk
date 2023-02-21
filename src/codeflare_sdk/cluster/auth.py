@@ -82,7 +82,8 @@ class TokenAuthentication(Authentication):
         """
         This function is used to logout of an OpenShift cluster.
         """
-        response = oc.invoke("logout")
+        args = [f"--token={self.token}", f"--server={self.server}:6443"]
+        response = oc.invoke("logout", args)
         return response.out()
 
 

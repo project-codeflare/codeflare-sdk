@@ -95,7 +95,6 @@ class Cluster:
         Applies the AppWrapper yaml, pushing the resource request onto
         the MCAD queue.
         """
-        self.config.auth.login()
         namespace = self.config.namespace
         with oc.project(namespace):
             oc.invoke("apply", ["-f", self.app_wrapper_yaml])
@@ -108,7 +107,6 @@ class Cluster:
         namespace = self.config.namespace
         with oc.project(namespace):
             oc.invoke("delete", ["AppWrapper", self.app_wrapper_name])
-        self.config.auth.logout()
 
     def status(self, print_to_console: bool = True):  # pragma: no cover
         """
