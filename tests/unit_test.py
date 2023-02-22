@@ -273,7 +273,7 @@ def test_cluster_uris(mocker):
     )
 
 
-def ray_addr(self):
+def ray_addr(self, *args):
     return self._address
 
 
@@ -287,14 +287,23 @@ def test_ray_job_wrapping(mocker):
         "ray.job_submission.JobSubmissionClient._check_connection_and_version_with_url",
         return_value="None",
     )
-    # mocker.patch("ray.job_submission.JobSubmissionClient.list_jobs", side_effect=ray_addr)
     mock_res = mocker.patch.object(
         ray.job_submission.JobSubmissionClient, "list_jobs", autospec=True
     )
     mock_res.side_effect = ray_addr
     assert cluster.list_jobs() == cluster.cluster_dashboard_uri()
-    # cluster.job_status()
-    # cluster.job_logs()
+
+    mock_res = mocker.patch.object(
+        ray.job_submission.JobSubmissionClient, "get_job_status", autospec=True
+    )
+    mock_res.side_effect = ray_addr
+    assert cluster.job_status("fake_id") == cluster.cluster_dashboard_uri()
+
+    mock_res = mocker.patch.object(
+        ray.job_submission.JobSubmissionClient, "get_job_logs", autospec=True
+    )
+    mock_res.side_effect = ray_addr
+    assert cluster.job_logs("fake_id") == cluster.cluster_dashboard_uri()
 
 
 def test_print_no_resources(capsys):

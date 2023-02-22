@@ -103,7 +103,7 @@ class Cluster:
         try:
             with oc.project(namespace):
                 oc.invoke("apply", ["-f", self.app_wrapper_yaml])
-        except oc.OpenShiftPythonException as osp:
+        except oc.OpenShiftPythonException as osp:  # pragma: no cover
             error_msg = osp.result.err()
             if "Unauthorized" in error_msg:
                 raise PermissionError(
@@ -120,7 +120,7 @@ class Cluster:
         try:
             with oc.project(namespace):
                 oc.invoke("delete", ["AppWrapper", self.app_wrapper_name])
-        except oc.OpenShiftPythonException as osp:
+        except oc.OpenShiftPythonException as osp:  # pragma: no cover
             error_msg = osp.result.err()
             if (
                 'the server doesn\'t have a resource type "AppWrapper"' in error_msg
@@ -279,9 +279,12 @@ def get_current_namespace() -> str:
     """
     try:
         namespace = oc.invoke("project", ["-q"]).actions()[0].out.strip()
-    except oc.OpenShiftPythonException as osp:
+    except oc.OpenShiftPythonException as osp:  # pragma: no cover
         error_msg = osp.result.err()
-        if "do not have rights" in error_msg:
+        if (
+            "do not have rights" in error_msg
+            or "Missing or incomplete configuration" in error_msg
+        ):
             raise PermissionError(
                 "Action not permitted, have you run auth.login() or cluster.up()?"
             )
@@ -316,14 +319,12 @@ def list_all_queued(namespace: str, print_to_console: bool = True):
 # private methods
 
 
-def _app_wrapper_status(
-    name, namespace="default"
-) -> Optional[AppWrapper]:  # pragma: no cover
+def _app_wrapper_status(name, namespace="default") -> Optional[AppWrapper]:
     cluster = None
     try:
         with oc.project(namespace), oc.timeout(10 * 60):
             cluster = oc.selector(f"appwrapper/{name}").object()
-    except oc.OpenShiftPythonException as osp:
+    except oc.OpenShiftPythonException as osp:  # pragma: no cover
         msg = osp.msg
         if "Expected a single object, but selected 0" in msg:
             return cluster
@@ -347,7 +348,7 @@ def _ray_cluster_status(name, namespace="default") -> Optional[RayCluster]:
     try:
         with oc.project(namespace), oc.timeout(10 * 60):
             cluster = oc.selector(f"rayclusters/{name}").object()
-    except oc.OpenShiftPythonException as osp:
+    except oc.OpenShiftPythonException as osp:  # pragma: no cover
         msg = osp.msg
         if "Expected a single object, but selected 0" in msg:
             return cluster
@@ -368,9 +369,22 @@ def _ray_cluster_status(name, namespace="default") -> Optional[RayCluster]:
 
 def _get_ray_clusters(namespace="default") -> List[RayCluster]:
     list_of_clusters = []
-
-    with oc.project(namespace), oc.timeout(10 * 60):
-        ray_clusters = oc.selector("rayclusters").objects()
+    try:
+        with oc.project(namespace), oc.timeout(10 * 60):
+            ray_clusters = oc.selector("rayclusters").objects()
+    except oc.OpenShiftPythonException as osp:  # pragma: no cover
+        error_msg = osp.result.err()
+        if (
+            'the server doesn\'t have a resource type "rayclusters"' in error_msg
+            or "forbidden" in error_msg
+            or "Unauthorized" in error_msg
+            or "Missing or incomplete configuration" in error_msg
+        ):
+            raise PermissionError(
+                "Action not permitted, have you put in correct/up-to-date auth credentials?"
+            )
+        else:
+            raise osp
 
     for cluster in ray_clusters:
         list_of_clusters.append(_map_to_ray_cluster(cluster))
@@ -382,8 +396,22 @@ def _get_app_wrappers(
 ) -> List[AppWrapper]:
     list_of_app_wrappers = []
 
-    with oc.project(namespace), oc.timeout(10 * 60):
-        app_wrappers = oc.selector("appwrappers").objects()
+    try:
+        with oc.project(namespace), oc.timeout(10 * 60):
+            app_wrappers = oc.selector("appwrappers").objects()
+    except oc.OpenShiftPythonException as osp:  # pragma: no cover
+        error_msg = osp.result.err()
+        if (
+            'the server doesn\'t have a resource type "appwrappers"' in error_msg
+            or "forbidden" in error_msg
+            or "Unauthorized" in error_msg
+            or "Missing or incomplete configuration" in error_msg
+        ):
+            raise PermissionError(
+                "Action not permitted, have you put in correct/up-to-date auth credentials?"
+            )
+        else:
+            raise osp
 
     for item in app_wrappers:
         app_wrapper = _map_to_app_wrapper(item)
