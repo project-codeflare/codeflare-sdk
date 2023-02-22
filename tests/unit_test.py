@@ -26,13 +26,26 @@ from codeflare_sdk.cluster.cluster import (
     get_current_namespace,
     list_all_clusters,
     list_all_queued,
+    _copy_to_ray,
 )
 from codeflare_sdk.cluster.auth import (
     TokenAuthentication,
     PasswordUserAuthentication,
     Authentication,
 )
-from codeflare_sdk.utils.generate_yaml import main
+from codeflare_sdk.utils.pretty_print import (
+    print_no_resources_found,
+    print_app_wrappers_status,
+    print_cluster_status,
+    print_clusters,
+)
+from codeflare_sdk.cluster.model import (
+    AppWrapper,
+    RayCluster,
+    AppWrapperStatus,
+    RayClusterStatus,
+    CodeFlareClusterStatus,
+)
 import openshift
 from openshift import OpenShiftPythonException
 import ray
@@ -283,16 +296,285 @@ def test_ray_job_wrapping(mocker):
     # cluster.job_logs()
 
 
+def test_print_no_resources(capsys):
+    try:
+        print_no_resources_found()
+    except:
+        assert 1 == 0
+    captured = capsys.readouterr()
+    assert captured.out == (
+        "╭──────────────────────────────────────────────────────────────────────────────╮\n"
+        "│ No resources found, have you run cluster.up() yet?                           │\n"
+        "╰──────────────────────────────────────────────────────────────────────────────╯\n"
+    )
+
+
+def test_print_appwrappers(capsys):
+    aw1 = AppWrapper(
+        name="awtest1",
+        status=AppWrapperStatus.PENDING,
+        can_run=False,
+        job_state="queue-state",
+    )
+    aw2 = AppWrapper(
+        name="awtest2",
+        status=AppWrapperStatus.RUNNING,
+        can_run=False,
+        job_state="queue-state",
+    )
+    try:
+        print_app_wrappers_status([aw1, aw2])
+    except:
+        assert 1 == 0
+    captured = capsys.readouterr()
+    assert captured.out == (
+        "╭───────────────────────╮\n"
+        "│    🚀 Cluster Queue   │\n"
+        "│       Status 🚀       │\n"
+        "│ +---------+---------+ │\n"
+        "│ | Name    | Status  | │\n"
+        "│ +=========+=========+ │\n"
+        "│ | awtest1 | pending | │\n"
+        "│ |         |         | │\n"
+        "│ | awtest2 | running | │\n"
+        "│ |         |         | │\n"
+        "│ +---------+---------+ │\n"
+        "╰───────────────────────╯\n"
+    )
+
+
+def test_ray_details(capsys):
+    ray1 = RayCluster(
+        name="raytest1",
+        status=RayClusterStatus.READY,
+        min_workers=1,
+        max_workers=1,
+        worker_mem_min=2,
+        worker_mem_max=2,
+        worker_cpu=1,
+        worker_gpu=0,
+        namespace="ns",
+        dashboard="fake-uri",
+    )
+    cf = Cluster(ClusterConfiguration(name="raytest2", namespace="ns"))
+    captured = capsys.readouterr()
+    ray2 = _copy_to_ray(cf)
+    details = cf.details()
+    assert details == ray2
+    assert ray2.name == "raytest2"
+    assert ray1.namespace == ray2.namespace
+    assert ray1.min_workers == ray2.min_workers
+    assert ray1.max_workers == ray2.max_workers
+    assert ray1.worker_mem_min == ray2.worker_mem_min
+    assert ray1.worker_mem_max == ray2.worker_mem_max
+    assert ray1.worker_cpu == ray2.worker_cpu
+    assert ray1.worker_gpu == ray2.worker_gpu
+    try:
+        print_clusters([ray1, ray2])
+        print_cluster_status(ray1)
+        print_cluster_status(ray2)
+    except:
+        assert 0 == 1
+    captured = capsys.readouterr()
+    assert captured.out == (
+        "                  🚀 CodeFlare Cluster Details 🚀                 \n"
+        "                                                                  \n"
+        " ╭──────────────────────────────────────────────────────────────╮ \n"
+        " │   Name                                                       │ \n"
+        " │   raytest2                                   Inactive ❌     │ \n"
+        " │                                                              │ \n"
+        " │   URI: ray://raytest2-head-svc.ns.svc:10001                  │ \n"
+        " │                                                              │ \n"
+        " │   Dashboard🔗                                                │ \n"
+        " │                                                              │ \n"
+        " │                      Cluster Resources                       │ \n"
+        " │   ╭─ Workers ──╮  ╭───────── Worker specs(each) ─────────╮   │ \n"
+        " │   │  Min  Max  │  │  Memory      CPU         GPU         │   │ \n"
+        " │   │            │  │                                      │   │ \n"
+        " │   │  1    1    │  │  2~2         1           0           │   │ \n"
+        " │   │            │  │                                      │   │ \n"
+        " │   ╰────────────╯  ╰──────────────────────────────────────╯   │ \n"
+        " ╰──────────────────────────────────────────────────────────────╯ \n"
+        "                  🚀 CodeFlare Cluster Details 🚀                 \n"
+        "                                                                  \n"
+        " ╭──────────────────────────────────────────────────────────────╮ \n"
+        " │   Name                                                       │ \n"
+        " │   raytest1                                   Active ✅       │ \n"
+        " │                                                              │ \n"
+        " │   URI: ray://raytest1-head-svc.ns.svc:10001                  │ \n"
+        " │                                                              │ \n"
+        " │   Dashboard🔗                                                │ \n"
+        " │                                                              │ \n"
+        " │                      Cluster Resources                       │ \n"
+        " │   ╭─ Workers ──╮  ╭───────── Worker specs(each) ─────────╮   │ \n"
+        " │   │  Min  Max  │  │  Memory      CPU         GPU         │   │ \n"
+        " │   │            │  │                                      │   │ \n"
+        " │   │  1    1    │  │  2~2         1           0           │   │ \n"
+        " │   │            │  │                                      │   │ \n"
+        " │   ╰────────────╯  ╰──────────────────────────────────────╯   │ \n"
+        " ╰──────────────────────────────────────────────────────────────╯ \n"
+        "╭──────────────────────────────────────────────────────────────╮\n"
+        "│   Name                                                       │\n"
+        "│   raytest2                                   Inactive ❌     │\n"
+        "│                                                              │\n"
+        "│   URI: ray://raytest2-head-svc.ns.svc:10001                  │\n"
+        "│                                                              │\n"
+        "│   Dashboard🔗                                                │\n"
+        "│                                                              │\n"
+        "│                      Cluster Resources                       │\n"
+        "│   ╭─ Workers ──╮  ╭───────── Worker specs(each) ─────────╮   │\n"
+        "│   │  Min  Max  │  │  Memory      CPU         GPU         │   │\n"
+        "│   │            │  │                                      │   │\n"
+        "│   │  1    1    │  │  2~2         1           0           │   │\n"
+        "│   │            │  │                                      │   │\n"
+        "│   ╰────────────╯  ╰──────────────────────────────────────╯   │\n"
+        "╰──────────────────────────────────────────────────────────────╯\n"
+        "                🚀 CodeFlare Cluster Status 🚀                \n"
+        "                                                              \n"
+        " ╭──────────────────────────────────────────────────────────╮ \n"
+        " │   Name                                                   │ \n"
+        " │   raytest1                                   Active ✅   │ \n"
+        " │                                                          │ \n"
+        " │   URI: ray://raytest1-head-svc.ns.svc:10001              │ \n"
+        " │                                                          │ \n"
+        " │   Dashboard🔗                                            │ \n"
+        " │                                                          │ \n"
+        " ╰──────────────────────────────────────────────────────────╯ \n"
+        "                 🚀 CodeFlare Cluster Status 🚀                 \n"
+        "                                                                \n"
+        " ╭────────────────────────────────────────────────────────────╮ \n"
+        " │   Name                                                     │ \n"
+        " │   raytest2                                   Inactive ❌   │ \n"
+        " │                                                            │ \n"
+        " │   URI: ray://raytest2-head-svc.ns.svc:10001                │ \n"
+        " │                                                            │ \n"
+        " │   Dashboard🔗                                              │ \n"
+        " │                                                            │ \n"
+        " ╰────────────────────────────────────────────────────────────╯ \n"
+    )
+
+
+def act_side_effect_list(self):
+    print([self])
+    self.out = str(self.high_level_operation)
+    return [self]
+
+
 def test_get_namespace(mocker):
-    pass
+    mocker.patch("openshift.invoke", side_effect=arg_side_effect)
+    mock_res = mocker.patch.object(openshift.Result, "actions")
+    mock_res.side_effect = lambda: act_side_effect_list(fake_res)
+    vars = get_current_namespace()
+    assert vars == "('project', ['-q'])"
 
 
-def test_list_clusters(mocker):
-    pass
+# def test_list_clusters(mocker):
+#    list_all_clusters("ns")
 
 
-def test_list_queue(mocker):
-    pass
+# def test_list_queue(mocker):
+#    list_all_queued("ns")
+
+
+def test_cluster_status(mocker):
+    fake_aw = AppWrapper(
+        "test", AppWrapperStatus.FAILED, can_run=True, job_state="unused"
+    )
+    fake_ray = RayCluster(
+        name="test",
+        status=RayClusterStatus.UNKNOWN,
+        min_workers=1,
+        max_workers=1,
+        worker_mem_min=2,
+        worker_mem_max=2,
+        worker_cpu=1,
+        worker_gpu=0,
+        namespace="ns",
+        dashboard="fake-uri",
+    )
+    cf = Cluster(ClusterConfiguration(name="test", namespace="ns"))
+    status, ready = cf.status()
+    assert status == CodeFlareClusterStatus.UNKNOWN
+    assert ready == False
+
+    mocker.patch(
+        "codeflare_sdk.cluster.cluster._app_wrapper_status", return_value=fake_aw
+    )
+    status, ready = cf.status()
+    assert status == CodeFlareClusterStatus.FAILED
+    assert ready == False
+
+    fake_aw.status = AppWrapperStatus.DELETED
+    status, ready = cf.status()
+    assert status == CodeFlareClusterStatus.FAILED
+    assert ready == False
+
+    fake_aw.status = AppWrapperStatus.PENDING
+    status, ready = cf.status()
+    assert status == CodeFlareClusterStatus.QUEUED
+    assert ready == False
+
+    fake_aw.status = AppWrapperStatus.COMPLETED
+    status, ready = cf.status()
+    assert status == CodeFlareClusterStatus.STARTING
+    assert ready == False
+
+    fake_aw.status = AppWrapperStatus.RUNNING_HOLD_COMPLETION
+    status, ready = cf.status()
+    assert status == CodeFlareClusterStatus.STARTING
+    assert ready == False
+
+    fake_aw.status = AppWrapperStatus.RUNNING
+    status, ready = cf.status()
+    assert status == CodeFlareClusterStatus.STARTING
+    assert ready == False
+
+    mocker.patch(
+        "codeflare_sdk.cluster.cluster._ray_cluster_status", return_value=fake_ray
+    )
+    status, ready = cf.status()
+    assert status == CodeFlareClusterStatus.STARTING
+    assert ready == False
+
+    fake_ray.status = RayClusterStatus.FAILED
+    status, ready = cf.status()
+    assert status == CodeFlareClusterStatus.FAILED
+    assert ready == False
+
+    fake_ray.status = RayClusterStatus.UNHEALTHY
+    status, ready = cf.status()
+    assert status == CodeFlareClusterStatus.FAILED
+    assert ready == False
+
+    fake_ray.status = RayClusterStatus.READY
+    status, ready = cf.status()
+    assert status == CodeFlareClusterStatus.READY
+    assert ready == True
+
+
+def test_wait_ready(mocker, capsys):
+    cf = Cluster(ClusterConfiguration(name="test", namespace="ns"))
+    try:
+        cf.wait_ready(timeout=5)
+        assert 1 == 0
+    except Exception as e:
+        assert type(e) == TimeoutError
+
+    captured = capsys.readouterr()
+    assert (
+        "WARNING: Current cluster status is unknown, have you run cluster.up yet?"
+        in captured.out
+    )
+    mocker.patch(
+        "codeflare_sdk.cluster.cluster.Cluster.status",
+        return_value=(True, CodeFlareClusterStatus.READY),
+    )
+    cf.wait_ready()
+    captured = capsys.readouterr()
+    assert (
+        captured.out
+        == "Waiting for requested resources to be set up...\nRequested cluster up and running!\n"
+    )
 
 
 def test_cmd_line_generation():

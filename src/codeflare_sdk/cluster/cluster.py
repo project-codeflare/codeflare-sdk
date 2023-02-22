@@ -159,7 +159,7 @@ class Cluster:
             ]:
                 ready = False
                 status = CodeFlareClusterStatus.FAILED  # should deleted be separate
-                return ready, status  # exit early, no need to check ray status
+                return status, ready  # exit early, no need to check ray status
             elif appwrapper.status in [AppWrapperStatus.PENDING]:
                 ready = False
                 status = CodeFlareClusterStatus.QUEUED
@@ -270,7 +270,7 @@ class Cluster:
         return client.get_job_logs(job_id)
 
 
-def get_current_namespace() -> str:  # pragma: no cover
+def get_current_namespace() -> str:
     """
     Returns the user's current working namespace.
     """
@@ -287,9 +287,7 @@ def get_current_namespace() -> str:  # pragma: no cover
     return namespace
 
 
-def list_all_clusters(
-    namespace: str, print_to_console: bool = True
-):  # pragma: no cover
+def list_all_clusters(namespace: str, print_to_console: bool = True):
     """
     Returns (and prints by default) a list of all clusters in a given namespace.
     """
@@ -299,7 +297,7 @@ def list_all_clusters(
     return clusters
 
 
-def list_all_queued(namespace: str, print_to_console: bool = True):  # pragma: no cover
+def list_all_queued(namespace: str, print_to_console: bool = True):
     """
     Returns (and prints by default) a list of all currently queued-up AppWrappers
     in a given namespace.
@@ -337,9 +335,7 @@ def _app_wrapper_status(
     return cluster
 
 
-def _ray_cluster_status(
-    name, namespace="default"
-) -> Optional[RayCluster]:  # pragma: no cover
+def _ray_cluster_status(name, namespace="default") -> Optional[RayCluster]:
     cluster = None
     try:
         with oc.project(namespace), oc.timeout(10 * 60):
@@ -359,7 +355,7 @@ def _ray_cluster_status(
     return cluster
 
 
-def _get_ray_clusters(namespace="default") -> List[RayCluster]:  # pragma: no cover
+def _get_ray_clusters(namespace="default") -> List[RayCluster]:
     list_of_clusters = []
 
     with oc.project(namespace), oc.timeout(10 * 60):
@@ -372,7 +368,7 @@ def _get_ray_clusters(namespace="default") -> List[RayCluster]:  # pragma: no co
 
 def _get_app_wrappers(
     namespace="default", filter=List[AppWrapperStatus]
-) -> List[AppWrapper]:  # pragma: no cover
+) -> List[AppWrapper]:
     list_of_app_wrappers = []
 
     with oc.project(namespace), oc.timeout(10 * 60):
@@ -387,7 +383,7 @@ def _get_app_wrappers(
     return list_of_app_wrappers
 
 
-def _map_to_ray_cluster(cluster) -> Optional[RayCluster]:  # pragma: no cover
+def _map_to_ray_cluster(cluster) -> Optional[RayCluster]:
     cluster_model = cluster.model
     if type(cluster_model.status.state) == oc.model.MissingModel:
         status = RayClusterStatus.UNKNOWN
@@ -422,7 +418,7 @@ def _map_to_ray_cluster(cluster) -> Optional[RayCluster]:  # pragma: no cover
     )
 
 
-def _map_to_app_wrapper(cluster) -> AppWrapper:  # pragma: no cover
+def _map_to_app_wrapper(cluster) -> AppWrapper:
     cluster_model = cluster.model
     return AppWrapper(
         name=cluster.name(),
