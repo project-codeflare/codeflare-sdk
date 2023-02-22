@@ -48,6 +48,7 @@ from codeflare_sdk.cluster.model import (
 )
 import openshift
 from openshift import OpenShiftPythonException
+from openshift.selector import Selector
 import ray
 import pytest
 
@@ -468,12 +469,991 @@ def test_get_namespace(mocker):
     assert vars == "('project', ['-q'])"
 
 
-# def test_list_clusters(mocker):
-#    list_all_clusters("ns")
+def get_selector(*args):
+    selector = Selector({"operation": "selector", "status": 0, "actions": []})
+    return selector
 
 
-# def test_list_queue(mocker):
-#    list_all_queued("ns")
+def get_obj_none():
+    return []
+
+
+def get_ray_obj(cls=None):
+    api_obj = openshift.apiobject.APIObject(
+        {
+            "apiVersion": "ray.io/v1alpha1",
+            "kind": "RayCluster",
+            "metadata": {
+                "creationTimestamp": "2023-02-22T16:26:07Z",
+                "generation": 1,
+                "labels": {
+                    "appwrapper.mcad.ibm.com": "quicktest",
+                    "controller-tools.k8s.io": "1.0",
+                    "resourceName": "quicktest",
+                },
+                "managedFields": [
+                    {
+                        "apiVersion": "ray.io/v1alpha1",
+                        "fieldsType": "FieldsV1",
+                        "fieldsV1": {
+                            "f:metadata": {
+                                "f:labels": {
+                                    ".": {},
+                                    "f:appwrapper.mcad.ibm.com": {},
+                                    "f:controller-tools.k8s.io": {},
+                                    "f:resourceName": {},
+                                },
+                                "f:ownerReferences": {
+                                    ".": {},
+                                    'k:{"uid":"6334fc1b-471e-4876-8e7b-0b2277679235"}': {},
+                                },
+                            },
+                            "f:spec": {
+                                ".": {},
+                                "f:autoscalerOptions": {
+                                    ".": {},
+                                    "f:idleTimeoutSeconds": {},
+                                    "f:imagePullPolicy": {},
+                                    "f:resources": {
+                                        ".": {},
+                                        "f:limits": {
+                                            ".": {},
+                                            "f:cpu": {},
+                                            "f:memory": {},
+                                        },
+                                        "f:requests": {
+                                            ".": {},
+                                            "f:cpu": {},
+                                            "f:memory": {},
+                                        },
+                                    },
+                                    "f:upscalingMode": {},
+                                },
+                                "f:enableInTreeAutoscaling": {},
+                                "f:headGroupSpec": {
+                                    ".": {},
+                                    "f:rayStartParams": {
+                                        ".": {},
+                                        "f:block": {},
+                                        "f:dashboard-host": {},
+                                        "f:num-gpus": {},
+                                    },
+                                    "f:serviceType": {},
+                                    "f:template": {
+                                        ".": {},
+                                        "f:spec": {".": {}, "f:containers": {}},
+                                    },
+                                },
+                                "f:rayVersion": {},
+                                "f:workerGroupSpecs": {},
+                            },
+                        },
+                        "manager": "mcad-controller",
+                        "operation": "Update",
+                        "time": "2023-02-22T16:26:07Z",
+                    },
+                    {
+                        "apiVersion": "ray.io/v1alpha1",
+                        "fieldsType": "FieldsV1",
+                        "fieldsV1": {
+                            "f:status": {
+                                ".": {},
+                                "f:availableWorkerReplicas": {},
+                                "f:desiredWorkerReplicas": {},
+                                "f:endpoints": {
+                                    ".": {},
+                                    "f:client": {},
+                                    "f:dashboard": {},
+                                    "f:gcs": {},
+                                },
+                                "f:lastUpdateTime": {},
+                                "f:maxWorkerReplicas": {},
+                                "f:minWorkerReplicas": {},
+                                "f:state": {},
+                            }
+                        },
+                        "manager": "manager",
+                        "operation": "Update",
+                        "subresource": "status",
+                        "time": "2023-02-22T16:26:16Z",
+                    },
+                ],
+                "name": "quicktest",
+                "namespace": "ns",
+                "ownerReferences": [
+                    {
+                        "apiVersion": "mcad.ibm.com/v1beta1",
+                        "blockOwnerDeletion": True,
+                        "controller": True,
+                        "kind": "AppWrapper",
+                        "name": "quicktest",
+                        "uid": "6334fc1b-471e-4876-8e7b-0b2277679235",
+                    }
+                ],
+                "resourceVersion": "9482407",
+                "uid": "44d45d1f-26c8-43e7-841f-831dbd8c1285",
+            },
+            "spec": {
+                "autoscalerOptions": {
+                    "idleTimeoutSeconds": 60,
+                    "imagePullPolicy": "Always",
+                    "resources": {
+                        "limits": {"cpu": "500m", "memory": "512Mi"},
+                        "requests": {"cpu": "500m", "memory": "512Mi"},
+                    },
+                    "upscalingMode": "Default",
+                },
+                "enableInTreeAutoscaling": False,
+                "headGroupSpec": {
+                    "rayStartParams": {
+                        "block": "true",
+                        "dashboard-host": "0.0.0.0",
+                        "num-gpus": "0",
+                    },
+                    "serviceType": "ClusterIP",
+                    "template": {
+                        "spec": {
+                            "containers": [
+                                {
+                                    "image": "ghcr.io/foundation-model-stack/base:ray2.1.0-py38-gpu-pytorch1.12.0cu116-20221213-193103",
+                                    "imagePullPolicy": "Always",
+                                    "lifecycle": {
+                                        "preStop": {
+                                            "exec": {
+                                                "command": ["/bin/sh", "-c", "ray stop"]
+                                            }
+                                        }
+                                    },
+                                    "name": "ray-head",
+                                    "ports": [
+                                        {
+                                            "containerPort": 6379,
+                                            "name": "gcs",
+                                            "protocol": "TCP",
+                                        },
+                                        {
+                                            "containerPort": 8265,
+                                            "name": "dashboard",
+                                            "protocol": "TCP",
+                                        },
+                                        {
+                                            "containerPort": 10001,
+                                            "name": "client",
+                                            "protocol": "TCP",
+                                        },
+                                    ],
+                                    "resources": {
+                                        "limits": {
+                                            "cpu": 2,
+                                            "memory": "8G",
+                                            "nvidia.com/gpu": 0,
+                                        },
+                                        "requests": {
+                                            "cpu": 2,
+                                            "memory": "8G",
+                                            "nvidia.com/gpu": 0,
+                                        },
+                                    },
+                                }
+                            ]
+                        }
+                    },
+                },
+                "rayVersion": "1.12.0",
+                "workerGroupSpecs": [
+                    {
+                        "groupName": "small-group-quicktest",
+                        "maxReplicas": 1,
+                        "minReplicas": 1,
+                        "rayStartParams": {"block": "true", "num-gpus": "0"},
+                        "replicas": 1,
+                        "template": {
+                            "metadata": {
+                                "annotations": {"key": "value"},
+                                "labels": {"key": "value"},
+                            },
+                            "spec": {
+                                "containers": [
+                                    {
+                                        "env": [
+                                            {
+                                                "name": "MY_POD_IP",
+                                                "valueFrom": {
+                                                    "fieldRef": {
+                                                        "fieldPath": "status.podIP"
+                                                    }
+                                                },
+                                            }
+                                        ],
+                                        "image": "ghcr.io/foundation-model-stack/base:ray2.1.0-py38-gpu-pytorch1.12.0cu116-20221213-193103",
+                                        "lifecycle": {
+                                            "preStop": {
+                                                "exec": {
+                                                    "command": [
+                                                        "/bin/sh",
+                                                        "-c",
+                                                        "ray stop",
+                                                    ]
+                                                }
+                                            }
+                                        },
+                                        "name": "machine-learning",
+                                        "resources": {
+                                            "limits": {
+                                                "cpu": 1,
+                                                "memory": "2G",
+                                                "nvidia.com/gpu": 0,
+                                            },
+                                            "requests": {
+                                                "cpu": 1,
+                                                "memory": "2G",
+                                                "nvidia.com/gpu": 0,
+                                            },
+                                        },
+                                    }
+                                ],
+                                "initContainers": [
+                                    {
+                                        "command": [
+                                            "sh",
+                                            "-c",
+                                            "until nslookup $RAY_IP.$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace).svc.cluster.local; do echo waiting for myservice; sleep 2; done",
+                                        ],
+                                        "image": "busybox:1.28",
+                                        "name": "init-myservice",
+                                    }
+                                ],
+                            },
+                        },
+                    }
+                ],
+            },
+            "status": {
+                "availableWorkerReplicas": 2,
+                "desiredWorkerReplicas": 1,
+                "endpoints": {"client": "10001", "dashboard": "8265", "gcs": "6379"},
+                "lastUpdateTime": "2023-02-22T16:26:16Z",
+                "maxWorkerReplicas": 1,
+                "minWorkerReplicas": 1,
+                "state": "ready",
+            },
+        }
+    )
+    return [api_obj]
+
+
+def get_aw_obj():
+    api_obj1 = openshift.apiobject.APIObject(
+        {
+            "apiVersion": "mcad.ibm.com/v1beta1",
+            "kind": "AppWrapper",
+            "metadata": {
+                "annotations": {
+                    "kubectl.kubernetes.io/last-applied-configuration": '{"apiVersion":"mcad.ibm.com/v1beta1","kind":"AppWrapper","metadata":{"annotations":{},"name":"quicktest1","namespace":"ns"},"spec":{"priority":9,"resources":{"GenericItems":[{"custompodresources":[{"limits":{"cpu":2,"memory":"8G","nvidia.com/gpu":0},"replicas":1,"requests":{"cpu":2,"memory":"8G","nvidia.com/gpu":0}},{"limits":{"cpu":1,"memory":"2G","nvidia.com/gpu":0},"replicas":1,"requests":{"cpu":1,"memory":"2G","nvidia.com/gpu":0}}],"generictemplate":{"apiVersion":"ray.io/v1alpha1","kind":"RayCluster","metadata":{"labels":{"appwrapper.mcad.ibm.com":"quicktest1","controller-tools.k8s.io":"1.0"},"name":"quicktest1","namespace":"ns"},"spec":{"autoscalerOptions":{"idleTimeoutSeconds":60,"imagePullPolicy":"Always","resources":{"limits":{"cpu":"500m","memory":"512Mi"},"requests":{"cpu":"500m","memory":"512Mi"}},"upscalingMode":"Default"},"enableInTreeAutoscaling":false,"headGroupSpec":{"rayStartParams":{"block":"true","dashboard-host":"0.0.0.0","num-gpus":"0"},"serviceType":"ClusterIP","template":{"spec":{"containers":[{"image":"ghcr.io/foundation-model-stack/base:ray2.1.0-py38-gpu-pytorch1.12.0cu116-20221213-193103","imagePullPolicy":"Always","lifecycle":{"preStop":{"exec":{"command":["/bin/sh","-c","ray stop"]}}},"name":"ray-head","ports":[{"containerPort":6379,"name":"gcs"},{"containerPort":8265,"name":"dashboard"},{"containerPort":10001,"name":"client"}],"resources":{"limits":{"cpu":2,"memory":"8G","nvidia.com/gpu":0},"requests":{"cpu":2,"memory":"8G","nvidia.com/gpu":0}}}]}}},"rayVersion":"1.12.0","workerGroupSpecs":[{"groupName":"small-group-quicktest","maxReplicas":1,"minReplicas":1,"rayStartParams":{"block":"true","num-gpus":"0"},"replicas":1,"template":{"metadata":{"annotations":{"key":"value"},"labels":{"key":"value"}},"spec":{"containers":[{"env":[{"name":"MY_POD_IP","valueFrom":{"fieldRef":{"fieldPath":"status.podIP"}}}],"image":"ghcr.io/foundation-model-stack/base:ray2.1.0-py38-gpu-pytorch1.12.0cu116-20221213-193103","lifecycle":{"preStop":{"exec":{"command":["/bin/sh","-c","ray stop"]}}},"name":"machine-learning","resources":{"limits":{"cpu":1,"memory":"2G","nvidia.com/gpu":0},"requests":{"cpu":1,"memory":"2G","nvidia.com/gpu":0}}}],"initContainers":[{"command":["sh","-c","until nslookup $RAY_IP.$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace).svc.cluster.local; do echo waiting for myservice; sleep 2; done"],"image":"busybox:1.28","name":"init-myservice"}]}}}]}},"replicas":1},{"generictemplate":{"apiVersion":"route.openshift.io/v1","kind":"Route","metadata":{"labels":{"odh-ray-cluster-service":"quicktest-head-svc"},"name":"ray-dashboard-quicktest","namespace":"default"},"spec":{"port":{"targetPort":"dashboard"},"to":{"kind":"Service","name":"quicktest-head-svc"}}},"replica":1}],"Items":[]}}}\n'
+                },
+                "creationTimestamp": "2023-02-22T16:26:07Z",
+                "generation": 4,
+                "managedFields": [
+                    {
+                        "apiVersion": "mcad.ibm.com/v1beta1",
+                        "fieldsType": "FieldsV1",
+                        "fieldsV1": {
+                            "f:spec": {
+                                "f:resources": {"f:GenericItems": {}, "f:metadata": {}},
+                                "f:schedulingSpec": {},
+                                "f:service": {".": {}, "f:spec": {}},
+                            },
+                            "f:status": {
+                                ".": {},
+                                "f:canrun": {},
+                                "f:conditions": {},
+                                "f:controllerfirsttimestamp": {},
+                                "f:filterignore": {},
+                                "f:queuejobstate": {},
+                                "f:sender": {},
+                                "f:state": {},
+                                "f:systempriority": {},
+                            },
+                        },
+                        "manager": "Go-http-client",
+                        "operation": "Update",
+                        "time": "2023-02-22T16:26:07Z",
+                    },
+                    {
+                        "apiVersion": "mcad.ibm.com/v1beta1",
+                        "fieldsType": "FieldsV1",
+                        "fieldsV1": {
+                            "f:metadata": {
+                                "f:annotations": {
+                                    ".": {},
+                                    "f:kubectl.kubernetes.io/last-applied-configuration": {},
+                                }
+                            },
+                            "f:spec": {
+                                ".": {},
+                                "f:priority": {},
+                                "f:resources": {".": {}, "f:Items": {}},
+                            },
+                        },
+                        "manager": "kubectl-client-side-apply",
+                        "operation": "Update",
+                        "time": "2023-02-22T16:26:07Z",
+                    },
+                ],
+                "name": "quicktest1",
+                "namespace": "ns",
+                "resourceVersion": "9482384",
+                "uid": "6334fc1b-471e-4876-8e7b-0b2277679235",
+            },
+            "spec": {
+                "priority": 9,
+                "resources": {
+                    "GenericItems": [
+                        {
+                            "allocated": 0,
+                            "custompodresources": [
+                                {
+                                    "limits": {
+                                        "cpu": "2",
+                                        "memory": "8G",
+                                        "nvidia.com/gpu": "0",
+                                    },
+                                    "replicas": 1,
+                                    "requests": {
+                                        "cpu": "2",
+                                        "memory": "8G",
+                                        "nvidia.com/gpu": "0",
+                                    },
+                                },
+                                {
+                                    "limits": {
+                                        "cpu": "1",
+                                        "memory": "2G",
+                                        "nvidia.com/gpu": "0",
+                                    },
+                                    "replicas": 1,
+                                    "requests": {
+                                        "cpu": "1",
+                                        "memory": "2G",
+                                        "nvidia.com/gpu": "0",
+                                    },
+                                },
+                            ],
+                            "generictemplate": {
+                                "apiVersion": "ray.io/v1alpha1",
+                                "kind": "RayCluster",
+                                "metadata": {
+                                    "labels": {
+                                        "appwrapper.mcad.ibm.com": "quicktest1",
+                                        "controller-tools.k8s.io": "1.0",
+                                    },
+                                    "name": "quicktest1",
+                                    "namespace": "ns",
+                                },
+                                "spec": {
+                                    "autoscalerOptions": {
+                                        "idleTimeoutSeconds": 60,
+                                        "imagePullPolicy": "Always",
+                                        "resources": {
+                                            "limits": {
+                                                "cpu": "500m",
+                                                "memory": "512Mi",
+                                            },
+                                            "requests": {
+                                                "cpu": "500m",
+                                                "memory": "512Mi",
+                                            },
+                                        },
+                                        "upscalingMode": "Default",
+                                    },
+                                    "enableInTreeAutoscaling": False,
+                                    "headGroupSpec": {
+                                        "rayStartParams": {
+                                            "block": "true",
+                                            "dashboard-host": "0.0.0.0",
+                                            "num-gpus": "0",
+                                        },
+                                        "serviceType": "ClusterIP",
+                                        "template": {
+                                            "spec": {
+                                                "containers": [
+                                                    {
+                                                        "image": "ghcr.io/foundation-model-stack/base:ray2.1.0-py38-gpu-pytorch1.12.0cu116-20221213-193103",
+                                                        "imagePullPolicy": "Always",
+                                                        "lifecycle": {
+                                                            "preStop": {
+                                                                "exec": {
+                                                                    "command": [
+                                                                        "/bin/sh",
+                                                                        "-c",
+                                                                        "ray stop",
+                                                                    ]
+                                                                }
+                                                            }
+                                                        },
+                                                        "name": "ray-head",
+                                                        "ports": [
+                                                            {
+                                                                "containerPort": 6379,
+                                                                "name": "gcs",
+                                                            },
+                                                            {
+                                                                "containerPort": 8265,
+                                                                "name": "dashboard",
+                                                            },
+                                                            {
+                                                                "containerPort": 10001,
+                                                                "name": "client",
+                                                            },
+                                                        ],
+                                                        "resources": {
+                                                            "limits": {
+                                                                "cpu": 2,
+                                                                "memory": "8G",
+                                                                "nvidia.com/gpu": 0,
+                                                            },
+                                                            "requests": {
+                                                                "cpu": 2,
+                                                                "memory": "8G",
+                                                                "nvidia.com/gpu": 0,
+                                                            },
+                                                        },
+                                                    }
+                                                ]
+                                            }
+                                        },
+                                    },
+                                    "rayVersion": "1.12.0",
+                                    "workerGroupSpecs": [
+                                        {
+                                            "groupName": "small-group-quicktest",
+                                            "maxReplicas": 1,
+                                            "minReplicas": 1,
+                                            "rayStartParams": {
+                                                "block": "true",
+                                                "num-gpus": "0",
+                                            },
+                                            "replicas": 1,
+                                            "template": {
+                                                "metadata": {
+                                                    "annotations": {"key": "value"},
+                                                    "labels": {"key": "value"},
+                                                },
+                                                "spec": {
+                                                    "containers": [
+                                                        {
+                                                            "env": [
+                                                                {
+                                                                    "name": "MY_POD_IP",
+                                                                    "valueFrom": {
+                                                                        "fieldRef": {
+                                                                            "fieldPath": "status.podIP"
+                                                                        }
+                                                                    },
+                                                                }
+                                                            ],
+                                                            "image": "ghcr.io/foundation-model-stack/base:ray2.1.0-py38-gpu-pytorch1.12.0cu116-20221213-193103",
+                                                            "lifecycle": {
+                                                                "preStop": {
+                                                                    "exec": {
+                                                                        "command": [
+                                                                            "/bin/sh",
+                                                                            "-c",
+                                                                            "ray stop",
+                                                                        ]
+                                                                    }
+                                                                }
+                                                            },
+                                                            "name": "machine-learning",
+                                                            "resources": {
+                                                                "limits": {
+                                                                    "cpu": 1,
+                                                                    "memory": "2G",
+                                                                    "nvidia.com/gpu": 0,
+                                                                },
+                                                                "requests": {
+                                                                    "cpu": 1,
+                                                                    "memory": "2G",
+                                                                    "nvidia.com/gpu": 0,
+                                                                },
+                                                            },
+                                                        }
+                                                    ],
+                                                    "initContainers": [
+                                                        {
+                                                            "command": [
+                                                                "sh",
+                                                                "-c",
+                                                                "until nslookup $RAY_IP.$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace).svc.cluster.local; do echo waiting for myservice; sleep 2; done",
+                                                            ],
+                                                            "image": "busybox:1.28",
+                                                            "name": "init-myservice",
+                                                        }
+                                                    ],
+                                                },
+                                            },
+                                        }
+                                    ],
+                                },
+                            },
+                            "metadata": {},
+                            "priority": 0,
+                            "priorityslope": 0,
+                            "replicas": 1,
+                        },
+                        {
+                            "allocated": 0,
+                            "generictemplate": {
+                                "apiVersion": "route.openshift.io/v1",
+                                "kind": "Route",
+                                "metadata": {
+                                    "labels": {
+                                        "odh-ray-cluster-service": "quicktest-head-svc"
+                                    },
+                                    "name": "ray-dashboard-quicktest",
+                                    "namespace": "default",
+                                },
+                                "spec": {
+                                    "port": {"targetPort": "dashboard"},
+                                    "to": {
+                                        "kind": "Service",
+                                        "name": "quicktest-head-svc",
+                                    },
+                                },
+                            },
+                            "metadata": {},
+                            "priority": 0,
+                            "priorityslope": 0,
+                        },
+                    ],
+                    "Items": [],
+                    "metadata": {},
+                },
+                "schedulingSpec": {},
+                "service": {"spec": {}},
+            },
+            "status": {
+                "canrun": True,
+                "conditions": [
+                    {
+                        "lastTransitionMicroTime": "2023-02-22T16:26:07.559447Z",
+                        "lastUpdateMicroTime": "2023-02-22T16:26:07.559447Z",
+                        "status": "True",
+                        "type": "Init",
+                    },
+                    {
+                        "lastTransitionMicroTime": "2023-02-22T16:26:07.559551Z",
+                        "lastUpdateMicroTime": "2023-02-22T16:26:07.559551Z",
+                        "reason": "AwaitingHeadOfLine",
+                        "status": "True",
+                        "type": "Queueing",
+                    },
+                    {
+                        "lastTransitionMicroTime": "2023-02-22T16:26:13.220564Z",
+                        "lastUpdateMicroTime": "2023-02-22T16:26:13.220564Z",
+                        "reason": "AppWrapperRunnable",
+                        "status": "True",
+                        "type": "Dispatched",
+                    },
+                ],
+                "controllerfirsttimestamp": "2023-02-22T16:26:07.559447Z",
+                "filterignore": True,
+                "queuejobstate": "Dispatched",
+                "sender": "before manageQueueJob - afterEtcdDispatching",
+                "state": "Running",
+                "systempriority": 9,
+            },
+        }
+    )
+    api_obj2 = openshift.apiobject.APIObject(
+        {
+            "apiVersion": "mcad.ibm.com/v1beta1",
+            "kind": "AppWrapper",
+            "metadata": {
+                "annotations": {
+                    "kubectl.kubernetes.io/last-applied-configuration": '{"apiVersion":"mcad.ibm.com/v1beta1","kind":"AppWrapper","metadata":{"annotations":{},"name":"quicktest2","namespace":"ns"},"spec":{"priority":9,"resources":{"GenericItems":[{"custompodresources":[{"limits":{"cpu":2,"memory":"8G","nvidia.com/gpu":0},"replicas":1,"requests":{"cpu":2,"memory":"8G","nvidia.com/gpu":0}},{"limits":{"cpu":1,"memory":"2G","nvidia.com/gpu":0},"replicas":1,"requests":{"cpu":1,"memory":"2G","nvidia.com/gpu":0}}],"generictemplate":{"apiVersion":"ray.io/v1alpha1","kind":"RayCluster","metadata":{"labels":{"appwrapper.mcad.ibm.com":"quicktest2","controller-tools.k8s.io":"1.0"},"name":"quicktest2","namespace":"ns"},"spec":{"autoscalerOptions":{"idleTimeoutSeconds":60,"imagePullPolicy":"Always","resources":{"limits":{"cpu":"500m","memory":"512Mi"},"requests":{"cpu":"500m","memory":"512Mi"}},"upscalingMode":"Default"},"enableInTreeAutoscaling":false,"headGroupSpec":{"rayStartParams":{"block":"true","dashboard-host":"0.0.0.0","num-gpus":"0"},"serviceType":"ClusterIP","template":{"spec":{"containers":[{"image":"ghcr.io/foundation-model-stack/base:ray2.1.0-py38-gpu-pytorch1.12.0cu116-20221213-193103","imagePullPolicy":"Always","lifecycle":{"preStop":{"exec":{"command":["/bin/sh","-c","ray stop"]}}},"name":"ray-head","ports":[{"containerPort":6379,"name":"gcs"},{"containerPort":8265,"name":"dashboard"},{"containerPort":10001,"name":"client"}],"resources":{"limits":{"cpu":2,"memory":"8G","nvidia.com/gpu":0},"requests":{"cpu":2,"memory":"8G","nvidia.com/gpu":0}}}]}}},"rayVersion":"1.12.0","workerGroupSpecs":[{"groupName":"small-group-quicktest","maxReplicas":1,"minReplicas":1,"rayStartParams":{"block":"true","num-gpus":"0"},"replicas":1,"template":{"metadata":{"annotations":{"key":"value"},"labels":{"key":"value"}},"spec":{"containers":[{"env":[{"name":"MY_POD_IP","valueFrom":{"fieldRef":{"fieldPath":"status.podIP"}}}],"image":"ghcr.io/foundation-model-stack/base:ray2.1.0-py38-gpu-pytorch1.12.0cu116-20221213-193103","lifecycle":{"preStop":{"exec":{"command":["/bin/sh","-c","ray stop"]}}},"name":"machine-learning","resources":{"limits":{"cpu":1,"memory":"2G","nvidia.com/gpu":0},"requests":{"cpu":1,"memory":"2G","nvidia.com/gpu":0}}}],"initContainers":[{"command":["sh","-c","until nslookup $RAY_IP.$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace).svc.cluster.local; do echo waiting for myservice; sleep 2; done"],"image":"busybox:1.28","name":"init-myservice"}]}}}]}},"replicas":1},{"generictemplate":{"apiVersion":"route.openshift.io/v1","kind":"Route","metadata":{"labels":{"odh-ray-cluster-service":"quicktest-head-svc"},"name":"ray-dashboard-quicktest","namespace":"default"},"spec":{"port":{"targetPort":"dashboard"},"to":{"kind":"Service","name":"quicktest-head-svc"}}},"replica":1}],"Items":[]}}}\n'
+                },
+                "creationTimestamp": "2023-02-22T16:26:07Z",
+                "generation": 4,
+                "managedFields": [
+                    {
+                        "apiVersion": "mcad.ibm.com/v1beta1",
+                        "fieldsType": "FieldsV1",
+                        "fieldsV1": {
+                            "f:spec": {
+                                "f:resources": {"f:GenericItems": {}, "f:metadata": {}},
+                                "f:schedulingSpec": {},
+                                "f:service": {".": {}, "f:spec": {}},
+                            },
+                            "f:status": {
+                                ".": {},
+                                "f:canrun": {},
+                                "f:conditions": {},
+                                "f:controllerfirsttimestamp": {},
+                                "f:filterignore": {},
+                                "f:queuejobstate": {},
+                                "f:sender": {},
+                                "f:state": {},
+                                "f:systempriority": {},
+                            },
+                        },
+                        "manager": "Go-http-client",
+                        "operation": "Update",
+                        "time": "2023-02-22T16:26:07Z",
+                    },
+                    {
+                        "apiVersion": "mcad.ibm.com/v1beta1",
+                        "fieldsType": "FieldsV1",
+                        "fieldsV1": {
+                            "f:metadata": {
+                                "f:annotations": {
+                                    ".": {},
+                                    "f:kubectl.kubernetes.io/last-applied-configuration": {},
+                                }
+                            },
+                            "f:spec": {
+                                ".": {},
+                                "f:priority": {},
+                                "f:resources": {".": {}, "f:Items": {}},
+                            },
+                        },
+                        "manager": "kubectl-client-side-apply",
+                        "operation": "Update",
+                        "time": "2023-02-22T16:26:07Z",
+                    },
+                ],
+                "name": "quicktest2",
+                "namespace": "ns",
+                "resourceVersion": "9482384",
+                "uid": "6334fc1b-471e-4876-8e7b-0b2277679235",
+            },
+            "spec": {
+                "priority": 9,
+                "resources": {
+                    "GenericItems": [
+                        {
+                            "allocated": 0,
+                            "custompodresources": [
+                                {
+                                    "limits": {
+                                        "cpu": "2",
+                                        "memory": "8G",
+                                        "nvidia.com/gpu": "0",
+                                    },
+                                    "replicas": 1,
+                                    "requests": {
+                                        "cpu": "2",
+                                        "memory": "8G",
+                                        "nvidia.com/gpu": "0",
+                                    },
+                                },
+                                {
+                                    "limits": {
+                                        "cpu": "1",
+                                        "memory": "2G",
+                                        "nvidia.com/gpu": "0",
+                                    },
+                                    "replicas": 1,
+                                    "requests": {
+                                        "cpu": "1",
+                                        "memory": "2G",
+                                        "nvidia.com/gpu": "0",
+                                    },
+                                },
+                            ],
+                            "generictemplate": {
+                                "apiVersion": "ray.io/v1alpha1",
+                                "kind": "RayCluster",
+                                "metadata": {
+                                    "labels": {
+                                        "appwrapper.mcad.ibm.com": "quicktest2",
+                                        "controller-tools.k8s.io": "1.0",
+                                    },
+                                    "name": "quicktest2",
+                                    "namespace": "ns",
+                                },
+                                "spec": {
+                                    "autoscalerOptions": {
+                                        "idleTimeoutSeconds": 60,
+                                        "imagePullPolicy": "Always",
+                                        "resources": {
+                                            "limits": {
+                                                "cpu": "500m",
+                                                "memory": "512Mi",
+                                            },
+                                            "requests": {
+                                                "cpu": "500m",
+                                                "memory": "512Mi",
+                                            },
+                                        },
+                                        "upscalingMode": "Default",
+                                    },
+                                    "enableInTreeAutoscaling": False,
+                                    "headGroupSpec": {
+                                        "rayStartParams": {
+                                            "block": "true",
+                                            "dashboard-host": "0.0.0.0",
+                                            "num-gpus": "0",
+                                        },
+                                        "serviceType": "ClusterIP",
+                                        "template": {
+                                            "spec": {
+                                                "containers": [
+                                                    {
+                                                        "image": "ghcr.io/foundation-model-stack/base:ray2.1.0-py38-gpu-pytorch1.12.0cu116-20221213-193103",
+                                                        "imagePullPolicy": "Always",
+                                                        "lifecycle": {
+                                                            "preStop": {
+                                                                "exec": {
+                                                                    "command": [
+                                                                        "/bin/sh",
+                                                                        "-c",
+                                                                        "ray stop",
+                                                                    ]
+                                                                }
+                                                            }
+                                                        },
+                                                        "name": "ray-head",
+                                                        "ports": [
+                                                            {
+                                                                "containerPort": 6379,
+                                                                "name": "gcs",
+                                                            },
+                                                            {
+                                                                "containerPort": 8265,
+                                                                "name": "dashboard",
+                                                            },
+                                                            {
+                                                                "containerPort": 10001,
+                                                                "name": "client",
+                                                            },
+                                                        ],
+                                                        "resources": {
+                                                            "limits": {
+                                                                "cpu": 2,
+                                                                "memory": "8G",
+                                                                "nvidia.com/gpu": 0,
+                                                            },
+                                                            "requests": {
+                                                                "cpu": 2,
+                                                                "memory": "8G",
+                                                                "nvidia.com/gpu": 0,
+                                                            },
+                                                        },
+                                                    }
+                                                ]
+                                            }
+                                        },
+                                    },
+                                    "rayVersion": "1.12.0",
+                                    "workerGroupSpecs": [
+                                        {
+                                            "groupName": "small-group-quicktest",
+                                            "maxReplicas": 1,
+                                            "minReplicas": 1,
+                                            "rayStartParams": {
+                                                "block": "true",
+                                                "num-gpus": "0",
+                                            },
+                                            "replicas": 1,
+                                            "template": {
+                                                "metadata": {
+                                                    "annotations": {"key": "value"},
+                                                    "labels": {"key": "value"},
+                                                },
+                                                "spec": {
+                                                    "containers": [
+                                                        {
+                                                            "env": [
+                                                                {
+                                                                    "name": "MY_POD_IP",
+                                                                    "valueFrom": {
+                                                                        "fieldRef": {
+                                                                            "fieldPath": "status.podIP"
+                                                                        }
+                                                                    },
+                                                                }
+                                                            ],
+                                                            "image": "ghcr.io/foundation-model-stack/base:ray2.1.0-py38-gpu-pytorch1.12.0cu116-20221213-193103",
+                                                            "lifecycle": {
+                                                                "preStop": {
+                                                                    "exec": {
+                                                                        "command": [
+                                                                            "/bin/sh",
+                                                                            "-c",
+                                                                            "ray stop",
+                                                                        ]
+                                                                    }
+                                                                }
+                                                            },
+                                                            "name": "machine-learning",
+                                                            "resources": {
+                                                                "limits": {
+                                                                    "cpu": 1,
+                                                                    "memory": "2G",
+                                                                    "nvidia.com/gpu": 0,
+                                                                },
+                                                                "requests": {
+                                                                    "cpu": 1,
+                                                                    "memory": "2G",
+                                                                    "nvidia.com/gpu": 0,
+                                                                },
+                                                            },
+                                                        }
+                                                    ],
+                                                    "initContainers": [
+                                                        {
+                                                            "command": [
+                                                                "sh",
+                                                                "-c",
+                                                                "until nslookup $RAY_IP.$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace).svc.cluster.local; do echo waiting for myservice; sleep 2; done",
+                                                            ],
+                                                            "image": "busybox:1.28",
+                                                            "name": "init-myservice",
+                                                        }
+                                                    ],
+                                                },
+                                            },
+                                        }
+                                    ],
+                                },
+                            },
+                            "metadata": {},
+                            "priority": 0,
+                            "priorityslope": 0,
+                            "replicas": 1,
+                        },
+                        {
+                            "allocated": 0,
+                            "generictemplate": {
+                                "apiVersion": "route.openshift.io/v1",
+                                "kind": "Route",
+                                "metadata": {
+                                    "labels": {
+                                        "odh-ray-cluster-service": "quicktest-head-svc"
+                                    },
+                                    "name": "ray-dashboard-quicktest",
+                                    "namespace": "default",
+                                },
+                                "spec": {
+                                    "port": {"targetPort": "dashboard"},
+                                    "to": {
+                                        "kind": "Service",
+                                        "name": "quicktest-head-svc",
+                                    },
+                                },
+                            },
+                            "metadata": {},
+                            "priority": 0,
+                            "priorityslope": 0,
+                        },
+                    ],
+                    "Items": [],
+                    "metadata": {},
+                },
+                "schedulingSpec": {},
+                "service": {"spec": {}},
+            },
+            "status": {
+                "canrun": True,
+                "conditions": [
+                    {
+                        "lastTransitionMicroTime": "2023-02-22T16:26:07.559447Z",
+                        "lastUpdateMicroTime": "2023-02-22T16:26:07.559447Z",
+                        "status": "True",
+                        "type": "Init",
+                    },
+                    {
+                        "lastTransitionMicroTime": "2023-02-22T16:26:07.559551Z",
+                        "lastUpdateMicroTime": "2023-02-22T16:26:07.559551Z",
+                        "reason": "AwaitingHeadOfLine",
+                        "status": "True",
+                        "type": "Queueing",
+                    },
+                    {
+                        "lastTransitionMicroTime": "2023-02-22T16:26:13.220564Z",
+                        "lastUpdateMicroTime": "2023-02-22T16:26:13.220564Z",
+                        "reason": "AppWrapperRunnable",
+                        "status": "True",
+                        "type": "Dispatched",
+                    },
+                ],
+                "controllerfirsttimestamp": "2023-02-22T16:26:07.559447Z",
+                "filterignore": True,
+                "queuejobstate": "Dispatched",
+                "sender": "before manageQueueJob - afterEtcdDispatching",
+                "state": "Pending",
+                "systempriority": 9,
+            },
+        }
+    )
+    return [api_obj1, api_obj2]
+
+
+def test_list_clusters(mocker, capsys):
+    mocker.patch("openshift.selector", side_effect=get_selector)
+    mock_res = mocker.patch.object(Selector, "objects")
+    mock_res.side_effect = get_obj_none
+    list_all_clusters("ns")
+    captured = capsys.readouterr()
+    assert captured.out == (
+        "╭──────────────────────────────────────────────────────────────────────────────╮\n"
+        "│ No resources found, have you run cluster.up() yet?                           │\n"
+        "╰──────────────────────────────────────────────────────────────────────────────╯\n"
+    )
+    mock_res.side_effect = get_ray_obj
+    list_all_clusters("ns")
+    captured = capsys.readouterr()
+    assert captured.out == (
+        "                  🚀 CodeFlare Cluster Details 🚀                 \n"
+        "                                                                  \n"
+        " ╭──────────────────────────────────────────────────────────────╮ \n"
+        " │   Name                                                       │ \n"
+        " │   quicktest                                   Active ✅      │ \n"
+        " │                                                              │ \n"
+        " │   URI: ray://quicktest-head-svc.ns.svc:10001                 │ \n"
+        " │                                                              │ \n"
+        " │   Dashboard🔗                                                │ \n"
+        " │                                                              │ \n"
+        " │                      Cluster Resources                       │ \n"
+        " │   ╭─ Workers ──╮  ╭───────── Worker specs(each) ─────────╮   │ \n"
+        " │   │  Min  Max  │  │  Memory      CPU         GPU         │   │ \n"
+        " │   │            │  │                                      │   │ \n"
+        " │   │  1    1    │  │  2G~2G       1           0           │   │ \n"
+        " │   │            │  │                                      │   │ \n"
+        " │   ╰────────────╯  ╰──────────────────────────────────────╯   │ \n"
+        " ╰──────────────────────────────────────────────────────────────╯ \n"
+    )
+
+
+def test_list_queue(mocker, capsys):
+    mocker.patch("openshift.selector", side_effect=get_selector)
+    mock_res = mocker.patch.object(Selector, "objects")
+    mock_res.side_effect = get_obj_none
+    list_all_queued("ns")
+    captured = capsys.readouterr()
+    assert captured.out == (
+        "╭──────────────────────────────────────────────────────────────────────────────╮\n"
+        "│ No resources found, have you run cluster.up() yet?                           │\n"
+        "╰──────────────────────────────────────────────────────────────────────────────╯\n"
+    )
+    mock_res.side_effect = get_aw_obj
+    list_all_queued("ns")
+    captured = capsys.readouterr()
+    assert captured.out == (
+        "╭──────────────────────────╮\n"
+        "│  🚀 Cluster Queue Status │\n"
+        "│            🚀            │\n"
+        "│ +------------+---------+ │\n"
+        "│ | Name       | Status  | │\n"
+        "│ +============+=========+ │\n"
+        "│ | quicktest1 | running | │\n"
+        "│ |            |         | │\n"
+        "│ | quicktest2 | pending | │\n"
+        "│ |            |         | │\n"
+        "│ +------------+---------+ │\n"
+        "╰──────────────────────────╯\n"
+    )
 
 
 def test_cluster_status(mocker):

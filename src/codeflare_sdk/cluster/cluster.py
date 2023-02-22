@@ -126,10 +126,13 @@ class Cluster:
                 'the server doesn\'t have a resource type "AppWrapper"' in error_msg
                 or "forbidden" in error_msg
                 or "Unauthorized" in error_msg
+                or "Missing or incomplete configuration" in error_msg
             ):
                 raise PermissionError(
                     "Action not permitted, have you run cluster.up() yet?"
                 )
+            elif "not found" in error_msg:
+                print("Cluster not found, have you run cluster.up() yet?")
             else:
                 raise osp
         self.config.auth.logout()
@@ -321,11 +324,15 @@ def _app_wrapper_status(
         with oc.project(namespace), oc.timeout(10 * 60):
             cluster = oc.selector(f"appwrapper/{name}").object()
     except oc.OpenShiftPythonException as osp:
+        msg = osp.msg
+        if "Expected a single object, but selected 0" in msg:
+            return cluster
         error_msg = osp.result.err()
         if not (
             'the server doesn\'t have a resource type "appwrapper"' in error_msg
             or "forbidden" in error_msg
             or "Unauthorized" in error_msg
+            or "Missing or incomplete configuration" in error_msg
         ):
             raise osp
 
@@ -341,11 +348,15 @@ def _ray_cluster_status(name, namespace="default") -> Optional[RayCluster]:
         with oc.project(namespace), oc.timeout(10 * 60):
             cluster = oc.selector(f"rayclusters/{name}").object()
     except oc.OpenShiftPythonException as osp:
+        msg = osp.msg
+        if "Expected a single object, but selected 0" in msg:
+            return cluster
         error_msg = osp.result.err()
         if not (
             'the server doesn\'t have a resource type "rayclusters"' in error_msg
             or "forbidden" in error_msg
             or "Unauthorized" in error_msg
+            or "Missing or incomplete configuration" in error_msg
         ):
             raise osp
 
@@ -379,6 +390,7 @@ def _get_app_wrappers(
         if filter and app_wrapper.status in filter:
             list_of_app_wrappers.append(app_wrapper)
         else:
+            # Unsure what the purpose of the filter is
             list_of_app_wrappers.append(app_wrapper)
     return list_of_app_wrappers
 
