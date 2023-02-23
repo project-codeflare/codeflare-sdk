@@ -59,7 +59,7 @@ class TokenAuthentication(Authentication):
         self.server = server
         self.skip_tls = skip_tls
 
-    def login(self):
+    def login(self) -> str:
         """
         This function is used to login to an OpenShift cluster using the user's API token and API server address.
         Depending on the cluster, a user can choose to login in with "--insecure-skip-tls-verify` by setting `skip_tls`
@@ -78,7 +78,7 @@ class TokenAuthentication(Authentication):
                 return error_msg
         return response.out()
 
-    def logout(self):
+    def logout(self) -> str:
         """
         This function is used to logout of an OpenShift cluster.
         """
@@ -104,14 +104,14 @@ class PasswordUserAuthentication(Authentication):
         self.username = username
         self.password = password
 
-    def login(self):
+    def login(self) -> str:
         """
         This function is used to login to an OpenShift cluster using the user's `username` and `password`.
         """
         response = oc.login(self.username, self.password)
         return response.out()
 
-    def logout(self):
+    def logout(self) -> str:
         """
         This function is used to logout of an OpenShift cluster.
         """
