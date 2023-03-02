@@ -96,9 +96,6 @@ class Cluster:
         Applies the AppWrapper yaml, pushing the resource request onto
         the MCAD queue.
         """
-        resp = self.config.auth.login()
-        if "invalid" in resp:
-            raise PermissionError(resp)
         namespace = self.config.namespace
         try:
             with oc.project(namespace):
@@ -135,7 +132,6 @@ class Cluster:
                 print("Cluster not found, have you run cluster.up() yet?")
             else:
                 raise osp
-        self.config.auth.logout()
 
     def status(
         self, print_to_console: bool = True

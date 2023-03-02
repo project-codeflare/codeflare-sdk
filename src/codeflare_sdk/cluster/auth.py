@@ -74,6 +74,8 @@ class TokenAuthentication(Authentication):
             error_msg = osp.result.err()
             if "The server uses a certificate signed by unknown authority" in error_msg:
                 return "Error: certificate auth failure, please set `skip_tls=True` in TokenAuthentication"
+            elif "invalid" in error_msg:
+                raise PermissionError(error_msg)
             else:
                 return error_msg
         return response.out()
@@ -82,7 +84,8 @@ class TokenAuthentication(Authentication):
         """
         This function is used to logout of an OpenShift cluster.
         """
-        response = oc.invoke("logout")
+        args = [f"--token={self.token}", f"--server={self.server}:6443"]
+        response = oc.invoke("logout", args)
         return response.out()
 
 
