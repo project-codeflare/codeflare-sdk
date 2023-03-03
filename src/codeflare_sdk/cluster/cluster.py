@@ -270,7 +270,9 @@ class Cluster:
         client = JobSubmissionClient(dashboard_route)
         return client.get_job_logs(job_id)
 
-    def torchx_config(self, working_dir: str = None, requirements: str = None) -> Dict[str, str]:
+    def torchx_config(
+        self, working_dir: str = None, requirements: str = None
+    ) -> Dict[str, str]:
         dashboard_address = f"{self.cluster_dashboard_uri().lstrip('http://')}"
         to_return = {
             "cluster_name": self.config.name,

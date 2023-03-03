@@ -27,6 +27,7 @@ if TYPE_CHECKING:
 all_jobs: List["Job"] = []
 torchx_runner = get_runner()
 
+
 class JobDefinition(metaclass=abc.ABCMeta):
     def _dry_run(self, cluster: "Cluster"):
         pass
@@ -44,11 +45,10 @@ class Job(metaclass=abc.ABCMeta):
 
 
 class DDPJobDefinition(JobDefinition):
-
     def __init__(
         self,
         script: Optional[str] = None,
-        m: Optional[str]=None,
+        m: Optional[str] = None,
         script_args: Optional[List[str]] = None,
         name: Optional[str] = None,
         cpu: Optional[int] = None,
@@ -63,9 +63,11 @@ class DDPJobDefinition(JobDefinition):
         scheduler_args: Optional[Dict[str, str]] = None,
     ):
         if bool(script) == bool(m):  # logical XOR
-            raise ValueError("Exactly one of the following arguments must be defined: [script, m].")
+            raise ValueError(
+                "Exactly one of the following arguments must be defined: [script, m]."
+            )
         self.script = script
-        self.m=m
+        self.m = m
         self.script_args: List[str] = script_args if script_args is not None else []
         self.name = name
         self.cpu = cpu
@@ -77,7 +79,9 @@ class DDPJobDefinition(JobDefinition):
         self.max_retries = max_retries
         self.mounts: List[str] = mounts if mounts is not None else []
         self.rdzv_port = rdzv_port
-        self.scheduler_args: Dict[str, str] = scheduler_args if scheduler_args is not None else dict()
+        self.scheduler_args: Dict[str, str] = (
+            scheduler_args if scheduler_args is not None else dict()
+        )
 
     def _dry_run(self, cluster: "Cluster"):
         j = f"{cluster.config.max_worker}x{max(cluster.config.gpu, 1)}"  # # of proc. = # of gpus
@@ -90,7 +94,9 @@ class DDPJobDefinition(JobDefinition):
                 h=self.h,
                 cpu=self.cpu if self.cpu is not None else cluster.config.max_cpus,
                 gpu=self.gpu if self.gpu is not None else cluster.config.gpu,
-                memMB=self.memMB if self.memMB is not None else cluster.config.max_memory * 1024,
+                memMB=self.memMB
+                if self.memMB is not None
+                else cluster.config.max_memory * 1024,
                 j=self.j if self.j is not None else j,
                 env=self.env,
                 max_retries=self.max_retries,
@@ -99,7 +105,7 @@ class DDPJobDefinition(JobDefinition):
             ),
             scheduler=cluster.torchx_scheduler,
             cfg=cluster.torchx_config(**self.scheduler_args),
-            workspace=f"file://{Path.cwd()}"
+            workspace=f"file://{Path.cwd()}",
         )
 
     def submit(self, cluster: "Cluster") -> "Job":
@@ -107,11 +113,7 @@ class DDPJobDefinition(JobDefinition):
 
 
 class DDPJob(Job):
-    def __init__(
-        self,
-        job_definition: "DDPJobDefinition",
-        cluster: "Cluster"
-    ):
+    def __init__(self, job_definition: "DDPJobDefinition", cluster: "Cluster"):
         self.job_definition = job_definition
         self.cluster = cluster
         self._app_handle = torchx_runner.schedule(job_definition._dry_run(cluster))
