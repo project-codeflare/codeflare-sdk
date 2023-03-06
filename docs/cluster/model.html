@@ -86,9 +86,10 @@ class CodeFlareClusterStatus(Enum):
     &#34;&#34;&#34;
 
     READY = 1
-    QUEUED = 2
-    FAILED = 3
-    UNKNOWN = 4
+    STARTING = 2
+    QUEUED = 3
+    FAILED = 4
+    UNKNOWN = 5
 
 
 @dataclass
@@ -240,9 +241,10 @@ class AppWrapper:
     &#34;&#34;&#34;
 
     READY = 1
-    QUEUED = 2
-    FAILED = 3
-    UNKNOWN = 4</code></pre>
+    STARTING = 2
+    QUEUED = 3
+    FAILED = 4
+    UNKNOWN = 5</code></pre>
 </details>
 <h3>Ancestors</h3>
 <ul class="hlist">
@@ -259,6 +261,10 @@ class AppWrapper:
 <div class="desc"></div>
 </dd>
 <dt id="codeflare_sdk.cluster.model.CodeFlareClusterStatus.READY"><code class="name">var <span class="ident">READY</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="codeflare_sdk.cluster.model.CodeFlareClusterStatus.STARTING"><code class="name">var <span class="ident">STARTING</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -425,6 +431,7 @@ class AppWrapper:
 <li><code><a title="codeflare_sdk.cluster.model.CodeFlareClusterStatus.FAILED" href="#codeflare_sdk.cluster.model.CodeFlareClusterStatus.FAILED">FAILED</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.model.CodeFlareClusterStatus.QUEUED" href="#codeflare_sdk.cluster.model.CodeFlareClusterStatus.QUEUED">QUEUED</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.model.CodeFlareClusterStatus.READY" href="#codeflare_sdk.cluster.model.CodeFlareClusterStatus.READY">READY</a></code></li>
+<li><code><a title="codeflare_sdk.cluster.model.CodeFlareClusterStatus.STARTING" href="#codeflare_sdk.cluster.model.CodeFlareClusterStatus.STARTING">STARTING</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.model.CodeFlareClusterStatus.UNKNOWN" href="#codeflare_sdk.cluster.model.CodeFlareClusterStatus.UNKNOWN">UNKNOWN</a></code></li>
 </ul>
 </li>
