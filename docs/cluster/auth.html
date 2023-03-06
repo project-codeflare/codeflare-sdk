@@ -92,7 +92,7 @@ class TokenAuthentication(Authentication):
         self.server = server
         self.skip_tls = skip_tls
 
-    def login(self):
+    def login(self) -&gt; str:
         &#34;&#34;&#34;
         This function is used to login to an OpenShift cluster using the user&#39;s API token and API server address.
         Depending on the cluster, a user can choose to login in with &#34;--insecure-skip-tls-verify` by setting `skip_tls`
@@ -107,15 +107,18 @@ class TokenAuthentication(Authentication):
             error_msg = osp.result.err()
             if &#34;The server uses a certificate signed by unknown authority&#34; in error_msg:
                 return &#34;Error: certificate auth failure, please set `skip_tls=True` in TokenAuthentication&#34;
+            elif &#34;invalid&#34; in error_msg:
+                raise PermissionError(error_msg)
             else:
                 return error_msg
         return response.out()
 
-    def logout(self):
+    def logout(self) -&gt; str:
         &#34;&#34;&#34;
         This function is used to logout of an OpenShift cluster.
         &#34;&#34;&#34;
-        response = oc.invoke(&#34;logout&#34;)
+        args = [f&#34;--token={self.token}&#34;, f&#34;--server={self.server}:6443&#34;]
+        response = oc.invoke(&#34;logout&#34;, args)
         return response.out()
 
 
@@ -137,14 +140,14 @@ class PasswordUserAuthentication(Authentication):
         self.username = username
         self.password = password
 
-    def login(self):
+    def login(self) -&gt; str:
         &#34;&#34;&#34;
         This function is used to login to an OpenShift cluster using the user&#39;s `username` and `password`.
         &#34;&#34;&#34;
         response = oc.login(self.username, self.password)
         return response.out()
 
-    def logout(self):
+    def logout(self) -&gt; str:
         &#34;&#34;&#34;
         This function is used to logout of an OpenShift cluster.
         &#34;&#34;&#34;
@@ -261,14 +264,14 @@ and <code>password</code> for authenticating to an OpenShift cluster.</p></div>
         self.username = username
         self.password = password
 
-    def login(self):
+    def login(self) -&gt; str:
         &#34;&#34;&#34;
         This function is used to login to an OpenShift cluster using the user&#39;s `username` and `password`.
         &#34;&#34;&#34;
         response = oc.login(self.username, self.password)
         return response.out()
 
-    def logout(self):
+    def logout(self) -&gt; str:
         &#34;&#34;&#34;
         This function is used to logout of an OpenShift cluster.
         &#34;&#34;&#34;
@@ -282,7 +285,7 @@ and <code>password</code> for authenticating to an OpenShift cluster.</p></div>
 <h3>Methods</h3>
 <dl>
 <dt id="codeflare_sdk.cluster.auth.PasswordUserAuthentication.login"><code class="name flex">
-<span>def <span class="ident">login</span></span>(<span>self)</span>
+<span>def <span class="ident">login</span></span>(<span>self) ‑> str</span>
 </code></dt>
 <dd>
 <div class="desc"><p>This function is used to login to an OpenShift cluster using the user's <code>username</code> and <code>password</code>.</p></div>
@@ -290,7 +293,7 @@ and <code>password</code> for authenticating to an OpenShift cluster.</p></div>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def login(self):
+<pre><code class="python">def login(self) -&gt; str:
     &#34;&#34;&#34;
     This function is used to login to an OpenShift cluster using the user&#39;s `username` and `password`.
     &#34;&#34;&#34;
@@ -299,7 +302,7 @@ and <code>password</code> for authenticating to an OpenShift cluster.</p></div>
 </details>
 </dd>
 <dt id="codeflare_sdk.cluster.auth.PasswordUserAuthentication.logout"><code class="name flex">
-<span>def <span class="ident">logout</span></span>(<span>self)</span>
+<span>def <span class="ident">logout</span></span>(<span>self) ‑> str</span>
 </code></dt>
 <dd>
 <div class="desc"><p>This function is used to logout of an OpenShift cluster.</p></div>
@@ -307,7 +310,7 @@ and <code>password</code> for authenticating to an OpenShift cluster.</p></div>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def logout(self):
+<pre><code class="python">def logout(self) -&gt; str:
     &#34;&#34;&#34;
     This function is used to logout of an OpenShift cluster.
     &#34;&#34;&#34;
@@ -346,7 +349,7 @@ and <code>server</code>, the API server address for authenticating to an OpenShi
         self.server = server
         self.skip_tls = skip_tls
 
-    def login(self):
+    def login(self) -&gt; str:
         &#34;&#34;&#34;
         This function is used to login to an OpenShift cluster using the user&#39;s API token and API server address.
         Depending on the cluster, a user can choose to login in with &#34;--insecure-skip-tls-verify` by setting `skip_tls`
@@ -361,15 +364,18 @@ and <code>server</code>, the API server address for authenticating to an OpenShi
             error_msg = osp.result.err()
             if &#34;The server uses a certificate signed by unknown authority&#34; in error_msg:
                 return &#34;Error: certificate auth failure, please set `skip_tls=True` in TokenAuthentication&#34;
+            elif &#34;invalid&#34; in error_msg:
+                raise PermissionError(error_msg)
             else:
                 return error_msg
         return response.out()
 
-    def logout(self):
+    def logout(self) -&gt; str:
         &#34;&#34;&#34;
         This function is used to logout of an OpenShift cluster.
         &#34;&#34;&#34;
-        response = oc.invoke(&#34;logout&#34;)
+        args = [f&#34;--token={self.token}&#34;, f&#34;--server={self.server}:6443&#34;]
+        response = oc.invoke(&#34;logout&#34;, args)
         return response.out()</code></pre>
 </details>
 <h3>Ancestors</h3>
@@ -379,7 +385,7 @@ and <code>server</code>, the API server address for authenticating to an OpenShi
 <h3>Methods</h3>
 <dl>
 <dt id="codeflare_sdk.cluster.auth.TokenAuthentication.login"><code class="name flex">
-<span>def <span class="ident">login</span></span>(<span>self)</span>
+<span>def <span class="ident">login</span></span>(<span>self) ‑> str</span>
 </code></dt>
 <dd>
 <div class="desc"><p>This function is used to login to an OpenShift cluster using the user's API token and API server address.
@@ -389,7 +395,7 @@ to <code>True</code>.</p></div>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def login(self):
+<pre><code class="python">def login(self) -&gt; str:
     &#34;&#34;&#34;
     This function is used to login to an OpenShift cluster using the user&#39;s API token and API server address.
     Depending on the cluster, a user can choose to login in with &#34;--insecure-skip-tls-verify` by setting `skip_tls`
@@ -404,13 +410,15 @@ to <code>True</code>.</p></div>
         error_msg = osp.result.err()
         if &#34;The server uses a certificate signed by unknown authority&#34; in error_msg:
             return &#34;Error: certificate auth failure, please set `skip_tls=True` in TokenAuthentication&#34;
+        elif &#34;invalid&#34; in error_msg:
+            raise PermissionError(error_msg)
         else:
             return error_msg
     return response.out()</code></pre>
 </details>
 </dd>
 <dt id="codeflare_sdk.cluster.auth.TokenAuthentication.logout"><code class="name flex">
-<span>def <span class="ident">logout</span></span>(<span>self)</span>
+<span>def <span class="ident">logout</span></span>(<span>self) ‑> str</span>
 </code></dt>
 <dd>
 <div class="desc"><p>This function is used to logout of an OpenShift cluster.</p></div>
@@ -418,11 +426,12 @@ to <code>True</code>.</p></div>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def logout(self):
+<pre><code class="python">def logout(self) -&gt; str:
     &#34;&#34;&#34;
     This function is used to logout of an OpenShift cluster.
     &#34;&#34;&#34;
-    response = oc.invoke(&#34;logout&#34;)
+    args = [f&#34;--token={self.token}&#34;, f&#34;--server={self.server}:6443&#34;]
+    response = oc.invoke(&#34;logout&#34;, args)
     return response.out()</code></pre>
 </details>
 </dd>

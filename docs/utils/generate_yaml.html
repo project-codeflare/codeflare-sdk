@@ -271,7 +271,7 @@ def generate_appwrapper(
     return outfile
 
 
-def main():
+def main():  # pragma: no cover
     parser = argparse.ArgumentParser(description=&#34;Generate user AppWrapper&#34;)
     parser.add_argument(
         &#34;--name&#34;,
@@ -379,7 +379,7 @@ def main():
     return outfile
 
 
-if __name__ == &#34;__main__&#34;:
+if __name__ == &#34;__main__&#34;:  # pragma: no cover
     main()</code></pre>
 </details>
 </section>
@@ -471,7 +471,7 @@ if __name__ == &#34;__main__&#34;:
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def main():
+<pre><code class="python">def main():  # pragma: no cover
     parser = argparse.ArgumentParser(description=&#34;Generate user AppWrapper&#34;)
     parser.add_argument(
         &#34;--name&#34;,
