@@ -121,7 +121,10 @@ def test_token_auth_login_logout(mocker):
         "login",
         ["--token=testtoken", "--server=testserver:6443"],
     )
-    assert token_auth.logout() == ("logout",)
+    assert token_auth.logout() == (
+        "logout",
+        ["--token=testtoken", "--server=testserver:6443"],
+    )
 
 
 def test_token_auth_login_tls(mocker):
@@ -198,7 +201,6 @@ def test_config_creation():
         gpu=7,
         instascale=True,
         machine_types=["cpu.small", "gpu.large"],
-        auth=TokenAuthentication(token="testtoken", server="testserver"),
     )
 
     assert config.name == "unit-test-cluster" and config.namespace == "ns"
@@ -213,7 +215,6 @@ def test_config_creation():
     assert config.template == f"{parent}/src/codeflare_sdk/templates/new-template.yaml"
     assert config.instascale
     assert config.machine_types == ["cpu.small", "gpu.large"]
-    assert config.auth.__class__ == TokenAuthentication
     return config
 
 
