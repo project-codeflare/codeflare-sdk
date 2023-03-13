@@ -116,7 +116,7 @@ def test_token_auth_login_logout(mocker):
     mock_res = mocker.patch.object(openshift.Result, "out")
     mock_res.side_effect = lambda: att_side_effect(fake_res)
 
-    token_auth = TokenAuthentication(token="testtoken", server="testserver")
+    token_auth = TokenAuthentication(token="testtoken", server="testserver:6443")
     assert token_auth.login() == (
         "login",
         ["--token=testtoken", "--server=testserver:6443"],
@@ -137,7 +137,7 @@ def test_token_auth_login_tls(mocker):
     # assert token_auth.login() == "Error: certificate auth failure, please set `skip_tls=True` in TokenAuthentication"
 
     token_auth = TokenAuthentication(
-        token="testtoken", server="testserver", skip_tls=True
+        token="testtoken", server="testserver:6443", skip_tls=True
     )
     assert token_auth.login() == (
         "login",
