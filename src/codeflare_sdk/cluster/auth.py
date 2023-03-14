@@ -65,7 +65,7 @@ class TokenAuthentication(Authentication):
         Depending on the cluster, a user can choose to login in with "--insecure-skip-tls-verify` by setting `skip_tls`
         to `True`.
         """
-        args = [f"--token={self.token}", f"--server={self.server}:6443"]
+        args = [f"--token={self.token}", f"--server={self.server}"]
         if self.skip_tls:
             args.append("--insecure-skip-tls-verify")
         try:
@@ -84,7 +84,7 @@ class TokenAuthentication(Authentication):
         """
         This function is used to logout of an OpenShift cluster.
         """
-        args = [f"--token={self.token}", f"--server={self.server}:6443"]
+        args = [f"--token={self.token}", f"--server={self.server}"]
         response = oc.invoke("logout", args)
         return response.out()
 
