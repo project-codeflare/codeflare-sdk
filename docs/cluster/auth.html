@@ -98,7 +98,7 @@ class TokenAuthentication(Authentication):
         Depending on the cluster, a user can choose to login in with &#34;--insecure-skip-tls-verify` by setting `skip_tls`
         to `True`.
         &#34;&#34;&#34;
-        args = [f&#34;--token={self.token}&#34;, f&#34;--server={self.server}:6443&#34;]
+        args = [f&#34;--token={self.token}&#34;, f&#34;--server={self.server}&#34;]
         if self.skip_tls:
             args.append(&#34;--insecure-skip-tls-verify&#34;)
         try:
@@ -117,7 +117,7 @@ class TokenAuthentication(Authentication):
         &#34;&#34;&#34;
         This function is used to logout of an OpenShift cluster.
         &#34;&#34;&#34;
-        args = [f&#34;--token={self.token}&#34;, f&#34;--server={self.server}:6443&#34;]
+        args = [f&#34;--token={self.token}&#34;, f&#34;--server={self.server}&#34;]
         response = oc.invoke(&#34;logout&#34;, args)
         return response.out()
 
@@ -355,7 +355,7 @@ and <code>server</code>, the API server address for authenticating to an OpenShi
         Depending on the cluster, a user can choose to login in with &#34;--insecure-skip-tls-verify` by setting `skip_tls`
         to `True`.
         &#34;&#34;&#34;
-        args = [f&#34;--token={self.token}&#34;, f&#34;--server={self.server}:6443&#34;]
+        args = [f&#34;--token={self.token}&#34;, f&#34;--server={self.server}&#34;]
         if self.skip_tls:
             args.append(&#34;--insecure-skip-tls-verify&#34;)
         try:
@@ -374,7 +374,7 @@ and <code>server</code>, the API server address for authenticating to an OpenShi
         &#34;&#34;&#34;
         This function is used to logout of an OpenShift cluster.
         &#34;&#34;&#34;
-        args = [f&#34;--token={self.token}&#34;, f&#34;--server={self.server}:6443&#34;]
+        args = [f&#34;--token={self.token}&#34;, f&#34;--server={self.server}&#34;]
         response = oc.invoke(&#34;logout&#34;, args)
         return response.out()</code></pre>
 </details>
@@ -401,7 +401,7 @@ to <code>True</code>.</p></div>
     Depending on the cluster, a user can choose to login in with &#34;--insecure-skip-tls-verify` by setting `skip_tls`
     to `True`.
     &#34;&#34;&#34;
-    args = [f&#34;--token={self.token}&#34;, f&#34;--server={self.server}:6443&#34;]
+    args = [f&#34;--token={self.token}&#34;, f&#34;--server={self.server}&#34;]
     if self.skip_tls:
         args.append(&#34;--insecure-skip-tls-verify&#34;)
     try:
@@ -430,7 +430,7 @@ to <code>True</code>.</p></div>
     &#34;&#34;&#34;
     This function is used to logout of an OpenShift cluster.
     &#34;&#34;&#34;
-    args = [f&#34;--token={self.token}&#34;, f&#34;--server={self.server}:6443&#34;]
+    args = [f&#34;--token={self.token}&#34;, f&#34;--server={self.server}&#34;]
     response = oc.invoke(&#34;logout&#34;, args)
     return response.out()</code></pre>
 </details>
