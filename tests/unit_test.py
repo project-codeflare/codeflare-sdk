@@ -1590,6 +1590,7 @@ def test_cmd_line_generation():
     os.remove("unit-test-cluster.yaml")
     os.remove("unit-cmd-cluster.yaml")
 
+
 def test_cleanup():
     os.remove("test.yaml")
     os.remove("raytest2.yaml")
