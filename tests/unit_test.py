@@ -320,6 +320,19 @@ def test_print_no_resources(capsys):
     )
 
 
+def test_print_no_cluster(capsys):
+    try:
+        print_cluster_status(None)
+    except:
+        assert 1 == 0
+    captured = capsys.readouterr()
+    assert captured.out == (
+        "╭──────────────────────────────────────────────────────────────────────────────╮\n"
+        "│ No resources found, have you run cluster.up() yet?                           │\n"
+        "╰──────────────────────────────────────────────────────────────────────────────╯\n"
+    )
+
+
 def test_print_appwrappers(capsys):
     aw1 = AppWrapper(
         name="awtest1",
@@ -1576,3 +1589,7 @@ def test_cmd_line_generation():
     )
     os.remove("unit-test-cluster.yaml")
     os.remove("unit-cmd-cluster.yaml")
+
+def test_cleanup():
+    os.remove("test.yaml")
+    os.remove("raytest2.yaml")
