@@ -70,7 +70,7 @@ class TokenAuthentication(Authentication):
             args.append("--insecure-skip-tls-verify")
         try:
             response = oc.invoke("login", args)
-        except OpenShiftPythonException as osp:
+        except OpenShiftPythonException as osp:  # pragma: no cover
             error_msg = osp.result.err()
             if "The server uses a certificate signed by unknown authority" in error_msg:
                 return "Error: certificate auth failure, please set `skip_tls=True` in TokenAuthentication"

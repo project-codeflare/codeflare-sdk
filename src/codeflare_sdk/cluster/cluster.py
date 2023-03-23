@@ -190,7 +190,7 @@ class Cluster:
             if status == CodeFlareClusterStatus.UNKNOWN:
                 pretty_print.print_no_resources_found()
             else:
-                pretty_print.print_app_wrappers_status([appwrapper])
+                pretty_print.print_app_wrappers_status([appwrapper], starting=True)
 
         return status, ready
 

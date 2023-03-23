@@ -32,7 +32,7 @@ def print_no_resources_found():
     console.print(Panel("[red]No resources found, have you run cluster.up() yet?"))
 
 
-def print_app_wrappers_status(app_wrappers: List[AppWrapper]):
+def print_app_wrappers_status(app_wrappers: List[AppWrapper], starting: bool = False):
     if not app_wrappers:
         print_no_resources_found()
         return  # shortcircuit
@@ -48,6 +48,8 @@ def print_app_wrappers_status(app_wrappers: List[AppWrapper]):
     for app_wrapper in app_wrappers:
         name = app_wrapper.name
         status = app_wrapper.status.value
+        if starting:
+            status += " (starting)"
         table.add_row(name, status)
         table.add_row("")  # empty row for spacing
 
@@ -57,7 +59,7 @@ def print_app_wrappers_status(app_wrappers: List[AppWrapper]):
 def print_cluster_status(cluster: RayCluster):
     "Pretty prints the status of a passed-in cluster"
     if not cluster:
-        print_no_resources_found
+        print_no_resources_found()
         return
 
     console = Console()
