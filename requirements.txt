@@ -1,3 +1,4 @@
 openshift-client==1.0.18
 rich==12.5.1
 ray[default]==2.1.0
+git+https://github.com/project-codeflare/torchx@6517d5b060e4fe32b9ad41019c3bef647095c35f#egg=torchx

@@ -20,7 +20,7 @@ cluster setup queue, a list of all existing clusters, and the user's working nam
 
 from os import stat
 from time import sleep
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Dict
 
 import openshift as oc
 from ray.job_submission import JobSubmissionClient
@@ -44,6 +44,8 @@ class Cluster:
 
     Note that currently, the underlying implementation is a Ray cluster.
     """
+
+    torchx_scheduler = "ray"
 
     def __init__(self, config: ClusterConfiguration):
         """
@@ -267,6 +269,20 @@ class Cluster:
         dashboard_route = self.cluster_dashboard_uri()
         client = JobSubmissionClient(dashboard_route)
         return client.get_job_logs(job_id)
+
+    def torchx_config(
+        self, working_dir: str = None, requirements: str = None
+    ) -> Dict[str, str]:
+        dashboard_address = f"{self.cluster_dashboard_uri().lstrip('http://')}"
+        to_return = {
+            "cluster_name": self.config.name,
+            "dashboard_address": dashboard_address,
+        }
+        if working_dir:
+            to_return["working_dir"] = working_dir
+        if requirements:
+            to_return["requirements"] = requirements
+        return to_return
 
 
 def get_current_namespace() -> str:
