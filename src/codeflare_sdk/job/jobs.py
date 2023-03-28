@@ -145,7 +145,7 @@ class DDPJobDefinition(JobDefinition):
             ),
             scheduler="kubernetes_mcad",
             cfg=self.scheduler_args if self.scheduler_args is not None else None,
-            workspace=f"file://{Path.cwd()}",
+            workspace="",
         )
 
     def submit(self, cluster: "Cluster" = None) -> "Job":
