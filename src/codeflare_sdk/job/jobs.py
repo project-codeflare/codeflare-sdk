@@ -110,7 +110,7 @@ class DDPJobDefinition(JobDefinition):
             workspace=f"file://{Path.cwd()}",
         )
 
-    def _missing_spec(spec: str):
+    def _missing_spec(self, spec: str):
         raise ValueError(f"Job definition missing arg: {spec}")
 
     def _dry_run_no_cluster(self):
@@ -119,7 +119,7 @@ class DDPJobDefinition(JobDefinition):
                 *self.script_args,
                 script=self.script,
                 m=self.m,
-                name=self.name,
+                name=self.name if self.name is not None else self._missing_spec("name"),
                 h=self.h,
                 cpu=self.cpu
                 if self.cpu is not None
