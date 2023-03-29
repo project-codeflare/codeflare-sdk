@@ -61,6 +61,7 @@ class DDPJobDefinition(JobDefinition):
         mounts: Optional[List[str]] = None,
         rdzv_port: int = 29500,
         scheduler_args: Optional[Dict[str, str]] = None,
+        image: Optional[str] = None,
     ):
         if bool(script) == bool(m):  # logical XOR
             raise ValueError(
@@ -82,6 +83,7 @@ class DDPJobDefinition(JobDefinition):
         self.scheduler_args: Dict[str, str] = (
             scheduler_args if scheduler_args is not None else dict()
         )
+        self.image = image
 
     def _dry_run(self, cluster: "Cluster"):
         j = f"{cluster.config.max_worker}x{max(cluster.config.gpu, 1)}"  # # of proc. = # of gpus
@@ -108,7 +110,45 @@ class DDPJobDefinition(JobDefinition):
             workspace=f"file://{Path.cwd()}",
         )
 
-    def submit(self, cluster: "Cluster") -> "Job":
+    def _missing_spec(self, spec: str):
+        raise ValueError(f"Job definition missing arg: {spec}")
+
+    def _dry_run_no_cluster(self):
+        return torchx_runner.dryrun(
+            app=ddp(
+                *self.script_args,
+                script=self.script,
+                m=self.m,
+                name=self.name if self.name is not None else self._missing_spec("name"),
+                h=self.h,
+                cpu=self.cpu
+                if self.cpu is not None
+                else self._missing_spec("cpu (# cpus per worker)"),
+                gpu=self.gpu
+                if self.gpu is not None
+                else self._missing_spec("gpu (# gpus per worker)"),
+                memMB=self.memMB
+                if self.memMB is not None
+                else self._missing_spec("memMB (memory in MB)"),
+                j=self.j
+                if self.j is not None
+                else self._missing_spec(
+                    "j (`workers`x`procs`)"
+                ),  # # of proc. = # of gpus,
+                env=self.env,  # should this still exist?
+                max_retries=self.max_retries,
+                rdzv_port=self.rdzv_port,  # should this still exist?
+                mounts=self.mounts,
+                image=self.image
+                if self.image is not None
+                else self._missing_spec("image"),
+            ),
+            scheduler="kubernetes_mcad",
+            cfg=self.scheduler_args if self.scheduler_args is not None else None,
+            workspace="",
+        )
+
+    def submit(self, cluster: "Cluster" = None) -> "Job":
         return DDPJob(self, cluster)
 
 
@@ -116,7 +156,12 @@ class DDPJob(Job):
     def __init__(self, job_definition: "DDPJobDefinition", cluster: "Cluster"):
         self.job_definition = job_definition
         self.cluster = cluster
-        self._app_handle = torchx_runner.schedule(job_definition._dry_run(cluster))
+        if self.cluster:
+            self._app_handle = torchx_runner.schedule(job_definition._dry_run(cluster))
+        else:
+            self._app_handle = torchx_runner.schedule(
+                job_definition._dry_run_no_cluster()
+            )
         all_jobs.append(self)
 
     def status(self) -> str:
