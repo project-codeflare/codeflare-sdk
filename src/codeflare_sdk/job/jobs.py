@@ -169,3 +169,6 @@ class DDPJob(Job):
 
     def logs(self) -> str:
         return "".join(torchx_runner.log_lines(self._app_handle, None))
+
+    def cancel(self):
+        torchx_runner.cancel(self._app_handle)

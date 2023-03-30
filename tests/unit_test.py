@@ -61,6 +61,7 @@ import ray
 from torchx.specs import AppDryRunInfo, AppDef
 from torchx.runner import get_runner, Runner
 from torchx.schedulers.ray_scheduler import RayJob
+from torchx.schedulers.kubernetes_mcad_scheduler import KubernetesMCADJob
 import pytest
 
 
@@ -1684,6 +1685,40 @@ def test_DDPJobDefinition_dry_run():
     assert ddp_job._cfg["requirements"] == "test"
 
     assert ddp_job._scheduler == "ray"
+
+
+def test_DDPJobDefinition_dry_run_no_cluster():
+    """
+    Test that the dry run method returns the correct type: AppDryRunInfo,
+    that the attributes of the returned object are of the correct type,
+    and that the values from cluster and job definition are correctly passed.
+    """
+    ddp = test_DDPJobDefinition_creation()
+    ddp.image = "fake-image"
+    ddp_job = ddp._dry_run_no_cluster()
+    assert type(ddp_job) == AppDryRunInfo
+    assert ddp_job._fmt is not None
+    assert type(ddp_job.request) == KubernetesMCADJob
+    assert type(ddp_job._app) == AppDef
+    assert type(ddp_job._cfg) == type(dict())
+    assert type(ddp_job._scheduler) == type(str())
+
+    assert (
+        ddp_job.request.resource["spec"]["resources"]["GenericItems"][0][
+            "generictemplate"
+        ]
+        .spec.containers[0]
+        .image
+        == "fake-image"
+    )
+
+    assert ddp_job._app.roles[0].resource.cpu == 1
+    assert ddp_job._app.roles[0].resource.gpu == 0
+    assert ddp_job._app.roles[0].resource.memMB == 1024
+
+    assert ddp_job._cfg["requirements"] == "test"
+
+    assert ddp_job._scheduler == "kubernetes_mcad"
 
 
 def test_DDPJobDefinition_dry_run_no_resource_args():
