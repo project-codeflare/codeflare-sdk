@@ -52,7 +52,7 @@ cluster setup queue, a list of all existing clusters, and the user&#39;s working
 
 from os import stat
 from time import sleep
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Dict
 
 import openshift as oc
 from ray.job_submission import JobSubmissionClient
@@ -76,6 +76,8 @@ class Cluster:
 
     Note that currently, the underlying implementation is a Ray cluster.
     &#34;&#34;&#34;
+
+    torchx_scheduler = &#34;ray&#34;
 
     def __init__(self, config: ClusterConfiguration):
         &#34;&#34;&#34;
@@ -222,7 +224,7 @@ class Cluster:
             if status == CodeFlareClusterStatus.UNKNOWN:
                 pretty_print.print_no_resources_found()
             else:
-                pretty_print.print_app_wrappers_status([appwrapper])
+                pretty_print.print_app_wrappers_status([appwrapper], starting=True)
 
         return status, ready
 
@@ -299,6 +301,20 @@ class Cluster:
         dashboard_route = self.cluster_dashboard_uri()
         client = JobSubmissionClient(dashboard_route)
         return client.get_job_logs(job_id)
+
+    def torchx_config(
+        self, working_dir: str = None, requirements: str = None
+    ) -&gt; Dict[str, str]:
+        dashboard_address = f&#34;{self.cluster_dashboard_uri().lstrip(&#39;http://&#39;)}&#34;
+        to_return = {
+            &#34;cluster_name&#34;: self.config.name,
+            &#34;dashboard_address&#34;: dashboard_address,
+        }
+        if working_dir:
+            to_return[&#34;working_dir&#34;] = working_dir
+        if requirements:
+            to_return[&#34;requirements&#34;] = requirements
+        return to_return
 
 
 def get_current_namespace() -&gt; str:
@@ -621,6 +637,8 @@ request.</p></div>
     Note that currently, the underlying implementation is a Ray cluster.
     &#34;&#34;&#34;
 
+    torchx_scheduler = &#34;ray&#34;
+
     def __init__(self, config: ClusterConfiguration):
         &#34;&#34;&#34;
         Create the resource cluster object by passing in a ClusterConfiguration
@@ -766,7 +784,7 @@ request.</p></div>
             if status == CodeFlareClusterStatus.UNKNOWN:
                 pretty_print.print_no_resources_found()
             else:
-                pretty_print.print_app_wrappers_status([appwrapper])
+                pretty_print.print_app_wrappers_status([appwrapper], starting=True)
 
         return status, ready
 
@@ -842,8 +860,29 @@ request.</p></div>
         &#34;&#34;&#34;
         dashboard_route = self.cluster_dashboard_uri()
         client = JobSubmissionClient(dashboard_route)
-        return client.get_job_logs(job_id)</code></pre>
+        return client.get_job_logs(job_id)
+
+    def torchx_config(
+        self, working_dir: str = None, requirements: str = None
+    ) -&gt; Dict[str, str]:
+        dashboard_address = f&#34;{self.cluster_dashboard_uri().lstrip(&#39;http://&#39;)}&#34;
+        to_return = {
+            &#34;cluster_name&#34;: self.config.name,
+            &#34;dashboard_address&#34;: dashboard_address,
+        }
+        if working_dir:
+            to_return[&#34;working_dir&#34;] = working_dir
+        if requirements:
+            to_return[&#34;requirements&#34;] = requirements
+        return to_return</code></pre>
 </details>
+<h3>Class variables</h3>
+<dl>
+<dt id="codeflare_sdk.cluster.cluster.Cluster.torchx_scheduler"><code class="name">var <span class="ident">torchx_scheduler</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
 <h3>Methods</h3>
 <dl>
 <dt id="codeflare_sdk.cluster.cluster.Cluster.cluster_dashboard_uri"><code class="name flex">
@@ -1022,7 +1061,7 @@ associated with the cluster.</p></div>
 </details>
 </dd>
 <dt id="codeflare_sdk.cluster.cluster.Cluster.list_jobs"><code class="name flex">
-<span>def <span class="ident">list_jobs</span></span>(<span>self) ‑> List</span>
+<span>def <span class="ident">list_jobs</span></span>(<span>self) ‑> List[~T]</span>
 </code></dt>
 <dd>
 <div class="desc"><p>This method accesses the head ray node in your cluster and lists the running jobs.</p></div>
@@ -1106,9 +1145,33 @@ it is ready for use.</p></div>
         if status == CodeFlareClusterStatus.UNKNOWN:
             pretty_print.print_no_resources_found()
         else:
-            pretty_print.print_app_wrappers_status([appwrapper])
+            pretty_print.print_app_wrappers_status([appwrapper], starting=True)
 
     return status, ready</code></pre>
+</details>
+</dd>
+<dt id="codeflare_sdk.cluster.cluster.Cluster.torchx_config"><code class="name flex">
+<span>def <span class="ident">torchx_config</span></span>(<span>self, working_dir: str = None, requirements: str = None) ‑> Dict[str, str]</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def torchx_config(
+    self, working_dir: str = None, requirements: str = None
+) -&gt; Dict[str, str]:
+    dashboard_address = f&#34;{self.cluster_dashboard_uri().lstrip(&#39;http://&#39;)}&#34;
+    to_return = {
+        &#34;cluster_name&#34;: self.config.name,
+        &#34;dashboard_address&#34;: dashboard_address,
+    }
+    if working_dir:
+        to_return[&#34;working_dir&#34;] = working_dir
+    if requirements:
+        to_return[&#34;requirements&#34;] = requirements
+    return to_return</code></pre>
 </details>
 </dd>
 <dt id="codeflare_sdk.cluster.cluster.Cluster.up"><code class="name flex">
@@ -1209,6 +1272,8 @@ Checks every five seconds.</p></div>
 <li><code><a title="codeflare_sdk.cluster.cluster.Cluster.job_status" href="#codeflare_sdk.cluster.cluster.Cluster.job_status">job_status</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.cluster.Cluster.list_jobs" href="#codeflare_sdk.cluster.cluster.Cluster.list_jobs">list_jobs</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.cluster.Cluster.status" href="#codeflare_sdk.cluster.cluster.Cluster.status">status</a></code></li>
+<li><code><a title="codeflare_sdk.cluster.cluster.Cluster.torchx_config" href="#codeflare_sdk.cluster.cluster.Cluster.torchx_config">torchx_config</a></code></li>
+<li><code><a title="codeflare_sdk.cluster.cluster.Cluster.torchx_scheduler" href="#codeflare_sdk.cluster.cluster.Cluster.torchx_scheduler">torchx_scheduler</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.cluster.Cluster.up" href="#codeflare_sdk.cluster.cluster.Cluster.up">up</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.cluster.Cluster.wait_ready" href="#codeflare_sdk.cluster.cluster.Cluster.wait_ready">wait_ready</a></code></li>
 </ul>

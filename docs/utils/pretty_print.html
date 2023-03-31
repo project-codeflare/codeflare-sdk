@@ -63,7 +63,7 @@ def print_no_resources_found():
     console.print(Panel(&#34;[red]No resources found, have you run cluster.up() yet?&#34;))
 
 
-def print_app_wrappers_status(app_wrappers: List[AppWrapper]):
+def print_app_wrappers_status(app_wrappers: List[AppWrapper], starting: bool = False):
     if not app_wrappers:
         print_no_resources_found()
         return  # shortcircuit
@@ -79,6 +79,8 @@ def print_app_wrappers_status(app_wrappers: List[AppWrapper]):
     for app_wrapper in app_wrappers:
         name = app_wrapper.name
         status = app_wrapper.status.value
+        if starting:
+            status += &#34; (starting)&#34;
         table.add_row(name, status)
         table.add_row(&#34;&#34;)  # empty row for spacing
 
@@ -88,7 +90,7 @@ def print_app_wrappers_status(app_wrappers: List[AppWrapper]):
 def print_cluster_status(cluster: RayCluster):
     &#34;Pretty prints the status of a passed-in cluster&#34;
     if not cluster:
-        print_no_resources_found
+        print_no_resources_found()
         return
 
     console = Console()
@@ -223,7 +225,7 @@ def print_clusters(clusters: List[RayCluster]):
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
 <dt id="codeflare_sdk.utils.pretty_print.print_app_wrappers_status"><code class="name flex">
-<span>def <span class="ident">print_app_wrappers_status</span></span>(<span>app_wrappers: List[<a title="codeflare_sdk.cluster.model.AppWrapper" href="../cluster/model.html#codeflare_sdk.cluster.model.AppWrapper">AppWrapper</a>])</span>
+<span>def <span class="ident">print_app_wrappers_status</span></span>(<span>app_wrappers: List[<a title="codeflare_sdk.cluster.model.AppWrapper" href="../cluster/model.html#codeflare_sdk.cluster.model.AppWrapper">AppWrapper</a>], starting: bool = False)</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -231,7 +233,7 @@ def print_clusters(clusters: List[RayCluster]):
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def print_app_wrappers_status(app_wrappers: List[AppWrapper]):
+<pre><code class="python">def print_app_wrappers_status(app_wrappers: List[AppWrapper], starting: bool = False):
     if not app_wrappers:
         print_no_resources_found()
         return  # shortcircuit
@@ -247,6 +249,8 @@ def print_clusters(clusters: List[RayCluster]):
     for app_wrapper in app_wrappers:
         name = app_wrapper.name
         status = app_wrapper.status.value
+        if starting:
+            status += &#34; (starting)&#34;
         table.add_row(name, status)
         table.add_row(&#34;&#34;)  # empty row for spacing
 
@@ -265,7 +269,7 @@ def print_clusters(clusters: List[RayCluster]):
 <pre><code class="python">def print_cluster_status(cluster: RayCluster):
     &#34;Pretty prints the status of a passed-in cluster&#34;
     if not cluster:
-        print_no_resources_found
+        print_no_resources_found()
         return
 
     console = Console()
