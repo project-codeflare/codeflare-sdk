@@ -153,7 +153,7 @@ class DDPJobDefinition(JobDefinition):
 
 
 class DDPJob(Job):
-    def __init__(self, job_definition: "DDPJobDefinition", cluster: "Cluster"):
+    def __init__(self, job_definition: "DDPJobDefinition", cluster: "Cluster" = None):
         self.job_definition = job_definition
         self.cluster = cluster
         if self.cluster:

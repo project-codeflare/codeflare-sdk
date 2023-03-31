@@ -1750,7 +1750,7 @@ def test_DDPJobDefinition_dry_run_no_resource_args():
     )
 
 
-def test_DDPJobDefinition_dry_run_no_cluster():
+def test_DDPJobDefinition_dry_run_no_cluster_no_resource_args():
     """
     Test that the dry run method returns the correct type: AppDryRunInfo,
     that the attributes of the returned object are of the correct type,
