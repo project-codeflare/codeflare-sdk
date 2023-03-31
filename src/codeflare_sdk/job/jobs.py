@@ -153,7 +153,7 @@ class DDPJobDefinition(JobDefinition):
 
 
 class DDPJob(Job):
-    def __init__(self, job_definition: "DDPJobDefinition", cluster: "Cluster"):
+    def __init__(self, job_definition: "DDPJobDefinition", cluster: "Cluster" = None):
         self.job_definition = job_definition
         self.cluster = cluster
         if self.cluster:
@@ -169,3 +169,6 @@ class DDPJob(Job):
 
     def logs(self) -> str:
         return "".join(torchx_runner.log_lines(self._app_handle, None))
+
+    def cancel(self):
+        torchx_runner.cancel(self._app_handle)
