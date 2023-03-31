@@ -103,7 +103,7 @@ class TokenAuthentication(Authentication):
             args.append(&#34;--insecure-skip-tls-verify&#34;)
         try:
             response = oc.invoke(&#34;login&#34;, args)
-        except OpenShiftPythonException as osp:
+        except OpenShiftPythonException as osp:  # pragma: no cover
             error_msg = osp.result.err()
             if &#34;The server uses a certificate signed by unknown authority&#34; in error_msg:
                 return &#34;Error: certificate auth failure, please set `skip_tls=True` in TokenAuthentication&#34;
@@ -360,7 +360,7 @@ and <code>server</code>, the API server address for authenticating to an OpenShi
             args.append(&#34;--insecure-skip-tls-verify&#34;)
         try:
             response = oc.invoke(&#34;login&#34;, args)
-        except OpenShiftPythonException as osp:
+        except OpenShiftPythonException as osp:  # pragma: no cover
             error_msg = osp.result.err()
             if &#34;The server uses a certificate signed by unknown authority&#34; in error_msg:
                 return &#34;Error: certificate auth failure, please set `skip_tls=True` in TokenAuthentication&#34;
@@ -406,7 +406,7 @@ to <code>True</code>.</p></div>
         args.append(&#34;--insecure-skip-tls-verify&#34;)
     try:
         response = oc.invoke(&#34;login&#34;, args)
-    except OpenShiftPythonException as osp:
+    except OpenShiftPythonException as osp:  # pragma: no cover
         error_msg = osp.result.err()
         if &#34;The server uses a certificate signed by unknown authority&#34; in error_msg:
             return &#34;Error: certificate auth failure, please set `skip_tls=True` in TokenAuthentication&#34;
