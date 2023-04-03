@@ -1,3 +1,4 @@
+LICENSE
 README.md
 pyproject.toml
 src/codeflare_sdk/__init__.py
@@ -6,9 +7,12 @@ src/codeflare_sdk.egg-info/SOURCES.txt
 src/codeflare_sdk.egg-info/dependency_links.txt
 src/codeflare_sdk.egg-info/top_level.txt
 src/codeflare_sdk/cluster/__init__.py
+src/codeflare_sdk/cluster/auth.py
 src/codeflare_sdk/cluster/cluster.py
 src/codeflare_sdk/cluster/config.py
 src/codeflare_sdk/cluster/model.py
+src/codeflare_sdk/job/__init__.py
+src/codeflare_sdk/job/jobs.py
 src/codeflare_sdk/utils/__init__.py
 src/codeflare_sdk/utils/generate_yaml.py
 src/codeflare_sdk/utils/pretty_print.py
