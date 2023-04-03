@@ -25,4 +25,4 @@ openshift-client = "1.0.18"
 rich = "^12.5"
 ray = {version = "2.1.0", extras = ["default"]}
 kubernetes = "26.1.0"
-codeflare-torchx = "0.5.0.dev4"
+codeflare-torchx = "0.5.0.dev5"
