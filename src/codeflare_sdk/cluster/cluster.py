@@ -63,6 +63,14 @@ class Cluster:
         Called upon cluster object creation, creates an AppWrapper yaml based on
         the specifications of the ClusterConfiguration.
         """
+
+        if self.config.namespace is None:
+            self.config.namespace = oc.get_project_name()
+            if type(self.config.namespace) is not str:
+                raise TypeError(
+                    f"Namespace {self.config.namespace} is of type {type(self.config.namespace)}. Check your Kubernetes Authentication."
+                )
+
         name = self.config.name
         namespace = self.config.namespace
         min_cpu = self.config.min_cpus
@@ -283,26 +291,6 @@ class Cluster:
         if requirements:
             to_return["requirements"] = requirements
         return to_return
-
-
-def get_current_namespace() -> str:
-    """
-    Returns the user's current working namespace.
-    """
-    try:
-        namespace = oc.invoke("project", ["-q"]).actions()[0].out.strip()
-    except oc.OpenShiftPythonException as osp:  # pragma: no cover
-        error_msg = osp.result.err()
-        if (
-            "do not have rights" in error_msg
-            or "Missing or incomplete configuration" in error_msg
-        ):
-            raise PermissionError(
-                "Action not permitted, have you run auth.login() or cluster.up()?"
-            )
-        else:
-            raise osp
-    return namespace
 
 
 def list_all_clusters(namespace: str, print_to_console: bool = True):

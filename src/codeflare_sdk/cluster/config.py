@@ -21,6 +21,7 @@ Cluster object.
 from dataclasses import dataclass, field
 from .auth import Authentication
 import pathlib
+import openshift
 
 dir = pathlib.Path(__file__).parent.parent.resolve()
 
@@ -33,7 +34,7 @@ class ClusterConfiguration:
     """
 
     name: str
-    namespace: str = "default"
+    namespace: str = None
     head_info: list = field(default_factory=list)
     machine_types: list = field(default_factory=list)  # ["m4.xlarge", "g4dn.xlarge"]
     min_cpus: int = 1
