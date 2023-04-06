@@ -2,3 +2,5 @@ dist/
 .python-version
 __pycache__/
 .coverage
+Pipfile
+Pipfile.lock
