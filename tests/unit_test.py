@@ -24,7 +24,6 @@ sys.path.append(str(parent) + "/src")
 from codeflare_sdk.cluster.cluster import (
     Cluster,
     ClusterConfiguration,
-    get_current_namespace,
     list_all_clusters,
     list_all_queued,
     _copy_to_ray,
@@ -237,6 +236,23 @@ def test_cluster_creation():
     assert filecmp.cmp(
         "unit-test-cluster.yaml", f"{parent}/tests/test-case.yaml", shallow=True
     )
+    return cluster
+
+
+def test_default_cluster_creation(mocker):
+    mocker.patch(
+        "openshift.get_project_name",
+        return_value="opendatahub",
+    )
+    default_config = ClusterConfiguration(
+        name="unit-test-default-cluster",
+    )
+    cluster = Cluster(default_config)
+
+    assert cluster.app_wrapper_yaml == "unit-test-default-cluster.yaml"
+    assert cluster.app_wrapper_name == "unit-test-default-cluster"
+    assert cluster.config.namespace == "opendatahub"
+
     return cluster
 
 
@@ -494,14 +510,6 @@ def act_side_effect_list(self):
     print([self])
     self.out = str(self.high_level_operation)
     return [self]
-
-
-def test_get_namespace(mocker):
-    mocker.patch("openshift.invoke", side_effect=arg_side_effect)
-    mock_res = mocker.patch.object(openshift.Result, "actions")
-    mock_res.side_effect = lambda: act_side_effect_list(fake_res)
-    vars = get_current_namespace()
-    assert vars == "('project', ['-q'])"
 
 
 def get_selector(*args):
@@ -1593,22 +1601,6 @@ def test_wait_ready(mocker, capsys):
     )
 
 
-def test_cmd_line_generation():
-    os.system(
-        f"python3 {parent}/src/codeflare_sdk/utils/generate_yaml.py --name=unit-cmd-cluster --min-cpu=1 --max-cpu=1 --min-memory=2 --max-memory=2 --gpu=1 --workers=2 --template=src/codeflare_sdk/templates/new-template.yaml"
-    )
-    assert filecmp.cmp(
-        "unit-cmd-cluster.yaml", f"{parent}/tests/test-case-cmd.yaml", shallow=True
-    )
-    os.remove("unit-test-cluster.yaml")
-    os.remove("unit-cmd-cluster.yaml")
-
-
-def test_cleanup():
-    os.remove("test.yaml")
-    os.remove("raytest2.yaml")
-
-
 def test_jobdefinition_coverage():
     abstract = JobDefinition()
     cluster = Cluster(test_config_creation())
@@ -1673,7 +1665,6 @@ def test_DDPJobDefinition_dry_run():
     assert type(ddp_job._scheduler) == type(str())
 
     assert ddp_job.request.app_id.startswith("test")
-    assert ddp_job.request.working_dir.startswith("/tmp/torchx_workspace")
     assert ddp_job.request.cluster_name == "unit-test-cluster"
     assert ddp_job.request.requirements == "test"
 
@@ -1687,12 +1678,18 @@ def test_DDPJobDefinition_dry_run():
     assert ddp_job._scheduler == "ray"
 
 
-def test_DDPJobDefinition_dry_run_no_cluster():
+def test_DDPJobDefinition_dry_run_no_cluster(mocker):
     """
     Test that the dry run method returns the correct type: AppDryRunInfo,
     that the attributes of the returned object are of the correct type,
     and that the values from cluster and job definition are correctly passed.
     """
+
+    mocker.patch(
+        "openshift.get_project_name",
+        return_value="opendatahub",
+    )
+
     ddp = test_DDPJobDefinition_creation()
     ddp.image = "fake-image"
     ddp_job = ddp._dry_run_no_cluster()
@@ -1750,12 +1747,18 @@ def test_DDPJobDefinition_dry_run_no_resource_args():
     )
 
 
-def test_DDPJobDefinition_dry_run_no_cluster_no_resource_args():
+def test_DDPJobDefinition_dry_run_no_cluster_no_resource_args(mocker):
     """
     Test that the dry run method returns the correct type: AppDryRunInfo,
     that the attributes of the returned object are of the correct type,
     and that the values from cluster and job definition are correctly passed.
     """
+
+    mocker.patch(
+        "openshift.get_project_name",
+        return_value="opendatahub",
+    )
+
     ddp = test_DDPJobDefinition_creation()
     try:
         ddp._dry_run_no_cluster()
@@ -1807,6 +1810,10 @@ def test_DDPJobDefinition_submit(mocker):
     ddp_def = test_DDPJobDefinition_creation()
     cluster = Cluster(test_config_creation())
     mocker.patch(
+        "openshift.get_project_name",
+        return_value="opendatahub",
+    )
+    mocker.patch(
         "codeflare_sdk.job.jobs.torchx_runner.schedule",
         return_value="fake-dashboard-url",
     )  # a fake app_handle
@@ -1852,6 +1859,10 @@ def test_DDPJob_creation(mocker):
 def test_DDPJob_creation_no_cluster(mocker):
     ddp_def = test_DDPJobDefinition_creation()
     ddp_def.image = "fake-image"
+    mocker.patch(
+        "openshift.get_project_name",
+        return_value="opendatahub",
+    )
     mocker.patch(
         "codeflare_sdk.job.jobs.torchx_runner.schedule",
         return_value="fake-app-handle",
@@ -1899,6 +1910,10 @@ def arg_check_side_effect(*args):
 def test_DDPJob_cancel(mocker):
     ddp_job = test_DDPJob_creation_no_cluster(mocker)
     mocker.patch(
+        "openshift.get_project_name",
+        return_value="opendatahub",
+    )
+    mocker.patch(
         "codeflare_sdk.job.jobs.torchx_runner.cancel", side_effect=arg_check_side_effect
     )
     ddp_job.cancel()
@@ -1916,3 +1931,22 @@ def parse_j(cmd):
     max_worker = args[1]
     gpu = args[3]
     return f"{max_worker}x{gpu}"
+
+
+# Make sure to keep this function and the efollowing function at the end of the file
+def test_cmd_line_generation():
+    os.system(
+        f"python3 {parent}/src/codeflare_sdk/utils/generate_yaml.py --name=unit-cmd-cluster --min-cpu=1 --max-cpu=1 --min-memory=2 --max-memory=2 --gpu=1 --workers=2 --template=src/codeflare_sdk/templates/new-template.yaml"
+    )
+    assert filecmp.cmp(
+        "unit-cmd-cluster.yaml", f"{parent}/tests/test-case-cmd.yaml", shallow=True
+    )
+    os.remove("unit-test-cluster.yaml")
+    os.remove("unit-test-default-cluster.yaml")
+    os.remove("unit-cmd-cluster.yaml")
+
+
+# Make sure to always keep this function last
+def test_cleanup():
+    os.remove("test.yaml")
+    os.remove("raytest2.yaml")

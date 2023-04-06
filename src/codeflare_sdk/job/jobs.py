@@ -17,6 +17,7 @@ import abc
 from typing import TYPE_CHECKING, Optional, Dict, List
 from pathlib import Path
 
+import openshift as oc
 from torchx.components.dist import ddp
 from torchx.runner import get_runner
 from torchx.specs import AppHandle, parse_app_handle, AppDryRunInfo
@@ -114,6 +115,9 @@ class DDPJobDefinition(JobDefinition):
         raise ValueError(f"Job definition missing arg: {spec}")
 
     def _dry_run_no_cluster(self):
+        if self.scheduler_args is not None:
+            if self.scheduler_args.get("namespace") is None:
+                self.scheduler_args["namespace"] = oc.get_project_name()
         return torchx_runner.dryrun(
             app=ddp(
                 *self.script_args,
@@ -144,7 +148,7 @@ class DDPJobDefinition(JobDefinition):
                 else self._missing_spec("image"),
             ),
             scheduler="kubernetes_mcad",
-            cfg=self.scheduler_args if self.scheduler_args is not None else None,
+            cfg=self.scheduler_args,
             workspace="",
         )
 
