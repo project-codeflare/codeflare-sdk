@@ -19,9 +19,13 @@ Can be installed via `pip`: `pip install codeflare-sdk`
 
 We recommend using Python 3.8 for development.
 Install development specific dependencies:
-  `$ pip install poetry pytest pytest-mock coverage black==22.3.0`
+  `$ pip install pre-commit poetry pytest pytest-mock coverage black==22.3.0`
 
 Additional dependencies can be found in `requirements.txt`: `$ pip install -r requirements.txt`
+
+### Pre-commit
+
+We use pre-commit to make sure the code is consistently formatted. To make sure that pre-commit is run every time you commit changes, simply run `pre-commit install`
 
 ### Testing
 

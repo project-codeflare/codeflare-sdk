@@ -20,7 +20,7 @@ COPY requirements.txt requirements.txt
 
 RUN pip install -r requirements.txt
 
-RUN pip uninstall pickle5 -y 
+RUN pip uninstall pickle5 -y
 
 # Install codeflare-sdk and other libraries
 RUN pip install codeflare-sdk==0.4.1 \

@@ -20,8 +20,8 @@ metadata:
     opendatahub.io/notebook-image: 'true'
   annotations:
     opendatahub.io/notebook-image-name:
-      "Codeflare Notebook"
-    opendatahub.io/notebook-image-desc: "Custom Jupyter notebook image with codeflare SDK, Python 3.8, Ray 2.1.0 and PyTorch 1.12.1"
+      "CodeFlare Notebook"
+    opendatahub.io/notebook-image-desc: "Custom Jupyter notebook image with CodeFlare SDK, Python 3.8, Ray 2.1.0 and PyTorch 1.12.1"
 spec:
   lookupPolicy:
     local: true
@@ -32,8 +32,5 @@ spec:
       from:
         kind: DockerImage
         name: quay.io/project-codeflare/notebook:latest
-      name: "latest"
-      referencePolicy:
-        type: Source
       importPolicy:
         scheduled: true
