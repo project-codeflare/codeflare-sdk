@@ -1920,7 +1920,6 @@ def test_DDPJob_cancel(mocker):
 
 
 def parse_j(cmd):
-
     pattern = r"--nnodes\s+\d+\s+--nproc_per_node\s+\d+"
     match = re.search(pattern, cmd)
     if match:

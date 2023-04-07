@@ -189,7 +189,7 @@ spec:
                   - name: MY_POD_IP
                     valueFrom:
                       fieldRef:
-                        fieldPath: status.podIP 
+                        fieldPath: status.podIP
                   # environment variables to set in the container.Optional.
                   # Refer to https://kubernetes.io/docs/tasks/inject-data-application/define-environment-variable-container/
                   lifecycle:
@@ -220,4 +220,4 @@ spec:
             kind: Service
             name: deployment-name-head-svc
           port:
-            targetPort: dashboard 
+            targetPort: dashboard
