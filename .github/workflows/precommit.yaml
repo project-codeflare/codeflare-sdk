@@ -1,0 +1,26 @@
+name: Pre-commit
+on:
+  push:
+    branches:
+      - '**'
+    tags-ignore:
+      - 'v*'
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  precommit:
+    runs-on: ubuntu-latest
+    container:
+      image: quay.io/opendatahub/pre-commit-go-toolchain:v0.2  # https://github.com/opendatahub-io/data-science-pipelines-operator/blob/main/.github
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Activate cache
+        uses: actions/cache@v2
+        with:
+          path: /cache
+          key: ${{ runner.os }}-cache-${{ hashFiles('**/go.sum', '.pre-commit-config.yaml') }}
+
+      - name: Run pre-commit checks
+        run: pre-commit run --all-files
