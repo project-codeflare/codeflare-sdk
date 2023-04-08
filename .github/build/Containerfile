@@ -1,0 +1,14 @@
+FROM registry.redhat.io/ubi9/python-39:latest
+
+LABEL summary="Toolchain for running pre-commit hooks." \
+    description="Toolchain for running pre-commit hooks" \
+    io.k8s.display-name="Pre-Commit Toolchain"
+
+USER root
+RUN dnf install nodejs
+USER $USERID
+
+COPY requirements-dev.txt /tmp/requirements-dev.txt
+RUN python -m pip install -r /tmp/requirements-dev.txt
+
+CMD bash
