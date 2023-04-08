@@ -17,7 +17,7 @@ Can be installed via `pip`: `pip install codeflare-sdk`
 
 ### Prerequisites
 
-We recommend using Python 3.8 for development.
+We recommend using Python 3.9 for development.
 Install development specific dependencies:
   `$ pip install -r requirements-dev.txt`
 
