@@ -1,0 +1,11 @@
+openshift-client==1.0.18
+rich==12.5.1
+ray[default]==2.1.0
+kubernetes==26.1.0
+codeflare-torchx==0.6.0.dev0
+pre-commit
+poetry
+pytest
+pytest-mock
+coverage
+black==22.3.0

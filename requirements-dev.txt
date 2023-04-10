@@ -1,6 +1,0 @@
-pre-commit
-poetry
-pytest
-pytest-mock
-coverage
-black==22.3.0
