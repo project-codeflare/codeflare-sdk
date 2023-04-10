@@ -5,10 +5,16 @@ LABEL summary="Toolchain for running pre-commit hooks." \
     io.k8s.display-name="Pre-Commit Toolchain"
 
 USER root
-RUN dnf install nodejs
+RUN dnf install nodejs -y && \
+    dnf clean all && \
+    rm -rf /var/cache/dnf
+ADD https://mirror.openshift.com/pub/openshift-v4/clients/oc/latest/linux/oc.tar.gz $TMPDIR/
+RUN tar -C /usr/local/bin -xvf $TMPDIR/oc.tar.gz && \
+    chmod +x /usr/local/bin/oc && \
+    rm $TMPDIR/oc.tar.gz
 USER $USERID
 
-COPY requirements-dev.txt /tmp/requirements-dev.txt
-RUN python -m pip install -r /tmp/requirements-dev.txt
+COPY requirements.txt /tmp/requirements.txt
+RUN python -m pip install -r /tmp/requirements.txt
 
 CMD bash
