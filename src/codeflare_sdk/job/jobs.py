@@ -61,6 +61,7 @@ class DDPJobDefinition(JobDefinition):
         max_retries: int = 0,
         mounts: Optional[List[str]] = None,
         rdzv_port: int = 29500,
+        rdzv_backend: str = None,
         scheduler_args: Optional[Dict[str, str]] = None,
         image: Optional[str] = None,
     ):
@@ -81,6 +82,7 @@ class DDPJobDefinition(JobDefinition):
         self.max_retries = max_retries
         self.mounts: List[str] = mounts if mounts is not None else []
         self.rdzv_port = rdzv_port
+        self.rdzv_backend = rdzv_backend
         self.scheduler_args: Dict[str, str] = (
             scheduler_args if scheduler_args is not None else dict()
         )
@@ -104,6 +106,9 @@ class DDPJobDefinition(JobDefinition):
                 env=self.env,
                 max_retries=self.max_retries,
                 rdzv_port=self.rdzv_port,
+                rdzv_backend=self.rdzv_backend
+                if self.rdzv_backend is not None
+                else "static",
                 mounts=self.mounts,
             ),
             scheduler=cluster.torchx_scheduler,
@@ -142,6 +147,9 @@ class DDPJobDefinition(JobDefinition):
                 env=self.env,  # should this still exist?
                 max_retries=self.max_retries,
                 rdzv_port=self.rdzv_port,  # should this still exist?
+                rdzv_backend=self.rdzv_backend
+                if self.rdzv_backend is not None
+                else "c10d",
                 mounts=self.mounts,
                 image=self.image
                 if self.image is not None
