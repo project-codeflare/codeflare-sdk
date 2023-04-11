@@ -95,6 +95,14 @@ class Cluster:
         Called upon cluster object creation, creates an AppWrapper yaml based on
         the specifications of the ClusterConfiguration.
         &#34;&#34;&#34;
+
+        if self.config.namespace is None:
+            self.config.namespace = oc.get_project_name()
+            if type(self.config.namespace) is not str:
+                raise TypeError(
+                    f&#34;Namespace {self.config.namespace} is of type {type(self.config.namespace)}. Check your Kubernetes Authentication.&#34;
+                )
+
         name = self.config.name
         namespace = self.config.namespace
         min_cpu = self.config.min_cpus
@@ -317,26 +325,6 @@ class Cluster:
         return to_return
 
 
-def get_current_namespace() -&gt; str:
-    &#34;&#34;&#34;
-    Returns the user&#39;s current working namespace.
-    &#34;&#34;&#34;
-    try:
-        namespace = oc.invoke(&#34;project&#34;, [&#34;-q&#34;]).actions()[0].out.strip()
-    except oc.OpenShiftPythonException as osp:  # pragma: no cover
-        error_msg = osp.result.err()
-        if (
-            &#34;do not have rights&#34; in error_msg
-            or &#34;Missing or incomplete configuration&#34; in error_msg
-        ):
-            raise PermissionError(
-                &#34;Action not permitted, have you run auth.login() or cluster.up()?&#34;
-            )
-        else:
-            raise osp
-    return namespace
-
-
 def list_all_clusters(namespace: str, print_to_console: bool = True):
     &#34;&#34;&#34;
     Returns (and prints by default) a list of all clusters in a given namespace.
@@ -537,35 +525,6 @@ def _copy_to_ray(cluster: Cluster) -&gt; RayCluster:
 <section>
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
-<dt id="codeflare_sdk.cluster.cluster.get_current_namespace"><code class="name flex">
-<span>def <span class="ident">get_current_namespace</span></span>(<span>) ‑> str</span>
-</code></dt>
-<dd>
-<div class="desc"><p>Returns the user's current working namespace.</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def get_current_namespace() -&gt; str:
-    &#34;&#34;&#34;
-    Returns the user&#39;s current working namespace.
-    &#34;&#34;&#34;
-    try:
-        namespace = oc.invoke(&#34;project&#34;, [&#34;-q&#34;]).actions()[0].out.strip()
-    except oc.OpenShiftPythonException as osp:  # pragma: no cover
-        error_msg = osp.result.err()
-        if (
-            &#34;do not have rights&#34; in error_msg
-            or &#34;Missing or incomplete configuration&#34; in error_msg
-        ):
-            raise PermissionError(
-                &#34;Action not permitted, have you run auth.login() or cluster.up()?&#34;
-            )
-        else:
-            raise osp
-    return namespace</code></pre>
-</details>
-</dd>
 <dt id="codeflare_sdk.cluster.cluster.list_all_clusters"><code class="name flex">
 <span>def <span class="ident">list_all_clusters</span></span>(<span>namespace: str, print_to_console: bool = True)</span>
 </code></dt>
@@ -655,6 +614,14 @@ request.</p></div>
         Called upon cluster object creation, creates an AppWrapper yaml based on
         the specifications of the ClusterConfiguration.
         &#34;&#34;&#34;
+
+        if self.config.namespace is None:
+            self.config.namespace = oc.get_project_name()
+            if type(self.config.namespace) is not str:
+                raise TypeError(
+                    f&#34;Namespace {self.config.namespace} is of type {type(self.config.namespace)}. Check your Kubernetes Authentication.&#34;
+                )
+
         name = self.config.name
         namespace = self.config.namespace
         min_cpu = self.config.min_cpus
@@ -942,6 +909,14 @@ the specifications of the ClusterConfiguration.</p></div>
     Called upon cluster object creation, creates an AppWrapper yaml based on
     the specifications of the ClusterConfiguration.
     &#34;&#34;&#34;
+
+    if self.config.namespace is None:
+        self.config.namespace = oc.get_project_name()
+        if type(self.config.namespace) is not str:
+            raise TypeError(
+                f&#34;Namespace {self.config.namespace} is of type {type(self.config.namespace)}. Check your Kubernetes Authentication.&#34;
+            )
+
     name = self.config.name
     namespace = self.config.namespace
     min_cpu = self.config.min_cpus
@@ -1253,7 +1228,6 @@ Checks every five seconds.</p></div>
 </li>
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
-<li><code><a title="codeflare_sdk.cluster.cluster.get_current_namespace" href="#codeflare_sdk.cluster.cluster.get_current_namespace">get_current_namespace</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.cluster.list_all_clusters" href="#codeflare_sdk.cluster.cluster.list_all_clusters">list_all_clusters</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.cluster.list_all_queued" href="#codeflare_sdk.cluster.cluster.list_all_queued">list_all_queued</a></code></li>
 </ul>

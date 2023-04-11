@@ -45,6 +45,7 @@ import abc
 from typing import TYPE_CHECKING, Optional, Dict, List
 from pathlib import Path
 
+import openshift as oc
 from torchx.components.dist import ddp
 from torchx.runner import get_runner
 from torchx.specs import AppHandle, parse_app_handle, AppDryRunInfo
@@ -88,8 +89,10 @@ class DDPJobDefinition(JobDefinition):
         max_retries: int = 0,
         mounts: Optional[List[str]] = None,
         rdzv_port: int = 29500,
+        rdzv_backend: str = None,
         scheduler_args: Optional[Dict[str, str]] = None,
         image: Optional[str] = None,
+        workspace: Optional[str] = f&#34;file://{Path.cwd()}&#34;,
     ):
         if bool(script) == bool(m):  # logical XOR
             raise ValueError(
@@ -108,10 +111,12 @@ class DDPJobDefinition(JobDefinition):
         self.max_retries = max_retries
         self.mounts: List[str] = mounts if mounts is not None else []
         self.rdzv_port = rdzv_port
+        self.rdzv_backend = rdzv_backend
         self.scheduler_args: Dict[str, str] = (
             scheduler_args if scheduler_args is not None else dict()
         )
         self.image = image
+        self.workspace = workspace
 
     def _dry_run(self, cluster: &#34;Cluster&#34;):
         j = f&#34;{cluster.config.max_worker}x{max(cluster.config.gpu, 1)}&#34;  # # of proc. = # of gpus
@@ -131,17 +136,23 @@ class DDPJobDefinition(JobDefinition):
                 env=self.env,
                 max_retries=self.max_retries,
                 rdzv_port=self.rdzv_port,
+                rdzv_backend=self.rdzv_backend
+                if self.rdzv_backend is not None
+                else &#34;static&#34;,
                 mounts=self.mounts,
             ),
             scheduler=cluster.torchx_scheduler,
             cfg=cluster.torchx_config(**self.scheduler_args),
-            workspace=f&#34;file://{Path.cwd()}&#34;,
+            workspace=self.workspace,
         )
 
     def _missing_spec(self, spec: str):
         raise ValueError(f&#34;Job definition missing arg: {spec}&#34;)
 
     def _dry_run_no_cluster(self):
+        if self.scheduler_args is not None:
+            if self.scheduler_args.get(&#34;namespace&#34;) is None:
+                self.scheduler_args[&#34;namespace&#34;] = oc.get_project_name()
         return torchx_runner.dryrun(
             app=ddp(
                 *self.script_args,
@@ -166,13 +177,16 @@ class DDPJobDefinition(JobDefinition):
                 env=self.env,  # should this still exist?
                 max_retries=self.max_retries,
                 rdzv_port=self.rdzv_port,  # should this still exist?
+                rdzv_backend=self.rdzv_backend
+                if self.rdzv_backend is not None
+                else &#34;c10d&#34;,
                 mounts=self.mounts,
                 image=self.image
                 if self.image is not None
                 else self._missing_spec(&#34;image&#34;),
             ),
             scheduler=&#34;kubernetes_mcad&#34;,
-            cfg=self.scheduler_args if self.scheduler_args is not None else None,
+            cfg=self.scheduler_args,
             workspace=&#34;&#34;,
         )
 
@@ -291,7 +305,7 @@ class DDPJob(Job):
 </dd>
 <dt id="codeflare_sdk.job.jobs.DDPJobDefinition"><code class="flex name class">
 <span>class <span class="ident">DDPJobDefinition</span></span>
-<span>(</span><span>script: Optional[str] = None, m: Optional[str] = None, script_args: Optional[List[str]] = None, name: Optional[str] = None, cpu: Optional[int] = None, gpu: Optional[int] = None, memMB: Optional[int] = None, h: Optional[str] = None, j: Optional[str] = None, env: Optional[Dict[str, str]] = None, max_retries: int = 0, mounts: Optional[List[str]] = None, rdzv_port: int = 29500, scheduler_args: Optional[Dict[str, str]] = None, image: Optional[str] = None)</span>
+<span>(</span><span>script: Optional[str] = None, m: Optional[str] = None, script_args: Optional[List[str]] = None, name: Optional[str] = None, cpu: Optional[int] = None, gpu: Optional[int] = None, memMB: Optional[int] = None, h: Optional[str] = None, j: Optional[str] = None, env: Optional[Dict[str, str]] = None, max_retries: int = 0, mounts: Optional[List[str]] = None, rdzv_port: int = 29500, rdzv_backend: str = None, scheduler_args: Optional[Dict[str, str]] = None, image: Optional[str] = None, workspace: Optional[str] = 'file:///home/meyceoz/Documents/codeflare-sdk')</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -315,8 +329,10 @@ class DDPJob(Job):
         max_retries: int = 0,
         mounts: Optional[List[str]] = None,
         rdzv_port: int = 29500,
+        rdzv_backend: str = None,
         scheduler_args: Optional[Dict[str, str]] = None,
         image: Optional[str] = None,
+        workspace: Optional[str] = f&#34;file://{Path.cwd()}&#34;,
     ):
         if bool(script) == bool(m):  # logical XOR
             raise ValueError(
@@ -335,10 +351,12 @@ class DDPJob(Job):
         self.max_retries = max_retries
         self.mounts: List[str] = mounts if mounts is not None else []
         self.rdzv_port = rdzv_port
+        self.rdzv_backend = rdzv_backend
         self.scheduler_args: Dict[str, str] = (
             scheduler_args if scheduler_args is not None else dict()
         )
         self.image = image
+        self.workspace = workspace
 
     def _dry_run(self, cluster: &#34;Cluster&#34;):
         j = f&#34;{cluster.config.max_worker}x{max(cluster.config.gpu, 1)}&#34;  # # of proc. = # of gpus
@@ -358,17 +376,23 @@ class DDPJob(Job):
                 env=self.env,
                 max_retries=self.max_retries,
                 rdzv_port=self.rdzv_port,
+                rdzv_backend=self.rdzv_backend
+                if self.rdzv_backend is not None
+                else &#34;static&#34;,
                 mounts=self.mounts,
             ),
             scheduler=cluster.torchx_scheduler,
             cfg=cluster.torchx_config(**self.scheduler_args),
-            workspace=f&#34;file://{Path.cwd()}&#34;,
+            workspace=self.workspace,
         )
 
     def _missing_spec(self, spec: str):
         raise ValueError(f&#34;Job definition missing arg: {spec}&#34;)
 
     def _dry_run_no_cluster(self):
+        if self.scheduler_args is not None:
+            if self.scheduler_args.get(&#34;namespace&#34;) is None:
+                self.scheduler_args[&#34;namespace&#34;] = oc.get_project_name()
         return torchx_runner.dryrun(
             app=ddp(
                 *self.script_args,
@@ -393,13 +417,16 @@ class DDPJob(Job):
                 env=self.env,  # should this still exist?
                 max_retries=self.max_retries,
                 rdzv_port=self.rdzv_port,  # should this still exist?
+                rdzv_backend=self.rdzv_backend
+                if self.rdzv_backend is not None
+                else &#34;c10d&#34;,
                 mounts=self.mounts,
                 image=self.image
                 if self.image is not None
                 else self._missing_spec(&#34;image&#34;),
             ),
             scheduler=&#34;kubernetes_mcad&#34;,
-            cfg=self.scheduler_args if self.scheduler_args is not None else None,
+            cfg=self.scheduler_args,
             workspace=&#34;&#34;,
         )
 
