@@ -53,6 +53,7 @@ Cluster object.
 from dataclasses import dataclass, field
 from .auth import Authentication
 import pathlib
+import openshift
 
 dir = pathlib.Path(__file__).parent.parent.resolve()
 
@@ -65,7 +66,7 @@ class ClusterConfiguration:
     &#34;&#34;&#34;
 
     name: str
-    namespace: str = &#34;default&#34;
+    namespace: str = None
     head_info: list = field(default_factory=list)
     machine_types: list = field(default_factory=list)  # [&#34;m4.xlarge&#34;, &#34;g4dn.xlarge&#34;]
     min_cpus: int = 1
@@ -92,7 +93,7 @@ class ClusterConfiguration:
 <dl>
 <dt id="codeflare_sdk.cluster.config.ClusterConfiguration"><code class="flex name class">
 <span>class <span class="ident">ClusterConfiguration</span></span>
-<span>(</span><span>name: str, namespace: str = 'default', head_info: list = &lt;factory&gt;, machine_types: list = &lt;factory&gt;, min_cpus: int = 1, max_cpus: int = 1, min_worker: int = 1, max_worker: int = 1, min_memory: int = 2, max_memory: int = 2, gpu: int = 0, template: str = '/home/meyceoz/Documents/codeflare-sdk/src/codeflare_sdk/templates/new-template.yaml', instascale: bool = False, envs: dict = &lt;factory&gt;, image: str = 'ghcr.io/foundation-model-stack/base:ray2.1.0-py38-gpu-pytorch1.12.0cu116-20221213-193103')</span>
+<span>(</span><span>name: str, namespace: str = None, head_info: list = &lt;factory&gt;, machine_types: list = &lt;factory&gt;, min_cpus: int = 1, max_cpus: int = 1, min_worker: int = 1, max_worker: int = 1, min_memory: int = 2, max_memory: int = 2, gpu: int = 0, template: str = '/home/meyceoz/Documents/codeflare-sdk/src/codeflare_sdk/templates/new-template.yaml', instascale: bool = False, envs: dict = &lt;factory&gt;, image: str = 'ghcr.io/foundation-model-stack/base:ray2.1.0-py38-gpu-pytorch1.12.0cu116-20221213-193103')</span>
 </code></dt>
 <dd>
 <div class="desc"><p>This dataclass is used to specify resource requirements and other details, and
@@ -108,7 +109,7 @@ is passed in as an argument when creating a Cluster object.</p></div>
     &#34;&#34;&#34;
 
     name: str
-    namespace: str = &#34;default&#34;
+    namespace: str = None
     head_info: list = field(default_factory=list)
     machine_types: list = field(default_factory=list)  # [&#34;m4.xlarge&#34;, &#34;g4dn.xlarge&#34;]
     min_cpus: int = 1
