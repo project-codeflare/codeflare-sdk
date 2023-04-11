@@ -64,6 +64,7 @@ class DDPJobDefinition(JobDefinition):
         rdzv_backend: str = None,
         scheduler_args: Optional[Dict[str, str]] = None,
         image: Optional[str] = None,
+        workspace: Optional[str] = f"file://{Path.cwd()}",
     ):
         if bool(script) == bool(m):  # logical XOR
             raise ValueError(
@@ -87,6 +88,7 @@ class DDPJobDefinition(JobDefinition):
             scheduler_args if scheduler_args is not None else dict()
         )
         self.image = image
+        self.workspace = workspace
 
     def _dry_run(self, cluster: "Cluster"):
         j = f"{cluster.config.max_worker}x{max(cluster.config.gpu, 1)}"  # # of proc. = # of gpus
@@ -113,7 +115,7 @@ class DDPJobDefinition(JobDefinition):
             ),
             scheduler=cluster.torchx_scheduler,
             cfg=cluster.torchx_config(**self.scheduler_args),
-            workspace=f"file://{Path.cwd()}",
+            workspace=self.workspace,
         )
 
     def _missing_spec(self, spec: str):
