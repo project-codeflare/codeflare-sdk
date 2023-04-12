@@ -114,7 +114,12 @@ spec:
                           - "aw-kuberay"
                 containers:
                 # The Ray head pod
-                - name: ray-head
+                - env:
+                  - name: MY_POD_IP
+                    valueFrom:
+                      fieldRef:
+                        fieldPath: status.podIP
+                  name: ray-head
                   image: rayproject/ray:latest
                   imagePullPolicy: Always
                   ports:
