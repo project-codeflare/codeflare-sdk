@@ -57,7 +57,12 @@ spec:
             template:
               spec:
                 containers:
-                - image: rayproject/ray:latest
+                - env:
+                  - name: MY_POD_IP
+                    valueFrom:
+                      fieldRef:
+                        fieldPath: status.podIP
+                  image: rayproject/ray:latest
                   imagePullPolicy: Always
                   lifecycle:
                     preStop:
