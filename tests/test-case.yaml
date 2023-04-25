@@ -6,7 +6,7 @@ metadata:
   name: unit-test-cluster
   namespace: ns
 spec:
-  priority: 9
+  priority: 1
   resources:
     GenericItems:
     - custompodresources:
@@ -176,6 +176,7 @@ spec:
                     do echo waiting for myservice; sleep 2; done
                   image: busybox:1.28
                   name: init-myservice
+                priorityClassName: low-priority
       replicas: 1
     - generictemplate:
         apiVersion: route.openshift.io/v1
@@ -193,3 +194,5 @@ spec:
             name: unit-test-cluster-head-svc
       replicas: 1
     Items: []
+  schedulingSpec:
+    minAvailable: 3

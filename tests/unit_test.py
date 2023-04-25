@@ -228,6 +228,7 @@ def test_config_creation():
         instascale=True,
         machine_types=["cpu.small", "gpu.large"],
         image_pull_secrets=["unit-test-pull-secret"],
+        priority="low",
     )
 
     assert config.name == "unit-test-cluster" and config.namespace == "ns"
@@ -240,11 +241,13 @@ def test_config_creation():
     assert config.instascale
     assert config.machine_types == ["cpu.small", "gpu.large"]
     assert config.image_pull_secrets == ["unit-test-pull-secret"]
+    assert config.priority == "low"
     return config
 
 
 def test_cluster_creation():
     cluster = Cluster(test_config_creation())
+    print(cluster.app_wrapper_yaml)
     assert cluster.app_wrapper_yaml == "unit-test-cluster.yaml"
     assert cluster.app_wrapper_name == "unit-test-cluster"
     assert filecmp.cmp(
