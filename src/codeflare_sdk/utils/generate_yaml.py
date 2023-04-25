@@ -89,6 +89,27 @@ def update_labels(yaml, instascale, instance_types):
         metadata.pop("labels")
 
 
+def update_priority(yaml, item, priority):
+    if priority not in ["low", "default", "high"]:
+        sys.exit("Priority must be 'low', 'default', or 'high'")
+
+    priority_levels = {
+        "low": (1, "low-priority"),
+        "default": (5, "default-priority"),
+        "high": (10, "high-priority"),
+    }
+
+    priority_level = priority_levels[priority]
+    spec = yaml.get("spec")
+    spec["priority"] = priority_level[0]
+    # spec["SchedulingSpec"]["priorityClassName"] = priority_level
+    if "generictemplate" in item.keys():
+        head = item.get("generictemplate").get("spec").get("headGroupSpec")
+        worker = item.get("generictemplate").get("spec").get("workerGroupSpecs")[0]
+        head["template"]["spec"]["priorityClassName"] = priority_level[1]
+        worker["template"]["spec"]["priorityClassName"] = priority_level[1]
+
+
 def update_custompodresources(
     item, min_cpu, max_cpu, min_memory, max_memory, gpu, workers
 ):
@@ -173,6 +194,11 @@ def update_resources(spec, min_cpu, max_cpu, min_memory, max_memory, gpu):
             limits["cpu"] = max_cpu
             limits["memory"] = str(max_memory) + "G"
             limits["nvidia.com/gpu"] = gpu
+
+
+def update_scheduling_spec(yaml, workers):
+    spec = yaml.get("spec")
+    spec["schedulingSpec"]["minAvailable"] = workers + 1
 
 
 def update_nodes(
@@ -346,6 +372,7 @@ def generate_appwrapper(
     env,
     local_interactive: bool,
     image_pull_secrets: list,
+    priority: str,
 ):
     user_yaml = read_template(template)
     appwrapper_name, cluster_name = gen_names(name)
@@ -354,6 +381,8 @@ def generate_appwrapper(
     route_item = resources["resources"].get("GenericItems")[1]
     update_names(user_yaml, item, appwrapper_name, cluster_name, namespace)
     update_labels(user_yaml, instascale, instance_types)
+    update_priority(user_yaml, item, priority)
+    update_scheduling_spec(user_yaml, workers)
     update_custompodresources(
         item, min_cpu, max_cpu, min_memory, max_memory, gpu, workers
     )
