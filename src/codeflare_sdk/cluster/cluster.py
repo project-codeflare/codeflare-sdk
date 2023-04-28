@@ -90,11 +90,15 @@ class Cluster:
         instance_types = self.config.machine_types
         env = self.config.envs
 <<<<<<< HEAD
+<<<<<<< HEAD
         local_interactive = self.config.local_interactive
         image_pull_secrets = self.config.image_pull_secrets
 =======
         priority = self.config.priority
 >>>>>>> 7e7a311 ( add priorities and schedulingSpec to SDK)
+=======
+        dispatch_priority = self.config.dispatch_priority
+>>>>>>> b1d1d16 (change 'priority' to 'dispatch priority')
         return generate_appwrapper(
             name=name,
             namespace=namespace,
@@ -110,11 +114,15 @@ class Cluster:
             instance_types=instance_types,
             env=env,
 <<<<<<< HEAD
+<<<<<<< HEAD
             local_interactive=local_interactive,
             image_pull_secrets=image_pull_secrets,
 =======
             priority=priority,
 >>>>>>> 7e7a311 ( add priorities and schedulingSpec to SDK)
+=======
+            dispatch_priority=dispatch_priority,
+>>>>>>> b1d1d16 (change 'priority' to 'dispatch priority')
         )
 
     # creates a new cluster with the provided or default spec

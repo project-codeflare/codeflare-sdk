@@ -372,7 +372,7 @@ def generate_appwrapper(
     env,
     local_interactive: bool,
     image_pull_secrets: list,
-    priority: str,
+    dispatch_priority: str,
 ):
     user_yaml = read_template(template)
     appwrapper_name, cluster_name = gen_names(name)
@@ -381,7 +381,7 @@ def generate_appwrapper(
     route_item = resources["resources"].get("GenericItems")[1]
     update_names(user_yaml, item, appwrapper_name, cluster_name, namespace)
     update_labels(user_yaml, instascale, instance_types)
-    update_priority(user_yaml, item, priority)
+    update_priority(user_yaml, item, dispatch_priority)
     update_scheduling_spec(user_yaml, workers)
     update_custompodresources(
         item, min_cpu, max_cpu, min_memory, max_memory, gpu, workers
