@@ -25,7 +25,16 @@ import yaml
 
 
 class AWManager:
+    """
+    An object for submitting and removing existing AppWrapper yamls
+    to be added to the MCAD queue.
+    """
+
     def __init__(self, filename: str) -> None:
+        """
+        Create the AppWrapper Manager object by passing in an
+        AppWrapper yaml file
+        """
         if not isfile(filename):
             raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), filename)
         self.filename = filename
@@ -49,7 +58,6 @@ class AWManager:
             with oc.project(self.namespace):
                 oc.invoke("create", ["-f", self.filename])
         except oc.OpenShiftPythonException as osp:  # pragma: no cover
-            # WHATS THE EXCEPTION FOR ALREADY EXISTS?
             error_msg = osp.result.err()
             if "Unauthorized" in error_msg or "Forbidden" in error_msg:
                 raise PermissionError(
