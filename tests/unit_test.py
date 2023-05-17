@@ -21,6 +21,7 @@ import re
 parent = Path(__file__).resolve().parents[1]
 sys.path.append(str(parent) + "/src")
 
+from codeflare_sdk.cluster.awload import AWManager
 from codeflare_sdk.cluster.cluster import (
     Cluster,
     ClusterConfiguration,
@@ -1932,7 +1933,54 @@ def parse_j(cmd):
     return f"{max_worker}x{gpu}"
 
 
-# Make sure to keep this function and the efollowing function at the end of the file
+def test_AWManager_creation():
+    testaw = AWManager("test.yaml")
+    assert testaw.name == "test"
+    assert testaw.namespace == "ns"
+    assert testaw.submitted == False
+    try:
+        testaw = AWManager("fake")
+    except Exception as e:
+        assert type(e) == FileNotFoundError
+        assert str(e) == "[Errno 2] No such file or directory: 'fake'"
+    try:
+        testaw = AWManager("tests/test-case-bad.yaml")
+    except Exception as e:
+        assert type(e) == ValueError
+        assert (
+            str(e)
+            == "tests/test-case-bad.yaml is not a correctly formatted AppWrapper yaml"
+        )
+
+
+def arg_check_aw_create_effect(*args):
+    assert args[0] == "create"
+    assert args[1] == ["-f", "test.yaml"]
+
+
+def arg_check_aw_delete_effect(*args):
+    assert args[0] == "delete"
+    assert args[1] == ["AppWrapper", "test"]
+
+
+def test_AWManager_submit_remove(mocker, capsys):
+    testaw = AWManager("test.yaml")
+    testaw.remove()
+    captured = capsys.readouterr()
+    assert (
+        captured.out
+        == "AppWrapper not submitted by this manager yet, nothing to remove\n"
+    )
+    assert testaw.submitted == False
+    mocker.patch("openshift.invoke", side_effect=arg_check_aw_create_effect)
+    testaw.submit()
+    assert testaw.submitted == True
+    mocker.patch("openshift.invoke", side_effect=arg_check_aw_delete_effect)
+    testaw.remove()
+    assert testaw.submitted == False
+
+
+# Make sure to keep this function and the following function at the end of the file
 def test_cmd_line_generation():
     os.system(
         f"python3 {parent}/src/codeflare_sdk/utils/generate_yaml.py --name=unit-cmd-cluster --min-cpu=1 --max-cpu=1 --min-memory=2 --max-memory=2 --gpu=1 --workers=2 --template=src/codeflare_sdk/templates/new-template.yaml"
