@@ -136,7 +136,7 @@ class Cluster:
                 or "Missing or incomplete configuration" in error_msg
             ):
                 raise PermissionError(
-                    "Action not permitted, have you run cluster.up() yet?"
+                    "Action not permitted, have you run auth.login()/cluster.up() yet?"
                 )
             elif "not found" in error_msg:
                 print("Cluster not found, have you run cluster.up() yet?")
