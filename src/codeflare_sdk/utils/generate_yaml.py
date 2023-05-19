@@ -21,6 +21,7 @@ import yaml
 import sys
 import argparse
 import uuid
+import openshift as oc
 
 
 def read_template(template):
@@ -235,9 +236,18 @@ def enable_local_interactive(resources, cluster_name, namespace):
     command = item["generictemplate"]["spec"]["headGroupSpec"]["template"]["spec"][
         "initContainers"
     ][0].get("command")[2]
+
+    command = command.replace("deployment-name", cluster_name)
+
+    server_name = (
+        oc.whoami("--show-server").split(":")[1].split("//")[1].replace("api", "apps")
+    )
+
+    command = command.replace("server-name", server_name)
+
     item["generictemplate"]["spec"]["headGroupSpec"]["template"]["spec"][
         "initContainers"
-    ][0]["command"][2] = command.replace("deployment-name", cluster_name)
+    ][0].get("command")[2] = command
 
 
 def disable_raycluster_tls(resources):
