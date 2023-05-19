@@ -406,6 +406,12 @@ def main():  # pragma: no cover
         default="default",
         help="Set the kubernetes namespace you want to deploy your cluster to. Default. If left blank, uses the 'default' namespace",
     )
+    parser.add_argument(
+        "--local-interactive",
+        required=False,
+        default=False,
+        help="Enable local interactive mode",
+    )
 
     args = parser.parse_args()
     name = args.name
@@ -420,6 +426,7 @@ def main():  # pragma: no cover
     instascale = args.instascale
     instance_types = args.instance_types
     namespace = args.namespace
+    local_interactive = args.local_interactive
     env = {}
 
     outfile = generate_appwrapper(
@@ -435,6 +442,7 @@ def main():  # pragma: no cover
         image,
         instascale,
         instance_types,
+        local_interactive,
         env,
     )
     return outfile
