@@ -54,6 +54,12 @@ from codeflare_sdk.job.jobs import (
     DDPJob,
     torchx_runner,
 )
+from codeflare_sdk.utils.generate_cert import (
+    generate_ca_cert,
+    generate_tls_cert,
+    export_env,
+)
+
 import openshift
 from openshift import OpenShiftPythonException
 from openshift.selector import Selector
@@ -1978,6 +1984,35 @@ def test_AWManager_submit_remove(mocker, capsys):
     mocker.patch("openshift.invoke", side_effect=arg_check_aw_delete_effect)
     testaw.remove()
     assert testaw.submitted == False
+
+
+def test_generate_ca_cert():
+    """
+    test the function codeflare_sdk.utils.generate_ca_cert generates the correct outputs
+    """
+    key, certificate = generate_ca_cert()
+    assert type(key) == str
+    assert type(certificate) == str
+
+
+def test_generate_tls_cert(mocker):
+    """
+    test the function codeflare_sdk.utils.generate_ca_cert generates the correct outputs
+    """
+    ca_private_key_bytes, _ = generate_ca_cert()
+
+    mocker.patch("openshift.invoke", return_value=openshift.Result("fake"))
+    mocker.patch("openshift.Result.out", return_value=ca_private_key_bytes)
+    generate_tls_cert("cluster", "namespace")
+    assert os.path.exists("tls-cluster-namespace")
+
+
+def test_export_env():
+    """
+    test the function codeflare_sdk.utils.export_ev generates the correct outputs
+    """
+    export_env("cluster_name", "namespace")
+    assert os.environ["RAY_USE_TLS"] == "1"
 
 
 # Make sure to keep this function and the following function at the end of the file
