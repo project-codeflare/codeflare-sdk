@@ -19,9 +19,7 @@ Cluster object.
 """
 
 from dataclasses import dataclass, field
-from .auth import Authentication
 import pathlib
-import openshift
 
 dir = pathlib.Path(__file__).parent.parent.resolve()
 

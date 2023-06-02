@@ -36,6 +36,10 @@ from .model import (
     RayClusterStatus,
 )
 
+from kubernetes import client, config
+
+import yaml
+
 
 class Cluster:
     """
@@ -110,8 +114,17 @@ class Cluster:
         """
         namespace = self.config.namespace
         try:
-            with oc.project(namespace):
-                oc.invoke("apply", ["-f", self.app_wrapper_yaml])
+            config.load_kube_config()
+            api_instance = client.CustomObjectsApi()
+            with open(self.app_wrapper_yaml) as f:
+                aw = yaml.load(f, Loader=yaml.FullLoader)
+            api_instance.create_namespaced_custom_object(
+                group="mcad.ibm.com",
+                version="v1beta1",
+                namespace=namespace,
+                plural="appwrappers",
+                body=aw,
+            )
         except oc.OpenShiftPythonException as osp:  # pragma: no cover
             error_msg = osp.result.err()
             if "Unauthorized" in error_msg:
@@ -127,8 +140,15 @@ class Cluster:
         """
         namespace = self.config.namespace
         try:
-            with oc.project(namespace):
-                oc.invoke("delete", ["AppWrapper", self.app_wrapper_name])
+            config.load_kube_config()
+            api_instance = client.CustomObjectsApi()
+            api_instance.delete_namespaced_custom_object(
+                group="mcad.ibm.com",
+                version="v1beta1",
+                namespace=namespace,
+                plural="appwrappers",
+                name=self.app_wrapper_name,
+            )
         except oc.OpenShiftPythonException as osp:  # pragma: no cover
             error_msg = osp.result.err()
             if (
@@ -322,14 +342,16 @@ def list_all_queued(namespace: str, print_to_console: bool = True):
 
 
 def _app_wrapper_status(name, namespace="default") -> Optional[AppWrapper]:
-    cluster = None
     try:
-        with oc.project(namespace), oc.timeout(10 * 60):
-            cluster = oc.selector(f"appwrapper/{name}").object()
+        config.load_kube_config()
+        api_instance = client.CustomObjectsApi()
+        aws = api_instance.list_namespaced_custom_object(
+            group="mcad.ibm.com",
+            version="v1beta1",
+            namespace=namespace,
+            plural="appwrappers",
+        )
     except oc.OpenShiftPythonException as osp:  # pragma: no cover
-        msg = osp.msg
-        if "Expected a single object, but selected 0" in msg:
-            return cluster
         error_msg = osp.result.err()
         if not (
             'the server doesn\'t have a resource type "appwrapper"' in error_msg
@@ -339,21 +361,23 @@ def _app_wrapper_status(name, namespace="default") -> Optional[AppWrapper]:
         ):
             raise osp
 
-    if cluster:
-        return _map_to_app_wrapper(cluster)
-
-    return cluster
+    for aw in aws["items"]:
+        if aw["metadata"]["name"] == name:
+            return _map_to_app_wrapper(aw)
+    return None
 
 
 def _ray_cluster_status(name, namespace="default") -> Optional[RayCluster]:
-    cluster = None
     try:
-        with oc.project(namespace), oc.timeout(10 * 60):
-            cluster = oc.selector(f"rayclusters/{name}").object()
+        config.load_kube_config()
+        api_instance = client.CustomObjectsApi()
+        rcs = api_instance.list_namespaced_custom_object(
+            group="ray.io",
+            version="v1alpha1",
+            namespace=namespace,
+            plural="rayclusters",
+        )
     except oc.OpenShiftPythonException as osp:  # pragma: no cover
-        msg = osp.msg
-        if "Expected a single object, but selected 0" in msg:
-            return cluster
         error_msg = osp.result.err()
         if not (
             'the server doesn\'t have a resource type "rayclusters"' in error_msg
@@ -363,17 +387,23 @@ def _ray_cluster_status(name, namespace="default") -> Optional[RayCluster]:
         ):
             raise osp
 
-    if cluster:
-        return _map_to_ray_cluster(cluster)
-
-    return cluster
+    for rc in rcs["items"]:
+        if rc["metadata"]["name"] == name:
+            return _map_to_ray_cluster(rc)
+    return None
 
 
 def _get_ray_clusters(namespace="default") -> List[RayCluster]:
     list_of_clusters = []
     try:
-        with oc.project(namespace), oc.timeout(10 * 60):
-            ray_clusters = oc.selector("rayclusters").objects()
+        config.load_kube_config()
+        api_instance = client.CustomObjectsApi()
+        rcs = api_instance.list_namespaced_custom_object(
+            group="ray.io",
+            version="v1alpha1",
+            namespace=namespace,
+            plural="rayclusters",
+        )
     except oc.OpenShiftPythonException as osp:  # pragma: no cover
         error_msg = osp.result.err()
         if (
@@ -388,8 +418,8 @@ def _get_ray_clusters(namespace="default") -> List[RayCluster]:
         else:
             raise osp
 
-    for cluster in ray_clusters:
-        list_of_clusters.append(_map_to_ray_cluster(cluster))
+    for rc in rcs["items"]:
+        list_of_clusters.append(_map_to_ray_cluster(rc))
     return list_of_clusters
 
 
@@ -399,8 +429,14 @@ def _get_app_wrappers(
     list_of_app_wrappers = []
 
     try:
-        with oc.project(namespace), oc.timeout(10 * 60):
-            app_wrappers = oc.selector("appwrappers").objects()
+        config.load_kube_config()
+        api_instance = client.CustomObjectsApi()
+        aws = api_instance.list_namespaced_custom_object(
+            group="mcad.ibm.com",
+            version="v1beta1",
+            namespace=namespace,
+            plural="appwrappers",
+        )
     except oc.OpenShiftPythonException as osp:  # pragma: no cover
         error_msg = osp.result.err()
         if (
@@ -415,7 +451,7 @@ def _get_app_wrappers(
         else:
             raise osp
 
-    for item in app_wrappers:
+    for item in aws["items"]:
         app_wrapper = _map_to_app_wrapper(item)
         if filter and app_wrapper.status in filter:
             list_of_app_wrappers.append(app_wrapper)
@@ -425,48 +461,46 @@ def _get_app_wrappers(
     return list_of_app_wrappers
 
 
-def _map_to_ray_cluster(cluster) -> Optional[RayCluster]:
-    cluster_model = cluster.model
-    if type(cluster_model.status.state) == oc.model.MissingModel:
-        status = RayClusterStatus.UNKNOWN
+def _map_to_ray_cluster(rc) -> Optional[RayCluster]:
+    if "state" in rc["status"]:
+        status = RayClusterStatus(rc["status"]["state"].lower())
     else:
-        status = RayClusterStatus(cluster_model.status.state.lower())
+        status = RayClusterStatus.UNKNOWN
 
-    with oc.project(cluster.namespace()), oc.timeout(10 * 60):
+    with oc.project(rc["metadata"]["namespace"]), oc.timeout(10 * 60):
         route = (
-            oc.selector(f"route/ray-dashboard-{cluster.name()}")
+            oc.selector(f"route/ray-dashboard-{rc['metadata']['name']}")
             .object()
             .model.spec.host
         )
 
     return RayCluster(
-        name=cluster.name(),
+        name=rc["metadata"]["name"],
         status=status,
         # for now we are not using autoscaling so same replicas is fine
-        min_workers=cluster_model.spec.workerGroupSpecs[0].replicas,
-        max_workers=cluster_model.spec.workerGroupSpecs[0].replicas,
-        worker_mem_max=cluster_model.spec.workerGroupSpecs[0]
-        .template.spec.containers[0]
-        .resources.limits.memory,
-        worker_mem_min=cluster_model.spec.workerGroupSpecs[0]
-        .template.spec.containers[0]
-        .resources.requests.memory,
-        worker_cpu=cluster_model.spec.workerGroupSpecs[0]
-        .template.spec.containers[0]
-        .resources.limits.cpu,
+        min_workers=rc["spec"]["workerGroupSpecs"][0]["replicas"],
+        max_workers=rc["spec"]["workerGroupSpecs"][0]["replicas"],
+        worker_mem_max=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"][
+            "containers"
+        ][0]["resources"]["limits"]["memory"],
+        worker_mem_min=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"][
+            "containers"
+        ][0]["resources"]["requests"]["memory"],
+        worker_cpu=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"]["containers"][
+            0
+        ]["resources"]["limits"]["cpu"],
         worker_gpu=0,  # hard to detect currently how many gpus, can override it with what the user asked for
-        namespace=cluster.namespace(),
+        namespace=rc["metadata"]["namespace"],
         dashboard=route,
     )
 
 
-def _map_to_app_wrapper(cluster) -> AppWrapper:
-    cluster_model = cluster.model
+def _map_to_app_wrapper(aw) -> AppWrapper:
     return AppWrapper(
-        name=cluster.name(),
-        status=AppWrapperStatus(cluster_model.status.state.lower()),
-        can_run=cluster_model.status.canrun,
-        job_state=cluster_model.status.queuejobstate,
+        name=aw["metadata"]["name"],
+        status=AppWrapperStatus(aw["status"]["state"].lower()),
+        can_run=aw["status"]["canrun"],
+        job_state=aw["status"]["queuejobstate"],
     )
 
 
