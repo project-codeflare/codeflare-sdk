@@ -26,3 +26,9 @@ rich = "^12.5"
 ray = {version = "2.1.0", extras = ["default"]}
 kubernetes = "26.1.0"
 codeflare-torchx = "0.6.0.dev0"
+
+[tool.poetry.group.docs]
+optional = true
+
+[tool.poetry.group.docs.dependencies]
+pdoc3 = "0.10.0"
