@@ -69,7 +69,7 @@ class Cluster:
         """
 
         if self.config.namespace is None:
-            self.config.namespace = oc.get_project_name()
+            self.config.namespace = get_current_namespace()
             if type(self.config.namespace) is not str:
                 raise TypeError(
                     f"Namespace {self.config.namespace} is of type {type(self.config.namespace)}. Check your Kubernetes Authentication."
@@ -265,16 +265,21 @@ class Cluster:
         Returns a string containing the cluster's dashboard URI.
         """
         try:
-            with oc.project(self.config.namespace):
-                route = oc.invoke(
-                    "get", ["route", "-o", "jsonpath='{$.items[*].spec.host}'"]
-                )
-                route = route.out().split(" ")
-                route = [x for x in route if f"ray-dashboard-{self.config.name}" in x]
-                route = route[0].strip().strip("'")
-            return f"http://{route}"
+            config.load_kube_config()
+            api_instance = client.CustomObjectsApi()
+            routes = api_instance.list_namespaced_custom_object(
+                group="route.openshift.io",
+                version="v1",
+                namespace=self.config.namespace,
+                plural="routes",
+            )
         except:
-            return "Dashboard route not available yet, have you run cluster.up()?"
+            pass
+
+        for route in routes["items"]:
+            if route["metadata"]["name"] == f"ray-dashboard-{self.config.name}":
+                return f"http://{route['spec']['host']}"
+        return "Dashboard route not available yet, have you run cluster.up()?"
 
     def list_jobs(self) -> List:
         """
@@ -336,6 +341,19 @@ def list_all_queued(namespace: str, print_to_console: bool = True):
     if print_to_console:
         pretty_print.print_app_wrappers_status(app_wrappers)
     return app_wrappers
+
+
+def get_current_namespace():
+    try:
+        _, active_context = config.list_kube_config_contexts()
+    except config.ConfigException:
+        raise PermissionError(
+            "Retrieving current namespace not permitted, have you put in correct/up-to-date auth credentials?"
+        )
+    try:
+        return active_context["context"]["namespace"]
+    except KeyError:
+        return "default"
 
 
 # private methods
@@ -467,12 +485,25 @@ def _map_to_ray_cluster(rc) -> Optional[RayCluster]:
     else:
         status = RayClusterStatus.UNKNOWN
 
-    with oc.project(rc["metadata"]["namespace"]), oc.timeout(10 * 60):
-        route = (
-            oc.selector(f"route/ray-dashboard-{rc['metadata']['name']}")
-            .object()
-            .model.spec.host
-        )
+    config.load_kube_config()
+    api_instance = client.CustomObjectsApi()
+    routes = api_instance.list_namespaced_custom_object(
+        group="route.openshift.io",
+        version="v1",
+        namespace=rc["metadata"]["namespace"],
+        plural="routes",
+    )
+    ray_route = None
+    for route in routes["items"]:
+        if route["metadata"]["name"] == f"ray-dashboard-{rc['metadata']['name']}":
+            ray_route = route["spec"]["host"]
+
+    #    with oc.project(rc["metadata"]["namespace"]), oc.timeout(10 * 60):
+    #        route = (
+    #            oc.selector(f"route/ray-dashboard-{rc['metadata']['name']}")
+    #            .object()
+    #            .model.spec.host
+    #        )
 
     return RayCluster(
         name=rc["metadata"]["name"],
@@ -491,7 +522,7 @@ def _map_to_ray_cluster(rc) -> Optional[RayCluster]:
         ]["resources"]["limits"]["cpu"],
         worker_gpu=0,  # hard to detect currently how many gpus, can override it with what the user asked for
         namespace=rc["metadata"]["namespace"],
-        dashboard=route,
+        dashboard=ray_route,
     )
 
 
