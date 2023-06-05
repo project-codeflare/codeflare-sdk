@@ -17,13 +17,13 @@ import abc
 from typing import TYPE_CHECKING, Optional, Dict, List
 from pathlib import Path
 
-import openshift as oc
 from torchx.components.dist import ddp
 from torchx.runner import get_runner
 from torchx.specs import AppHandle, parse_app_handle, AppDryRunInfo
 
 if TYPE_CHECKING:
     from ..cluster.cluster import Cluster
+from ..cluster.cluster import get_current_namespace
 
 all_jobs: List["Job"] = []
 torchx_runner = get_runner()
@@ -124,7 +124,7 @@ class DDPJobDefinition(JobDefinition):
     def _dry_run_no_cluster(self):
         if self.scheduler_args is not None:
             if self.scheduler_args.get("namespace") is None:
-                self.scheduler_args["namespace"] = oc.get_project_name()
+                self.scheduler_args["namespace"] = get_current_namespace()
         return torchx_runner.dryrun(
             app=ddp(
                 *self.script_args,
