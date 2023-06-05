@@ -27,3 +27,6 @@ RUN pip install codeflare-sdk==0.4.3 \
 				datasets==2.6.1 \
 				transformers==4.23.1 \
 				evaluate==0.3.0
+
+RUN chmod -R g+w /opt/app-root/lib/python3.8/site-packages && \
+	fix-permissions /opt/app-root -P
