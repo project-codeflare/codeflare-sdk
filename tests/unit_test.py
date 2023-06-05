@@ -1986,25 +1986,58 @@ def test_AWManager_submit_remove(mocker, capsys):
     assert testaw.submitted == False
 
 
+from cryptography.x509 import load_pem_x509_certificate
+import base64
+from cryptography.hazmat.primitives.serialization import (
+    load_pem_private_key,
+    Encoding,
+    PublicFormat,
+)
+
+
 def test_generate_ca_cert():
     """
     test the function codeflare_sdk.utils.generate_ca_cert generates the correct outputs
     """
     key, certificate = generate_ca_cert()
+    cert = load_pem_x509_certificate(base64.b64decode(certificate))
+    private_pub_key_bytes = (
+        load_pem_private_key(base64.b64decode(key), password=None)
+        .public_key()
+        .public_bytes(Encoding.PEM, PublicFormat.SubjectPublicKeyInfo)
+    )
+    cert_pub_key_bytes = cert.public_key().public_bytes(
+        Encoding.PEM, PublicFormat.SubjectPublicKeyInfo
+    )
     assert type(key) == str
     assert type(certificate) == str
+    # Veirfy ca.cert is self signed
+    assert cert.verify_directly_issued_by(cert) == None
+    # Verify cert has the public key bytes from the private key
+    assert cert_pub_key_bytes == private_pub_key_bytes
 
 
 def test_generate_tls_cert(mocker):
     """
     test the function codeflare_sdk.utils.generate_ca_cert generates the correct outputs
     """
-    ca_private_key_bytes, _ = generate_ca_cert()
-
+    ca_private_key_bytes, ca_cert = generate_ca_cert()
     mocker.patch("openshift.invoke", return_value=openshift.Result("fake"))
     mocker.patch("openshift.Result.out", return_value=ca_private_key_bytes)
     generate_tls_cert("cluster", "namespace")
+    with open(os.path.join("tls-cluster-namespace", "ca.crt"), "w") as f:
+        f.write(base64.b64decode(ca_cert).decode("utf-8"))
+    # verify the required files exist
     assert os.path.exists("tls-cluster-namespace")
+    assert os.path.exists(os.path.join("tls-cluster-namespace", "ca.crt"))
+    assert os.path.exists(os.path.join("tls-cluster-namespace", "tls.crt"))
+    assert os.path.exists(os.path.join("tls-cluster-namespace", "tls.key"))
+
+    # verify the that the signed tls.crt is issued by the ca_cert (root cert)
+    with open(os.path.join("tls-cluster-namespace", "tls.crt"), "r") as f:
+        tls_cert = load_pem_x509_certificate(f.read().encode("utf-8"))
+        root_cert = load_pem_x509_certificate(base64.b64decode(ca_cert))
+        assert tls_cert.verify_directly_issued_by(root_cert) == None
 
 
 def test_export_env():
