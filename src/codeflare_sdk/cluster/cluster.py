@@ -22,7 +22,6 @@ from os import stat
 from time import sleep
 from typing import List, Optional, Tuple, Dict
 
-import openshift as oc
 from ray.job_submission import JobSubmissionClient
 
 from ..utils import pretty_print
@@ -39,6 +38,7 @@ from .model import (
 from kubernetes import client, config
 
 import yaml
+import executing
 
 
 class Cluster:
@@ -127,13 +127,8 @@ class Cluster:
                 plural="appwrappers",
                 body=aw,
             )
-        except oc.OpenShiftPythonException as osp:  # pragma: no cover
-            error_msg = osp.result.err()
-            if "Unauthorized" in error_msg:
-                raise PermissionError(
-                    "Action not permitted, have you put in correct/up-to-date auth credentials?"
-                )
-            raise osp
+        except Exception as e:
+            return _kube_api_error_handling(e)
 
     def down(self):
         """
@@ -151,21 +146,10 @@ class Cluster:
                 plural="appwrappers",
                 name=self.app_wrapper_name,
             )
-        except oc.OpenShiftPythonException as osp:  # pragma: no cover
-            error_msg = osp.result.err()
-            if (
-                'the server doesn\'t have a resource type "AppWrapper"' in error_msg
-                or "forbidden" in error_msg
-                or "Unauthorized" in error_msg
-                or "Missing or incomplete configuration" in error_msg
-            ):
-                raise PermissionError(
-                    "Action not permitted, have you run auth.login()/cluster.up() yet?"
-                )
-            elif "not found" in error_msg:
-                print("Cluster not found, have you run cluster.up() yet?")
-            else:
-                raise osp
+        except Exception as e:
+            return _kube_api_error_handling(e)
+            # elif "not found" in error_msg:
+            #    print("Cluster not found, have you run cluster.up() yet?")
 
     def status(
         self, print_to_console: bool = True
@@ -275,8 +259,8 @@ class Cluster:
                 namespace=self.config.namespace,
                 plural="routes",
             )
-        except:
-            pass
+        except Exception as e:
+            return _kube_api_error_handling(e)
 
         for route in routes["items"]:
             if route["metadata"]["name"] == f"ray-dashboard-{self.config.name}":
@@ -347,11 +331,10 @@ def list_all_queued(namespace: str, print_to_console: bool = True):
 
 def get_current_namespace():
     try:
+        config.load_kube_config()
         _, active_context = config.list_kube_config_contexts()
-    except config.ConfigException:
-        raise PermissionError(
-            "Retrieving current namespace not permitted, have you put in correct/up-to-date auth credentials?"
-        )
+    except Exception as e:
+        return _kube_api_error_handling(e)
     try:
         return active_context["context"]["namespace"]
     except KeyError:
@@ -359,6 +342,25 @@ def get_current_namespace():
 
 
 # private methods
+
+
+def _kube_api_error_handling(e: Exception):
+    perm_msg = (
+        "Action not permitted, have you put in correct/up-to-date auth credentials?"
+    )
+    nf_msg = "No instances found, nothing to be done."
+    if type(e) == config.ConfigException:
+        raise PermissionError(perm_msg)
+    if type(e) == executing.executing.NotOneValueFound:
+        print(nf_msg)
+        return
+    if type(e) == client.ApiException:
+        if e.reason == "Not Found":
+            print(nf_msg)
+            return
+        elif e.reason == "Unauthorized" or e.reason == "Forbidden":
+            raise PermissionError(perm_msg)
+    raise e
 
 
 def _app_wrapper_status(name, namespace="default") -> Optional[AppWrapper]:
@@ -371,15 +373,8 @@ def _app_wrapper_status(name, namespace="default") -> Optional[AppWrapper]:
             namespace=namespace,
             plural="appwrappers",
         )
-    except oc.OpenShiftPythonException as osp:  # pragma: no cover
-        error_msg = osp.result.err()
-        if not (
-            'the server doesn\'t have a resource type "appwrapper"' in error_msg
-            or "forbidden" in error_msg
-            or "Unauthorized" in error_msg
-            or "Missing or incomplete configuration" in error_msg
-        ):
-            raise osp
+    except Exception as e:
+        return _kube_api_error_handling(e)
 
     for aw in aws["items"]:
         if aw["metadata"]["name"] == name:
@@ -397,15 +392,8 @@ def _ray_cluster_status(name, namespace="default") -> Optional[RayCluster]:
             namespace=namespace,
             plural="rayclusters",
         )
-    except oc.OpenShiftPythonException as osp:  # pragma: no cover
-        error_msg = osp.result.err()
-        if not (
-            'the server doesn\'t have a resource type "rayclusters"' in error_msg
-            or "forbidden" in error_msg
-            or "Unauthorized" in error_msg
-            or "Missing or incomplete configuration" in error_msg
-        ):
-            raise osp
+    except Exception as e:
+        return _kube_api_error_handling(e)
 
     for rc in rcs["items"]:
         if rc["metadata"]["name"] == name:
@@ -424,19 +412,8 @@ def _get_ray_clusters(namespace="default") -> List[RayCluster]:
             namespace=namespace,
             plural="rayclusters",
         )
-    except oc.OpenShiftPythonException as osp:  # pragma: no cover
-        error_msg = osp.result.err()
-        if (
-            'the server doesn\'t have a resource type "rayclusters"' in error_msg
-            or "forbidden" in error_msg
-            or "Unauthorized" in error_msg
-            or "Missing or incomplete configuration" in error_msg
-        ):
-            raise PermissionError(
-                "Action not permitted, have you put in correct/up-to-date auth credentials?"
-            )
-        else:
-            raise osp
+    except Exception as e:
+        return _kube_api_error_handling(e)
 
     for rc in rcs["items"]:
         list_of_clusters.append(_map_to_ray_cluster(rc))
@@ -457,19 +434,8 @@ def _get_app_wrappers(
             namespace=namespace,
             plural="appwrappers",
         )
-    except oc.OpenShiftPythonException as osp:  # pragma: no cover
-        error_msg = osp.result.err()
-        if (
-            'the server doesn\'t have a resource type "appwrappers"' in error_msg
-            or "forbidden" in error_msg
-            or "Unauthorized" in error_msg
-            or "Missing or incomplete configuration" in error_msg
-        ):
-            raise PermissionError(
-                "Action not permitted, have you put in correct/up-to-date auth credentials?"
-            )
-        else:
-            raise osp
+    except Exception as e:
+        return _kube_api_error_handling(e)
 
     for item in aws["items"]:
         app_wrapper = _map_to_app_wrapper(item)
@@ -499,13 +465,6 @@ def _map_to_ray_cluster(rc) -> Optional[RayCluster]:
     for route in routes["items"]:
         if route["metadata"]["name"] == f"ray-dashboard-{rc['metadata']['name']}":
             ray_route = route["spec"]["host"]
-
-    #    with oc.project(rc["metadata"]["namespace"]), oc.timeout(10 * 60):
-    #        route = (
-    #            oc.selector(f"route/ray-dashboard-{rc['metadata']['name']}")
-    #            .object()
-    #            .model.spec.host
-    #        )
 
     return RayCluster(
         name=rc["metadata"]["name"],
