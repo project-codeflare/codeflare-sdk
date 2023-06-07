@@ -29,7 +29,6 @@ We use pre-commit to make sure the code is consistently formatted. To make sure 
 
 ### Testing
 
-> Some tests, i.e. test_ray_details, test_cluster_status, and test_wait_ready require an OpenShift cluster with the [Codeflare Stack](https://github.com/opendatahub-io/distributed-workloads/blob/main/Quick-Start.md#quick-start-guide-for-distributed-workflows-with-the-codeflare-stack) installed.
 - To install codeflare-sdk in editable mode, run `pip install -e .` from the repo root.
 - To run the unit tests, run `pytest -v tests/unit_test.py`
 - Any new test functions/scripts can be added into the `tests` folder
