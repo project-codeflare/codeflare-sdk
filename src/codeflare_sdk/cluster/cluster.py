@@ -327,7 +327,7 @@ def list_all_queued(namespace: str, print_to_console: bool = True):
     return app_wrappers
 
 
-def get_current_namespace():
+def get_current_namespace():  # pragma: no cover
     try:
         config.load_kube_config()
         _, active_context = config.list_kube_config_contexts()
@@ -342,11 +342,12 @@ def get_current_namespace():
 # private methods
 
 
-def _kube_api_error_handling(e: Exception):
+def _kube_api_error_handling(e: Exception):  # pragma: no cover
     perm_msg = (
         "Action not permitted, have you put in correct/up-to-date auth credentials?"
     )
     nf_msg = "No instances found, nothing to be done."
+    exists_msg = "Resource with this name already exists."
     if type(e) == config.ConfigException:
         raise PermissionError(perm_msg)
     if type(e) == executing.executing.NotOneValueFound:
@@ -358,6 +359,8 @@ def _kube_api_error_handling(e: Exception):
             return
         elif e.reason == "Unauthorized" or e.reason == "Forbidden":
             raise PermissionError(perm_msg)
+        elif e.reason == "Conflict":
+            raise FileExistsError(exists_msg)
     raise e
 
 
