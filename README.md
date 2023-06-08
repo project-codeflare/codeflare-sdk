@@ -51,7 +51,14 @@ To build the python package: `$ poetry build`
 
 ## Release Instructions
 
-The following instructions apply when doing release manually.
+
+### Automated Releases
+
+It is possible to use the Release Github workflow to do the release. This is generally the process we follow for releases
+
+### Manual Releases
+
+The following instructions apply when doing release manually. This may be required in instances where the automation is failing.
 
 * Check and update the version in "pyproject.toml" file.
 * Generate new documentation.
@@ -62,14 +69,9 @@ The following instructions apply when doing release manually.
 * If not present already, add the API token to Poetry.
 `poetry config pypi-token.pypi API_TOKEN`
 * Publish the Python package. `poetry publish`
-* Check and update the version in "custom-nb-image/VERSION" file.
-* Update the codeflare-sdk version in "custom-nb-image/Dockerfile".
-* Commit all the changes to the repository.
-* The Github "Image" workflow should take care about the building and publishing of the new image. If not you can
-use the following instructions to build and publish image manually.
 * Change directory to custom-nb-image. `cd custom-nb-image`
-* Get tag `export tag=$(cat VERSION)`
-* Build the Docker image. `docker build -t quay.io/project-codeflare/notebook:${tag} .`
+* Set tag `export tag=TAG`
+* Build the Docker image. `docker build --build-arg SDK_VERSION=<version> -t quay.io/project-codeflare/notebook:${tag} .`
 * Tag the image as latest. `docker tag quay.io/project-codeflare/notebook:${tag} quay.io/project-codeflare/notebook:latest`
 * Login to quay.io. `docker login quay.io`
 * Push the image. `docker push quay.io/project-codeflare/notebook:${tag}`
