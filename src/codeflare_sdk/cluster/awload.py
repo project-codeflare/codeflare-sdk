@@ -23,6 +23,9 @@ import os
 import openshift as oc
 import yaml
 
+from kubernetes import client, config
+from .cluster import _kube_api_error_handling
+
 
 class AWManager:
     """
@@ -40,10 +43,10 @@ class AWManager:
         self.filename = filename
         try:
             with open(self.filename) as f:
-                awyaml = yaml.load(f, Loader=yaml.FullLoader)
-            assert awyaml["kind"] == "AppWrapper"
-            self.name = awyaml["metadata"]["name"]
-            self.namespace = awyaml["metadata"]["namespace"]
+                self.awyaml = yaml.load(f, Loader=yaml.FullLoader)
+            assert self.awyaml["kind"] == "AppWrapper"
+            self.name = self.awyaml["metadata"]["name"]
+            self.namespace = self.awyaml["metadata"]["namespace"]
         except:
             raise ValueError(
                 f"{filename } is not a correctly formatted AppWrapper yaml"
@@ -55,19 +58,17 @@ class AWManager:
         Attempts to create the AppWrapper custom resource using the yaml file
         """
         try:
-            with oc.project(self.namespace):
-                oc.invoke("create", ["-f", self.filename])
-        except oc.OpenShiftPythonException as osp:  # pragma: no cover
-            error_msg = osp.result.err()
-            if "Unauthorized" in error_msg or "Forbidden" in error_msg:
-                raise PermissionError(
-                    "Action not permitted, have you put in correct/up-to-date auth credentials?"
-                )
-            elif "AlreadyExists" in error_msg:
-                raise FileExistsError(
-                    f"An AppWrapper of the name {self.name} already exists in namespace {self.namespace}"
-                )
-            raise osp
+            config.load_kube_config()
+            api_instance = client.CustomObjectsApi()
+            api_instance.create_namespaced_custom_object(
+                group="mcad.ibm.com",
+                version="v1beta1",
+                namespace=self.namespace,
+                plural="appwrappers",
+                body=self.awyaml,
+            )
+        except Exception as e:
+            return _kube_api_error_handling(e)
 
         self.submitted = True
         print(f"AppWrapper {self.filename} submitted!")
@@ -82,25 +83,17 @@ class AWManager:
             return
 
         try:
-            with oc.project(self.namespace):
-                oc.invoke("delete", ["AppWrapper", self.name])
-        except oc.OpenShiftPythonException as osp:  # pragma: no cover
-            error_msg = osp.result.err()
-            if (
-                'the server doesn\'t have a resource type "AppWrapper"' in error_msg
-                or "forbidden" in error_msg
-                or "Unauthorized" in error_msg
-                or "Missing or incomplete configuration" in error_msg
-            ):
-                raise PermissionError(
-                    "Action not permitted, have you put in correct/up-to-date auth credentials?"
-                )
-            elif "not found" in error_msg:
-                self.submitted = False
-                print("AppWrapper not found, was deleted in another manner")
-                return
-            else:
-                raise osp
+            config.load_kube_config()
+            api_instance = client.CustomObjectsApi()
+            api_instance.delete_namespaced_custom_object(
+                group="mcad.ibm.com",
+                version="v1beta1",
+                namespace=self.namespace,
+                plural="appwrappers",
+                name=self.name,
+            )
+        except Exception as e:
+            return _kube_api_error_handling(e)
 
         self.submitted = False
         print(f"AppWrapper {self.name} removed!")

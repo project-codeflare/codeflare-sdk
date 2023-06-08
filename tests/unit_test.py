@@ -70,6 +70,7 @@ from torchx.runner import get_runner, Runner
 from torchx.schedulers.ray_scheduler import RayJob
 from torchx.schedulers.kubernetes_mcad_scheduler import KubernetesMCADJob
 import pytest
+import yaml
 
 
 # For mocking openshift client results
@@ -249,7 +250,7 @@ def test_cluster_creation():
 
 def test_default_cluster_creation(mocker):
     mocker.patch(
-        "openshift.get_project_name",
+        "codeflare_sdk.cluster.cluster.get_current_namespace",
         return_value="opendatahub",
     )
     default_config = ClusterConfiguration(
@@ -264,27 +265,38 @@ def test_default_cluster_creation(mocker):
     return cluster
 
 
-def arg_check_apply_effect(*args):
-    assert args[0] == "apply"
-    assert args[1] == ["-f", "unit-test-cluster.yaml"]
+def arg_check_apply_effect(group, version, namespace, plural, body, *args):
+    assert group == "mcad.ibm.com"
+    assert version == "v1beta1"
+    assert namespace == "ns"
+    assert plural == "appwrappers"
+    with open("unit-test-cluster.yaml") as f:
+        aw = yaml.load(f, Loader=yaml.FullLoader)
+    assert body == aw
+    assert args == tuple()
 
 
-def arg_check_del_effect(*args):
-    assert args[0] == "delete"
-    assert args[1] == ["AppWrapper", "unit-test-cluster"]
+def arg_check_del_effect(group, version, namespace, plural, name, *args):
+    assert group == "mcad.ibm.com"
+    assert version == "v1beta1"
+    assert namespace == "ns"
+    assert plural == "appwrappers"
+    assert name == "unit-test-cluster"
+    assert args == tuple()
 
 
 def test_cluster_up_down(mocker):
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
     mocker.patch(
-        "codeflare_sdk.cluster.auth.TokenAuthentication.login", return_value="ignore"
+        "kubernetes.client.CustomObjectsApi.create_namespaced_custom_object",
+        side_effect=arg_check_apply_effect,
     )
     mocker.patch(
-        "codeflare_sdk.cluster.auth.TokenAuthentication.logout", return_value="ignore"
+        "kubernetes.client.CustomObjectsApi.delete_namespaced_custom_object",
+        side_effect=arg_check_del_effect,
     )
-    mocker.patch("openshift.invoke", side_effect=arg_check_apply_effect)
     cluster = test_cluster_creation()
     cluster.up()
-    mocker.patch("openshift.invoke", side_effect=arg_check_del_effect)
     cluster.down()
 
 
