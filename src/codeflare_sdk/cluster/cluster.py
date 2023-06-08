@@ -148,8 +148,6 @@ class Cluster:
             )
         except Exception as e:
             return _kube_api_error_handling(e)
-            # elif "not found" in error_msg:
-            #    print("Cluster not found, have you run cluster.up() yet?")
 
     def status(
         self, print_to_console: bool = True
