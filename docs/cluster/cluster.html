@@ -168,7 +168,7 @@ class Cluster:
                 or &#34;Missing or incomplete configuration&#34; in error_msg
             ):
                 raise PermissionError(
-                    &#34;Action not permitted, have you run cluster.up() yet?&#34;
+                    &#34;Action not permitted, have you run auth.login()/cluster.up() yet?&#34;
                 )
             elif &#34;not found&#34; in error_msg:
                 print(&#34;Cluster not found, have you run cluster.up() yet?&#34;)
@@ -687,7 +687,7 @@ request.</p></div>
                 or &#34;Missing or incomplete configuration&#34; in error_msg
             ):
                 raise PermissionError(
-                    &#34;Action not permitted, have you run cluster.up() yet?&#34;
+                    &#34;Action not permitted, have you run auth.login()/cluster.up() yet?&#34;
                 )
             elif &#34;not found&#34; in error_msg:
                 print(&#34;Cluster not found, have you run cluster.up() yet?&#34;)
@@ -991,7 +991,7 @@ associated with the cluster.</p></div>
             or &#34;Missing or incomplete configuration&#34; in error_msg
         ):
             raise PermissionError(
-                &#34;Action not permitted, have you run cluster.up() yet?&#34;
+                &#34;Action not permitted, have you run auth.login()/cluster.up() yet?&#34;
             )
         elif &#34;not found&#34; in error_msg:
             print(&#34;Cluster not found, have you run cluster.up() yet?&#34;)
