@@ -127,7 +127,7 @@ class Cluster:
                 plural="appwrappers",
                 body=aw,
             )
-        except Exception as e:
+        except Exception as e:  # pragma: no cover
             return _kube_api_error_handling(e)
 
     def down(self):
@@ -146,7 +146,7 @@ class Cluster:
                 plural="appwrappers",
                 name=self.app_wrapper_name,
             )
-        except Exception as e:
+        except Exception as e:  # pragma: no cover
             return _kube_api_error_handling(e)
 
     def status(
@@ -257,7 +257,7 @@ class Cluster:
                 namespace=self.config.namespace,
                 plural="routes",
             )
-        except Exception as e:
+        except Exception as e:  # pragma: no cover
             return _kube_api_error_handling(e)
 
         for route in routes["items"]:
@@ -374,7 +374,7 @@ def _app_wrapper_status(name, namespace="default") -> Optional[AppWrapper]:
             namespace=namespace,
             plural="appwrappers",
         )
-    except Exception as e:
+    except Exception as e:  # pragma: no cover
         return _kube_api_error_handling(e)
 
     for aw in aws["items"]:
@@ -393,7 +393,7 @@ def _ray_cluster_status(name, namespace="default") -> Optional[RayCluster]:
             namespace=namespace,
             plural="rayclusters",
         )
-    except Exception as e:
+    except Exception as e:  # pragma: no cover
         return _kube_api_error_handling(e)
 
     for rc in rcs["items"]:
@@ -413,7 +413,7 @@ def _get_ray_clusters(namespace="default") -> List[RayCluster]:
             namespace=namespace,
             plural="rayclusters",
         )
-    except Exception as e:
+    except Exception as e:  # pragma: no cover
         return _kube_api_error_handling(e)
 
     for rc in rcs["items"]:
@@ -435,7 +435,7 @@ def _get_app_wrappers(
             namespace=namespace,
             plural="appwrappers",
         )
-    except Exception as e:
+    except Exception as e:  # pragma: no cover
         return _kube_api_error_handling(e)
 
     for item in aws["items"]:
