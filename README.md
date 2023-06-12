@@ -29,6 +29,7 @@ We use pre-commit to make sure the code is consistently formatted. To make sure 
 
 ### Testing
 
+- To install codeflare-sdk in editable mode, run `pip install -e .` from the repo root.
 - To run the unit tests, run `pytest -v tests/unit_test.py`
 - Any new test functions/scripts can be added into the `tests` folder
 - NOTE: Functional tests coming soon, will live in `tests/func_test.py`
