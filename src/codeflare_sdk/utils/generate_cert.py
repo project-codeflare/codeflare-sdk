@@ -19,7 +19,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography import x509
 from cryptography.x509.oid import NameOID
 import datetime
-import openshift as oc
+from kubernetes import client, config
 
 
 def generate_ca_cert(days: int = 30):
@@ -82,25 +82,12 @@ def generate_tls_cert(cluster_name, namespace, days=30):
     # Similar to:
     # oc get secret ca-secret-<cluster-name> -o template='{{index .data "ca.key"}}'
     # oc get secret ca-secret-<cluster-name> -o template='{{index .data "ca.crt"}}'|base64 -d > ${TLSDIR}/ca.crt
-    with oc.project(namespace):
-        ca_key = oc.invoke(
-            "get",
-            [
-                "secret",
-                f"ca-secret-{cluster_name}",
-                "-o",
-                "template='{{index .data \"ca.key\"}}'",
-            ],
-        ).out()
-        ca_cert = oc.invoke(
-            "get",
-            [
-                "secret",
-                f"ca-secret-{cluster_name}",
-                "-o",
-                "template='{{index .data \"ca.crt\"}}'",
-            ],
-        ).out()
+    config.load_kube_config()
+    v1 = client.CoreV1Api()
+    secret = v1.read_namespaced_secret(f"ca-secret-{cluster_name}", namespace).data
+    ca_cert = secret.get("ca.crt")
+    ca_key = secret.get("ca.key")
+
     with open(os.path.join(tls_dir, "ca.crt"), "w") as f:
         f.write(base64.b64decode(ca_cert).decode("utf-8"))
 
