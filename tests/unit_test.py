@@ -247,7 +247,6 @@ def test_config_creation():
 
 def test_cluster_creation():
     cluster = Cluster(test_config_creation())
-    print(cluster.app_wrapper_yaml)
     assert cluster.app_wrapper_yaml == "unit-test-cluster.yaml"
     assert cluster.app_wrapper_name == "unit-test-cluster"
     assert filecmp.cmp(

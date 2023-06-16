@@ -89,17 +89,18 @@ def update_labels(yaml, instascale, instance_types):
         metadata.pop("labels")
 
 
+PRIORITY_LEVELS = {
+    "low": (1, "low-priority"),
+    "default": (5, "default-priority"),
+    "high": (10, "high-priority"),
+}
+
+
 def update_priority(yaml, item, priority):
-    if priority not in ["low", "default", "high"]:
+    if priority not in PRIORITY_LEVELS:
         sys.exit("Priority must be 'low', 'default', or 'high'")
 
-    priority_levels = {
-        "low": (1, "low-priority"),
-        "default": (5, "default-priority"),
-        "high": (10, "high-priority"),
-    }
-
-    priority_level = priority_levels[priority]
+    priority_level = PRIORITY_LEVELS[priority]
     spec = yaml.get("spec")
     spec["priority"] = priority_level[0]
     # spec["SchedulingSpec"]["priorityClassName"] = priority_level
