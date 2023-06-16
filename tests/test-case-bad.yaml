@@ -73,7 +73,7 @@ spec:
                     valueFrom:
                       fieldRef:
                         fieldPath: status.podIP
-                  image: ghcr.io/foundation-model-stack/base:ray2.1.0-py38-gpu-pytorch1.12.0cu116-20221213-193103
+                  image: rayproject/ray:2.5.0-py38-cu116
                   imagePullPolicy: Always
                   lifecycle:
                     preStop:
@@ -130,7 +130,7 @@ spec:
                     valueFrom:
                       fieldRef:
                         fieldPath: status.podIP
-                  image: ghcr.io/foundation-model-stack/base:ray2.1.0-py38-gpu-pytorch1.12.0cu116-20221213-193103
+                  image: rayproject/ray:2.5.0-py38-cu116\
                   lifecycle:
                     preStop:
                       exec:
