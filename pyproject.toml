@@ -23,8 +23,8 @@ keywords = ['codeflare', 'python', 'sdk', 'client', 'batch', 'scale']
 python = "^3.7"
 openshift-client = "1.0.18"
 rich = "^12.5"
-ray = {version = "2.1.0", extras = ["default"]}
-kubernetes = ">= 25.3.0, < 27"
+ray = {version = "2.5.0", extras = ["default"]}
+kubernetes = "25.3.0"
 codeflare-torchx = "0.6.0.dev0"
 cryptography = "40.0.2"
 
