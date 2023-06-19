@@ -162,11 +162,11 @@ spec:
                   - sh
                   - -c
                   - cd /home/ray/workspace/tls && openssl req -nodes -newkey rsa:2048 -keyout server.key -out server.csr -subj '/CN=ray-head' && printf "authorityKeyIdentifier=keyid,issuer\nbasicConstraints=CA:FALSE\nsubjectAltName = @alt_names\n[alt_names]\nDNS.1 = 127.0.0.1\nDNS.2 = localhost\nDNS.3 = ${FQ_RAY_IP}\nDNS.4 = $(awk 'END{print $1}' /etc/hosts)\nDNS.5 = rayclient-deployment-name-$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace).server-name">./domain.ext && cp /home/ray/workspace/ca/* . && openssl x509 -req -CA ca.crt -CAkey ca.key -in server.csr -out server.crt -days 365 -CAcreateserial -extfile domain.ext
-                  image: docker.io/redhat/ubi9
+                  image: rayproject/ray:2.5.0
                   name: create-cert
-                  securityContext:
-                    runAsUser: 1000
-                    runAsGroup: 1000
+                  # securityContext:
+                  #   runAsUser: 1000
+                  #   runAsGroup: 1000
                   volumeMounts:
                   - name: ca-vol
                     mountPath: "/home/ray/workspace/ca"
@@ -227,14 +227,14 @@ spec:
                   image: busybox:1.28
                   command: ['sh', '-c', "until nslookup $RAY_IP.$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace).svc.cluster.local; do echo waiting for myservice; sleep 2; done"]
                 - name: create-cert
-                  image: docker.io/redhat/ubi9
+                  image: rayproject/ray:2.5.0
                   command:
                   - sh
                   - -c
                   - cd /home/ray/workspace/tls && openssl req -nodes -newkey rsa:2048 -keyout server.key -out server.csr -subj '/CN=ray-head' && printf "authorityKeyIdentifier=keyid,issuer\nbasicConstraints=CA:FALSE\nsubjectAltName = @alt_names\n[alt_names]\nDNS.1 = 127.0.0.1\nDNS.2 = localhost\nDNS.3 = ${FQ_RAY_IP}\nDNS.4 = $(awk 'END{print $1}' /etc/hosts)">./domain.ext && cp /home/ray/workspace/ca/* . && openssl x509 -req -CA ca.crt -CAkey ca.key -in server.csr -out server.crt -days 365 -CAcreateserial -extfile domain.ext
-                  securityContext:
-                    runAsUser: 1000
-                    runAsGroup: 1000
+                  # securityContext:
+                  #   runAsUser: 1000
+                  #   runAsGroup: 1000
                   volumeMounts:
                   - name: ca-vol
                     mountPath: "/home/ray/workspace/ca"
