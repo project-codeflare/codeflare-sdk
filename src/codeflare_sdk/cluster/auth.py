@@ -49,7 +49,13 @@ class TokenAuthentication(Authentication):
     cluster when the user has an API token and the API server address.
     """
 
-    def __init__(self, token: str = None, server: str = None, skip_tls: bool = False):
+    def __init__(
+        self,
+        token: str = None,
+        server: str = None,
+        ca_cert_path: str = None,
+        skip_tls: bool = False,
+    ):
         """
         Initialize a TokenAuthentication object that requires a value for `token`, the API Token
         and `server`, the API server address for authenticating to an OpenShift cluster.
@@ -58,6 +64,7 @@ class TokenAuthentication(Authentication):
         self.token = token
         self.server = server
         self.skip_tls = skip_tls
+        self.ca_cert_path = ca_cert_path
 
     def login(self) -> str:
         """
@@ -68,12 +75,14 @@ class TokenAuthentication(Authentication):
         args = [f"--token={self.token}", f"--server={self.server}"]
         if self.skip_tls:
             args.append("--insecure-skip-tls-verify")
+        elif self.skip_tls == False:
+            args.append(f"--certificate-authority={self.ca_cert_path}")
         try:
             response = oc.invoke("login", args)
         except OpenShiftPythonException as osp:  # pragma: no cover
             error_msg = osp.result.err()
             if "The server uses a certificate signed by unknown authority" in error_msg:
-                return "Error: certificate auth failure, please set `skip_tls=True` in TokenAuthentication"
+                return "Error: certificate auth failure, please set `skip_tls=True` in TokenAuthentication or provide a trusted certificate using `ca_cert_path`"
             elif "invalid" in error_msg:
                 raise PermissionError(error_msg)
             else:
