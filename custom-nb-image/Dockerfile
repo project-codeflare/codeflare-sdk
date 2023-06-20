@@ -22,7 +22,7 @@ RUN pip install -r requirements.txt
 RUN pip uninstall pickle5 -y
 
 # Install codeflare-sdk and other libraries
-ARG SDK_VERSION=0.4.4
+ARG SDK_VERSION=0.*
 RUN pip install codeflare-sdk==${SDK_VERSION} \
 				datasets==2.6.1 \
 				transformers==4.23.1 \
