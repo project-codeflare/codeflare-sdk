@@ -185,7 +185,8 @@ def update_nodes(
             update_image(spec, image)
             update_env(spec, env)
             if comp == head:
-                update_resources(spec, 2, 2, 8, 8, 0)
+                # TODO: Eventually add head node configuration outside of template
+                continue
             else:
                 update_resources(spec, min_cpu, max_cpu, min_memory, max_memory, gpu)
 
