@@ -192,7 +192,7 @@ spec:
           to:
             kind: Service
             name: unit-test-cluster-head-svc
-      replicas: 1
+      replica: 1
     Items: []
   schedulingSpec:
     minAvailable: 3
