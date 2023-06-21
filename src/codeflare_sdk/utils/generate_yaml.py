@@ -141,6 +141,14 @@ def update_image(spec, image):
         container["image"] = image
 
 
+def update_image_pull_secrets(spec, image_pull_secrets):
+    if image_pull_secrets:
+        if "imagePullSecrets" not in spec:
+            spec["imagePullSecrets"] = []
+        for image_pull_secret in image_pull_secrets:
+            spec["imagePullSecrets"].append({"name": image_pull_secret})
+
+
 def update_env(spec, env):
     containers = spec.get("containers")
     for container in containers:
@@ -178,6 +186,7 @@ def update_nodes(
     image,
     instascale,
     env,
+    image_pull_secrets,
 ):
     if "generictemplate" in item.keys():
         head = item.get("generictemplate").get("spec").get("headGroupSpec")
@@ -193,6 +202,7 @@ def update_nodes(
         for comp in [head, worker]:
             spec = comp.get("template").get("spec")
             update_affinity(spec, appwrapper_name, instascale)
+            update_image_pull_secrets(spec, image_pull_secrets)
             update_image(spec, image)
             update_env(spec, env)
             if comp == head:
@@ -295,6 +305,7 @@ def generate_appwrapper(
     instance_types: list,
     env,
     local_interactive: bool,
+    image_pull_secrets: list,
 ):
     user_yaml = read_template(template)
     appwrapper_name, cluster_name = gen_names(name)
@@ -318,6 +329,7 @@ def generate_appwrapper(
         image,
         instascale,
         env,
+        image_pull_secrets,
     )
     update_dashboard_route(route_item, cluster_name, namespace)
     if local_interactive:
@@ -409,6 +421,12 @@ def main():  # pragma: no cover
         default=False,
         help="Enable local interactive mode",
     )
+    parser.add_argument(
+        "--image-pull-secrets",
+        required=False,
+        default=[],
+        help="Set image pull secrets for private registries",
+    )
 
     args = parser.parse_args()
     name = args.name
@@ -425,6 +443,7 @@ def main():  # pragma: no cover
     namespace = args.namespace
     local_interactive = args.local_interactive
     env = {}
+    image_pull_secrets = args.image_pull_secrets
 
     outfile = generate_appwrapper(
         name,
@@ -441,6 +460,7 @@ def main():  # pragma: no cover
         instance_types,
         local_interactive,
         env,
+        image_pull_secrets,
     )
     return outfile
 
