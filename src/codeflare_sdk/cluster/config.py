@@ -44,7 +44,7 @@ class ClusterConfiguration:
     min_memory: int = 2
     max_memory: int = 2
     gpu: int = 0
-    template: str = f"{dir}/templates/new-template.yaml"
+    template: str = f"{dir}/templates/base-template.yaml"
     instascale: bool = False
     envs: dict = field(default_factory=dict)
     image: str = "ghcr.io/foundation-model-stack/base:ray2.1.0-py38-gpu-pytorch1.12.0cu116-20221213-193103"

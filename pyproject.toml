@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "codeflare-sdk"
-version = "0.4.4"
+version = "0.4.5"
 description = "Python SDK for codeflare client"
 
 license = "Apache-2.0"
@@ -24,7 +24,7 @@ python = "^3.7"
 openshift-client = "1.0.18"
 rich = "^12.5"
 ray = {version = "2.1.0", extras = ["default"]}
-kubernetes = "26.1.0"
+kubernetes = ">= 25.3.0, < 27"
 codeflare-torchx = "0.6.0.dev0"
 
 [tool.poetry.group.docs]

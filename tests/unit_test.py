@@ -224,7 +224,7 @@ def test_config_creation():
         config.image
         == "ghcr.io/foundation-model-stack/base:ray2.1.0-py38-gpu-pytorch1.12.0cu116-20221213-193103"
     )
-    assert config.template == f"{parent}/src/codeflare_sdk/templates/new-template.yaml"
+    assert config.template == f"{parent}/src/codeflare_sdk/templates/base-template.yaml"
     assert config.instascale
     assert config.machine_types == ["cpu.small", "gpu.large"]
     return config
@@ -1983,7 +1983,7 @@ def test_AWManager_submit_remove(mocker, capsys):
 # Make sure to keep this function and the following function at the end of the file
 def test_cmd_line_generation():
     os.system(
-        f"python3 {parent}/src/codeflare_sdk/utils/generate_yaml.py --name=unit-cmd-cluster --min-cpu=1 --max-cpu=1 --min-memory=2 --max-memory=2 --gpu=1 --workers=2 --template=src/codeflare_sdk/templates/new-template.yaml"
+        f"python3 {parent}/src/codeflare_sdk/utils/generate_yaml.py --name=unit-cmd-cluster --min-cpu=1 --max-cpu=1 --min-memory=2 --max-memory=2 --gpu=1 --workers=2 --template=src/codeflare_sdk/templates/base-template.yaml"
     )
     assert filecmp.cmp(
         "unit-cmd-cluster.yaml", f"{parent}/tests/test-case-cmd.yaml", shallow=True
