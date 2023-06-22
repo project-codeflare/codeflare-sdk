@@ -274,10 +274,6 @@ def disable_raycluster_tls(resources):
     del resources["GenericItems"][2]  # ca-secret
 
 
-def delete_route():
-    print("Delete Rayclient Route")
-
-
 def write_user_appwrapper(user_yaml, output_file_name):
     with open(output_file_name, "w") as outfile:
         yaml.dump(user_yaml, outfile, default_flow_style=False)
