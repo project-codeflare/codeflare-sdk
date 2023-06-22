@@ -73,6 +73,14 @@ spec:
                     valueFrom:
                       fieldRef:
                         fieldPath: status.podIP
+                  - name: RAY_USE_TLS
+                    value: '0'
+                  - name: RAY_TLS_SERVER_CERT
+                    value: /home/ray/workspace/tls/server.crt
+                  - name: RAY_TLS_SERVER_KEY
+                    value: /home/ray/workspace/tls/server.key
+                  - name: RAY_TLS_CA_CERT
+                    value: /home/ray/workspace/tls/ca.crt
                   image: ghcr.io/foundation-model-stack/base:ray2.1.0-py38-gpu-pytorch1.12.0cu116-20221213-193103
                   imagePullPolicy: Always
                   lifecycle:
@@ -130,6 +138,14 @@ spec:
                     valueFrom:
                       fieldRef:
                         fieldPath: status.podIP
+                  - name: RAY_USE_TLS
+                    value: '0'
+                  - name: RAY_TLS_SERVER_CERT
+                    value: /home/ray/workspace/tls/server.crt
+                  - name: RAY_TLS_SERVER_KEY
+                    value: /home/ray/workspace/tls/server.key
+                  - name: RAY_TLS_CA_CERT
+                    value: /home/ray/workspace/tls/ca.crt
                   image: ghcr.io/foundation-model-stack/base:ray2.1.0-py38-gpu-pytorch1.12.0cu116-20221213-193103
                   lifecycle:
                     preStop:

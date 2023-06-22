@@ -21,6 +21,7 @@ import yaml
 import sys
 import argparse
 import uuid
+import openshift as oc
 
 
 def read_template(template):
@@ -44,6 +45,16 @@ def gen_names(name):
 def update_dashboard_route(route_item, cluster_name, namespace):
     metadata = route_item.get("generictemplate", {}).get("metadata")
     metadata["name"] = f"ray-dashboard-{cluster_name}"
+    metadata["namespace"] = namespace
+    metadata["labels"]["odh-ray-cluster-service"] = f"{cluster_name}-head-svc"
+    spec = route_item.get("generictemplate", {}).get("spec")
+    spec["to"]["name"] = f"{cluster_name}-head-svc"
+
+
+# ToDo: refactor the update_x_route() functions
+def update_rayclient_route(route_item, cluster_name, namespace):
+    metadata = route_item.get("generictemplate", {}).get("metadata")
+    metadata["name"] = f"rayclient-{cluster_name}"
     metadata["namespace"] = namespace
     metadata["labels"]["odh-ray-cluster-service"] = f"{cluster_name}-head-svc"
     spec = route_item.get("generictemplate", {}).get("spec")
@@ -191,6 +202,78 @@ def update_nodes(
                 update_resources(spec, min_cpu, max_cpu, min_memory, max_memory, gpu)
 
 
+def update_ca_secret(ca_secret_item, cluster_name, namespace):
+    from . import generate_cert
+
+    metadata = ca_secret_item.get("generictemplate", {}).get("metadata")
+    metadata["name"] = f"ca-secret-{cluster_name}"
+    metadata["namespace"] = namespace
+    metadata["labels"]["odh-ray-cluster-service"] = f"{cluster_name}-head-svc"
+    data = ca_secret_item.get("generictemplate", {}).get("data")
+    data["ca.key"], data["ca.crt"] = generate_cert.generate_ca_cert(365)
+
+
+def enable_local_interactive(resources, cluster_name, namespace):
+    rayclient_route_item = resources["resources"].get("GenericItems")[2]
+    ca_secret_item = resources["resources"].get("GenericItems")[3]
+    item = resources["resources"].get("GenericItems")[0]
+    update_rayclient_route(rayclient_route_item, cluster_name, namespace)
+    update_ca_secret(ca_secret_item, cluster_name, namespace)
+    # update_ca_secret_volumes
+    item["generictemplate"]["spec"]["headGroupSpec"]["template"]["spec"]["volumes"][0][
+        "secret"
+    ]["secretName"] = f"ca-secret-{cluster_name}"
+    item["generictemplate"]["spec"]["workerGroupSpecs"][0]["template"]["spec"][
+        "volumes"
+    ][0]["secret"]["secretName"] = f"ca-secret-{cluster_name}"
+    # update_tls_env
+    item["generictemplate"]["spec"]["headGroupSpec"]["template"]["spec"]["containers"][
+        0
+    ]["env"][1]["value"] = "1"
+    item["generictemplate"]["spec"]["workerGroupSpecs"][0]["template"]["spec"][
+        "containers"
+    ][0]["env"][1]["value"] = "1"
+    # update_init_container
+    command = item["generictemplate"]["spec"]["headGroupSpec"]["template"]["spec"][
+        "initContainers"
+    ][0].get("command")[2]
+
+    command = command.replace("deployment-name", cluster_name)
+
+    server_name = (
+        oc.whoami("--show-server").split(":")[1].split("//")[1].replace("api", "apps")
+    )
+
+    command = command.replace("server-name", server_name)
+
+    item["generictemplate"]["spec"]["headGroupSpec"]["template"]["spec"][
+        "initContainers"
+    ][0].get("command")[2] = command
+
+
+def disable_raycluster_tls(resources):
+    del resources["GenericItems"][0]["generictemplate"]["spec"]["headGroupSpec"][
+        "template"
+    ]["spec"]["volumes"]
+    del resources["GenericItems"][0]["generictemplate"]["spec"]["headGroupSpec"][
+        "template"
+    ]["spec"]["containers"][0]["volumeMounts"]
+    del resources["GenericItems"][0]["generictemplate"]["spec"]["headGroupSpec"][
+        "template"
+    ]["spec"]["initContainers"]
+    del resources["GenericItems"][0]["generictemplate"]["spec"]["workerGroupSpecs"][0][
+        "template"
+    ]["spec"]["volumes"]
+    del resources["GenericItems"][0]["generictemplate"]["spec"]["workerGroupSpecs"][0][
+        "template"
+    ]["spec"]["containers"][0]["volumeMounts"]
+    del resources["GenericItems"][0]["generictemplate"]["spec"]["workerGroupSpecs"][0][
+        "template"
+    ]["spec"]["initContainers"][1]
+    del resources["GenericItems"][3]  # rayclient route
+    del resources["GenericItems"][2]  # ca-secret
+
+
 def write_user_appwrapper(user_yaml, output_file_name):
     with open(output_file_name, "w") as outfile:
         yaml.dump(user_yaml, outfile, default_flow_style=False)
@@ -211,6 +294,7 @@ def generate_appwrapper(
     instascale: bool,
     instance_types: list,
     env,
+    local_interactive: bool,
 ):
     user_yaml = read_template(template)
     appwrapper_name, cluster_name = gen_names(name)
@@ -236,6 +320,10 @@ def generate_appwrapper(
         env,
     )
     update_dashboard_route(route_item, cluster_name, namespace)
+    if local_interactive:
+        enable_local_interactive(resources, cluster_name, namespace)
+    else:
+        disable_raycluster_tls(resources["resources"])
     outfile = appwrapper_name + ".yaml"
     write_user_appwrapper(user_yaml, outfile)
     return outfile
@@ -315,6 +403,12 @@ def main():  # pragma: no cover
         default="default",
         help="Set the kubernetes namespace you want to deploy your cluster to. Default. If left blank, uses the 'default' namespace",
     )
+    parser.add_argument(
+        "--local-interactive",
+        required=False,
+        default=False,
+        help="Enable local interactive mode",
+    )
 
     args = parser.parse_args()
     name = args.name
@@ -329,6 +423,7 @@ def main():  # pragma: no cover
     instascale = args.instascale
     instance_types = args.instance_types
     namespace = args.namespace
+    local_interactive = args.local_interactive
     env = {}
 
     outfile = generate_appwrapper(
@@ -344,6 +439,7 @@ def main():  # pragma: no cover
         image,
         instascale,
         instance_types,
+        local_interactive,
         env,
     )
     return outfile
