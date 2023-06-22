@@ -1,0 +1,81 @@
+name: Release
+
+on:
+    workflow_dispatch:
+        inputs:
+            release-version:
+              type: string
+              required: true
+              description: 'Version number (for example: 0.1.0)'
+            is-latest:
+              description: 'Select if the built image should be tagged as latest'
+              required: true
+              type: boolean
+            quay-organization:
+              description: 'Quay organization used to push the built images to'
+              required: true
+              default: 'project-codeflare'
+            python_version:
+              type: string
+              default: "3.8"
+              required: true
+            poetry_version:
+              type: string
+              default: "1.5.1"
+              required: true
+
+jobs:
+    release:
+        runs-on: ubuntu-latest
+        permissions:
+            contents: write
+        steps:
+            - name: Checkout the repository
+              uses: actions/checkout@v3
+            - name: Install Python
+              uses: actions/setup-python@v4
+              with:
+                python-version: ${{ github.event.inputs.python_version }}
+            - name: Install Poetry
+              uses: abatilo/actions-poetry@v2
+              with:
+                poetry-version: ${{ github.event.inputs.poetry_version }}
+            - name: Change version in pyproject.toml
+              run: poetry version "${{ github.event.inputs.release-version }}"
+            - name: Run poetry install
+              run: poetry install --with docs
+            - name: Run poetry build
+              run: poetry build
+            - name: Create new documentation
+              run: poetry run pdoc --html -o docs src/codeflare_sdk && pushd docs && rm -rf cluster job utils && mv codeflare_sdk/* . && rm -rf codeflare_sdk && popd
+            - name: Set Pypi token
+              run: poetry config pypi-token.pypi ${{ secrets.PYPI_TOKEN }}
+            - name: Publish new release to Pypi repository
+              run: poetry publish
+
+            - name: Commit changes in docs
+              uses: stefanzweifel/git-auto-commit-action@v4
+              with:
+                file_pattern: 'docs'
+                commit_message: "Changes in docs for release: v${{ github.event.inputs.release-version }}"
+            - name: Create Github release
+              uses: ncipollo/release-action@v1
+              with:
+                  tag: "v${{ github.event.inputs.release-version }}"
+
+            - name: Image Build
+              run: |
+                cd custom-nb-image
+                docker build --build-arg SDK_VERSION="${{ github.event.inputs.release-version }}" -t quay.io/${{ github.event.inputs.quay-organization }}/notebook:v${{ github.event.inputs.release-version }} .
+                docker tag quay.io/${{ github.event.inputs.quay-organization }}/notebook:v${{ github.event.inputs.release-version }} quay.io/${{ github.event.inputs.quay-organization }}/notebook:latest
+            - name: Login to Quay.io
+              uses: docker/login-action@v2
+              with:
+                registry: quay.io
+                username: ${{ secrets.QUAY_ID }}
+                password: ${{ secrets.QUAY_TOKEN }}
+            - name: Image Push
+              run: docker push quay.io/${{ github.event.inputs.quay-organization }}/notebook:v${{ github.event.inputs.release-version }}
+            - name: Image Push Latest
+              if: ${{ inputs.is-latest }}
+              run: docker push quay.io/${{ github.event.inputs.quay-organization }}/notebook:latest
