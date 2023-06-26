@@ -5,3 +5,5 @@ __pycache__/
 Pipfile
 Pipfile.lock
 poetry.lock
+.venv*
+build/
