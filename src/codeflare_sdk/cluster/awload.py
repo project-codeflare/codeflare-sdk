@@ -57,7 +57,7 @@ class AWManager:
         Attempts to create the AppWrapper custom resource using the yaml file
         """
         try:
-            config.load_kube_config()
+            KubeConfigFileAuthentication.config_check()
             api_instance = client.CustomObjectsApi()
             api_instance.create_namespaced_custom_object(
                 group="mcad.ibm.com",
@@ -82,7 +82,7 @@ class AWManager:
             return
 
         try:
-            config.load_kube_config()
+            KubeConfigFileAuthentication.config_check()
             api_instance = client.CustomObjectsApi()
             api_instance.delete_namespaced_custom_object(
                 group="mcad.ibm.com",
