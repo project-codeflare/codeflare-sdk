@@ -142,11 +142,10 @@ def update_image(spec, image):
 
 
 def update_image_pull_secrets(spec, image_pull_secrets):
-    if image_pull_secrets:
-        if "imagePullSecrets" not in spec:
-            spec["imagePullSecrets"] = []
-        for image_pull_secret in image_pull_secrets:
-            spec["imagePullSecrets"].append({"name": image_pull_secret})
+    template_secrets = spec.get("imagePullSecrets", [])
+    spec["imagePullSecrets"] = template_secrets + [
+        {"name": x} for x in image_pull_secrets
+    ]
 
 
 def update_env(spec, env):
