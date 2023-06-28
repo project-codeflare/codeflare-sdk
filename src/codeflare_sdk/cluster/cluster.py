@@ -35,6 +35,7 @@ from .model import (
     RayCluster,
     RayClusterStatus,
 )
+from kubernetes import client, config
 
 
 class Cluster:
@@ -294,6 +295,13 @@ class Cluster:
             to_return["requirements"] = requirements
         return to_return
 
+    def local_client_url(self):
+        if self.config.local_interactive == True:
+            ingress_domain = _get_ingress_domain()
+            return f"ray://rayclient-{self.config.name}-{self.config.namespace}.{ingress_domain}"
+        else:
+            return "None"
+
 
 def list_all_clusters(namespace: str, print_to_console: bool = True):
     """
@@ -319,6 +327,13 @@ def list_all_queued(namespace: str, print_to_console: bool = True):
 
 
 # private methods
+def _get_ingress_domain():
+    config.load_kube_config()
+    api_client = client.CustomObjectsApi()
+    ingress = api_client.get_cluster_custom_object(
+        "config.openshift.io", "v1", "ingresses", "cluster"
+    )
+    return ingress["spec"]["domain"]
 
 
 def _app_wrapper_status(name, namespace="default") -> Optional[AppWrapper]:
