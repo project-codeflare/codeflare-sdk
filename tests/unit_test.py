@@ -379,6 +379,25 @@ def test_cluster_uris(mocker):
     )
 
 
+def test_local_client_url(mocker):
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.get_cluster_custom_object",
+        return_value={"spec": {"domain": ""}},
+    )
+    mocker.patch(
+        "codeflare_sdk.cluster.cluster._get_ingress_domain",
+        return_value="apps.cluster.awsroute.org",
+    )
+    default_config = ClusterConfiguration(
+        name="unit-test-cluster", namespace="ns", local_interactive=True
+    )
+    cluster = Cluster(default_config)
+    assert (
+        cluster.local_client_url()
+        == "ray://rayclient-unit-test-cluster-ns.apps.cluster.awsroute.org"
+    )
+
+
 def ray_addr(self, *args):
     return self._address
 

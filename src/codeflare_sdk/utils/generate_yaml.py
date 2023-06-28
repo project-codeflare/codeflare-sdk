@@ -21,7 +21,7 @@ import yaml
 import sys
 import argparse
 import uuid
-import openshift as oc
+from kubernetes import client, config
 
 
 def read_template(template):
@@ -239,12 +239,13 @@ def enable_local_interactive(resources, cluster_name, namespace):
     ][0].get("command")[2]
 
     command = command.replace("deployment-name", cluster_name)
-
-    server_name = (
-        oc.whoami("--show-server").split(":")[1].split("//")[1].replace("api", "apps")
+    config.load_kube_config()
+    api_client = client.CustomObjectsApi()
+    ingress = api_client.get_cluster_custom_object(
+        "config.openshift.io", "v1", "ingresses", "cluster"
     )
-
-    command = command.replace("server-name", server_name)
+    domain = ingress["spec"]["domain"]
+    command = command.replace("server-name", domain)
 
     item["generictemplate"]["spec"]["headGroupSpec"]["template"]["spec"][
         "initContainers"
