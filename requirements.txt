@@ -6,4 +6,3 @@ codeflare-torchx==0.6.0.dev0
 pydantic<2 # 2.0+ broke ray[default] see detail: https://github.com/ray-project/ray/pull/37000
 cryptography==40.0.2
 executing==1.2.0
-jinja2==3.1.2

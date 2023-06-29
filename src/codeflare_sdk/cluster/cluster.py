@@ -23,7 +23,7 @@ from typing import List, Optional, Tuple, Dict
 
 from ray.job_submission import JobSubmissionClient
 
-from .auth import KubeConfigFileAuthentication
+from .auth import KubeConfigFileAuthentication, TokenAuthentication
 from ..utils import pretty_print
 from ..utils.generate_yaml import generate_appwrapper
 from ..utils.kube_api_helpers import _kube_api_error_handling
@@ -36,7 +36,6 @@ from .model import (
     RayClusterStatus,
 )
 from kubernetes import client, config
-
 import yaml
 
 
@@ -116,7 +115,9 @@ class Cluster:
         namespace = self.config.namespace
         try:
             KubeConfigFileAuthentication.config_check()
-            api_instance = client.CustomObjectsApi()
+            api_instance = client.CustomObjectsApi(
+                TokenAuthentication.api_config_handler()
+            )
             with open(self.app_wrapper_yaml) as f:
                 aw = yaml.load(f, Loader=yaml.FullLoader)
             api_instance.create_namespaced_custom_object(
@@ -137,7 +138,9 @@ class Cluster:
         namespace = self.config.namespace
         try:
             KubeConfigFileAuthentication.config_check()
-            api_instance = client.CustomObjectsApi()
+            api_instance = client.CustomObjectsApi(
+                TokenAuthentication.api_config_handler()
+            )
             api_instance.delete_namespaced_custom_object(
                 group="mcad.ibm.com",
                 version="v1beta1",
@@ -249,7 +252,9 @@ class Cluster:
         """
         try:
             KubeConfigFileAuthentication.config_check()
-            api_instance = client.CustomObjectsApi()
+            api_instance = client.CustomObjectsApi(
+                TokenAuthentication.api_config_handler()
+            )
             routes = api_instance.list_namespaced_custom_object(
                 group="route.openshift.io",
                 version="v1",
@@ -425,7 +430,7 @@ def _get_ingress_domain():
 def _app_wrapper_status(name, namespace="default") -> Optional[AppWrapper]:
     try:
         KubeConfigFileAuthentication.config_check()
-        api_instance = client.CustomObjectsApi()
+        api_instance = client.CustomObjectsApi(TokenAuthentication.api_config_handler())
         aws = api_instance.list_namespaced_custom_object(
             group="mcad.ibm.com",
             version="v1beta1",
@@ -444,7 +449,7 @@ def _app_wrapper_status(name, namespace="default") -> Optional[AppWrapper]:
 def _ray_cluster_status(name, namespace="default") -> Optional[RayCluster]:
     try:
         KubeConfigFileAuthentication.config_check()
-        api_instance = client.CustomObjectsApi()
+        api_instance = client.CustomObjectsApi(TokenAuthentication.api_config_handler())
         rcs = api_instance.list_namespaced_custom_object(
             group="ray.io",
             version="v1alpha1",
@@ -464,7 +469,7 @@ def _get_ray_clusters(namespace="default") -> List[RayCluster]:
     list_of_clusters = []
     try:
         KubeConfigFileAuthentication.config_check()
-        api_instance = client.CustomObjectsApi()
+        api_instance = client.CustomObjectsApi(TokenAuthentication.api_config_handler())
         rcs = api_instance.list_namespaced_custom_object(
             group="ray.io",
             version="v1alpha1",
@@ -486,7 +491,7 @@ def _get_app_wrappers(
 
     try:
         KubeConfigFileAuthentication.config_check()
-        api_instance = client.CustomObjectsApi()
+        api_instance = client.CustomObjectsApi(TokenAuthentication.api_config_handler())
         aws = api_instance.list_namespaced_custom_object(
             group="mcad.ibm.com",
             version="v1beta1",
@@ -513,7 +518,7 @@ def _map_to_ray_cluster(rc) -> Optional[RayCluster]:
         status = RayClusterStatus.UNKNOWN
 
     KubeConfigFileAuthentication.config_check()
-    api_instance = client.CustomObjectsApi()
+    api_instance = client.CustomObjectsApi(TokenAuthentication.api_config_handler())
     routes = api_instance.list_namespaced_custom_object(
         group="route.openshift.io",
         version="v1",

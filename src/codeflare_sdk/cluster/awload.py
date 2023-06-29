@@ -24,6 +24,7 @@ import yaml
 
 from kubernetes import client, config
 from ..utils.kube_api_helpers import _kube_api_error_handling
+from .auth import KubeConfigFileAuthentication, TokenAuthentication
 
 
 class AWManager:
@@ -58,7 +59,9 @@ class AWManager:
         """
         try:
             KubeConfigFileAuthentication.config_check()
-            api_instance = client.CustomObjectsApi()
+            api_instance = client.CustomObjectsApi(
+                TokenAuthentication.api_config_handler()
+            )
             api_instance.create_namespaced_custom_object(
                 group="mcad.ibm.com",
                 version="v1beta1",
@@ -83,7 +86,9 @@ class AWManager:
 
         try:
             KubeConfigFileAuthentication.config_check()
-            api_instance = client.CustomObjectsApi()
+            api_instance = client.CustomObjectsApi(
+                TokenAuthentication.api_config_handler()
+            )
             api_instance.delete_namespaced_custom_object(
                 group="mcad.ibm.com",
                 version="v1beta1",

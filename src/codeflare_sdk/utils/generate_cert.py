@@ -19,7 +19,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography import x509
 from cryptography.x509.oid import NameOID
 import datetime
-from ..cluster.auth import KubeConfigFileAuthentication
+from ..cluster.auth import KubeConfigFileAuthentication, TokenAuthentication
 from kubernetes import client, config
 
 
@@ -84,7 +84,7 @@ def generate_tls_cert(cluster_name, namespace, days=30):
     # oc get secret ca-secret-<cluster-name> -o template='{{index .data "ca.key"}}'
     # oc get secret ca-secret-<cluster-name> -o template='{{index .data "ca.crt"}}'|base64 -d > ${TLSDIR}/ca.crt
     KubeConfigFileAuthentication.config_check()
-    v1 = client.CoreV1Api()
+    v1 = client.CoreV1Api(TokenAuthentication.api_config_handler())
     secret = v1.read_namespaced_secret(f"ca-secret-{cluster_name}", namespace).data
     ca_cert = secret.get("ca.crt")
     ca_key = secret.get("ca.key")
