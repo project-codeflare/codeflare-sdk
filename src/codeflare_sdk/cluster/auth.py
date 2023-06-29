@@ -249,7 +249,7 @@ class TokenAuthentication(Authentication):
 
 class KubeConfigFileAuthentication(KubeConfiguration):
     """
-    An abstract class that defines the necessary methods for passing a user's own Kubernetes config file.
+    A class that defines the necessary methods for passing a user's own Kubernetes config file.
     Specifically this class defines the `load_kube_config()`, `config_check()` and `remove_config()` functions.
     """
 
