@@ -25,6 +25,8 @@ from kubernetes import client, config
 
 global path_set
 path_set = False
+global api_client
+api_client = None
 
 
 class Authentication(metaclass=abc.ABCMeta):
@@ -165,5 +167,7 @@ class KubeConfigFileAuthentication(KubeConfiguration):
         Function for loading the config file at the default config location ~/.kube/config if the user has not
         specified their own config file or has logged in with their token and server.
         """
+        global path_set
+        global api_client
         if path_set == False and api_client == None:
             config.load_kube_config()
