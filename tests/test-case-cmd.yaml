@@ -96,6 +96,7 @@ spec:
                       cpu: 2
                       memory: 8G
                       nvidia.com/gpu: 0
+                imagePullSecrets: []
           rayVersion: 2.1.0
           workerGroupSpecs:
           - groupName: small-group-unit-cmd-cluster
@@ -144,6 +145,7 @@ spec:
                       cpu: 1
                       memory: 2G
                       nvidia.com/gpu: 1
+                imagePullSecrets: []
                 initContainers:
                 - command:
                   - sh
