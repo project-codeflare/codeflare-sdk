@@ -224,6 +224,7 @@ def test_config_creation():
         gpu=7,
         instascale=True,
         machine_types=["cpu.small", "gpu.large"],
+        image_pull_secrets=["unit-test-pull-secret"],
     )
 
     assert config.name == "unit-test-cluster" and config.namespace == "ns"
@@ -238,6 +239,7 @@ def test_config_creation():
     assert config.template == f"{parent}/src/codeflare_sdk/templates/base-template.yaml"
     assert config.instascale
     assert config.machine_types == ["cpu.small", "gpu.large"]
+    assert config.image_pull_secrets == ["unit-test-pull-secret"]
     return config
 
 

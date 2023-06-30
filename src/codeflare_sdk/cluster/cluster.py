@@ -89,6 +89,7 @@ class Cluster:
         instance_types = self.config.machine_types
         env = self.config.envs
         local_interactive = self.config.local_interactive
+        image_pull_secrets = self.config.image_pull_secrets
         return generate_appwrapper(
             name=name,
             namespace=namespace,
@@ -104,6 +105,7 @@ class Cluster:
             instance_types=instance_types,
             env=env,
             local_interactive=local_interactive,
+            image_pull_secrets=image_pull_secrets,
         )
 
     # creates a new cluster with the provided or default spec
