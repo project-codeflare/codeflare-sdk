@@ -1533,20 +1533,26 @@ def get_aw_obj(group, version, namespace, plural):
 
 
 def test_get_cluster(mocker):
-   mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
-   mocker.patch(
-       "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
-       side_effect=get_ray_obj,
-   )
-   cluster = get_cluster("quicktest")
-   cluster_config = cluster.config
-   assert cluster_config.name == "quicktest" and cluster_config.namespace == "ns"
-   assert "m4.xlarge" in cluster_config.machine_types and "g4dn.xlarge" in cluster_config.machine_types
-   assert cluster_config.min_cpus == 1 and cluster_config.max_cpus == 1
-   assert cluster_config.min_memory == 2 and cluster_config.max_memory == 2
-   assert cluster_config.gpu == 0
-   assert cluster_config.instascale
-   assert cluster_config.image == "ghcr.io/foundation-model-stack/base:ray2.1.0-py38-gpu-pytorch1.12.0cu116-20221213-193103"
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
+        side_effect=get_ray_obj,
+    )
+    cluster = get_cluster("quicktest")
+    cluster_config = cluster.config
+    assert cluster_config.name == "quicktest" and cluster_config.namespace == "ns"
+    assert (
+        "m4.xlarge" in cluster_config.machine_types
+        and "g4dn.xlarge" in cluster_config.machine_types
+    )
+    assert cluster_config.min_cpus == 1 and cluster_config.max_cpus == 1
+    assert cluster_config.min_memory == 2 and cluster_config.max_memory == 2
+    assert cluster_config.gpu == 0
+    assert cluster_config.instascale
+    assert (
+        cluster_config.image
+        == "ghcr.io/foundation-model-stack/base:ray2.1.0-py38-gpu-pytorch1.12.0cu116-20221213-193103"
+    )
 
 
 def test_list_clusters(mocker, capsys):
