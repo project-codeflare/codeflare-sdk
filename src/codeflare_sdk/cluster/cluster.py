@@ -384,7 +384,6 @@ def get_cluster(cluster_name: str, namespace: str = "default"):
    raise FileNotFoundError(f'Cluster {cluster_name} is not found in {namespace} namespace')
 
 
-
 # private methods
 
 
