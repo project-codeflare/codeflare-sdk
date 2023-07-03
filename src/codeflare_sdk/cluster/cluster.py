@@ -383,8 +383,10 @@ def list_all_queued(namespace: str, print_to_console: bool = True):
 
 def get_current_namespace():  # pragma: no cover
     try:
-        KubeConfigFileAuthentication.config_check()
-        _, active_context = config.list_kube_config_contexts()
+        # KubeConfigFileAuthentication.config_check()
+        _, active_context = config.list_kube_config_contexts(
+            KubeConfigFileAuthentication.config_check()
+        )
     except Exception as e:
         return _kube_api_error_handling(e)
     try:
