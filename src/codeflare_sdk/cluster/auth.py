@@ -23,10 +23,10 @@ import abc
 import os
 from kubernetes import client, config
 
-global path_set
-path_set = False
 global api_client
 api_client = None
+global config_path
+config_path = None
 
 
 class Authentication(metaclass=abc.ABCMeta):
@@ -61,7 +61,7 @@ class KubeConfiguration(metaclass=abc.ABCMeta):
 
     def config_check(self):
         """
-        Method for setting your Kubernetes configuration to a certain file
+        Method for checking if a user is authenticated via token and server or with their own config file
         """
         pass
 
@@ -99,9 +99,9 @@ class TokenAuthentication(Authentication):
         """
         This function is used to log in to a Kubernetes cluster using the user's API token and API server address.
         Depending on the cluster, a user can choose to login in with `--insecure-skip-tls-verify` by setting `skip_tls`
-        to `True` or `--certificate-authority` by setting `skip_tls` to false and providing a path to a ca bundle with `ca_cert_path`.
+        to `True` or `--certificate-authority` by setting `skip_tls` to False and providing a path to a ca bundle with `ca_cert_path`.
         """
-        global path_set
+        global config_path
         global api_client
         try:
             configuration = client.Configuration()
@@ -113,16 +113,16 @@ class TokenAuthentication(Authentication):
             else:
                 configuration.verify_ssl = False
             api_client = client.ApiClient(configuration)
-            path_set = False
+            config_path = None
             return "Logged into %s" % self.server
         except client.ApiException as exception:
             return exception
 
-    def api_config_handler():
+    def api_config_handler() -> str:
         """
         This function is used to load the api client if the user has logged in
         """
-        if api_client != None and path_set == False:
+        if api_client != None and config_path == None:
             return api_client
         else:
             return None
@@ -131,10 +131,11 @@ class TokenAuthentication(Authentication):
         """
         This function is used to logout of a Kubernetes cluster.
         """
-        global path_set
-        path_set = False
+        global config_path
+        config_path = None
         global api_client
         api_client = None
+        return "Successfully logged out of %s" % self.server
 
 
 class KubeConfigFileAuthentication(KubeConfiguration):
@@ -150,24 +151,27 @@ class KubeConfigFileAuthentication(KubeConfiguration):
         """
         Function for loading a user's own predefined Kubernetes config file.
         """
-        global path_set
+        global config_path
         global api_client
         try:
-            path_set = True
+            if self.kube_config_path == None:
+                return "Please specify a config file path"
+            config_path = self.kube_config_path
             api_client = None
-            config.load_kube_config(self.kube_config_path)
             response = "Loaded user config file at path %s" % self.kube_config_path
         except config.ConfigException:
-            path_set = False
+            config_path = None
             raise Exception("Please specify a config file path")
         return response
 
-    def config_check():
+    def config_check() -> str:
         """
         Function for loading the config file at the default config location ~/.kube/config if the user has not
         specified their own config file or has logged in with their token and server.
         """
-        global path_set
+        global config_path
         global api_client
-        if path_set == False and api_client == None:
+        if config_path == None and api_client == None:
             config.load_kube_config()
+        if config_path != None and api_client == None:
+            return config_path
