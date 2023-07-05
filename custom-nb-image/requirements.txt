@@ -64,7 +64,7 @@ googleapis-common-protos==1.56.4; python_version >= '3.7'
 gpustat==1.0.0
 graphviz==0.20.1; python_version >= '3.7'
 greenery==3.3.3
-grpcio==1.43.0; python_version >= '3.6'
+grpcio==1.53.0; python_version >= '3.6'
 h11==0.14.0; python_version >= '3.7'
 hyperopt==0.2.5
 idna==3.4; python_version >= '3.5'
