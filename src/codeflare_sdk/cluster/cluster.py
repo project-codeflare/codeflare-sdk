@@ -315,6 +315,8 @@ class Cluster:
             name=rc["metadata"]["name"],
             namespace=rc["metadata"]["namespace"],
             machine_types=machine_types,
+            min_worker=rc["spec"]["workerGroupSpecs"][0]["minReplicas"],
+            max_worker=rc["spec"]["workerGroupSpecs"][0]["maxReplicas"],
             min_cpus=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"][
                 "containers"
             ][0]["resources"]["requests"]["cpu"],
