@@ -29,6 +29,7 @@ from codeflare_sdk.cluster.cluster import (
     list_all_clusters,
     list_all_queued,
     _copy_to_ray,
+    get_cluster,
     _app_wrapper_status,
     _ray_cluster_status,
 )
@@ -614,6 +615,7 @@ def get_ray_obj(group, version, namespace, plural, cls=None):
                         "appwrapper.mcad.ibm.com": "quicktest",
                         "controller-tools.k8s.io": "1.0",
                         "resourceName": "quicktest",
+                        "orderedinstance": "m4.xlarge_g4dn.xlarge",
                     },
                     "managedFields": [
                         {
@@ -791,10 +793,10 @@ def get_ray_obj(group, version, namespace, plural, cls=None):
                     "workerGroupSpecs": [
                         {
                             "groupName": "small-group-quicktest",
-                            "maxReplicas": 1,
-                            "minReplicas": 1,
+                            "maxReplicas": 2,
+                            "minReplicas": 2,
                             "rayStartParams": {"block": "true", "num-gpus": "0"},
-                            "replicas": 1,
+                            "replicas": 2,
                             "template": {
                                 "metadata": {
                                     "annotations": {"key": "value"},
@@ -1527,6 +1529,30 @@ def get_aw_obj(group, version, namespace, plural):
         ]
     }
     return api_obj1
+
+
+def test_get_cluster(mocker):
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
+        side_effect=get_ray_obj,
+    )
+    cluster = get_cluster("quicktest")
+    cluster_config = cluster.config
+    assert cluster_config.name == "quicktest" and cluster_config.namespace == "ns"
+    assert (
+        "m4.xlarge" in cluster_config.machine_types
+        and "g4dn.xlarge" in cluster_config.machine_types
+    )
+    assert cluster_config.min_cpus == 1 and cluster_config.max_cpus == 1
+    assert cluster_config.min_memory == 2 and cluster_config.max_memory == 2
+    assert cluster_config.gpu == 0
+    assert cluster_config.instascale
+    assert (
+        cluster_config.image
+        == "ghcr.io/foundation-model-stack/base:ray2.1.0-py38-gpu-pytorch1.12.0cu116-20221213-193103"
+    )
+    assert cluster_config.min_worker == 2 and cluster_config.max_worker == 2
 
 
 def test_list_clusters(mocker, capsys):
