@@ -301,6 +301,49 @@ class Cluster:
             to_return["requirements"] = requirements
         return to_return
 
+    def from_k8_cluster_object(rc):
+        machine_types = (
+            rc["metadata"]["labels"]["orderedinstance"].split("_")
+            if "orderedinstance" in rc["metadata"]["labels"]
+            else []
+        )
+        local_interactive = (
+            "volumeMounts"
+            in rc["spec"]["workerGroupSpecs"][0]["template"]["spec"]["containers"][0]
+        )
+        cluster_config = ClusterConfiguration(
+            name=rc["metadata"]["name"],
+            namespace=rc["metadata"]["namespace"],
+            machine_types=machine_types,
+            min_worker=rc["spec"]["workerGroupSpecs"][0]["minReplicas"],
+            max_worker=rc["spec"]["workerGroupSpecs"][0]["maxReplicas"],
+            min_cpus=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"][
+                "containers"
+            ][0]["resources"]["requests"]["cpu"],
+            max_cpus=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"][
+                "containers"
+            ][0]["resources"]["limits"]["cpu"],
+            min_memory=int(
+                rc["spec"]["workerGroupSpecs"][0]["template"]["spec"]["containers"][0][
+                    "resources"
+                ]["requests"]["memory"][:-1]
+            ),
+            max_memory=int(
+                rc["spec"]["workerGroupSpecs"][0]["template"]["spec"]["containers"][0][
+                    "resources"
+                ]["limits"]["memory"][:-1]
+            ),
+            gpu=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"]["containers"][0][
+                "resources"
+            ]["limits"]["nvidia.com/gpu"],
+            instascale=True if machine_types else False,
+            image=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"]["containers"][
+                0
+            ]["image"],
+            local_interactive=local_interactive,
+        )
+        return Cluster(cluster_config)
+
 
 def list_all_clusters(namespace: str, print_to_console: bool = True):
     """
@@ -335,6 +378,27 @@ def get_current_namespace():  # pragma: no cover
         return active_context["context"]["namespace"]
     except KeyError:
         return "default"
+
+
+def get_cluster(cluster_name: str, namespace: str = "default"):
+    try:
+        config.load_kube_config()
+        api_instance = client.CustomObjectsApi()
+        rcs = api_instance.list_namespaced_custom_object(
+            group="ray.io",
+            version="v1alpha1",
+            namespace=namespace,
+            plural="rayclusters",
+        )
+    except Exception as e:
+        return _kube_api_error_handling(e)
+
+    for rc in rcs["items"]:
+        if rc["metadata"]["name"] == cluster_name:
+            return Cluster.from_k8_cluster_object(rc)
+    raise FileNotFoundError(
+        f"Cluster {cluster_name} is not found in {namespace} namespace"
+    )
 
 
 # private methods
