@@ -52,6 +52,7 @@ import yaml
 import sys
 import argparse
 import uuid
+import openshift as oc
 
 
 def read_template(template):
@@ -75,6 +76,16 @@ def gen_names(name):
 def update_dashboard_route(route_item, cluster_name, namespace):
     metadata = route_item.get(&#34;generictemplate&#34;, {}).get(&#34;metadata&#34;)
     metadata[&#34;name&#34;] = f&#34;ray-dashboard-{cluster_name}&#34;
+    metadata[&#34;namespace&#34;] = namespace
+    metadata[&#34;labels&#34;][&#34;odh-ray-cluster-service&#34;] = f&#34;{cluster_name}-head-svc&#34;
+    spec = route_item.get(&#34;generictemplate&#34;, {}).get(&#34;spec&#34;)
+    spec[&#34;to&#34;][&#34;name&#34;] = f&#34;{cluster_name}-head-svc&#34;
+
+
+# ToDo: refactor the update_x_route() functions
+def update_rayclient_route(route_item, cluster_name, namespace):
+    metadata = route_item.get(&#34;generictemplate&#34;, {}).get(&#34;metadata&#34;)
+    metadata[&#34;name&#34;] = f&#34;rayclient-{cluster_name}&#34;
     metadata[&#34;namespace&#34;] = namespace
     metadata[&#34;labels&#34;][&#34;odh-ray-cluster-service&#34;] = f&#34;{cluster_name}-head-svc&#34;
     spec = route_item.get(&#34;generictemplate&#34;, {}).get(&#34;spec&#34;)
@@ -161,6 +172,13 @@ def update_image(spec, image):
         container[&#34;image&#34;] = image
 
 
+def update_image_pull_secrets(spec, image_pull_secrets):
+    template_secrets = spec.get(&#34;imagePullSecrets&#34;, [])
+    spec[&#34;imagePullSecrets&#34;] = template_secrets + [
+        {&#34;name&#34;: x} for x in image_pull_secrets
+    ]
+
+
 def update_env(spec, env):
     containers = spec.get(&#34;containers&#34;)
     for container in containers:
@@ -198,6 +216,7 @@ def update_nodes(
     image,
     instascale,
     env,
+    image_pull_secrets,
 ):
     if &#34;generictemplate&#34; in item.keys():
         head = item.get(&#34;generictemplate&#34;).get(&#34;spec&#34;).get(&#34;headGroupSpec&#34;)
@@ -213,6 +232,7 @@ def update_nodes(
         for comp in [head, worker]:
             spec = comp.get(&#34;template&#34;).get(&#34;spec&#34;)
             update_affinity(spec, appwrapper_name, instascale)
+            update_image_pull_secrets(spec, image_pull_secrets)
             update_image(spec, image)
             update_env(spec, env)
             if comp == head:
@@ -220,6 +240,78 @@ def update_nodes(
                 continue
             else:
                 update_resources(spec, min_cpu, max_cpu, min_memory, max_memory, gpu)
+
+
+def update_ca_secret(ca_secret_item, cluster_name, namespace):
+    from . import generate_cert
+
+    metadata = ca_secret_item.get(&#34;generictemplate&#34;, {}).get(&#34;metadata&#34;)
+    metadata[&#34;name&#34;] = f&#34;ca-secret-{cluster_name}&#34;
+    metadata[&#34;namespace&#34;] = namespace
+    metadata[&#34;labels&#34;][&#34;odh-ray-cluster-service&#34;] = f&#34;{cluster_name}-head-svc&#34;
+    data = ca_secret_item.get(&#34;generictemplate&#34;, {}).get(&#34;data&#34;)
+    data[&#34;ca.key&#34;], data[&#34;ca.crt&#34;] = generate_cert.generate_ca_cert(365)
+
+
+def enable_local_interactive(resources, cluster_name, namespace):
+    rayclient_route_item = resources[&#34;resources&#34;].get(&#34;GenericItems&#34;)[2]
+    ca_secret_item = resources[&#34;resources&#34;].get(&#34;GenericItems&#34;)[3]
+    item = resources[&#34;resources&#34;].get(&#34;GenericItems&#34;)[0]
+    update_rayclient_route(rayclient_route_item, cluster_name, namespace)
+    update_ca_secret(ca_secret_item, cluster_name, namespace)
+    # update_ca_secret_volumes
+    item[&#34;generictemplate&#34;][&#34;spec&#34;][&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;][&#34;volumes&#34;][0][
+        &#34;secret&#34;
+    ][&#34;secretName&#34;] = f&#34;ca-secret-{cluster_name}&#34;
+    item[&#34;generictemplate&#34;][&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][
+        &#34;volumes&#34;
+    ][0][&#34;secret&#34;][&#34;secretName&#34;] = f&#34;ca-secret-{cluster_name}&#34;
+    # update_tls_env
+    item[&#34;generictemplate&#34;][&#34;spec&#34;][&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;][&#34;containers&#34;][
+        0
+    ][&#34;env&#34;][1][&#34;value&#34;] = &#34;1&#34;
+    item[&#34;generictemplate&#34;][&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][
+        &#34;containers&#34;
+    ][0][&#34;env&#34;][1][&#34;value&#34;] = &#34;1&#34;
+    # update_init_container
+    command = item[&#34;generictemplate&#34;][&#34;spec&#34;][&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;][
+        &#34;initContainers&#34;
+    ][0].get(&#34;command&#34;)[2]
+
+    command = command.replace(&#34;deployment-name&#34;, cluster_name)
+
+    server_name = (
+        oc.whoami(&#34;--show-server&#34;).split(&#34;:&#34;)[1].split(&#34;//&#34;)[1].replace(&#34;api&#34;, &#34;apps&#34;)
+    )
+
+    command = command.replace(&#34;server-name&#34;, server_name)
+
+    item[&#34;generictemplate&#34;][&#34;spec&#34;][&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;][
+        &#34;initContainers&#34;
+    ][0].get(&#34;command&#34;)[2] = command
+
+
+def disable_raycluster_tls(resources):
+    del resources[&#34;GenericItems&#34;][0][&#34;generictemplate&#34;][&#34;spec&#34;][&#34;headGroupSpec&#34;][
+        &#34;template&#34;
+    ][&#34;spec&#34;][&#34;volumes&#34;]
+    del resources[&#34;GenericItems&#34;][0][&#34;generictemplate&#34;][&#34;spec&#34;][&#34;headGroupSpec&#34;][
+        &#34;template&#34;
+    ][&#34;spec&#34;][&#34;containers&#34;][0][&#34;volumeMounts&#34;]
+    del resources[&#34;GenericItems&#34;][0][&#34;generictemplate&#34;][&#34;spec&#34;][&#34;headGroupSpec&#34;][
+        &#34;template&#34;
+    ][&#34;spec&#34;][&#34;initContainers&#34;]
+    del resources[&#34;GenericItems&#34;][0][&#34;generictemplate&#34;][&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][
+        &#34;template&#34;
+    ][&#34;spec&#34;][&#34;volumes&#34;]
+    del resources[&#34;GenericItems&#34;][0][&#34;generictemplate&#34;][&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][
+        &#34;template&#34;
+    ][&#34;spec&#34;][&#34;containers&#34;][0][&#34;volumeMounts&#34;]
+    del resources[&#34;GenericItems&#34;][0][&#34;generictemplate&#34;][&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][
+        &#34;template&#34;
+    ][&#34;spec&#34;][&#34;initContainers&#34;][1]
+    del resources[&#34;GenericItems&#34;][3]  # rayclient route
+    del resources[&#34;GenericItems&#34;][2]  # ca-secret
 
 
 def write_user_appwrapper(user_yaml, output_file_name):
@@ -242,6 +334,8 @@ def generate_appwrapper(
     instascale: bool,
     instance_types: list,
     env,
+    local_interactive: bool,
+    image_pull_secrets: list,
 ):
     user_yaml = read_template(template)
     appwrapper_name, cluster_name = gen_names(name)
@@ -265,8 +359,13 @@ def generate_appwrapper(
         image,
         instascale,
         env,
+        image_pull_secrets,
     )
     update_dashboard_route(route_item, cluster_name, namespace)
+    if local_interactive:
+        enable_local_interactive(resources, cluster_name, namespace)
+    else:
+        disable_raycluster_tls(resources[&#34;resources&#34;])
     outfile = appwrapper_name + &#34;.yaml&#34;
     write_user_appwrapper(user_yaml, outfile)
     return outfile
@@ -346,6 +445,18 @@ def main():  # pragma: no cover
         default=&#34;default&#34;,
         help=&#34;Set the kubernetes namespace you want to deploy your cluster to. Default. If left blank, uses the &#39;default&#39; namespace&#34;,
     )
+    parser.add_argument(
+        &#34;--local-interactive&#34;,
+        required=False,
+        default=False,
+        help=&#34;Enable local interactive mode&#34;,
+    )
+    parser.add_argument(
+        &#34;--image-pull-secrets&#34;,
+        required=False,
+        default=[],
+        help=&#34;Set image pull secrets for private registries&#34;,
+    )
 
     args = parser.parse_args()
     name = args.name
@@ -360,7 +471,9 @@ def main():  # pragma: no cover
     instascale = args.instascale
     instance_types = args.instance_types
     namespace = args.namespace
+    local_interactive = args.local_interactive
     env = {}
+    image_pull_secrets = args.image_pull_secrets
 
     outfile = generate_appwrapper(
         name,
@@ -375,7 +488,9 @@ def main():  # pragma: no cover
         image,
         instascale,
         instance_types,
+        local_interactive,
         env,
+        image_pull_secrets,
     )
     return outfile
 
@@ -391,6 +506,85 @@ if __name__ == &#34;__main__&#34;:  # pragma: no cover
 <section>
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
+<dt id="codeflare_sdk.utils.generate_yaml.disable_raycluster_tls"><code class="name flex">
+<span>def <span class="ident">disable_raycluster_tls</span></span>(<span>resources)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def disable_raycluster_tls(resources):
+    del resources[&#34;GenericItems&#34;][0][&#34;generictemplate&#34;][&#34;spec&#34;][&#34;headGroupSpec&#34;][
+        &#34;template&#34;
+    ][&#34;spec&#34;][&#34;volumes&#34;]
+    del resources[&#34;GenericItems&#34;][0][&#34;generictemplate&#34;][&#34;spec&#34;][&#34;headGroupSpec&#34;][
+        &#34;template&#34;
+    ][&#34;spec&#34;][&#34;containers&#34;][0][&#34;volumeMounts&#34;]
+    del resources[&#34;GenericItems&#34;][0][&#34;generictemplate&#34;][&#34;spec&#34;][&#34;headGroupSpec&#34;][
+        &#34;template&#34;
+    ][&#34;spec&#34;][&#34;initContainers&#34;]
+    del resources[&#34;GenericItems&#34;][0][&#34;generictemplate&#34;][&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][
+        &#34;template&#34;
+    ][&#34;spec&#34;][&#34;volumes&#34;]
+    del resources[&#34;GenericItems&#34;][0][&#34;generictemplate&#34;][&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][
+        &#34;template&#34;
+    ][&#34;spec&#34;][&#34;containers&#34;][0][&#34;volumeMounts&#34;]
+    del resources[&#34;GenericItems&#34;][0][&#34;generictemplate&#34;][&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][
+        &#34;template&#34;
+    ][&#34;spec&#34;][&#34;initContainers&#34;][1]
+    del resources[&#34;GenericItems&#34;][3]  # rayclient route
+    del resources[&#34;GenericItems&#34;][2]  # ca-secret</code></pre>
+</details>
+</dd>
+<dt id="codeflare_sdk.utils.generate_yaml.enable_local_interactive"><code class="name flex">
+<span>def <span class="ident">enable_local_interactive</span></span>(<span>resources, cluster_name, namespace)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def enable_local_interactive(resources, cluster_name, namespace):
+    rayclient_route_item = resources[&#34;resources&#34;].get(&#34;GenericItems&#34;)[2]
+    ca_secret_item = resources[&#34;resources&#34;].get(&#34;GenericItems&#34;)[3]
+    item = resources[&#34;resources&#34;].get(&#34;GenericItems&#34;)[0]
+    update_rayclient_route(rayclient_route_item, cluster_name, namespace)
+    update_ca_secret(ca_secret_item, cluster_name, namespace)
+    # update_ca_secret_volumes
+    item[&#34;generictemplate&#34;][&#34;spec&#34;][&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;][&#34;volumes&#34;][0][
+        &#34;secret&#34;
+    ][&#34;secretName&#34;] = f&#34;ca-secret-{cluster_name}&#34;
+    item[&#34;generictemplate&#34;][&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][
+        &#34;volumes&#34;
+    ][0][&#34;secret&#34;][&#34;secretName&#34;] = f&#34;ca-secret-{cluster_name}&#34;
+    # update_tls_env
+    item[&#34;generictemplate&#34;][&#34;spec&#34;][&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;][&#34;containers&#34;][
+        0
+    ][&#34;env&#34;][1][&#34;value&#34;] = &#34;1&#34;
+    item[&#34;generictemplate&#34;][&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][
+        &#34;containers&#34;
+    ][0][&#34;env&#34;][1][&#34;value&#34;] = &#34;1&#34;
+    # update_init_container
+    command = item[&#34;generictemplate&#34;][&#34;spec&#34;][&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;][
+        &#34;initContainers&#34;
+    ][0].get(&#34;command&#34;)[2]
+
+    command = command.replace(&#34;deployment-name&#34;, cluster_name)
+
+    server_name = (
+        oc.whoami(&#34;--show-server&#34;).split(&#34;:&#34;)[1].split(&#34;//&#34;)[1].replace(&#34;api&#34;, &#34;apps&#34;)
+    )
+
+    command = command.replace(&#34;server-name&#34;, server_name)
+
+    item[&#34;generictemplate&#34;][&#34;spec&#34;][&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;][
+        &#34;initContainers&#34;
+    ][0].get(&#34;command&#34;)[2] = command</code></pre>
+</details>
+</dd>
 <dt id="codeflare_sdk.utils.generate_yaml.gen_names"><code class="name flex">
 <span>def <span class="ident">gen_names</span></span>(<span>name)</span>
 </code></dt>
@@ -411,7 +605,7 @@ if __name__ == &#34;__main__&#34;:  # pragma: no cover
 </details>
 </dd>
 <dt id="codeflare_sdk.utils.generate_yaml.generate_appwrapper"><code class="name flex">
-<span>def <span class="ident">generate_appwrapper</span></span>(<span>name: str, namespace: str, min_cpu: int, max_cpu: int, min_memory: int, max_memory: int, gpu: int, workers: int, template: str, image: str, instascale: bool, instance_types: list, env)</span>
+<span>def <span class="ident">generate_appwrapper</span></span>(<span>name: str, namespace: str, min_cpu: int, max_cpu: int, min_memory: int, max_memory: int, gpu: int, workers: int, template: str, image: str, instascale: bool, instance_types: list, env, local_interactive: bool, image_pull_secrets: list)</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -433,6 +627,8 @@ if __name__ == &#34;__main__&#34;:  # pragma: no cover
     instascale: bool,
     instance_types: list,
     env,
+    local_interactive: bool,
+    image_pull_secrets: list,
 ):
     user_yaml = read_template(template)
     appwrapper_name, cluster_name = gen_names(name)
@@ -456,8 +652,13 @@ if __name__ == &#34;__main__&#34;:  # pragma: no cover
         image,
         instascale,
         env,
+        image_pull_secrets,
     )
     update_dashboard_route(route_item, cluster_name, namespace)
+    if local_interactive:
+        enable_local_interactive(resources, cluster_name, namespace)
+    else:
+        disable_raycluster_tls(resources[&#34;resources&#34;])
     outfile = appwrapper_name + &#34;.yaml&#34;
     write_user_appwrapper(user_yaml, outfile)
     return outfile</code></pre>
@@ -546,6 +747,18 @@ if __name__ == &#34;__main__&#34;:  # pragma: no cover
         default=&#34;default&#34;,
         help=&#34;Set the kubernetes namespace you want to deploy your cluster to. Default. If left blank, uses the &#39;default&#39; namespace&#34;,
     )
+    parser.add_argument(
+        &#34;--local-interactive&#34;,
+        required=False,
+        default=False,
+        help=&#34;Enable local interactive mode&#34;,
+    )
+    parser.add_argument(
+        &#34;--image-pull-secrets&#34;,
+        required=False,
+        default=[],
+        help=&#34;Set image pull secrets for private registries&#34;,
+    )
 
     args = parser.parse_args()
     name = args.name
@@ -560,7 +773,9 @@ if __name__ == &#34;__main__&#34;:  # pragma: no cover
     instascale = args.instascale
     instance_types = args.instance_types
     namespace = args.namespace
+    local_interactive = args.local_interactive
     env = {}
+    image_pull_secrets = args.image_pull_secrets
 
     outfile = generate_appwrapper(
         name,
@@ -575,7 +790,9 @@ if __name__ == &#34;__main__&#34;:  # pragma: no cover
         image,
         instascale,
         instance_types,
+        local_interactive,
         env,
+        image_pull_secrets,
     )
     return outfile</code></pre>
 </details>
@@ -618,6 +835,26 @@ if __name__ == &#34;__main__&#34;:  # pragma: no cover
         node_selector_terms[0][&#34;matchExpressions&#34;][0][&#34;key&#34;] = appwrapper_name
     else:
         spec.pop(&#34;affinity&#34;)</code></pre>
+</details>
+</dd>
+<dt id="codeflare_sdk.utils.generate_yaml.update_ca_secret"><code class="name flex">
+<span>def <span class="ident">update_ca_secret</span></span>(<span>ca_secret_item, cluster_name, namespace)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def update_ca_secret(ca_secret_item, cluster_name, namespace):
+    from . import generate_cert
+
+    metadata = ca_secret_item.get(&#34;generictemplate&#34;, {}).get(&#34;metadata&#34;)
+    metadata[&#34;name&#34;] = f&#34;ca-secret-{cluster_name}&#34;
+    metadata[&#34;namespace&#34;] = namespace
+    metadata[&#34;labels&#34;][&#34;odh-ray-cluster-service&#34;] = f&#34;{cluster_name}-head-svc&#34;
+    data = ca_secret_item.get(&#34;generictemplate&#34;, {}).get(&#34;data&#34;)
+    data[&#34;ca.key&#34;], data[&#34;ca.crt&#34;] = generate_cert.generate_ca_cert(365)</code></pre>
 </details>
 </dd>
 <dt id="codeflare_sdk.utils.generate_yaml.update_custompodresources"><code class="name flex">
@@ -715,6 +952,22 @@ if __name__ == &#34;__main__&#34;:  # pragma: no cover
         container[&#34;image&#34;] = image</code></pre>
 </details>
 </dd>
+<dt id="codeflare_sdk.utils.generate_yaml.update_image_pull_secrets"><code class="name flex">
+<span>def <span class="ident">update_image_pull_secrets</span></span>(<span>spec, image_pull_secrets)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def update_image_pull_secrets(spec, image_pull_secrets):
+    template_secrets = spec.get(&#34;imagePullSecrets&#34;, [])
+    spec[&#34;imagePullSecrets&#34;] = template_secrets + [
+        {&#34;name&#34;: x} for x in image_pull_secrets
+    ]</code></pre>
+</details>
+</dd>
 <dt id="codeflare_sdk.utils.generate_yaml.update_labels"><code class="name flex">
 <span>def <span class="ident">update_labels</span></span>(<span>yaml, instascale, instance_types)</span>
 </code></dt>
@@ -760,7 +1013,7 @@ if __name__ == &#34;__main__&#34;:  # pragma: no cover
 </details>
 </dd>
 <dt id="codeflare_sdk.utils.generate_yaml.update_nodes"><code class="name flex">
-<span>def <span class="ident">update_nodes</span></span>(<span>item, appwrapper_name, min_cpu, max_cpu, min_memory, max_memory, gpu, workers, image, instascale, env)</span>
+<span>def <span class="ident">update_nodes</span></span>(<span>item, appwrapper_name, min_cpu, max_cpu, min_memory, max_memory, gpu, workers, image, instascale, env, image_pull_secrets)</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -780,6 +1033,7 @@ if __name__ == &#34;__main__&#34;:  # pragma: no cover
     image,
     instascale,
     env,
+    image_pull_secrets,
 ):
     if &#34;generictemplate&#34; in item.keys():
         head = item.get(&#34;generictemplate&#34;).get(&#34;spec&#34;).get(&#34;headGroupSpec&#34;)
@@ -795,6 +1049,7 @@ if __name__ == &#34;__main__&#34;:  # pragma: no cover
         for comp in [head, worker]:
             spec = comp.get(&#34;template&#34;).get(&#34;spec&#34;)
             update_affinity(spec, appwrapper_name, instascale)
+            update_image_pull_secrets(spec, image_pull_secrets)
             update_image(spec, image)
             update_env(spec, env)
             if comp == head:
@@ -802,6 +1057,24 @@ if __name__ == &#34;__main__&#34;:  # pragma: no cover
                 continue
             else:
                 update_resources(spec, min_cpu, max_cpu, min_memory, max_memory, gpu)</code></pre>
+</details>
+</dd>
+<dt id="codeflare_sdk.utils.generate_yaml.update_rayclient_route"><code class="name flex">
+<span>def <span class="ident">update_rayclient_route</span></span>(<span>route_item, cluster_name, namespace)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def update_rayclient_route(route_item, cluster_name, namespace):
+    metadata = route_item.get(&#34;generictemplate&#34;, {}).get(&#34;metadata&#34;)
+    metadata[&#34;name&#34;] = f&#34;rayclient-{cluster_name}&#34;
+    metadata[&#34;namespace&#34;] = namespace
+    metadata[&#34;labels&#34;][&#34;odh-ray-cluster-service&#34;] = f&#34;{cluster_name}-head-svc&#34;
+    spec = route_item.get(&#34;generictemplate&#34;, {}).get(&#34;spec&#34;)
+    spec[&#34;to&#34;][&#34;name&#34;] = f&#34;{cluster_name}-head-svc&#34;</code></pre>
 </details>
 </dd>
 <dt id="codeflare_sdk.utils.generate_yaml.update_resources"><code class="name flex">
@@ -861,18 +1134,23 @@ if __name__ == &#34;__main__&#34;:  # pragma: no cover
 </li>
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
+<li><code><a title="codeflare_sdk.utils.generate_yaml.disable_raycluster_tls" href="#codeflare_sdk.utils.generate_yaml.disable_raycluster_tls">disable_raycluster_tls</a></code></li>
+<li><code><a title="codeflare_sdk.utils.generate_yaml.enable_local_interactive" href="#codeflare_sdk.utils.generate_yaml.enable_local_interactive">enable_local_interactive</a></code></li>
 <li><code><a title="codeflare_sdk.utils.generate_yaml.gen_names" href="#codeflare_sdk.utils.generate_yaml.gen_names">gen_names</a></code></li>
 <li><code><a title="codeflare_sdk.utils.generate_yaml.generate_appwrapper" href="#codeflare_sdk.utils.generate_yaml.generate_appwrapper">generate_appwrapper</a></code></li>
 <li><code><a title="codeflare_sdk.utils.generate_yaml.main" href="#codeflare_sdk.utils.generate_yaml.main">main</a></code></li>
 <li><code><a title="codeflare_sdk.utils.generate_yaml.read_template" href="#codeflare_sdk.utils.generate_yaml.read_template">read_template</a></code></li>
 <li><code><a title="codeflare_sdk.utils.generate_yaml.update_affinity" href="#codeflare_sdk.utils.generate_yaml.update_affinity">update_affinity</a></code></li>
+<li><code><a title="codeflare_sdk.utils.generate_yaml.update_ca_secret" href="#codeflare_sdk.utils.generate_yaml.update_ca_secret">update_ca_secret</a></code></li>
 <li><code><a title="codeflare_sdk.utils.generate_yaml.update_custompodresources" href="#codeflare_sdk.utils.generate_yaml.update_custompodresources">update_custompodresources</a></code></li>
 <li><code><a title="codeflare_sdk.utils.generate_yaml.update_dashboard_route" href="#codeflare_sdk.utils.generate_yaml.update_dashboard_route">update_dashboard_route</a></code></li>
 <li><code><a title="codeflare_sdk.utils.generate_yaml.update_env" href="#codeflare_sdk.utils.generate_yaml.update_env">update_env</a></code></li>
 <li><code><a title="codeflare_sdk.utils.generate_yaml.update_image" href="#codeflare_sdk.utils.generate_yaml.update_image">update_image</a></code></li>
+<li><code><a title="codeflare_sdk.utils.generate_yaml.update_image_pull_secrets" href="#codeflare_sdk.utils.generate_yaml.update_image_pull_secrets">update_image_pull_secrets</a></code></li>
 <li><code><a title="codeflare_sdk.utils.generate_yaml.update_labels" href="#codeflare_sdk.utils.generate_yaml.update_labels">update_labels</a></code></li>
 <li><code><a title="codeflare_sdk.utils.generate_yaml.update_names" href="#codeflare_sdk.utils.generate_yaml.update_names">update_names</a></code></li>
 <li><code><a title="codeflare_sdk.utils.generate_yaml.update_nodes" href="#codeflare_sdk.utils.generate_yaml.update_nodes">update_nodes</a></code></li>
+<li><code><a title="codeflare_sdk.utils.generate_yaml.update_rayclient_route" href="#codeflare_sdk.utils.generate_yaml.update_rayclient_route">update_rayclient_route</a></code></li>
 <li><code><a title="codeflare_sdk.utils.generate_yaml.update_resources" href="#codeflare_sdk.utils.generate_yaml.update_resources">update_resources</a></code></li>
 <li><code><a title="codeflare_sdk.utils.generate_yaml.write_user_appwrapper" href="#codeflare_sdk.utils.generate_yaml.write_user_appwrapper">write_user_appwrapper</a></code></li>
 </ul>
