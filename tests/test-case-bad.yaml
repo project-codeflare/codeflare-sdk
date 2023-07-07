@@ -73,7 +73,7 @@ spec:
                     valueFrom:
                       fieldRef:
                         fieldPath: status.podIP
-                  image: rayproject/ray:2.5.0-py38-cu116
+                  image: quay.io/project-codeflare/ray:2.5.0-py38-cu116
                   imagePullPolicy: Always
                   lifecycle:
                     preStop:
@@ -130,7 +130,7 @@ spec:
                     valueFrom:
                       fieldRef:
                         fieldPath: status.podIP
-                  image: rayproject/ray:2.5.0-py38-cu116\
+                  image: quay.io/project-codeflare/ray:2.5.0-py38-cu116
                   lifecycle:
                     preStop:
                       exec:
