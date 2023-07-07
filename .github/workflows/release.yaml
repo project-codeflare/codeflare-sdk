@@ -6,9 +6,9 @@ on:
             release-version:
               type: string
               required: true
-              description: 'Version number (for example: 0.1.0)'
-            is-latest:
-              description: 'Select if the built image should be tagged as latest'
+              description: 'Version number (This should not include `v`, for example: 0.1.0)'
+            is-stable:
+              description: 'Select if the built image should be tagged as stable'
               required: true
               type: boolean
             quay-organization:
@@ -57,25 +57,27 @@ jobs:
               uses: stefanzweifel/git-auto-commit-action@v4
               with:
                 file_pattern: 'docs'
-                commit_message: "Changes in docs for release: v${{ github.event.inputs.release-version }}"
-            - name: Create Github release
-              uses: ncipollo/release-action@v1
-              with:
-                  tag: "v${{ github.event.inputs.release-version }}"
+                commit_message: "Changes in docs for release: ${{ github.event.inputs.release-version }}"
 
             - name: Image Build
               run: |
                 cd custom-nb-image
-                docker build --build-arg SDK_VERSION="${{ github.event.inputs.release-version }}" -t quay.io/${{ github.event.inputs.quay-organization }}/notebook:v${{ github.event.inputs.release-version }} .
-                docker tag quay.io/${{ github.event.inputs.quay-organization }}/notebook:v${{ github.event.inputs.release-version }} quay.io/${{ github.event.inputs.quay-organization }}/notebook:latest
+                podman build --build-arg SDK_VERSION="${{ github.event.inputs.release-version }}" -t quay.io/${{ github.event.inputs.quay-organization }}/notebook:v${{ github.event.inputs.release-version }} .
+
             - name: Login to Quay.io
               uses: docker/login-action@v2
               with:
                 registry: quay.io
                 username: ${{ secrets.QUAY_ID }}
                 password: ${{ secrets.QUAY_TOKEN }}
+
             - name: Image Push
-              run: docker push quay.io/${{ github.event.inputs.quay-organization }}/notebook:v${{ github.event.inputs.release-version }}
-            - name: Image Push Latest
-              if: ${{ inputs.is-latest }}
-              run: docker push quay.io/${{ github.event.inputs.quay-organization }}/notebook:latest
+              run: |
+                podman push quay.io/${{ github.event.inputs.quay-organization }}/notebook:v${{ github.event.inputs.release-version }}
+                podman push quay.io/${{ github.event.inputs.quay-organization }}/notebook:v${{ github.event.inputs.release-version }} quay.io/${{ github.event.inputs.quay-organization }}/notebook:stable
+
+            - name: Create Github release
+              uses: ncipollo/release-action@v1
+              with:
+                  tag: "${{ github.event.inputs.release-version }}"
+                  generateReleaseNotes: true
