@@ -74,6 +74,10 @@ jobs:
             - name: Image Push
               run: |
                 podman push quay.io/${{ github.event.inputs.quay-organization }}/notebook:v${{ github.event.inputs.release-version }}
+
+            - name: Image Push Stable
+              if: ${{github.event.inputs.is-stable}}
+              run: |
                 podman push quay.io/${{ github.event.inputs.quay-organization }}/notebook:v${{ github.event.inputs.release-version }} quay.io/${{ github.event.inputs.quay-organization }}/notebook:stable
 
             - name: Create Github release
