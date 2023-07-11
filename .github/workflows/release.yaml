@@ -83,5 +83,5 @@ jobs:
             - name: Create Github release
               uses: ncipollo/release-action@v1
               with:
-                  tag: "${{ github.event.inputs.release-version }}"
+                  tag: "v${{ github.event.inputs.release-version }}"
                   generateReleaseNotes: true
