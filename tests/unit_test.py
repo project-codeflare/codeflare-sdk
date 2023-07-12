@@ -793,10 +793,10 @@ def get_ray_obj(group, version, namespace, plural, cls=None):
                     "workerGroupSpecs": [
                         {
                             "groupName": "small-group-quicktest",
-                            "maxReplicas": 2,
-                            "minReplicas": 2,
+                            "maxReplicas": 1,
+                            "minReplicas": 1,
                             "rayStartParams": {"block": "true", "num-gpus": "0"},
-                            "replicas": 2,
+                            "replicas": 1,
                             "template": {
                                 "metadata": {
                                     "annotations": {"key": "value"},
@@ -1552,7 +1552,7 @@ def test_get_cluster(mocker):
         cluster_config.image
         == "ghcr.io/foundation-model-stack/base:ray2.1.0-py38-gpu-pytorch1.12.0cu116-20221213-193103"
     )
-    assert cluster_config.min_worker == 2 and cluster_config.max_worker == 2
+    assert cluster_config.min_worker == 1 and cluster_config.max_worker == 1
 
 
 def test_list_clusters(mocker, capsys):
