@@ -22,6 +22,7 @@ import sys
 import argparse
 import uuid
 from kubernetes import client, config
+from .kube_api_helpers import _kube_api_error_handling
 
 
 def read_template(template):
@@ -239,11 +240,14 @@ def enable_local_interactive(resources, cluster_name, namespace):
     ][0].get("command")[2]
 
     command = command.replace("deployment-name", cluster_name)
-    config.load_kube_config()
-    api_client = client.CustomObjectsApi()
-    ingress = api_client.get_cluster_custom_object(
-        "config.openshift.io", "v1", "ingresses", "cluster"
-    )
+    try:
+        config.load_kube_config()
+        api_client = client.CustomObjectsApi()
+        ingress = api_client.get_cluster_custom_object(
+            "config.openshift.io", "v1", "ingresses", "cluster"
+        )
+    except Exception as e:  # pragma: no cover
+            return _kube_api_error_handling(e)
     domain = ingress["spec"]["domain"]
     command = command.replace("server-name", domain)
 

@@ -20,11 +20,10 @@ submission and deletion of existing AppWrappers from a user's file system.
 from os.path import isfile
 import errno
 import os
-import openshift as oc
 import yaml
 
 from kubernetes import client, config
-from .cluster import _kube_api_error_handling
+from ..utils.kube_api_helpers import _kube_api_error_handling
 
 
 class AWManager:
