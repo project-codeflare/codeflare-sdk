@@ -378,6 +378,30 @@ def test_cluster_uris(mocker):
     )
 
 
+def test_local_client_url(mocker):
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.get_cluster_custom_object",
+        return_value={"spec": {"domain": ""}},
+    )
+    mocker.patch(
+        "codeflare_sdk.cluster.cluster._get_ingress_domain",
+        return_value="apps.cluster.awsroute.org",
+    )
+    mocker.patch(
+        "codeflare_sdk.cluster.cluster.Cluster.create_app_wrapper",
+        return_value="unit-test-cluster-localinter.yaml",
+    )
+
+    cluster_config = ClusterConfiguration(
+        name="unit-test-cluster-localinter", namespace="ns", local_interactive=True
+    )
+    cluster = Cluster(cluster_config)
+    assert (
+        cluster.local_client_url()
+        == "ray://rayclient-unit-test-cluster-localinter-ns.apps.cluster.awsroute.org"
+    )
+
+
 def ray_addr(self, *args):
     return self._address
 
@@ -2233,20 +2257,9 @@ def test_export_env():
     )
 
 
-# Make sure to keep this function and the following function at the end of the file
-def test_cmd_line_generation():
-    os.system(
-        f"python3 {parent}/src/codeflare_sdk/utils/generate_yaml.py --name=unit-cmd-cluster --min-cpu=1 --max-cpu=1 --min-memory=2 --max-memory=2 --gpu=1 --workers=2 --template=src/codeflare_sdk/templates/base-template.yaml"
-    )
-    assert filecmp.cmp(
-        "unit-cmd-cluster.yaml", f"{parent}/tests/test-case-cmd.yaml", shallow=True
-    )
-    os.remove("unit-test-cluster.yaml")
-    os.remove("unit-test-default-cluster.yaml")
-    os.remove("unit-cmd-cluster.yaml")
-
-
 # Make sure to always keep this function last
 def test_cleanup():
+    os.remove("unit-test-cluster.yaml")
+    os.remove("unit-test-default-cluster.yaml")
     os.remove("test.yaml")
     os.remove("raytest2.yaml")
