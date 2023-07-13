@@ -22,7 +22,7 @@ import sys
 import argparse
 import uuid
 from kubernetes import client, config
-from codeflare_sdk.utils.kube_api_helpers import _kube_api_error_handling
+from .kube_api_helpers import _kube_api_error_handling
 
 
 def read_template(template):
