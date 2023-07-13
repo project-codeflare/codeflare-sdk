@@ -37,7 +37,6 @@ from .model import (
 from kubernetes import client, config
 
 import yaml
-import executing
 
 
 class Cluster:
