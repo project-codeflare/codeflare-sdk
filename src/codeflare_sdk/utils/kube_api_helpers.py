@@ -20,6 +20,7 @@ API error handling or wrapping.
 import executing
 from kubernetes import client, config
 
+
 # private methods
 def _kube_api_error_handling(e: Exception):  # pragma: no cover
     perm_msg = (

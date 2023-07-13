@@ -22,7 +22,7 @@ import sys
 import argparse
 import uuid
 from kubernetes import client, config
-from .kube_api_helpers import _kube_api_error_handling
+from codeflare_sdk.utils.kube_api_helpers import _kube_api_error_handling
 
 
 def read_template(template):
@@ -247,7 +247,7 @@ def enable_local_interactive(resources, cluster_name, namespace):
             "config.openshift.io", "v1", "ingresses", "cluster"
         )
     except Exception as e:  # pragma: no cover
-            return _kube_api_error_handling(e)
+        return _kube_api_error_handling(e)
     domain = ingress["spec"]["domain"]
     command = command.replace("server-name", domain)
 
