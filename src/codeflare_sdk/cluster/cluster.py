@@ -18,7 +18,6 @@ the resources requested by the user. It also contains functions for checking the
 cluster setup queue, a list of all existing clusters, and the user's working namespace.
 """
 
-from os import stat
 from time import sleep
 from typing import List, Optional, Tuple, Dict
 
@@ -26,6 +25,7 @@ from ray.job_submission import JobSubmissionClient
 
 from ..utils import pretty_print
 from ..utils.generate_yaml import generate_appwrapper
+from ..utils.kube_api_helpers import _kube_api_error_handling
 from .config import ClusterConfiguration
 from .model import (
     AppWrapper,
@@ -34,7 +34,6 @@ from .model import (
     RayCluster,
     RayClusterStatus,
 )
-
 from kubernetes import client, config
 
 import yaml
@@ -346,6 +345,13 @@ class Cluster:
         )
         return Cluster(cluster_config)
 
+    def local_client_url(self):
+        if self.config.local_interactive == True:
+            ingress_domain = _get_ingress_domain()
+            return f"ray://rayclient-{self.config.name}-{self.config.namespace}.{ingress_domain}"
+        else:
+            return "None"
+
 
 def list_all_clusters(namespace: str, print_to_console: bool = True):
     """
@@ -404,28 +410,16 @@ def get_cluster(cluster_name: str, namespace: str = "default"):
 
 
 # private methods
-
-
-def _kube_api_error_handling(e: Exception):  # pragma: no cover
-    perm_msg = (
-        "Action not permitted, have you put in correct/up-to-date auth credentials?"
-    )
-    nf_msg = "No instances found, nothing to be done."
-    exists_msg = "Resource with this name already exists."
-    if type(e) == config.ConfigException:
-        raise PermissionError(perm_msg)
-    if type(e) == executing.executing.NotOneValueFound:
-        print(nf_msg)
-        return
-    if type(e) == client.ApiException:
-        if e.reason == "Not Found":
-            print(nf_msg)
-            return
-        elif e.reason == "Unauthorized" or e.reason == "Forbidden":
-            raise PermissionError(perm_msg)
-        elif e.reason == "Conflict":
-            raise FileExistsError(exists_msg)
-    raise e
+def _get_ingress_domain():
+    try:
+        config.load_kube_config()
+        api_client = client.CustomObjectsApi()
+        ingress = api_client.get_cluster_custom_object(
+            "config.openshift.io", "v1", "ingresses", "cluster"
+        )
+    except Exception as e:  # pragma: no cover
+        return _kube_api_error_handling(e)
+    return ingress["spec"]["domain"]
 
 
 def _app_wrapper_status(name, namespace="default") -> Optional[AppWrapper]:
