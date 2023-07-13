@@ -47,7 +47,7 @@ jobs:
             - name: Run poetry build
               run: poetry build
             - name: Create new documentation
-              run: poetry run pdoc --html -o docs src/codeflare_sdk && pushd docs && rm -rf cluster job utils && mv codeflare_sdk/* . && rm -rf codeflare_sdk && popd
+              run: poetry run pdoc --html -o docs src/codeflare_sdk && pushd docs && rm -rf cluster job utils && mv codeflare_sdk/* . && rm -rf codeflare_sdk && popd && find docs -type f -name "*.html" -exec bash -c "echo '' >> {}" \;
             - name: Set Pypi token
               run: poetry config pypi-token.pypi ${{ secrets.PYPI_TOKEN }}
             - name: Publish new release to Pypi repository
