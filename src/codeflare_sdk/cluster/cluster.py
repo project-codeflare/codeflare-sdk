@@ -39,6 +39,7 @@ from kubernetes import client, config
 import yaml
 import os
 
+
 class Cluster:
     """
     An object for requesting, bringing up, and taking down resources.
@@ -386,12 +387,14 @@ def get_current_namespace():  # pragma: no cover
     if TokenAuthentication.api_config_handler() != None:
         if os.path.isfile("/var/run/secrets/kubernetes.io/serviceaccount/namespace"):
             try:
-                file = open("/var/run/secrets/kubernetes.io/serviceaccount/namespace", "r")
-                active_context = file.readline().strip('\n')
+                file = open(
+                    "/var/run/secrets/kubernetes.io/serviceaccount/namespace", "r"
+                )
+                active_context = file.readline().strip("\n")
                 return active_context
             except Exception as e:
                 return namespace_error
-        else: 
+        else:
             return namespace_error
     else:
         try:
