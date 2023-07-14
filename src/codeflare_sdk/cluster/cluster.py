@@ -37,7 +37,7 @@ from .model import (
 )
 from kubernetes import client, config
 import yaml
-
+import os
 
 class Cluster:
     """
@@ -382,17 +382,29 @@ def list_all_queued(namespace: str, print_to_console: bool = True):
 
 
 def get_current_namespace():  # pragma: no cover
-    try:
-        # KubeConfigFileAuthentication.config_check()
-        _, active_context = config.list_kube_config_contexts(
-            KubeConfigFileAuthentication.config_check()
-        )
-    except Exception as e:
-        return _kube_api_error_handling(e)
-    try:
-        return active_context["context"]["namespace"]
-    except KeyError:
-        return "default"
+    namespace_error = "Unable to find current namespace please specify with namespace=<your_current_namespace>"
+    if TokenAuthentication.api_config_handler() != None:
+        if os.path.isfile("/var/run/secrets/kubernetes.io/serviceaccount/namespace"):
+            try:
+                file = open("/var/run/secrets/kubernetes.io/serviceaccount/namespace", "r")
+                active_context = file.readline().strip('\n')
+                return active_context
+            except Exception as e:
+                return namespace_error
+        else: 
+            return namespace_error
+    else:
+        try:
+            # KubeConfigFileAuthentication.config_check()
+            _, active_context = config.list_kube_config_contexts(
+                KubeConfigFileAuthentication.config_check()
+            )
+        except Exception as e:
+            return _kube_api_error_handling(e)
+        try:
+            return active_context["context"]["namespace"]
+        except KeyError:
+            return namespace_error
 
 
 def get_cluster(cluster_name: str, namespace: str = "default"):

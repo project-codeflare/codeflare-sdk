@@ -158,6 +158,7 @@ class KubeConfigFileAuthentication(KubeConfiguration):
                 return "Please specify a config file path"
             config_path = self.kube_config_path
             api_client = None
+            config.load_kube_config(config_path)
             response = "Loaded user config file at path %s" % self.kube_config_path
         except config.ConfigException:
             config_path = None
