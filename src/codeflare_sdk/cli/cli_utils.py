@@ -1,8 +1,8 @@
 import ast
 import click
 
-class PythonLiteralOption(click.Option):
 
+class PythonLiteralOption(click.Option):
     def type_cast_value(self, ctx, value):
         try:
             if not value:

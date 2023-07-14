@@ -4,10 +4,12 @@ from codeflare_sdk.cluster.cluster import Cluster
 from codeflare_sdk.cluster.config import ClusterConfiguration
 from codeflare_sdk.cli.cli_utils import PythonLiteralOption
 
+
 @click.group()
 def cli():
-    '''Create a resource with parameter specifications'''
+    """Create a resource with parameter specifications"""
     pass
+
 
 @cli.command()
 @click.option("--name", type=str, required=True)
@@ -28,7 +30,7 @@ def cli():
 @click.option("--local_interactive", type=bool)
 @click.option("--image_pull_secrets", cls=PythonLiteralOption, type=list)
 def raycluster(**kwargs):
-    '''Create a Framework Cluster with parameter specifications'''
+    """Create a Framework Cluster with parameter specifications"""
     filtered_kwargs = {k: v for k, v in kwargs.items() if v is not None}
     clusterConfig = ClusterConfiguration(**filtered_kwargs)
-    Cluster(clusterConfig) # Creates yaml file
+    Cluster(clusterConfig)  # Creates yaml file
