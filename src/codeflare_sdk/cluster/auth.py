@@ -59,12 +59,6 @@ class KubeConfiguration(metaclass=abc.ABCMeta):
         """
         pass
 
-    def config_check(self):
-        """
-        Method for checking if a user is authenticated via token and server or with their own config file
-        """
-        pass
-
     def logout(self):
         """
         Method for logging out of the remote cluster
@@ -118,15 +112,6 @@ class TokenAuthentication(Authentication):
         except client.ApiException as exception:
             return exception
 
-    def api_config_handler() -> str:
-        """
-        This function is used to load the api client if the user has logged in
-        """
-        if api_client != None and config_path == None:
-            return api_client
-        else:
-            return None
-
     def logout(self) -> str:
         """
         This function is used to logout of a Kubernetes cluster.
@@ -165,14 +150,25 @@ class KubeConfigFileAuthentication(KubeConfiguration):
             raise Exception("Please specify a config file path")
         return response
 
-    def config_check() -> str:
-        """
-        Function for loading the config file at the default config location ~/.kube/config if the user has not
-        specified their own config file or has logged in with their token and server.
-        """
-        global config_path
-        global api_client
-        if config_path == None and api_client == None:
-            config.load_kube_config()
-        if config_path != None and api_client == None:
-            return config_path
+
+def config_check() -> str:
+    """
+    Function for loading the config file at the default config location ~/.kube/config if the user has not
+    specified their own config file or has logged in with their token and server.
+    """
+    global config_path
+    global api_client
+    if config_path == None and api_client == None:
+        config.load_kube_config()
+    if config_path != None and api_client == None:
+        return config_path
+
+
+def api_config_handler() -> str:
+    """
+    This function is used to load the api client if the user has logged in
+    """
+    if api_client != None and config_path == None:
+        return api_client
+    else:
+        return None

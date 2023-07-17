@@ -23,7 +23,7 @@ from typing import List, Optional, Tuple, Dict
 
 from ray.job_submission import JobSubmissionClient
 
-from .auth import KubeConfigFileAuthentication, TokenAuthentication
+from .auth import config_check, api_config_handler
 from ..utils import pretty_print
 from ..utils.generate_yaml import generate_appwrapper
 from ..utils.kube_api_helpers import _kube_api_error_handling
@@ -69,7 +69,11 @@ class Cluster:
 
         if self.config.namespace is None:
             self.config.namespace = get_current_namespace()
-            if type(self.config.namespace) is not str:
+            if self.config.namespace is None:
+                print(
+                    "Unable to find current namespace please specify with namespace=<your_current_namespace>"
+                )
+            elif type(self.config.namespace) is not str:
                 raise TypeError(
                     f"Namespace {self.config.namespace} is of type {type(self.config.namespace)}. Check your Kubernetes Authentication."
                 )
@@ -115,10 +119,8 @@ class Cluster:
         """
         namespace = self.config.namespace
         try:
-            KubeConfigFileAuthentication.config_check()
-            api_instance = client.CustomObjectsApi(
-                TokenAuthentication.api_config_handler()
-            )
+            config_check()
+            api_instance = client.CustomObjectsApi(api_config_handler())
             with open(self.app_wrapper_yaml) as f:
                 aw = yaml.load(f, Loader=yaml.FullLoader)
             api_instance.create_namespaced_custom_object(
@@ -138,10 +140,8 @@ class Cluster:
         """
         namespace = self.config.namespace
         try:
-            KubeConfigFileAuthentication.config_check()
-            api_instance = client.CustomObjectsApi(
-                TokenAuthentication.api_config_handler()
-            )
+            config_check()
+            api_instance = client.CustomObjectsApi(api_config_handler())
             api_instance.delete_namespaced_custom_object(
                 group="mcad.ibm.com",
                 version="v1beta1",
@@ -252,10 +252,8 @@ class Cluster:
         Returns a string containing the cluster's dashboard URI.
         """
         try:
-            KubeConfigFileAuthentication.config_check()
-            api_instance = client.CustomObjectsApi(
-                TokenAuthentication.api_config_handler()
-            )
+            config_check()
+            api_instance = client.CustomObjectsApi(api_config_handler())
             routes = api_instance.list_namespaced_custom_object(
                 group="route.openshift.io",
                 version="v1",
@@ -383,8 +381,7 @@ def list_all_queued(namespace: str, print_to_console: bool = True):
 
 
 def get_current_namespace():  # pragma: no cover
-    namespace_error = "Unable to find current namespace please specify with namespace=<your_current_namespace>"
-    if TokenAuthentication.api_config_handler() != None:
+    if api_config_handler() != None:
         if os.path.isfile("/var/run/secrets/kubernetes.io/serviceaccount/namespace"):
             try:
                 file = open(
@@ -393,21 +390,20 @@ def get_current_namespace():  # pragma: no cover
                 active_context = file.readline().strip("\n")
                 return active_context
             except Exception as e:
-                return namespace_error
+                print("Unable to find current namespace")
+                return None
         else:
-            return namespace_error
+            print("Unable to find current namespace")
+            return None
     else:
         try:
-            # KubeConfigFileAuthentication.config_check()
-            _, active_context = config.list_kube_config_contexts(
-                KubeConfigFileAuthentication.config_check()
-            )
+            _, active_context = config.list_kube_config_contexts(config_check())
         except Exception as e:
             return _kube_api_error_handling(e)
         try:
             return active_context["context"]["namespace"]
         except KeyError:
-            return namespace_error
+            return None
 
 
 def get_cluster(cluster_name: str, namespace: str = "default"):
@@ -446,8 +442,8 @@ def _get_ingress_domain():
 
 def _app_wrapper_status(name, namespace="default") -> Optional[AppWrapper]:
     try:
-        KubeConfigFileAuthentication.config_check()
-        api_instance = client.CustomObjectsApi(TokenAuthentication.api_config_handler())
+        config_check()
+        api_instance = client.CustomObjectsApi(api_config_handler())
         aws = api_instance.list_namespaced_custom_object(
             group="mcad.ibm.com",
             version="v1beta1",
@@ -465,8 +461,8 @@ def _app_wrapper_status(name, namespace="default") -> Optional[AppWrapper]:
 
 def _ray_cluster_status(name, namespace="default") -> Optional[RayCluster]:
     try:
-        KubeConfigFileAuthentication.config_check()
-        api_instance = client.CustomObjectsApi(TokenAuthentication.api_config_handler())
+        config_check()
+        api_instance = client.CustomObjectsApi(api_config_handler())
         rcs = api_instance.list_namespaced_custom_object(
             group="ray.io",
             version="v1alpha1",
@@ -485,8 +481,8 @@ def _ray_cluster_status(name, namespace="default") -> Optional[RayCluster]:
 def _get_ray_clusters(namespace="default") -> List[RayCluster]:
     list_of_clusters = []
     try:
-        KubeConfigFileAuthentication.config_check()
-        api_instance = client.CustomObjectsApi(TokenAuthentication.api_config_handler())
+        config_check()
+        api_instance = client.CustomObjectsApi(api_config_handler())
         rcs = api_instance.list_namespaced_custom_object(
             group="ray.io",
             version="v1alpha1",
@@ -507,8 +503,8 @@ def _get_app_wrappers(
     list_of_app_wrappers = []
 
     try:
-        KubeConfigFileAuthentication.config_check()
-        api_instance = client.CustomObjectsApi(TokenAuthentication.api_config_handler())
+        config_check()
+        api_instance = client.CustomObjectsApi(api_config_handler())
         aws = api_instance.list_namespaced_custom_object(
             group="mcad.ibm.com",
             version="v1beta1",
@@ -534,8 +530,8 @@ def _map_to_ray_cluster(rc) -> Optional[RayCluster]:
     else:
         status = RayClusterStatus.UNKNOWN
 
-    KubeConfigFileAuthentication.config_check()
-    api_instance = client.CustomObjectsApi(TokenAuthentication.api_config_handler())
+    config_check()
+    api_instance = client.CustomObjectsApi(api_config_handler())
     routes = api_instance.list_namespaced_custom_object(
         group="route.openshift.io",
         version="v1",
