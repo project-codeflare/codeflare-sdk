@@ -70,9 +70,7 @@ class Cluster:
         if self.config.namespace is None:
             self.config.namespace = get_current_namespace()
             if self.config.namespace is None:
-                print(
-                    "Unable to find current namespace please specify with namespace=<your_current_namespace>"
-                )
+                print("Please specify with namespace=<your_current_namespace>")
             elif type(self.config.namespace) is not str:
                 raise TypeError(
                     f"Namespace {self.config.namespace} is of type {type(self.config.namespace)}. Check your Kubernetes Authentication."
