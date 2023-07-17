@@ -33,3 +33,7 @@ optional = true
 
 [tool.poetry.group.docs.dependencies]
 pdoc3 = "0.10.0"
+
+[tool.poetry.group.test.dependencies]
+pytest = "7.4.0"
+coverage = "7.2.7"
