@@ -20,7 +20,6 @@ authenticate to their cluster or add their own custom concrete classes here.
 """
 
 import abc
-import os
 from kubernetes import client, config
 
 global api_client
@@ -74,8 +73,8 @@ class TokenAuthentication(Authentication):
 
     def __init__(
         self,
-        token: str = None,
-        server: str = None,
+        token: str,
+        server: str,
         skip_tls: bool = False,
         ca_cert_path: str = "/etc/pki/tls/certs/ca-bundle.crt",
     ):
