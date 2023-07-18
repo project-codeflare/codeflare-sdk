@@ -106,10 +106,12 @@ class TokenAuthentication(Authentication):
             else:
                 configuration.verify_ssl = False
             api_client = client.ApiClient(configuration)
+            client.AuthenticationApi(api_client).get_api_group()
             config_path = None
             return "Logged into %s" % self.server
-        except client.ApiException as exception:
-            return exception
+        except client.ApiException:
+            api_client = None
+            print("Authentication Error please provide the correct token + server")
 
     def logout(self) -> str:
         """
