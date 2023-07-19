@@ -45,6 +45,8 @@ With a valid AppWrapper, we will use the Kubernetes python client to apply the A
 
 We will also use the Kubernetes python client to get information about both the RayCluster and AppWrapper custom resources to monitor the status of our Framework Cluster.
 
+The RayCluster deployed on your kubernetes cluster can be interacted with in two ways: Either through an interactive session via `ray.init()` or through the submission of batch jobs.
+
 Finally we will use the Kubernetes python client to delete the AppWrapper via `Cluster.down()`
 
 ### Training Jobs:
@@ -61,13 +63,13 @@ After the job is submitted, a user can monitor its progress via  `job.status()` 
 
 Since we are dealing with controlling and accessing different resources on a Kubernetes cluster, the user will need to have certain permissions on that cluster granted to them by their cluster administrator.
 
-The SDK itself will not enforce any authentication, however, it will provide simple interfaces to allow users to authenticate themselves to their Kuberentes cluster. All operations that require authentication to the cluster will rely on a properly authenticated kubeconfig file in the users environment.
+The SDK itself will not enforce any authentication, however, it will provide simple interfaces to allow users to authenticate themselves to their Kubernetes cluster. By default, if a user is already authenticated with a `~/.kube/config` file, that authentication will automatically be picked up by the SDK and no additional authentication is required.
 
-Users can authorize themselves by calling `TokenAuthentication()` and providing their access token and server address. This will update an existing kubeconfig file if one exists, or generate a new one if one does not exist. Users are also able to toggle whether or not they want to skip tls verification.
+Users can authorize themselves by calling `TokenAuthentication()` and providing their access token and server address. This will populate the Kubernetes python configuration of the ApiClient object and allow users to be properly authenticated to the cluster. Users are also able to toggle whether or not they want to skip tls verification.
 
-Alternatively users can provide their own custom kubconfig file with `KubeConfigAuthentication()`  and pass it the correct path.
+Alternatively users can provide their own custom kubeconfig file with `KubeConfigAuthentication()` and pass it the correct path.
 
-In either case, users can log out of their cluster with `.logout()`
+In either case, users can log out and clear the authentication inputs with `.logout()`
 
 ## Alternatives Considered
 
