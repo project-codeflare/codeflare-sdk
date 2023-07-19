@@ -36,7 +36,7 @@ from codeflare_sdk.cluster.cluster import (
 from codeflare_sdk.cluster.auth import (
     TokenAuthentication,
     Authentication,
-    KubeConfigFileAuthentication
+    KubeConfigFileAuthentication,
 )
 from codeflare_sdk.utils.pretty_print import (
     print_no_resources_found,
@@ -115,7 +115,9 @@ def test_token_auth_creation():
         assert token_auth.server == "server"
         assert token_auth.skip_tls == False
 
-        token_auth = TokenAuthentication(token="token", server="server", skip_tls=False, ca_cert_path="path/to/cert")
+        token_auth = TokenAuthentication(
+            token="token", server="server", skip_tls=False, ca_cert_path="path/to/cert"
+        )
         assert token_auth.token == "token"
         assert token_auth.server == "server"
         assert token_auth.skip_tls == False
@@ -126,46 +128,43 @@ def test_token_auth_creation():
 
 
 def test_token_auth_login_logout(mocker):
-    mocker.patch.object(client, 'ApiClient')
+    mocker.patch.object(client, "ApiClient")
 
     token_auth = TokenAuthentication(token="testtoken", server="testserver:6443")
-    assert token_auth.login() == (
-        "Logged into testserver:6443"
-    )
-    assert token_auth.logout() == (
-        "Successfully logged out of testserver:6443"
-    )
+    assert token_auth.login() == ("Logged into testserver:6443")
+    assert token_auth.logout() == ("Successfully logged out of testserver:6443")
 
 
 def test_token_auth_login_tls(mocker):
-    mocker.patch.object(client, 'ApiClient')
+    mocker.patch.object(client, "ApiClient")
 
     token_auth = TokenAuthentication(
         token="testtoken", server="testserver:6443", skip_tls=True
     )
-    assert token_auth.login() == (
-        "Logged into testserver:6443"
-    )
+    assert token_auth.login() == ("Logged into testserver:6443")
     token_auth = TokenAuthentication(
         token="testtoken", server="testserver:6443", skip_tls=False
     )
-    assert token_auth.login() == (
-        "Logged into testserver:6443"
-    )
+    assert token_auth.login() == ("Logged into testserver:6443")
     token_auth = TokenAuthentication(
-        token="testtoken", server="testserver:6443", skip_tls=False, ca_cert_path="path/to/cert"
+        token="testtoken",
+        server="testserver:6443",
+        skip_tls=False,
+        ca_cert_path="path/to/cert",
     )
-    assert token_auth.login() == (
-        "Logged into testserver:6443"
-    )
+    assert token_auth.login() == ("Logged into testserver:6443")
+
 
 def test_load_kube_config(mocker):
     kube_config_auth = KubeConfigFileAuthentication()
-    kube_config_auth.kube_config_path = '/path/to/your/config'
-    mocker.patch.object(config, 'load_kube_config')
+    kube_config_auth.kube_config_path = "/path/to/your/config"
+    mocker.patch.object(config, "load_kube_config")
 
     response = kube_config_auth.load_kube_config()
-    assert response == "Loaded user config file at path %s"%kube_config_auth.kube_config_path
+    assert (
+        response
+        == "Loaded user config file at path %s" % kube_config_auth.kube_config_path
+    )
 
 
 def test_auth_coverage():
