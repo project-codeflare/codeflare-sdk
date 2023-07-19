@@ -7,3 +7,5 @@ Pipfile.lock
 poetry.lock
 .venv*
 build/
+tls-cluster-namespace
+quicktest.yaml
