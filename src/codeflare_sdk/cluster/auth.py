@@ -76,7 +76,7 @@ class TokenAuthentication(Authentication):
         token: str,
         server: str,
         skip_tls: bool = False,
-        ca_cert_path: str = "/etc/pki/tls/certs/ca-bundle.crt",
+        ca_cert_path: str = None,
     ):
         """
         Initialize a TokenAuthentication object that requires a value for `token`, the API Token
@@ -101,7 +101,9 @@ class TokenAuthentication(Authentication):
             configuration.api_key_prefix["authorization"] = "Bearer"
             configuration.host = self.server
             configuration.api_key["authorization"] = self.token
-            if self.skip_tls == False:
+            if self.skip_tls == False and self.ca_cert_path == None:
+                configuration.verify_ssl = True
+            elif self.skip_tls == False:
                 configuration.ssl_ca_cert = self.ca_cert_path
             else:
                 configuration.verify_ssl = False
