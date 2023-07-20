@@ -31,7 +31,7 @@ In order to achieve this we need the capacity to:
 * Define, submit, monitor and cancel Jobs submitted via TorchX. TorchX jobs must support both Ray and MCAD-Kubernetes scheduler backends.
 * Provide means of authenticating to a Kubernetes cluster
 
-![](/docs/images/sdk-diagram.png)
+![](/assets/images/sdk-diagram.png)
 
 ### Framework Clusters:
 
