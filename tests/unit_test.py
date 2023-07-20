@@ -87,7 +87,7 @@ def test_cli_working():
 def test_cluster_creation_cli():
     runner = CliRunner()
     create_cluster_command = """
-                        create raycluster
+                        define raycluster
                         --name=unit-test-cluster
                         --namespace=ns
                         --min_worker=1
