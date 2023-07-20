@@ -111,7 +111,7 @@ class TokenAuthentication(Authentication):
             client.AuthenticationApi(api_client).get_api_group()
             config_path = None
             return "Logged into %s" % self.server
-        except client.ApiException:
+        except client.ApiException:  # pragma: no cover
             api_client = None
             print("Authentication Error please provide the correct token + server")
 
@@ -148,7 +148,7 @@ class KubeConfigFileAuthentication(KubeConfiguration):
             api_client = None
             config.load_kube_config(config_path)
             response = "Loaded user config file at path %s" % self.kube_config_path
-        except config.ConfigException:
+        except config.ConfigException:  # pragma: no cover
             config_path = None
             raise Exception("Please specify a config file path")
         return response
