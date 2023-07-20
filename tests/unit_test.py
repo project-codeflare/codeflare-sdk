@@ -90,30 +90,23 @@ def att_side_effect(self):
 
 def test_token_auth_creation():
     try:
-        token_auth = TokenAuthentication("token", "server")
-        assert token_auth.token == "token"
-        assert token_auth.server == "server"
-        assert token_auth.skip_tls == False
-
-        token_auth = TokenAuthentication("token", server="server")
-        assert token_auth.token == "token"
-        assert token_auth.server == "server"
-        assert token_auth.skip_tls == False
-
         token_auth = TokenAuthentication(token="token", server="server")
         assert token_auth.token == "token"
         assert token_auth.server == "server"
         assert token_auth.skip_tls == False
+        assert token_auth.ca_cert_path == None
 
         token_auth = TokenAuthentication(token="token", server="server", skip_tls=True)
         assert token_auth.token == "token"
         assert token_auth.server == "server"
         assert token_auth.skip_tls == True
+        assert token_auth.ca_cert_path == None
 
         token_auth = TokenAuthentication(token="token", server="server", skip_tls=False)
         assert token_auth.token == "token"
         assert token_auth.server == "server"
         assert token_auth.skip_tls == False
+        assert token_auth.ca_cert_path == None
 
         token_auth = TokenAuthentication(
             token="token", server="server", skip_tls=False, ca_cert_path="path/to/cert"
@@ -130,7 +123,9 @@ def test_token_auth_creation():
 def test_token_auth_login_logout(mocker):
     mocker.patch.object(client, "ApiClient")
 
-    token_auth = TokenAuthentication(token="testtoken", server="testserver:6443")
+    token_auth = TokenAuthentication(
+        token="testtoken", server="testserver:6443", skip_tls=False, ca_cert_path=None
+    )
     assert token_auth.login() == ("Logged into testserver:6443")
     assert token_auth.logout() == ("Successfully logged out of testserver:6443")
 
@@ -139,11 +134,11 @@ def test_token_auth_login_tls(mocker):
     mocker.patch.object(client, "ApiClient")
 
     token_auth = TokenAuthentication(
-        token="testtoken", server="testserver:6443", skip_tls=True
+        token="testtoken", server="testserver:6443", skip_tls=True, ca_cert_path=None
     )
     assert token_auth.login() == ("Logged into testserver:6443")
     token_auth = TokenAuthentication(
-        token="testtoken", server="testserver:6443", skip_tls=False
+        token="testtoken", server="testserver:6443", skip_tls=False, ca_cert_path=None
     )
     assert token_auth.login() == ("Logged into testserver:6443")
     token_auth = TokenAuthentication(
@@ -156,11 +151,12 @@ def test_token_auth_login_tls(mocker):
 
 
 def test_load_kube_config(mocker):
-    kube_config_auth = KubeConfigFileAuthentication()
-    kube_config_auth.kube_config_path = "/path/to/your/config"
     mocker.patch.object(config, "load_kube_config")
-
+    kube_config_auth = KubeConfigFileAuthentication(
+        kube_config_path="/path/to/your/config"
+    )
     response = kube_config_auth.load_kube_config()
+
     assert (
         response
         == "Loaded user config file at path %s" % kube_config_auth.kube_config_path
