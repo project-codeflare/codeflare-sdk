@@ -7,7 +7,7 @@ from codeflare_sdk.cli.cli_utils import PythonLiteralOption
 
 @click.group()
 def cli():
-    """Create a resource with parameter specifications"""
+    """Define a resource with parameter specifications"""
     pass
 
 
@@ -30,7 +30,7 @@ def cli():
 @click.option("--local_interactive", type=bool)
 @click.option("--image_pull_secrets", cls=PythonLiteralOption, type=list)
 def raycluster(**kwargs):
-    """Create a RayCluster with parameter specifications"""
+    """Define a RayCluster with parameter specifications"""
     filtered_kwargs = {k: v for k, v in kwargs.items() if v is not None}
     clusterConfig = ClusterConfiguration(**filtered_kwargs)
     Cluster(clusterConfig)  # Creates yaml file
