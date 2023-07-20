@@ -23,6 +23,7 @@ from typing import List, Optional, Tuple, Dict
 
 from ray.job_submission import JobSubmissionClient
 
+from .auth import config_check, api_config_handler
 from ..utils import pretty_print
 from ..utils.generate_yaml import generate_appwrapper
 from ..utils.kube_api_helpers import _kube_api_error_handling
@@ -35,8 +36,8 @@ from .model import (
     RayClusterStatus,
 )
 from kubernetes import client, config
-
 import yaml
+import os
 
 
 class Cluster:
@@ -68,7 +69,9 @@ class Cluster:
 
         if self.config.namespace is None:
             self.config.namespace = get_current_namespace()
-            if type(self.config.namespace) is not str:
+            if self.config.namespace is None:
+                print("Please specify with namespace=<your_current_namespace>")
+            elif type(self.config.namespace) is not str:
                 raise TypeError(
                     f"Namespace {self.config.namespace} is of type {type(self.config.namespace)}. Check your Kubernetes Authentication."
                 )
@@ -114,8 +117,8 @@ class Cluster:
         """
         namespace = self.config.namespace
         try:
-            config.load_kube_config()
-            api_instance = client.CustomObjectsApi()
+            config_check()
+            api_instance = client.CustomObjectsApi(api_config_handler())
             with open(self.app_wrapper_yaml) as f:
                 aw = yaml.load(f, Loader=yaml.FullLoader)
             api_instance.create_namespaced_custom_object(
@@ -135,8 +138,8 @@ class Cluster:
         """
         namespace = self.config.namespace
         try:
-            config.load_kube_config()
-            api_instance = client.CustomObjectsApi()
+            config_check()
+            api_instance = client.CustomObjectsApi(api_config_handler())
             api_instance.delete_namespaced_custom_object(
                 group="mcad.ibm.com",
                 version="v1beta1",
@@ -247,8 +250,8 @@ class Cluster:
         Returns a string containing the cluster's dashboard URI.
         """
         try:
-            config.load_kube_config()
-            api_instance = client.CustomObjectsApi()
+            config_check()
+            api_instance = client.CustomObjectsApi(api_config_handler())
             routes = api_instance.list_namespaced_custom_object(
                 group="route.openshift.io",
                 version="v1",
@@ -376,15 +379,29 @@ def list_all_queued(namespace: str, print_to_console: bool = True):
 
 
 def get_current_namespace():  # pragma: no cover
-    try:
-        config.load_kube_config()
-        _, active_context = config.list_kube_config_contexts()
-    except Exception as e:
-        return _kube_api_error_handling(e)
-    try:
-        return active_context["context"]["namespace"]
-    except KeyError:
-        return "default"
+    if api_config_handler() != None:
+        if os.path.isfile("/var/run/secrets/kubernetes.io/serviceaccount/namespace"):
+            try:
+                file = open(
+                    "/var/run/secrets/kubernetes.io/serviceaccount/namespace", "r"
+                )
+                active_context = file.readline().strip("\n")
+                return active_context
+            except Exception as e:
+                print("Unable to find current namespace")
+                return None
+        else:
+            print("Unable to find current namespace")
+            return None
+    else:
+        try:
+            _, active_context = config.list_kube_config_contexts(config_check())
+        except Exception as e:
+            return _kube_api_error_handling(e)
+        try:
+            return active_context["context"]["namespace"]
+        except KeyError:
+            return None
 
 
 def get_cluster(cluster_name: str, namespace: str = "default"):
@@ -423,8 +440,8 @@ def _get_ingress_domain():
 
 def _app_wrapper_status(name, namespace="default") -> Optional[AppWrapper]:
     try:
-        config.load_kube_config()
-        api_instance = client.CustomObjectsApi()
+        config_check()
+        api_instance = client.CustomObjectsApi(api_config_handler())
         aws = api_instance.list_namespaced_custom_object(
             group="mcad.ibm.com",
             version="v1beta1",
@@ -442,8 +459,8 @@ def _app_wrapper_status(name, namespace="default") -> Optional[AppWrapper]:
 
 def _ray_cluster_status(name, namespace="default") -> Optional[RayCluster]:
     try:
-        config.load_kube_config()
-        api_instance = client.CustomObjectsApi()
+        config_check()
+        api_instance = client.CustomObjectsApi(api_config_handler())
         rcs = api_instance.list_namespaced_custom_object(
             group="ray.io",
             version="v1alpha1",
@@ -462,8 +479,8 @@ def _ray_cluster_status(name, namespace="default") -> Optional[RayCluster]:
 def _get_ray_clusters(namespace="default") -> List[RayCluster]:
     list_of_clusters = []
     try:
-        config.load_kube_config()
-        api_instance = client.CustomObjectsApi()
+        config_check()
+        api_instance = client.CustomObjectsApi(api_config_handler())
         rcs = api_instance.list_namespaced_custom_object(
             group="ray.io",
             version="v1alpha1",
@@ -484,8 +501,8 @@ def _get_app_wrappers(
     list_of_app_wrappers = []
 
     try:
-        config.load_kube_config()
-        api_instance = client.CustomObjectsApi()
+        config_check()
+        api_instance = client.CustomObjectsApi(api_config_handler())
         aws = api_instance.list_namespaced_custom_object(
             group="mcad.ibm.com",
             version="v1beta1",
@@ -511,8 +528,8 @@ def _map_to_ray_cluster(rc) -> Optional[RayCluster]:
     else:
         status = RayClusterStatus.UNKNOWN
 
-    config.load_kube_config()
-    api_instance = client.CustomObjectsApi()
+    config_check()
+    api_instance = client.CustomObjectsApi(api_config_handler())
     routes = api_instance.list_namespaced_custom_object(
         group="route.openshift.io",
         version="v1",

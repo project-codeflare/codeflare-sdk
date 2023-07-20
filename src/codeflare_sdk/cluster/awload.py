@@ -24,6 +24,7 @@ import yaml
 
 from kubernetes import client, config
 from ..utils.kube_api_helpers import _kube_api_error_handling
+from .auth import config_check, api_config_handler
 
 
 class AWManager:
@@ -57,8 +58,8 @@ class AWManager:
         Attempts to create the AppWrapper custom resource using the yaml file
         """
         try:
-            config.load_kube_config()
-            api_instance = client.CustomObjectsApi()
+            config_check()
+            api_instance = client.CustomObjectsApi(api_config_handler())
             api_instance.create_namespaced_custom_object(
                 group="mcad.ibm.com",
                 version="v1beta1",
@@ -82,8 +83,8 @@ class AWManager:
             return
 
         try:
-            config.load_kube_config()
-            api_instance = client.CustomObjectsApi()
+            config_check()
+            api_instance = client.CustomObjectsApi(api_config_handler())
             api_instance.delete_namespaced_custom_object(
                 group="mcad.ibm.com",
                 version="v1beta1",

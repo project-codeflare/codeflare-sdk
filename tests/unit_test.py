@@ -21,7 +21,7 @@ import re
 parent = Path(__file__).resolve().parents[1]
 sys.path.append(str(parent) + "/src")
 
-from kubernetes import client
+from kubernetes import client, config
 from codeflare_sdk.cluster.awload import AWManager
 from codeflare_sdk.cluster.cluster import (
     Cluster,
@@ -35,8 +35,8 @@ from codeflare_sdk.cluster.cluster import (
 )
 from codeflare_sdk.cluster.auth import (
     TokenAuthentication,
-    PasswordUserAuthentication,
     Authentication,
+    KubeConfigFileAuthentication,
 )
 from codeflare_sdk.utils.pretty_print import (
     print_no_resources_found,
@@ -65,7 +65,6 @@ from codeflare_sdk.utils.generate_cert import (
 )
 
 import openshift
-from openshift import OpenShiftPythonException
 from openshift.selector import Selector
 import ray
 from torchx.specs import AppDryRunInfo, AppDef
@@ -89,120 +88,79 @@ def att_side_effect(self):
     return self.high_level_operation
 
 
-def att_side_effect_tls(self):
-    if "--insecure-skip-tls-verify" in self.high_level_operation[1]:
-        return self.high_level_operation
-    else:
-        raise OpenShiftPythonException(
-            "The server uses a certificate signed by unknown authority"
-        )
-
-
 def test_token_auth_creation():
     try:
-        token_auth = TokenAuthentication()
-        assert token_auth.token == None
-        assert token_auth.server == None
-        assert token_auth.skip_tls == False
-
-        token_auth = TokenAuthentication("token")
-        assert token_auth.token == "token"
-        assert token_auth.server == None
-        assert token_auth.skip_tls == False
-
-        token_auth = TokenAuthentication("token", "server")
-        assert token_auth.token == "token"
-        assert token_auth.server == "server"
-        assert token_auth.skip_tls == False
-
-        token_auth = TokenAuthentication("token", server="server")
-        assert token_auth.token == "token"
-        assert token_auth.server == "server"
-        assert token_auth.skip_tls == False
-
         token_auth = TokenAuthentication(token="token", server="server")
         assert token_auth.token == "token"
         assert token_auth.server == "server"
         assert token_auth.skip_tls == False
+        assert token_auth.ca_cert_path == None
 
         token_auth = TokenAuthentication(token="token", server="server", skip_tls=True)
         assert token_auth.token == "token"
         assert token_auth.server == "server"
         assert token_auth.skip_tls == True
+        assert token_auth.ca_cert_path == None
+
+        token_auth = TokenAuthentication(token="token", server="server", skip_tls=False)
+        assert token_auth.token == "token"
+        assert token_auth.server == "server"
+        assert token_auth.skip_tls == False
+        assert token_auth.ca_cert_path == None
+
+        token_auth = TokenAuthentication(
+            token="token", server="server", skip_tls=False, ca_cert_path="path/to/cert"
+        )
+        assert token_auth.token == "token"
+        assert token_auth.server == "server"
+        assert token_auth.skip_tls == False
+        assert token_auth.ca_cert_path == "path/to/cert"
 
     except Exception:
         assert 0 == 1
 
 
 def test_token_auth_login_logout(mocker):
-    mocker.patch("openshift.invoke", side_effect=arg_side_effect)
-    mock_res = mocker.patch.object(openshift.Result, "out")
-    mock_res.side_effect = lambda: att_side_effect(fake_res)
+    mocker.patch.object(client, "ApiClient")
 
-    token_auth = TokenAuthentication(token="testtoken", server="testserver:6443")
-    assert token_auth.login() == (
-        "login",
-        ["--token=testtoken", "--server=testserver:6443"],
+    token_auth = TokenAuthentication(
+        token="testtoken", server="testserver:6443", skip_tls=False, ca_cert_path=None
     )
-    assert token_auth.logout() == (
-        "logout",
-        ["--token=testtoken", "--server=testserver:6443"],
-    )
+    assert token_auth.login() == ("Logged into testserver:6443")
+    assert token_auth.logout() == ("Successfully logged out of testserver:6443")
 
 
 def test_token_auth_login_tls(mocker):
-    mocker.patch("openshift.invoke", side_effect=arg_side_effect)
-    mock_res = mocker.patch.object(openshift.Result, "out")
-    mock_res.side_effect = lambda: att_side_effect_tls(fake_res)
-
-    # FIXME - Pytest mocker not allowing caught exception
-    # token_auth = TokenAuthentication(token="testtoken", server="testserver")
-    # assert token_auth.login() == "Error: certificate auth failure, please set `skip_tls=True` in TokenAuthentication"
+    mocker.patch.object(client, "ApiClient")
 
     token_auth = TokenAuthentication(
-        token="testtoken", server="testserver:6443", skip_tls=True
+        token="testtoken", server="testserver:6443", skip_tls=True, ca_cert_path=None
     )
-    assert token_auth.login() == (
-        "login",
-        ["--token=testtoken", "--server=testserver:6443", "--insecure-skip-tls-verify"],
+    assert token_auth.login() == ("Logged into testserver:6443")
+    token_auth = TokenAuthentication(
+        token="testtoken", server="testserver:6443", skip_tls=False, ca_cert_path=None
     )
+    assert token_auth.login() == ("Logged into testserver:6443")
+    token_auth = TokenAuthentication(
+        token="testtoken",
+        server="testserver:6443",
+        skip_tls=False,
+        ca_cert_path="path/to/cert",
+    )
+    assert token_auth.login() == ("Logged into testserver:6443")
 
 
-def test_passwd_auth_creation():
-    try:
-        passwd_auth = PasswordUserAuthentication()
-        assert passwd_auth.username == None
-        assert passwd_auth.password == None
+def test_load_kube_config(mocker):
+    mocker.patch.object(config, "load_kube_config")
+    kube_config_auth = KubeConfigFileAuthentication(
+        kube_config_path="/path/to/your/config"
+    )
+    response = kube_config_auth.load_kube_config()
 
-        passwd_auth = PasswordUserAuthentication("user")
-        assert passwd_auth.username == "user"
-        assert passwd_auth.password == None
-
-        passwd_auth = PasswordUserAuthentication("user", "passwd")
-        assert passwd_auth.username == "user"
-        assert passwd_auth.password == "passwd"
-
-        passwd_auth = PasswordUserAuthentication("user", password="passwd")
-        assert passwd_auth.username == "user"
-        assert passwd_auth.password == "passwd"
-
-        passwd_auth = PasswordUserAuthentication(username="user", password="passwd")
-        assert passwd_auth.username == "user"
-        assert passwd_auth.password == "passwd"
-
-    except Exception:
-        assert 0 == 1
-
-
-def test_passwd_auth_login_logout(mocker):
-    mocker.patch("openshift.invoke", side_effect=arg_side_effect)
-    mocker.patch("openshift.login", side_effect=arg_side_effect)
-    mock_res = mocker.patch.object(openshift.Result, "out")
-    mock_res.side_effect = lambda: att_side_effect(fake_res)
-
-    token_auth = PasswordUserAuthentication(username="user", password="passwd")
-    assert token_auth.login() == ("user", "passwd")
-    assert token_auth.logout() == ("logout",)
+    assert (
+        response
+        == "Loaded user config file at path %s" % kube_config_auth.kube_config_path
+    )
 
 
 def test_auth_coverage():
