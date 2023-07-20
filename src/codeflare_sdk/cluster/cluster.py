@@ -18,15 +18,15 @@ the resources requested by the user. It also contains functions for checking the
 cluster setup queue, a list of all existing clusters, and the user's working namespace.
 """
 
-from os import stat
 from time import sleep
 from typing import List, Optional, Tuple, Dict
 
-import openshift as oc
 from ray.job_submission import JobSubmissionClient
 
+from .auth import config_check, api_config_handler
 from ..utils import pretty_print
 from ..utils.generate_yaml import generate_appwrapper
+from ..utils.kube_api_helpers import _kube_api_error_handling
 from .config import ClusterConfiguration
 from .model import (
     AppWrapper,
@@ -35,6 +35,9 @@ from .model import (
     RayCluster,
     RayClusterStatus,
 )
+from kubernetes import client, config
+import yaml
+import os
 
 
 class Cluster:
@@ -65,8 +68,10 @@ class Cluster:
         """
 
         if self.config.namespace is None:
-            self.config.namespace = oc.get_project_name()
-            if type(self.config.namespace) is not str:
+            self.config.namespace = get_current_namespace()
+            if self.config.namespace is None:
+                print("Please specify with namespace=<your_current_namespace>")
+            elif type(self.config.namespace) is not str:
                 raise TypeError(
                     f"Namespace {self.config.namespace} is of type {type(self.config.namespace)}. Check your Kubernetes Authentication."
                 )
@@ -112,15 +117,19 @@ class Cluster:
         """
         namespace = self.config.namespace
         try:
-            with oc.project(namespace):
-                oc.invoke("apply", ["-f", self.app_wrapper_yaml])
-        except oc.OpenShiftPythonException as osp:  # pragma: no cover
-            error_msg = osp.result.err()
-            if "Unauthorized" in error_msg:
-                raise PermissionError(
-                    "Action not permitted, have you put in correct/up-to-date auth credentials?"
-                )
-            raise osp
+            config_check()
+            api_instance = client.CustomObjectsApi(api_config_handler())
+            with open(self.app_wrapper_yaml) as f:
+                aw = yaml.load(f, Loader=yaml.FullLoader)
+            api_instance.create_namespaced_custom_object(
+                group="mcad.ibm.com",
+                version="v1beta1",
+                namespace=namespace,
+                plural="appwrappers",
+                body=aw,
+            )
+        except Exception as e:  # pragma: no cover
+            return _kube_api_error_handling(e)
 
     def down(self):
         """
@@ -129,23 +138,17 @@ class Cluster:
         """
         namespace = self.config.namespace
         try:
-            with oc.project(namespace):
-                oc.invoke("delete", ["AppWrapper", self.app_wrapper_name])
-        except oc.OpenShiftPythonException as osp:  # pragma: no cover
-            error_msg = osp.result.err()
-            if (
-                'the server doesn\'t have a resource type "AppWrapper"' in error_msg
-                or "forbidden" in error_msg
-                or "Unauthorized" in error_msg
-                or "Missing or incomplete configuration" in error_msg
-            ):
-                raise PermissionError(
-                    "Action not permitted, have you run auth.login()/cluster.up() yet?"
-                )
-            elif "not found" in error_msg:
-                print("Cluster not found, have you run cluster.up() yet?")
-            else:
-                raise osp
+            config_check()
+            api_instance = client.CustomObjectsApi(api_config_handler())
+            api_instance.delete_namespaced_custom_object(
+                group="mcad.ibm.com",
+                version="v1beta1",
+                namespace=namespace,
+                plural="appwrappers",
+                name=self.app_wrapper_name,
+            )
+        except Exception as e:  # pragma: no cover
+            return _kube_api_error_handling(e)
 
     def status(
         self, print_to_console: bool = True
@@ -247,16 +250,21 @@ class Cluster:
         Returns a string containing the cluster's dashboard URI.
         """
         try:
-            with oc.project(self.config.namespace):
-                route = oc.invoke(
-                    "get", ["route", "-o", "jsonpath='{$.items[*].spec.host}'"]
-                )
-                route = route.out().split(" ")
-                route = [x for x in route if f"ray-dashboard-{self.config.name}" in x]
-                route = route[0].strip().strip("'")
-            return f"http://{route}"
-        except:
-            return "Dashboard route not available yet, have you run cluster.up()?"
+            config_check()
+            api_instance = client.CustomObjectsApi(api_config_handler())
+            routes = api_instance.list_namespaced_custom_object(
+                group="route.openshift.io",
+                version="v1",
+                namespace=self.config.namespace,
+                plural="routes",
+            )
+        except Exception as e:  # pragma: no cover
+            return _kube_api_error_handling(e)
+
+        for route in routes["items"]:
+            if route["metadata"]["name"] == f"ray-dashboard-{self.config.name}":
+                return f"http://{route['spec']['host']}"
+        return "Dashboard route not available yet, have you run cluster.up()?"
 
     def list_jobs(self) -> List:
         """
@@ -296,6 +304,56 @@ class Cluster:
             to_return["requirements"] = requirements
         return to_return
 
+    def from_k8_cluster_object(rc):
+        machine_types = (
+            rc["metadata"]["labels"]["orderedinstance"].split("_")
+            if "orderedinstance" in rc["metadata"]["labels"]
+            else []
+        )
+        local_interactive = (
+            "volumeMounts"
+            in rc["spec"]["workerGroupSpecs"][0]["template"]["spec"]["containers"][0]
+        )
+        cluster_config = ClusterConfiguration(
+            name=rc["metadata"]["name"],
+            namespace=rc["metadata"]["namespace"],
+            machine_types=machine_types,
+            min_worker=rc["spec"]["workerGroupSpecs"][0]["minReplicas"],
+            max_worker=rc["spec"]["workerGroupSpecs"][0]["maxReplicas"],
+            min_cpus=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"][
+                "containers"
+            ][0]["resources"]["requests"]["cpu"],
+            max_cpus=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"][
+                "containers"
+            ][0]["resources"]["limits"]["cpu"],
+            min_memory=int(
+                rc["spec"]["workerGroupSpecs"][0]["template"]["spec"]["containers"][0][
+                    "resources"
+                ]["requests"]["memory"][:-1]
+            ),
+            max_memory=int(
+                rc["spec"]["workerGroupSpecs"][0]["template"]["spec"]["containers"][0][
+                    "resources"
+                ]["limits"]["memory"][:-1]
+            ),
+            gpu=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"]["containers"][0][
+                "resources"
+            ]["limits"]["nvidia.com/gpu"],
+            instascale=True if machine_types else False,
+            image=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"]["containers"][
+                0
+            ]["image"],
+            local_interactive=local_interactive,
+        )
+        return Cluster(cluster_config)
+
+    def local_client_url(self):
+        if self.config.local_interactive == True:
+            ingress_domain = _get_ingress_domain()
+            return f"ray://rayclient-{self.config.name}-{self.config.namespace}.{ingress_domain}"
+        else:
+            return "None"
+
 
 def list_all_clusters(namespace: str, print_to_console: bool = True):
     """
@@ -320,78 +378,120 @@ def list_all_queued(namespace: str, print_to_console: bool = True):
     return app_wrappers
 
 
+def get_current_namespace():  # pragma: no cover
+    if api_config_handler() != None:
+        if os.path.isfile("/var/run/secrets/kubernetes.io/serviceaccount/namespace"):
+            try:
+                file = open(
+                    "/var/run/secrets/kubernetes.io/serviceaccount/namespace", "r"
+                )
+                active_context = file.readline().strip("\n")
+                return active_context
+            except Exception as e:
+                print("Unable to find current namespace")
+                return None
+        else:
+            print("Unable to find current namespace")
+            return None
+    else:
+        try:
+            _, active_context = config.list_kube_config_contexts(config_check())
+        except Exception as e:
+            return _kube_api_error_handling(e)
+        try:
+            return active_context["context"]["namespace"]
+        except KeyError:
+            return None
+
+
+def get_cluster(cluster_name: str, namespace: str = "default"):
+    try:
+        config.load_kube_config()
+        api_instance = client.CustomObjectsApi()
+        rcs = api_instance.list_namespaced_custom_object(
+            group="ray.io",
+            version="v1alpha1",
+            namespace=namespace,
+            plural="rayclusters",
+        )
+    except Exception as e:
+        return _kube_api_error_handling(e)
+
+    for rc in rcs["items"]:
+        if rc["metadata"]["name"] == cluster_name:
+            return Cluster.from_k8_cluster_object(rc)
+    raise FileNotFoundError(
+        f"Cluster {cluster_name} is not found in {namespace} namespace"
+    )
+
+
 # private methods
+def _get_ingress_domain():
+    try:
+        config.load_kube_config()
+        api_client = client.CustomObjectsApi()
+        ingress = api_client.get_cluster_custom_object(
+            "config.openshift.io", "v1", "ingresses", "cluster"
+        )
+    except Exception as e:  # pragma: no cover
+        return _kube_api_error_handling(e)
+    return ingress["spec"]["domain"]
 
 
 def _app_wrapper_status(name, namespace="default") -> Optional[AppWrapper]:
-    cluster = None
     try:
-        with oc.project(namespace), oc.timeout(10 * 60):
-            cluster = oc.selector(f"appwrapper/{name}").object()
-    except oc.OpenShiftPythonException as osp:  # pragma: no cover
-        msg = osp.msg
-        if "Expected a single object, but selected 0" in msg:
-            return cluster
-        error_msg = osp.result.err()
-        if not (
-            'the server doesn\'t have a resource type "appwrapper"' in error_msg
-            or "forbidden" in error_msg
-            or "Unauthorized" in error_msg
-            or "Missing or incomplete configuration" in error_msg
-        ):
-            raise osp
+        config_check()
+        api_instance = client.CustomObjectsApi(api_config_handler())
+        aws = api_instance.list_namespaced_custom_object(
+            group="mcad.ibm.com",
+            version="v1beta1",
+            namespace=namespace,
+            plural="appwrappers",
+        )
+    except Exception as e:  # pragma: no cover
+        return _kube_api_error_handling(e)
 
-    if cluster:
-        return _map_to_app_wrapper(cluster)
-
-    return cluster
+    for aw in aws["items"]:
+        if aw["metadata"]["name"] == name:
+            return _map_to_app_wrapper(aw)
+    return None
 
 
 def _ray_cluster_status(name, namespace="default") -> Optional[RayCluster]:
-    cluster = None
     try:
-        with oc.project(namespace), oc.timeout(10 * 60):
-            cluster = oc.selector(f"rayclusters/{name}").object()
-    except oc.OpenShiftPythonException as osp:  # pragma: no cover
-        msg = osp.msg
-        if "Expected a single object, but selected 0" in msg:
-            return cluster
-        error_msg = osp.result.err()
-        if not (
-            'the server doesn\'t have a resource type "rayclusters"' in error_msg
-            or "forbidden" in error_msg
-            or "Unauthorized" in error_msg
-            or "Missing or incomplete configuration" in error_msg
-        ):
-            raise osp
+        config_check()
+        api_instance = client.CustomObjectsApi(api_config_handler())
+        rcs = api_instance.list_namespaced_custom_object(
+            group="ray.io",
+            version="v1alpha1",
+            namespace=namespace,
+            plural="rayclusters",
+        )
+    except Exception as e:  # pragma: no cover
+        return _kube_api_error_handling(e)
 
-    if cluster:
-        return _map_to_ray_cluster(cluster)
-
-    return cluster
+    for rc in rcs["items"]:
+        if rc["metadata"]["name"] == name:
+            return _map_to_ray_cluster(rc)
+    return None
 
 
 def _get_ray_clusters(namespace="default") -> List[RayCluster]:
     list_of_clusters = []
     try:
-        with oc.project(namespace), oc.timeout(10 * 60):
-            ray_clusters = oc.selector("rayclusters").objects()
-    except oc.OpenShiftPythonException as osp:  # pragma: no cover
-        error_msg = osp.result.err()
-        if (
-            'the server doesn\'t have a resource type "rayclusters"' in error_msg
-            or "forbidden" in error_msg
-            or "Unauthorized" in error_msg
-            or "Missing or incomplete configuration" in error_msg
-        ):
-            raise PermissionError(
-                "Action not permitted, have you put in correct/up-to-date auth credentials?"
-            )
-        else:
-            raise osp
+        config_check()
+        api_instance = client.CustomObjectsApi(api_config_handler())
+        rcs = api_instance.list_namespaced_custom_object(
+            group="ray.io",
+            version="v1alpha1",
+            namespace=namespace,
+            plural="rayclusters",
+        )
+    except Exception as e:  # pragma: no cover
+        return _kube_api_error_handling(e)
 
-    for cluster in ray_clusters:
-        list_of_clusters.append(_map_to_ray_cluster(cluster))
+    for rc in rcs["items"]:
+        list_of_clusters.append(_map_to_ray_cluster(rc))
     return list_of_clusters
 
 
@@ -401,23 +501,18 @@ def _get_app_wrappers(
     list_of_app_wrappers = []
 
     try:
-        with oc.project(namespace), oc.timeout(10 * 60):
-            app_wrappers = oc.selector("appwrappers").objects()
-    except oc.OpenShiftPythonException as osp:  # pragma: no cover
-        error_msg = osp.result.err()
-        if (
-            'the server doesn\'t have a resource type "appwrappers"' in error_msg
-            or "forbidden" in error_msg
-            or "Unauthorized" in error_msg
-            or "Missing or incomplete configuration" in error_msg
-        ):
-            raise PermissionError(
-                "Action not permitted, have you put in correct/up-to-date auth credentials?"
-            )
-        else:
-            raise osp
+        config_check()
+        api_instance = client.CustomObjectsApi(api_config_handler())
+        aws = api_instance.list_namespaced_custom_object(
+            group="mcad.ibm.com",
+            version="v1beta1",
+            namespace=namespace,
+            plural="appwrappers",
+        )
+    except Exception as e:  # pragma: no cover
+        return _kube_api_error_handling(e)
 
-    for item in app_wrappers:
+    for item in aws["items"]:
         app_wrapper = _map_to_app_wrapper(item)
         if filter and app_wrapper.status in filter:
             list_of_app_wrappers.append(app_wrapper)
@@ -427,48 +522,52 @@ def _get_app_wrappers(
     return list_of_app_wrappers
 
 
-def _map_to_ray_cluster(cluster) -> Optional[RayCluster]:
-    cluster_model = cluster.model
-    if type(cluster_model.status.state) == oc.model.MissingModel:
-        status = RayClusterStatus.UNKNOWN
+def _map_to_ray_cluster(rc) -> Optional[RayCluster]:
+    if "state" in rc["status"]:
+        status = RayClusterStatus(rc["status"]["state"].lower())
     else:
-        status = RayClusterStatus(cluster_model.status.state.lower())
+        status = RayClusterStatus.UNKNOWN
 
-    with oc.project(cluster.namespace()), oc.timeout(10 * 60):
-        route = (
-            oc.selector(f"route/ray-dashboard-{cluster.name()}")
-            .object()
-            .model.spec.host
-        )
+    config_check()
+    api_instance = client.CustomObjectsApi(api_config_handler())
+    routes = api_instance.list_namespaced_custom_object(
+        group="route.openshift.io",
+        version="v1",
+        namespace=rc["metadata"]["namespace"],
+        plural="routes",
+    )
+    ray_route = None
+    for route in routes["items"]:
+        if route["metadata"]["name"] == f"ray-dashboard-{rc['metadata']['name']}":
+            ray_route = route["spec"]["host"]
 
     return RayCluster(
-        name=cluster.name(),
+        name=rc["metadata"]["name"],
         status=status,
         # for now we are not using autoscaling so same replicas is fine
-        min_workers=cluster_model.spec.workerGroupSpecs[0].replicas,
-        max_workers=cluster_model.spec.workerGroupSpecs[0].replicas,
-        worker_mem_max=cluster_model.spec.workerGroupSpecs[0]
-        .template.spec.containers[0]
-        .resources.limits.memory,
-        worker_mem_min=cluster_model.spec.workerGroupSpecs[0]
-        .template.spec.containers[0]
-        .resources.requests.memory,
-        worker_cpu=cluster_model.spec.workerGroupSpecs[0]
-        .template.spec.containers[0]
-        .resources.limits.cpu,
+        min_workers=rc["spec"]["workerGroupSpecs"][0]["replicas"],
+        max_workers=rc["spec"]["workerGroupSpecs"][0]["replicas"],
+        worker_mem_max=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"][
+            "containers"
+        ][0]["resources"]["limits"]["memory"],
+        worker_mem_min=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"][
+            "containers"
+        ][0]["resources"]["requests"]["memory"],
+        worker_cpu=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"]["containers"][
+            0
+        ]["resources"]["limits"]["cpu"],
         worker_gpu=0,  # hard to detect currently how many gpus, can override it with what the user asked for
-        namespace=cluster.namespace(),
-        dashboard=route,
+        namespace=rc["metadata"]["namespace"],
+        dashboard=ray_route,
     )
 
 
-def _map_to_app_wrapper(cluster) -> AppWrapper:
-    cluster_model = cluster.model
+def _map_to_app_wrapper(aw) -> AppWrapper:
     return AppWrapper(
-        name=cluster.name(),
-        status=AppWrapperStatus(cluster_model.status.state.lower()),
-        can_run=cluster_model.status.canrun,
-        job_state=cluster_model.status.queuejobstate,
+        name=aw["metadata"]["name"],
+        status=AppWrapperStatus(aw["status"]["state"].lower()),
+        can_run=aw["status"]["canrun"],
+        job_state=aw["status"]["queuejobstate"],
     )
 
 

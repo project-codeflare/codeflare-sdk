@@ -20,8 +20,12 @@ authenticate to their cluster or add their own custom concrete classes here.
 """
 
 import abc
-import openshift as oc
-from openshift import OpenShiftPythonException
+from kubernetes import client, config
+
+global api_client
+api_client = None
+global config_path
+config_path = None
 
 
 class Authentication(metaclass=abc.ABCMeta):
@@ -43,80 +47,131 @@ class Authentication(metaclass=abc.ABCMeta):
         pass
 
 
+class KubeConfiguration(metaclass=abc.ABCMeta):
+    """
+    An abstract class that defines the method for loading a user defined config file using the `load_kube_config()` function
+    """
+
+    def load_kube_config(self):
+        """
+        Method for setting your Kubernetes configuration to a certain file
+        """
+        pass
+
+    def logout(self):
+        """
+        Method for logging out of the remote cluster
+        """
+        pass
+
+
 class TokenAuthentication(Authentication):
     """
-    `TokenAuthentication` is a subclass of `Authentication`. It can be used to authenticate to an OpenShift
+    `TokenAuthentication` is a subclass of `Authentication`. It can be used to authenticate to a Kubernetes
     cluster when the user has an API token and the API server address.
     """
 
-    def __init__(self, token: str = None, server: str = None, skip_tls: bool = False):
+    def __init__(
+        self,
+        token: str,
+        server: str,
+        skip_tls: bool = False,
+        ca_cert_path: str = None,
+    ):
         """
         Initialize a TokenAuthentication object that requires a value for `token`, the API Token
-        and `server`, the API server address for authenticating to an OpenShift cluster.
+        and `server`, the API server address for authenticating to a Kubernetes cluster.
         """
 
         self.token = token
         self.server = server
         self.skip_tls = skip_tls
+        self.ca_cert_path = ca_cert_path
 
     def login(self) -> str:
         """
-        This function is used to login to an OpenShift cluster using the user's API token and API server address.
-        Depending on the cluster, a user can choose to login in with "--insecure-skip-tls-verify` by setting `skip_tls`
-        to `True`.
+        This function is used to log in to a Kubernetes cluster using the user's API token and API server address.
+        Depending on the cluster, a user can choose to login in with `--insecure-skip-tls-verify` by setting `skip_tls`
+        to `True` or `--certificate-authority` by setting `skip_tls` to False and providing a path to a ca bundle with `ca_cert_path`.
         """
-        args = [f"--token={self.token}", f"--server={self.server}"]
-        if self.skip_tls:
-            args.append("--insecure-skip-tls-verify")
+        global config_path
+        global api_client
         try:
-            response = oc.invoke("login", args)
-        except OpenShiftPythonException as osp:  # pragma: no cover
-            error_msg = osp.result.err()
-            if "The server uses a certificate signed by unknown authority" in error_msg:
-                return "Error: certificate auth failure, please set `skip_tls=True` in TokenAuthentication"
-            elif "invalid" in error_msg:
-                raise PermissionError(error_msg)
+            configuration = client.Configuration()
+            configuration.api_key_prefix["authorization"] = "Bearer"
+            configuration.host = self.server
+            configuration.api_key["authorization"] = self.token
+            if self.skip_tls == False and self.ca_cert_path == None:
+                configuration.verify_ssl = True
+            elif self.skip_tls == False:
+                configuration.ssl_ca_cert = self.ca_cert_path
             else:
-                return error_msg
-        return response.out()
+                configuration.verify_ssl = False
+            api_client = client.ApiClient(configuration)
+            client.AuthenticationApi(api_client).get_api_group()
+            config_path = None
+            return "Logged into %s" % self.server
+        except client.ApiException:  # pragma: no cover
+            api_client = None
+            print("Authentication Error please provide the correct token + server")
 
     def logout(self) -> str:
         """
-        This function is used to logout of an OpenShift cluster.
+        This function is used to logout of a Kubernetes cluster.
         """
-        args = [f"--token={self.token}", f"--server={self.server}"]
-        response = oc.invoke("logout", args)
-        return response.out()
+        global config_path
+        config_path = None
+        global api_client
+        api_client = None
+        return "Successfully logged out of %s" % self.server
 
 
-class PasswordUserAuthentication(Authentication):
+class KubeConfigFileAuthentication(KubeConfiguration):
     """
-    `PasswordUserAuthentication` is a subclass of `Authentication`. It can be used to authenticate to an OpenShift
-    cluster when the user has a username and password.
+    A class that defines the necessary methods for passing a user's own Kubernetes config file.
+    Specifically this class defines the `load_kube_config()` and `config_check()` functions.
     """
 
-    def __init__(
-        self,
-        username: str = None,
-        password: str = None,
-    ):
-        """
-        Initialize a PasswordUserAuthentication object that requires a value for `username`
-        and `password` for authenticating to an OpenShift cluster.
-        """
-        self.username = username
-        self.password = password
+    def __init__(self, kube_config_path: str = None):
+        self.kube_config_path = kube_config_path
 
-    def login(self) -> str:
+    def load_kube_config(self):
         """
-        This function is used to login to an OpenShift cluster using the user's `username` and `password`.
+        Function for loading a user's own predefined Kubernetes config file.
         """
-        response = oc.login(self.username, self.password)
-        return response.out()
+        global config_path
+        global api_client
+        try:
+            if self.kube_config_path == None:
+                return "Please specify a config file path"
+            config_path = self.kube_config_path
+            api_client = None
+            config.load_kube_config(config_path)
+            response = "Loaded user config file at path %s" % self.kube_config_path
+        except config.ConfigException:  # pragma: no cover
+            config_path = None
+            raise Exception("Please specify a config file path")
+        return response
 
-    def logout(self) -> str:
-        """
-        This function is used to logout of an OpenShift cluster.
-        """
-        response = oc.invoke("logout")
-        return response.out()
+
+def config_check() -> str:
+    """
+    Function for loading the config file at the default config location ~/.kube/config if the user has not
+    specified their own config file or has logged in with their token and server.
+    """
+    global config_path
+    global api_client
+    if config_path == None and api_client == None:
+        config.load_kube_config()
+    if config_path != None and api_client == None:
+        return config_path
+
+
+def api_config_handler() -> str:
+    """
+    This function is used to load the api client if the user has logged in
+    """
+    if api_client != None and config_path == None:
+        return api_client
+    else:
+        return None
