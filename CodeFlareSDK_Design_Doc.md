@@ -4,7 +4,7 @@
 
 The primary purpose for the CodeFlare SDK is to provide a pythonic interaction layer between a user and the CodeFlare Stack (a set of services that enable advanced queuing, resource management and distributed compute on a kubernetes cluster).
 
-The reason that this SDK is needed is due to the fact that many of the benefits associated with the CodeFlare stack are aimed at making the work of data scientists simpler and more efficient. However, since all parts of the CodeFlare stack are separate Kubernetes services, there needs to be something that unifies the interactions between the user and these separate services. Furthermore, we do not expect the average user to be experienced  working with kubernetes infrastructure, and want to provide them with a python native way of interacting with these services.
+The reason that this SDK is needed is due to the fact that many of the benefits associated with the CodeFlare stack are aimed at making the work of data scientists simpler and more efficient. However, since all parts of the CodeFlare stack are separate Kubernetes services, there needs to be something that unifies the interactions between the user and these separate services. Furthermore, we do not expect the average user to be experienced working with kubernetes infrastructure, and want to provide them with a python native way of interacting with these services.
 
 The SDK should support any operation that a user would need to do in order to successfully submit machine learning training jobs to their kubernetes cluster.
 
@@ -24,11 +24,11 @@ The CodeFlare SDK is a python package that allows a user to programmatically def
 
 In order to achieve this we need the capacity to:
 
-* Generate valid appwrapper yaml files based on user provided parameters
-* Get, list, watch, create, update, patch, and delete appwrapper custom resources on a kubernetes cluster
+* Generate valid AppWrapper yaml files based on user provided parameters
+* Get, list, watch, create, update, patch, and delete AppWrapper custom resources on a kubernetes cluster
 * Get, list, watch, create, update, patch, and delete RayCluster custom resources on a kubernetes cluster.
 * Expose a secure route to the  Ray Dashboard endpoint.
-* Define, submit, monitor and cancel Jobs submitted via Torchx. TorchX jobs must support both Ray and MCAD-Kubernetes scheduler backends.
+* Define, submit, monitor and cancel Jobs submitted via TorchX. TorchX jobs must support both Ray and MCAD-Kubernetes scheduler backends.
 * Provide means of authenticating to a Kubernetes cluster
 
 ![](/docs/images/sdk-diagram.png)
@@ -51,7 +51,7 @@ Finally we will use the Kubernetes python client to delete the AppWrapper via `C
 
 ### Training Jobs:
 
-For the submission of Jobs we will rely on the [TorchX](https://pytorch.org/torchx/latest/) job launcher to handle orchestrating the distribution of our model training jobs across the available resources on our cluster. We will support two distributed backend schedulers: Ray and Kuberentes-MCAD. Torchx is designed to be used primarily as a CLI, so we will wrap a limited subset of its functionality into our SDK so that it can be used as part of a python script.
+For the submission of Jobs we will rely on the [TorchX](https://pytorch.org/torchx/latest/) job launcher to handle orchestrating the distribution of our model training jobs across the available resources on our cluster. We will support two distributed backend schedulers: Ray and Kuberentes-MCAD. TorchX is designed to be used primarily as a CLI, so we will wrap a limited subset of its functionality into our SDK so that it can be used as part of a python script.
 
 Users can define their jobs with `DDPJobDefinition()` providing parameters for the script they want to run as part of the job, the resources required for the job, additional args specific to the script being run and scheduler being used.
 
@@ -79,7 +79,7 @@ In either case, users can log out and clear the authentication inputs with `.log
     * Has no notion of MCAD. Does not support any other backends besides Ray
 * Existing CodeFlare CLI
     * Is not pythonic.
-* Nothing (let users define their own appwrappers manually)
+* Nothing (let users define their own AppWrappers manually)
     * Antithetical to the purpose of the SDK.
 
 ## Security Considerations
