@@ -151,6 +151,9 @@ class KubeConfigFileAuthentication(KubeConfiguration):
 def _create_api_client_config(
     token: str, server: str, skip_tls: bool = False, ca_cert_path: str = None
 ):
+    """
+    Creates Kubernetes client configuration given necessary parameters
+    """
     configuration = client.Configuration()
     configuration.api_key_prefix["authorization"] = "Bearer"
     configuration.host = server
