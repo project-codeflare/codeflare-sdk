@@ -97,17 +97,11 @@ class TokenAuthentication(Authentication):
         global config_path
         global api_client
         try:
-            configuration = client.Configuration()
-            configuration.api_key_prefix["authorization"] = "Bearer"
-            configuration.host = self.server
-            configuration.api_key["authorization"] = self.token
-            if self.skip_tls == False and self.ca_cert_path == None:
-                configuration.verify_ssl = True
-            elif self.skip_tls == False:
-                configuration.ssl_ca_cert = self.ca_cert_path
-            else:
-                configuration.verify_ssl = False
-            api_client = client.ApiClient(configuration)
+            api_client = client.ApiClient(
+                _create_api_client_config(
+                    self.token, self.server, self.skip_tls, self.ca_cert_path
+                )
+            )
             client.AuthenticationApi(api_client).get_api_group()
             config_path = None
             return "Logged into %s" % self.server
@@ -152,6 +146,22 @@ class KubeConfigFileAuthentication(KubeConfiguration):
             config_path = None
             raise Exception("Please specify a config file path")
         return response
+
+
+def _create_api_client_config(
+    token: str, server: str, skip_tls: bool = False, ca_cert_path: str = None
+):
+    configuration = client.Configuration()
+    configuration.api_key_prefix["authorization"] = "Bearer"
+    configuration.host = server
+    configuration.api_key["authorization"] = token
+    if skip_tls == False and ca_cert_path == None:
+        configuration.verify_ssl = True
+    elif skip_tls == False:
+        configuration.ssl_ca_cert = ca_cert_path
+    else:
+        configuration.verify_ssl = False
+    return configuration
 
 
 def config_check() -> str:
