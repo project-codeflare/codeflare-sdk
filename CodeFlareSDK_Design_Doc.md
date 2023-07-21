@@ -105,9 +105,9 @@ We will rely on the kubernetes cluster’s default security, where users cannot 
 ## Deployment and Rollout
 
 * Deployment strategy and considerations
-    * The SDK is part of the wider project codeflare ecosystem, and serves as the primary interaction layer between the user and the rest of the codeflare stack. Therefore, deployment and release strategies cannot occur in isolation, but must take into consideration the current state of the other pieces of the codeflare stack (MCAD, KubeRay, Instascale)
+    * The SDK is part of the wider project CodeFlare ecosystem, and serves as the primary interaction layer between the user and the rest of the CodeFlare stack. Therefore, deployment and release strategies cannot occur in isolation, but must take into consideration the current state of the other pieces of the CodeFlare stack (MCAD, KubeRay, Instascale)
 
 * Versioning and release management
     * Releases are performed automatically via a github action.
     * The SDK can have minor releases for urgent bug fixes.
-    * The SDK will normally have a new release alongside the rest of the codeflare stack with the same version number.
+    * The SDK will normally have a new release alongside the rest of the CodeFlare stack with the same version number.
