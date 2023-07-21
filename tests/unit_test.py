@@ -84,9 +84,9 @@ def test_cli_working():
     assert result.exit_code == 0
 
 
-def test_cluster_creation_cli():
+def test_cluster_definition_cli():
     runner = CliRunner()
-    create_cluster_command = """
+    define_cluster_command = """
                         define raycluster
                         --name=unit-test-cluster
                         --namespace=ns
@@ -101,7 +101,7 @@ def test_cluster_creation_cli():
                         --machine_types='["cpu.small", "gpu.large"]'
                         --image_pull_secrets='["unit-test-pull-secret"]'
                         """
-    result = runner.invoke(cli, create_cluster_command)
+    result = runner.invoke(cli, define_cluster_command)
     assert result.output == "Written to: unit-test-cluster.yaml\n"
     assert filecmp.cmp(
         "unit-test-cluster.yaml", f"{parent}/tests/test-case.yaml", shallow=True
