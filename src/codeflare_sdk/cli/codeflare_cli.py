@@ -17,10 +17,13 @@ class CodeflareCLI(click.MultiCommand):
     def get_command(self, ctx, name):
         ns = {}
         fn = os.path.join(cmd_folder, name + ".py")
-        with open(fn) as f:
-            code = compile(f.read(), fn, "exec")
-            eval(code, ns, ns)
-        return ns["cli"]
+        try:
+            with open(fn) as f:
+                code = compile(f.read(), fn, "exec")
+                eval(code, ns, ns)
+            return ns["cli"]
+        except FileNotFoundError:
+            return
 
 
 @click.command(cls=CodeflareCLI)
