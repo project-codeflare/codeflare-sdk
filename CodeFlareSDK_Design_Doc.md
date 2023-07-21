@@ -43,7 +43,7 @@ Our aim is to simplify the process of generating valid AppWrappers for RayCluste
 
 With a valid AppWrapper, we will use the Kubernetes python client to apply the AppWrapper to our Kubernetes cluster via a call to `cluster.up()`
 
-We will also use the Kubernetes python client to get information about both the RayCluster and AppWrapper custom resources to monitor the status of our Framework Cluster via `cluster.status()` and `cluster,details()`.
+We will also use the Kubernetes python client to get information about both the RayCluster and AppWrapper custom resources to monitor the status of our Framework Cluster via `cluster.status()` and `cluster.details()`.
 
 The RayCluster deployed on your kubernetes cluster can be interacted with in two ways: Either through an interactive session via `ray.init()` or through the submission of batch jobs.
 
@@ -67,7 +67,7 @@ The SDK itself will not enforce any authentication, however, it will provide sim
 
 Users can authorize themselves by calling `TokenAuthentication()` and providing their access token and server address. This will populate the Kubernetes python configuration of the ApiClient object and allow users to be properly authenticated to the cluster. Users are also able to toggle whether or not they want to skip tls verification.
 
-Alternatively users can provide their own custom kubeconfig file with `KubeConfigAuthentication()` and pass it the correct path.
+Alternatively users can provide their own custom kubeconfig file with `KubeConfigFileAuthentication()` and pass it the correct path.
 
 In either case, users can log out and clear the authentication inputs with `.logout()`
 
@@ -105,7 +105,7 @@ We will rely on the kubernetes cluster’s default security, where users cannot 
 ## Deployment and Rollout
 
 * Deployment strategy and considerations
-    * The SDK is part of the wider project codeflare ecosystem, and serves as the primary interaction layer between the user and the rest of the codeflare stack. Therefore, deployment and realse strategies cannot occur in isolation, but must take into consideration the current state of the other pieces of the codeflare stack (MCAD, KubeRay, Instascale)
+    * The SDK is part of the wider project codeflare ecosystem, and serves as the primary interaction layer between the user and the rest of the codeflare stack. Therefore, deployment and release strategies cannot occur in isolation, but must take into consideration the current state of the other pieces of the codeflare stack (MCAD, KubeRay, Instascale)
 
 * Versioning and release management
     * Releases are performed automatically via a github action.
