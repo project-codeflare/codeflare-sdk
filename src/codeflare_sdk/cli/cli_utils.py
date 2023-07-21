@@ -35,6 +35,8 @@ class AuthenticationConfig:
             token, server, skip_tls, ca_cert_path
         )
         self.k8_config_path = k8_config_path
+        self.server = server
+        self.token = token
 
     def create_client(self):
         return client.ApiClient(self.api_client_config)
