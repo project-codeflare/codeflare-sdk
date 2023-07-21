@@ -50,7 +50,8 @@ def load_auth():
             auth = pickle.load(file)
             sdk_auth.api_client = auth.create_client()
             sdk_auth.config_path = auth.k8_config_path
+            return auth
     except IOError:
-        raise "Not logged into Kubernetes cluster"
+        return None
     except EOFError:
-        raise "Not logged into Kubernetes cluster"
+        return None

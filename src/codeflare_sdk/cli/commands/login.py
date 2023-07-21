@@ -2,24 +2,40 @@ import click
 import pickle
 
 from codeflare_sdk.cluster.auth import TokenAuthentication
-from codeflare_sdk.cli.cli_utils import AuthenticationConfig
+from codeflare_sdk.cli.cli_utils import AuthenticationConfig, load_auth
 import codeflare_sdk.cluster.auth as sdk_auth
 
 
 @click.command()
-@click.argument("server")
-@click.option("--token", "-t", type=str, required=True)
-@click.option("--skip-tls", type=bool)
-@click.option("--ca-cert-path", type=str)
-def cli(server, token, skip_tls, ca_cert_path):
+@click.option("--server", type=str, required=True, help="Cluster API address")
+@click.option("--token", "-t", type=str, required=True, help="Authentication token")
+@click.option(
+    "--insecure-skip-tls-verify",
+    type=bool,
+    help="If true, server's certificate won't be checked for validity",
+)
+@click.option(
+    "--certificate-authority",
+    type=str,
+    help="Path to cert file for certificate authority",
+)
+def cli(server, token, insecure_skip_tls_verify, certificate_authority):
     """
-    Login to your Kubernetes cluster by specifying server and token
+    Login to your Kubernetes cluster and save login for subsequent use
     """
     try:
-        auth = TokenAuthentication(token, server, skip_tls, ca_cert_path)
+        auth = TokenAuthentication(
+            token, server, insecure_skip_tls_verify, certificate_authority
+        )
         auth.login()
+
+        # Store auth config for later use
         authConfig = AuthenticationConfig(
-            token, server, skip_tls, ca_cert_path, sdk_auth.config_path
+            token,
+            server,
+            insecure_skip_tls_verify,
+            certificate_authority,
+            sdk_auth.config_path,
         )
         with open("auth", "wb") as file:
             pickle.dump(authConfig, file)
