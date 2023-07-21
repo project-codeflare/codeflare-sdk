@@ -27,7 +27,7 @@ In order to achieve this we need the capacity to:
 * Generate valid AppWrapper yaml files based on user provided parameters
 * Get, list, watch, create, update, patch, and delete AppWrapper custom resources on a kubernetes cluster
 * Get, list, watch, create, update, patch, and delete RayCluster custom resources on a kubernetes cluster.
-* Expose a secure route to the  Ray Dashboard endpoint.
+* Expose a secure route to the Ray Dashboard endpoint.
 * Define, submit, monitor and cancel Jobs submitted via TorchX. TorchX jobs must support both Ray and MCAD-Kubernetes scheduler backends.
 * Provide means of authenticating to a Kubernetes cluster
 
@@ -37,17 +37,17 @@ In order to achieve this we need the capacity to:
 
 In order to create these framework clusters, we will start with a template AppWrapper yaml file with reasonable defaults that will generate a valid RayCluster via MCAD.
 
-Users can customize their AppWrapper by passing their desired parameters to `ClusterConfig()` and applying that configuration when initializing a `Cluster()` object.  When a `Cluster()` is initialized, it will update the AppWrapper template with the user’s specified requirements, and save it to the current working directory.
+Users can customize their AppWrapper by passing their desired parameters to `ClusterConfig()` and applying that configuration when initializing a `Cluster()` object. When a `Cluster()` is initialized, it will update the AppWrapper template with the user’s specified requirements, and save it to the current working directory.
 
 Our aim is to simplify the process of generating valid AppWrappers for RayClusters, so we will strive to find the appropriate balance between ease of use and exposing all possible AppWrapper parameters. And we will find this balance through user feedback.
 
 With a valid AppWrapper, we will use the Kubernetes python client to apply the AppWrapper to our Kubernetes cluster via a call to `cluster.up()`
 
-We will also use the Kubernetes python client to get information about both the RayCluster and AppWrapper custom resources to monitor the status of our Framework Cluster.
+We will also use the Kubernetes python client to get information about both the RayCluster and AppWrapper custom resources to monitor the status of our Framework Cluster via `cluster.status()` and `cluster,details()`.
 
 The RayCluster deployed on your kubernetes cluster can be interacted with in two ways: Either through an interactive session via `ray.init()` or through the submission of batch jobs.
 
-Finally we will use the Kubernetes python client to delete the AppWrapper via `Cluster.down()`
+Finally we will use the Kubernetes python client to delete the AppWrapper via `cluster.down()`
 
 ### Training Jobs:
 
@@ -57,7 +57,7 @@ Users can define their jobs with `DDPJobDefinition()` providing parameters for t
 
 Once a job is defined it can be submitted to the Kuberentes cluster to be run via `job.submit()`. If `job.submit()` is left empty the SDK will assume the Kuberentes-MCAD scheduler is being used. If a RayCluster is specified like, `job.submit(cluster)`, then the SDK will assume that the Ray scheduler is being used and submit the job to that RayCluster.
 
-After the job is submitted, a user can monitor its progress via  `job.status()` and `job.logs()` to retrieve the status and logs output by the job.  At any point the user can also call `.cancel()` to stop the job.
+After the job is submitted, a user can monitor its progress via `job.status()` and `job.logs()` to retrieve the status and logs output by the job. At any point the user can also call `job.cancel()` to stop the job.
 
 ### Authentication:
 
@@ -93,7 +93,7 @@ We will rely on the kubernetes cluster’s default security, where users cannot 
 
     * Unit testing for all SDK functionality
     * Integration testing of SDK interactions with OpenShift and Kubernetes
-    * System tests  of SDK as part of the entire CodeFlare stack for main scenarios
+    * System tests of SDK as part of the entire CodeFlare stack for main scenarios
 * Unit testing, integration testing, and system testing approaches
     * Unit testing will occur with every PR.
     * For system testing we can leverage [current e2e](https://github.com/project-codeflare/codeflare-operator/tree/main/test/e2e) tests from the operator repo.
