@@ -14,4 +14,4 @@ def cli():
         click.echo("Not logged in")
         return
     os.remove("auth")
-    click.echo(f"Logged out of '{auth.server}'")
+    click.echo(f"Successfully logged out of '{auth.server}'")

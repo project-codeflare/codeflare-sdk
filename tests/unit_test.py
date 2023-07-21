@@ -108,6 +108,46 @@ def test_cluster_definition_cli():
     )
 
 
+def test_login_logout_cli(mocker):
+    runner = CliRunner()
+    mocker.patch.object(client, "ApiClient")
+    k8s_login_command = """
+                        login
+                        --server=testserver:6443
+                        --token=testtoken
+                        """
+    login_result = runner.invoke(cli, k8s_login_command)
+    k8s_logout_command = "logout"
+    logout_result = runner.invoke(cli, k8s_logout_command)
+    assert login_result.output == "Logged into 'testserver:6443'\n"
+    assert logout_result.output == "Successfully logged out of 'testserver:6443'\n"
+
+
+def test_login_tls_cli(mocker):
+    runner = CliRunner()
+    mocker.patch.object(client, "ApiClient")
+    k8s_tls_login_command = """
+                        login
+                        --server=testserver:6443
+                        --token=testtoken
+                        --insecure-skip-tls-verify=False
+                        """
+    k8s_skip_tls_login_command = """
+                                login
+                                --server=testserver:6443
+                                --token=testtoken
+                                --insecure-skip-tls-verify=True
+                                """
+    tls_result = runner.invoke(cli, k8s_tls_login_command)
+    skip_tls_result = runner.invoke(cli, k8s_skip_tls_login_command)
+    assert (
+        tls_result.output == skip_tls_result.output == "Logged into 'testserver:6443'\n"
+    )
+
+    # Clean up
+    os.remove("auth")
+
+
 # For mocking openshift client results
 fake_res = openshift.Result("fake")
 

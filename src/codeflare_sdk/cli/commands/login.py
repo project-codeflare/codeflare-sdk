@@ -39,6 +39,6 @@ def cli(server, token, insecure_skip_tls_verify, certificate_authority):
         )
         with open("auth", "wb") as file:
             pickle.dump(authConfig, file)
-        click.echo(f"Logged into {server}")
+        click.echo(f"Logged into '{server}'")
     except Exception as e:
         click.echo(e)
