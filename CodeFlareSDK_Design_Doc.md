@@ -2,9 +2,9 @@
 
 ## Context and Scope
 
-The primary purpose for the CodeFlare SDK is to provide a pythonic interaction layer between a user and the CodeFlare Stack (a set of services that enable advanced queuing, resource management and distributed compute on a kubernetes cluster).
+The primary purpose for the CodeFlare SDK is to provide a pythonic interaction layer between a user and the CodeFlare Stack (a set of services that enable advanced queuing, resource management and distributed compute on Kubernetes).
 
-The reason that this SDK is needed is due to the fact that many of the benefits associated with the CodeFlare stack are aimed at making the work of data scientists simpler and more efficient. However, since all parts of the CodeFlare stack are separate Kubernetes services, there needs to be something that unifies the interactions between the user and these separate services. Furthermore, we do not expect the average user to be experienced working with kubernetes infrastructure, and want to provide them with a python native way of interacting with these services.
+The reason that this SDK is needed is due to the fact that many of the benefits associated with the CodeFlare stack are aimed at making the work of data scientists simpler and more efficient. However, since all parts of the CodeFlare stack are separate Kubernetes services, there needs to be something that unifies the interactions between the user and these separate services. Furthermore, we do not expect the average user to be experienced working with Kubernetes infrastructure, and want to provide them with a Python native way of interacting with these services.
 
 The SDK should support any operation that a user would need to do in order to successfully submit machine learning training jobs to their kubernetes cluster.
 
@@ -12,7 +12,7 @@ The SDK should support any operation that a user would need to do in order to su
 
 * Serve as an interaction layer between a data scientist and the CodeFlare Stack (MCAD, InstaScale, KubeRay)
 * Abstract away user’s infrastructure concerns; Specifically, dealing with Kubernetes resources, consoles, or CLI’s (kubectl).
-* Provide users the ability to programmatically request, monitor and stop the kubernetes resources associated with the CodeFlare stack.
+* Provide users the ability to programmatically request, monitor, and stop the kubernetes resources associated with the CodeFlare stack.
 
 ## Non-Goals
 
@@ -35,7 +35,7 @@ In order to achieve this we need the capacity to:
 
 ### Framework Clusters:
 
-In order to create these framework clusters, we will start with a template AppWrapper yaml file with reasonable defaults that will generate a valid RayCluster via MCAD.
+In order to create these framework clusters, we will start with a [template AppWrapper yaml file](/src/codeflare_sdk/templates/base-template.yaml) with reasonable defaults that will generate a valid RayCluster via MCAD.
 
 Users can customize their AppWrapper by passing their desired parameters to `ClusterConfig()` and applying that configuration when initializing a `Cluster()` object. When a `Cluster()` is initialized, it will update the AppWrapper template with the user’s specified requirements, and save it to the current working directory.
 
@@ -45,17 +45,17 @@ With a valid AppWrapper, we will use the Kubernetes python client to apply the A
 
 We will also use the Kubernetes python client to get information about both the RayCluster and AppWrapper custom resources to monitor the status of our Framework Cluster via `cluster.status()` and `cluster.details()`.
 
-The RayCluster deployed on your kubernetes cluster can be interacted with in two ways: Either through an interactive session via `ray.init()` or through the submission of batch jobs.
+The RayCluster deployed on your Kubernetes cluster can be interacted with in two ways: Either through an interactive session via `ray.init()` or through the submission of batch jobs.
 
 Finally we will use the Kubernetes python client to delete the AppWrapper via `cluster.down()`
 
 ### Training Jobs:
 
-For the submission of Jobs we will rely on the [TorchX](https://pytorch.org/torchx/latest/) job launcher to handle orchestrating the distribution of our model training jobs across the available resources on our cluster. We will support two distributed backend schedulers: Ray and Kuberentes-MCAD. TorchX is designed to be used primarily as a CLI, so we will wrap a limited subset of its functionality into our SDK so that it can be used as part of a python script.
+For the submission of Jobs we will rely on the [TorchX](https://pytorch.org/torchx/latest/) job launcher to handle orchestrating the distribution of our model training jobs across the available resources on our cluster. We will support two distributed backend schedulers: Ray and Kubernetes-MCAD. TorchX is designed to be used primarily as a CLI, so we will wrap a limited subset of its functionality into our SDK so that it can be used as part of a python script.
 
 Users can define their jobs with `DDPJobDefinition()` providing parameters for the script they want to run as part of the job, the resources required for the job, additional args specific to the script being run and scheduler being used.
 
-Once a job is defined it can be submitted to the Kuberentes cluster to be run via `job.submit()`. If `job.submit()` is left empty the SDK will assume the Kuberentes-MCAD scheduler is being used. If a RayCluster is specified like, `job.submit(cluster)`, then the SDK will assume that the Ray scheduler is being used and submit the job to that RayCluster.
+Once a job is defined it can be submitted to the Kubernetes cluster to be run via `job.submit()`. If `job.submit()` is left empty the SDK will assume the Kubernetes-MCAD scheduler is being used. If a RayCluster is specified like, `job.submit(cluster)`, then the SDK will assume that the Ray scheduler is being used and submit the job to that RayCluster.
 
 After the job is submitted, a user can monitor its progress via `job.status()` and `job.logs()` to retrieve the status and logs output by the job. At any point the user can also call `job.cancel()` to stop the job.
 
@@ -85,7 +85,7 @@ In either case, users can log out and clear the authentication inputs with `.log
 ## Security Considerations
 
 
-We will rely on the kubernetes cluster’s default security, where users cannot perform any operations on a cluster if they are not authenticated correctly.
+We will rely on the Kubernetes cluster’s default security, where users cannot perform any operations on a cluster if they are not authenticated correctly.
 
 ## Testing and Validation
 
