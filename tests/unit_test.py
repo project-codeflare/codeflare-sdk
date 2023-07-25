@@ -88,7 +88,7 @@ def test_cluster_definition_cli():
     runner = CliRunner()
     define_cluster_command = """
                         define raycluster
-                        --name=unit-test-cluster
+                        --name=cli-test-cluster
                         --namespace=ns
                         --min_worker=1
                         --max_worker=2
@@ -99,12 +99,12 @@ def test_cluster_definition_cli():
                         --gpu=7
                         --instascale=True
                         --machine_types='["cpu.small", "gpu.large"]'
-                        --image_pull_secrets='["unit-test-pull-secret"]'
+                        --image_pull_secrets='["cli-test-pull-secret"]'
                         """
     result = runner.invoke(cli, define_cluster_command)
-    assert result.output == "Written to: unit-test-cluster.yaml\n"
+    assert result.output == "Written to: cli-test-cluster.yaml\n"
     assert filecmp.cmp(
-        "unit-test-cluster.yaml", f"{parent}/tests/test-case.yaml", shallow=True
+        "cli-test-cluster.yaml", f"{parent}/tests/cli-test-case.yaml", shallow=True
     )
 
 
@@ -2254,3 +2254,4 @@ def test_cleanup():
     os.remove("unit-test-default-cluster.yaml")
     os.remove("test.yaml")
     os.remove("raytest2.yaml")
+    os.remove("cli-test-cluster.yaml")
