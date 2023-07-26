@@ -177,18 +177,22 @@ spec:
                   name: init-myservice
       replicas: 1
     - generictemplate:
-        apiVersion: route.openshift.io/v1
-        kind: Route
+        apiVersion: networking.k8s.io/v1
+        kind: Ingress
         metadata:
-          labels:
-            odh-ray-cluster-service: unit-test-cluster-head-svc
           name: ray-dashboard-unit-test-cluster
           namespace: ns
         spec:
-          port:
-            targetPort: dashboard
-          to:
-            kind: Service
-            name: unit-test-cluster-head-svc
+          rules:
+          - host: ray-dashboard-unit-test-cluster-ns.apps.cluster.awsroute.org
+            http:
+              paths:
+              - backend:
+                  service:
+                    name: unit-test-cluster-head-svc
+                    port:
+                      number: 8265
+                path: /
+                pathType: Prefix
       replicas: 1
     Items: []

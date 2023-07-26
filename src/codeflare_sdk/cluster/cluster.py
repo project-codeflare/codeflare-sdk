@@ -28,7 +28,9 @@ import urllib3
 
 from .auth import config_check, api_config_handler
 from ..utils import pretty_print
-from ..utils.generate_yaml import generate_appwrapper
+from ..utils.generate_yaml import (
+    generate_appwrapper,
+)
 from ..utils.kube_api_helpers import _kube_api_error_handling
 from ..utils.openshift_oauth import (
     create_openshift_oauth_objects,
@@ -175,6 +177,8 @@ class Cluster:
         local_interactive = self.config.local_interactive
         image_pull_secrets = self.config.image_pull_secrets
         dispatch_priority = self.config.dispatch_priority
+        ingress_domain = self.config.ingress_domain
+        ingress_options = self.config.ingress_options
         return generate_appwrapper(
             name=name,
             namespace=namespace,
@@ -198,6 +202,8 @@ class Cluster:
             dispatch_priority=dispatch_priority,
             priority_val=priority_val,
             openshift_oauth=self.config.openshift_oauth,
+            ingress_domain=ingress_domain,
+            ingress_options=ingress_options,
         )
 
     # creates a new cluster with the provided or default spec
@@ -399,27 +405,22 @@ class Cluster:
         """
         try:
             config_check()
-            api_instance = client.CustomObjectsApi(api_config_handler())
-            routes = api_instance.list_namespaced_custom_object(
-                group="route.openshift.io",
-                version="v1",
-                namespace=self.config.namespace,
-                plural="routes",
-            )
-        except Exception as e:  # pragma: no cover
+            api_instance = client.NetworkingV1Api(api_config_handler())
+            ingresses = api_instance.list_namespaced_ingress(self.config.namespace)
+        except Exception as e:
             return _kube_api_error_handling(e)
 
-        for route in routes["items"]:
-            if route["metadata"][
-                "name"
-            ] == f"ray-dashboard-{self.config.name}" or route["metadata"][
-                "name"
-            ].startswith(
-                f"{self.config.name}-ingress"
-            ):
-                protocol = "https" if route["spec"].get("tls") else "http"
-                return f"{protocol}://{route['spec']['host']}"
+        for ingress in ingresses.items:
+            annotations = ingress.metadata.annotations
+            if ingress.metadata.name == f"ray-dashboard-{self.config.name}" or ingress.metadata.name.startswith(
+                f"{self.config.name}-ingress" ):
+                if annotations == None:
+                    protocol = "http"
+                elif "route.openshift.io/termination" in annotations:
+                    protocol = "https"
+            return f"{protocol}://{ingress.spec.rules[0].host}"
         return "Dashboard route not available yet, have you run cluster.up()?"
+                            
 
     def list_jobs(self) -> List:
         """
@@ -498,8 +499,8 @@ class Cluster:
 
     def local_client_url(self):
         if self.config.local_interactive == True:
-            ingress_domain = _get_ingress_domain()
-            return f"ray://rayclient-{self.config.name}-{self.config.namespace}.{ingress_domain}"
+            ingress_domain = _get_ingress_domain(self)
+            return f"ray://{ingress_domain}"
         else:
             return "None"
 
@@ -655,16 +656,23 @@ def _check_aw_exists(name: str, namespace: str) -> bool:
     return False
 
 
-def _get_ingress_domain():
+# Cant test this until get_current_namespace is fixed
+def _get_ingress_domain(self):  # pragma: no cover
     try:
         config_check()
-        api_client = client.CustomObjectsApi(api_config_handler())
-        ingress = api_client.get_cluster_custom_object(
-            "config.openshift.io", "v1", "ingresses", "cluster"
-        )
-    except Exception as e:  # pragma: no cover
+        api_client = client.NetworkingV1Api(api_config_handler())
+        if self.config.namespace != None:
+            namespace = self.config.namespace
+        else:
+            namespace = get_current_namespace()
+            ingresses = api_client.list_namespaced_ingress(namespace)
+    except Exception as e: # pragma: no cover
         return _kube_api_error_handling(e)
-    return ingress["spec"]["domain"]
+    domain = None
+    for ingress in ingresses.items:
+        if ingress.spec.rules[0].http.paths[0].backend.service.port.number == 10001:
+            domain = ingress.spec.rules[0].host
+    return domain
 
 
 def _app_wrapper_status(name, namespace="default") -> Optional[AppWrapper]:
@@ -756,27 +764,22 @@ def _map_to_ray_cluster(rc) -> Optional[RayCluster]:
         status = RayClusterStatus(rc["status"]["state"].lower())
     else:
         status = RayClusterStatus.UNKNOWN
-
-    config_check()
-    api_instance = client.CustomObjectsApi(api_config_handler())
-    # UPDATE THIS
-    routes = api_instance.list_namespaced_custom_object(
-        group="route.openshift.io",
-        version="v1",
-        namespace=rc["metadata"]["namespace"],
-        plural="routes",
-    )
-    ray_route = None
-    for route in routes["items"]:
-        if route["metadata"][
-            "name"
-        ] == f"ray-dashboard-{rc['metadata']['name']}" or route["metadata"][
-            "name"
-        ].startswith(
-            f"{rc['metadata']['name']}-ingress"
-        ):
-            protocol = "https" if route["spec"].get("tls") else "http"
-            ray_route = f"{protocol}://{route['spec']['host']}"
+    try:
+        config_check()
+        api_instance = client.NetworkingV1Api(api_config_handler())
+        ingresses = api_instance.list_namespaced_ingress(rc["metadata"]["namespace"])
+    except Exception as e:
+        return _kube_api_error_handling(e)
+    ray_ingress = None
+    for ingress in ingresses.items:
+        annotations = ingress.metadata.annotations
+        if ingress.metadata.name == f"ray-dashboard-{rc['metadata']['name']}" or ingress.metadata.name.startswith(
+            f"{rc['metadata']['name']}-ingress" ):
+            if annotations == None:
+                protocol = "http"
+            elif "route.openshift.io/termination" in annotations:
+                protocol = "https"
+        ray_ingress = f"{protocol}://{ingress.spec.rules[0].host}"
 
     return RayCluster(
         name=rc["metadata"]["name"],
@@ -794,7 +797,6 @@ def _map_to_ray_cluster(rc) -> Optional[RayCluster]:
         ]["resources"]["limits"]["cpu"],
         worker_gpu=0,  # hard to detect currently how many gpus, can override it with what the user asked for
         namespace=rc["metadata"]["namespace"],
-        dashboard=ray_route,
         head_cpus=rc["spec"]["headGroupSpec"]["template"]["spec"]["containers"][0][
             "resources"
         ]["limits"]["cpu"],
@@ -804,6 +806,7 @@ def _map_to_ray_cluster(rc) -> Optional[RayCluster]:
         head_gpu=rc["spec"]["headGroupSpec"]["template"]["spec"]["containers"][0][
             "resources"
         ]["limits"]["nvidia.com/gpu"],
+        dashboard=ray_ingress,
     )
 
 

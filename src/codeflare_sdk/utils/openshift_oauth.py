@@ -1,5 +1,5 @@
 from urllib3.util import parse_url
-from .generate_yaml import gen_dashboard_route_name
+from .generate_yaml import gen_dashboard_ingress_name
 from .kube_api_helpers import _get_api_host
 from base64 import b64decode
 
@@ -19,7 +19,7 @@ def create_openshift_oauth_objects(cluster_name, namespace):
     host = _get_api_host(api_client)
 
     # replace "^api" with the expected host
-    host = f"{gen_dashboard_route_name(cluster_name)}-{namespace}.apps" + host.lstrip(
+    host = f"{gen_dashboard_ingress_name(cluster_name)}-{namespace}.apps" + host.lstrip(
         "api"
     )
 
