@@ -33,6 +33,7 @@ We use pre-commit to make sure the code is consistently formatted. To make sure 
 - To run the unit tests, run `pytest -v tests/unit_test.py`
 - Any new test functions/scripts can be added into the `tests` folder
 - NOTE: Functional tests coming soon, will live in `tests/func_test.py`
+- To test CLI, run `codeflare` followed by any command. To see list of commands, simply run `codeflare`
 
 #### Code Coverage
 
