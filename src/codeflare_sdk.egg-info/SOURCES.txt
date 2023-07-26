@@ -19,3 +19,7 @@ src/codeflare_sdk/utils/generate_cert.py
 src/codeflare_sdk/utils/generate_yaml.py
 src/codeflare_sdk/utils/kube_api_helpers.py
 src/codeflare_sdk/utils/pretty_print.py
+src/codeflare_sdk/cli/__init__.py
+src/codeflare_sdk/cli/codeflare_cli.py
+src/codeflare_sdk/cli/commands/create.py
+src/codeflare_sdk/cli/cli_utils.py

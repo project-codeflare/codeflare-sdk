@@ -29,6 +29,7 @@ codeflare-torchx = "0.6.0.dev0"
 cryptography = "40.0.2"
 executing = "1.2.0"
 pydantic = "< 2"
+click = "8.0.4"
 
 [tool.poetry.group.docs]
 optional = true
@@ -40,3 +41,10 @@ pdoc3 = "0.10.0"
 pytest = "7.4.0"
 coverage = "7.2.7"
 pytest-mock = "3.11.1"
+
+[tool.poetry.scripts]
+codeflare = "codeflare_sdk.cli.codeflare_cli:cli"
+
+[build-system]
+requires = ["poetry_core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

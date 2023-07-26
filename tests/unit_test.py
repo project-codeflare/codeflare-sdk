@@ -17,6 +17,7 @@ import sys
 import filecmp
 import os
 import re
+from click.testing import CliRunner
 
 parent = Path(__file__).resolve().parents[1]
 sys.path.append(str(parent) + "/src")
@@ -63,6 +64,7 @@ from codeflare_sdk.utils.generate_cert import (
     generate_tls_cert,
     export_env,
 )
+from codeflare_sdk.cli.codeflare_cli import cli
 
 import openshift
 from openshift.selector import Selector
@@ -73,6 +75,37 @@ from torchx.schedulers.ray_scheduler import RayJob
 from torchx.schedulers.kubernetes_mcad_scheduler import KubernetesMCADJob
 import pytest
 import yaml
+
+
+# CLI testing
+def test_cli_working():
+    runner = CliRunner()
+    result = runner.invoke(cli)
+    assert result.exit_code == 0
+
+
+def test_cluster_definition_cli():
+    runner = CliRunner()
+    define_cluster_command = """
+                        define raycluster
+                        --name=cli-test-cluster
+                        --namespace=ns
+                        --min_worker=1
+                        --max_worker=2
+                        --min_cpus=3
+                        --max_cpus=4
+                        --min_memory=5
+                        --max_memory=6
+                        --gpu=7
+                        --instascale=True
+                        --machine_types='["cpu.small", "gpu.large"]'
+                        --image_pull_secrets='["cli-test-pull-secret"]'
+                        """
+    result = runner.invoke(cli, define_cluster_command)
+    assert result.output == "Written to: cli-test-cluster.yaml\n"
+    assert filecmp.cmp(
+        "cli-test-cluster.yaml", f"{parent}/tests/cli-test-case.yaml", shallow=True
+    )
 
 
 # For mocking openshift client results
@@ -2222,3 +2255,4 @@ def test_cleanup():
     os.remove("tls-cluster-namespace/tls.crt")
     os.remove("tls-cluster-namespace/tls.key")
     os.rmdir("tls-cluster-namespace")
+    os.remove("cli-test-cluster.yaml")
