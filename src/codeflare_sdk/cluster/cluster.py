@@ -176,9 +176,15 @@ class Cluster:
                 ready = False
                 status = CodeFlareClusterStatus.FAILED  # should deleted be separate
                 return status, ready  # exit early, no need to check ray status
-            elif appwrapper.status in [AppWrapperStatus.PENDING]:
+            elif appwrapper.status in [
+                AppWrapperStatus.PENDING,
+                AppWrapperStatus.QUEUEING,
+            ]:
                 ready = False
-                status = CodeFlareClusterStatus.QUEUED
+                if appwrapper.status == AppWrapperStatus.PENDING:
+                    status = CodeFlareClusterStatus.QUEUED
+                else:
+                    status = CodeFlareClusterStatus.QUEUEING
                 if print_to_console:
                     pretty_print.print_app_wrappers_status([appwrapper])
                 return (
@@ -561,11 +567,18 @@ def _map_to_ray_cluster(rc) -> Optional[RayCluster]:
 
 
 def _map_to_app_wrapper(aw) -> AppWrapper:
+    if "status" in aw and "canrun" in aw["status"]:
+        return AppWrapper(
+            name=aw["metadata"]["name"],
+            status=AppWrapperStatus(aw["status"]["state"].lower()),
+            can_run=aw["status"]["canrun"],
+            job_state=aw["status"]["queuejobstate"],
+        )
     return AppWrapper(
         name=aw["metadata"]["name"],
-        status=AppWrapperStatus(aw["status"]["state"].lower()),
-        can_run=aw["status"]["canrun"],
-        job_state=aw["status"]["queuejobstate"],
+        status=AppWrapperStatus("queueing"),
+        can_run=False,
+        job_state="Still adding to queue",
     )
 
 
