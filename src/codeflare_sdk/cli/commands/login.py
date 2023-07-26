@@ -14,6 +14,7 @@ import codeflare_sdk.cluster.auth as sdk_auth
     "--insecure-skip-tls-verify",
     type=bool,
     help="If true, server's certificate won't be checked for validity",
+    default=False,
 )
 @click.option(
     "--certificate-authority",
