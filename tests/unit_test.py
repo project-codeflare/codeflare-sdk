@@ -65,6 +65,8 @@ from codeflare_sdk.utils.generate_cert import (
     export_env,
 )
 from codeflare_sdk.cli.codeflare_cli import cli
+from codeflare_sdk.cli.cli_utils import load_auth
+import codeflare_sdk.cluster.auth as sdk_auth
 
 import openshift
 from openshift.selector import Selector
@@ -143,6 +145,11 @@ def test_login_tls_cli(mocker):
     assert (
         tls_result.output == skip_tls_result.output == "Logged into 'testserver:6443'\n"
     )
+
+
+def test_load_auth():
+    load_auth()
+    assert sdk_auth.api_client is not None
 
 
 # For mocking openshift client results
