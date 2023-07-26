@@ -302,14 +302,25 @@ def disable_raycluster_tls(resources):
             ]
         )
     ):
-        if i == 1:
+        if (
+            generic_template_spec["workerGroupSpecs"][0]["template"]["spec"][
+                "initContainers"
+            ][i]["name"]
+            == "create-cert"
+        ):
             del generic_template_spec["workerGroupSpecs"][0]["template"]["spec"][
                 "initContainers"
             ][i]
 
-    if len(resources["GenericItems"]) >= 3:
-        del resources["GenericItems"][3]  # rayclient route
-        del resources["GenericItems"][2]  # ca-secret
+    updated_items = []
+    for i in resources["GenericItems"][:]:
+        if "rayclient-deployment-name" in i["generictemplate"]["metadata"]["name"]:
+            continue
+        if "ca-secret-deployment-name" in i["generictemplate"]["metadata"]["name"]:
+            continue
+        updated_items.append(i)
+
+    resources["GenericItems"] = updated_items
 
 
 def write_user_appwrapper(user_yaml, output_file_name):
