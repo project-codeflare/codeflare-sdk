@@ -1,9 +1,10 @@
 import ast
 import click
-from kubernetes import client
+from kubernetes import client, config
 import pickle
 
 from codeflare_sdk.cluster.auth import _create_api_client_config
+from codeflare_sdk.utils.kube_api_helpers import _kube_api_error_handling
 import codeflare_sdk.cluster.auth as sdk_auth
 
 
@@ -29,12 +30,10 @@ class AuthenticationConfig:
         server: str,
         skip_tls: bool,
         ca_cert_path: str,
-        k8_config_path: str,
     ):
         self.api_client_config = _create_api_client_config(
             token, server, skip_tls, ca_cert_path
         )
-        self.k8_config_path = k8_config_path
         self.server = server
         self.token = token
 
@@ -51,9 +50,8 @@ def load_auth():
         with open("auth", "rb") as file:
             auth = pickle.load(file)
             sdk_auth.api_client = auth.create_client()
-            sdk_auth.config_path = auth.k8_config_path
             return auth
-    except IOError:
-        return None
-    except EOFError:
-        return None
+    except (IOError, EOFError):
+        click.echo("No authentication found, trying default kubeconfig")
+    except client.ApiException:
+        click.echo("Invalid authentication, trying default kubeconfig")

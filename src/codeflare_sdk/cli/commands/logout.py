@@ -1,7 +1,6 @@
 import click
 import os
-
-from codeflare_sdk.cli.cli_utils import load_auth
+import pickle
 
 
 @click.command()
@@ -9,9 +8,10 @@ def cli():
     """
     Log out of current Kubernetes cluster
     """
-    auth = load_auth()
-    if not auth:
+    try:
+        with open("auth", "rb") as file:
+            auth = pickle.load(file)
+        os.remove("auth")
+        click.echo(f"Successfully logged out of '{auth.server}'")
+    except:
         click.echo("Not logged in")
-        return
-    os.remove("auth")
-    click.echo(f"Successfully logged out of '{auth.server}'")

@@ -1,13 +1,14 @@
 import click
 import pickle
+from kubernetes import client
 
 from codeflare_sdk.cluster.auth import TokenAuthentication
-from codeflare_sdk.cli.cli_utils import AuthenticationConfig, load_auth
+from codeflare_sdk.cli.cli_utils import AuthenticationConfig
 import codeflare_sdk.cluster.auth as sdk_auth
 
 
 @click.command()
-@click.option("--server", type=str, required=True, help="Cluster API address")
+@click.option("--server", "-s", type=str, required=True, help="Cluster API address")
 @click.option("--token", "-t", type=str, required=True, help="Authentication token")
 @click.option(
     "--insecure-skip-tls-verify",
@@ -23,22 +24,19 @@ def cli(server, token, insecure_skip_tls_verify, certificate_authority):
     """
     Login to your Kubernetes cluster and save login for subsequent use
     """
-    try:
-        auth = TokenAuthentication(
-            token, server, insecure_skip_tls_verify, certificate_authority
-        )
-        auth.login()
+    auth = TokenAuthentication(
+        token, server, insecure_skip_tls_verify, certificate_authority
+    )
+    auth.login()
+    if not sdk_auth.api_client:  # TokenAuthentication failed
+        return
 
-        # Store auth config for later use
-        authConfig = AuthenticationConfig(
-            token,
-            server,
-            insecure_skip_tls_verify,
-            certificate_authority,
-            sdk_auth.config_path,
-        )
-        with open("auth", "wb") as file:
-            pickle.dump(authConfig, file)
-        click.echo(f"Logged into '{server}'")
-    except Exception as e:
-        click.echo(e)
+    authConfig = AuthenticationConfig(
+        token,
+        server,
+        insecure_skip_tls_verify,
+        certificate_authority,
+    )
+    with open("auth", "wb") as file:
+        pickle.dump(authConfig, file)
+    click.echo(f"Logged into '{server}'")

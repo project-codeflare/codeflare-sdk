@@ -144,9 +144,6 @@ def test_login_tls_cli(mocker):
         tls_result.output == skip_tls_result.output == "Logged into 'testserver:6443'\n"
     )
 
-    # Clean up
-    os.remove("auth")
-
 
 # For mocking openshift client results
 fake_res = openshift.Result("fake")
@@ -2295,3 +2292,4 @@ def test_cleanup():
     os.remove("test.yaml")
     os.remove("raytest2.yaml")
     os.remove("cli-test-cluster.yaml")
+    os.remove("auth")
