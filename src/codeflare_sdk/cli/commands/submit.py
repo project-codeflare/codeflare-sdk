@@ -13,11 +13,11 @@ def cli():
 
 
 @cli.command()
-@click.argument("cluster_name")
+@click.option("--name", type=str)
 @click.option("--wait", type=bool, default=False)
-def raycluster(cluster_name, wait):
+def raycluster(name, wait):
     load_auth()
-    cluster = Cluster.from_definition_yaml(cluster_name + ".yaml")
+    cluster = Cluster.from_definition_yaml(name + ".yaml")
     if not cluster:
         click.echo(
             "Error submitting RayCluster. Make sure the RayCluster is defined before submitting it"
