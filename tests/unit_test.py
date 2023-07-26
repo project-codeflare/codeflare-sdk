@@ -19,6 +19,7 @@ import sys
 import filecmp
 import os
 import re
+import uuid
 
 parent = Path(__file__).resolve().parents[1]
 sys.path.append(str(parent) + "/src")
@@ -77,6 +78,7 @@ from unit_test_support import (
 )
 
 import codeflare_sdk.utils.kube_api_helpers
+from codeflare_sdk.utils.generate_yaml import gen_names, is_openshift_cluster
 
 import openshift
 from openshift.selector import Selector
@@ -247,8 +249,8 @@ def test_config_creation():
     assert config.local_interactive == False
 
 
-def test_cluster_creation():
-    cluster = createClusterWithConfig()
+def test_cluster_creation(mocker):
+    cluster = createClusterWithConfig(mocker)
     assert cluster.app_wrapper_yaml == "unit-test-cluster.yaml"
     assert cluster.app_wrapper_name == "unit-test-cluster"
     assert filecmp.cmp(
@@ -279,6 +281,10 @@ def test_cluster_creation_priority(mocker):
     config = createClusterConfig()
     config.name = "prio-test-cluster"
     config.dispatch_priority = "default"
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.get_cluster_custom_object",
+        return_value={"spec": {"domain": "apps.cluster.awsroute.org"}},
+    )
     cluster = Cluster(config)
     assert cluster.app_wrapper_yaml == "prio-test-cluster.yaml"
     assert cluster.app_wrapper_name == "prio-test-cluster"
@@ -292,6 +298,10 @@ def test_default_cluster_creation(mocker):
         "codeflare_sdk.cluster.cluster.get_current_namespace",
         return_value="opendatahub",
     )
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.get_cluster_custom_object",
+        return_value={"spec": {"domain": ""}},
+    )
     default_config = ClusterConfiguration(
         name="unit-test-default-cluster",
     )
@@ -300,6 +310,25 @@ def test_default_cluster_creation(mocker):
     assert cluster.app_wrapper_yaml == "unit-test-default-cluster.yaml"
     assert cluster.app_wrapper_name == "unit-test-default-cluster"
     assert cluster.config.namespace == "opendatahub"
+
+
+def test_gen_names_with_name(mocker):
+    mocker.patch.object(
+        uuid, "uuid4", return_value=uuid.UUID("00000000-0000-0000-0000-000000000001")
+    )
+    name = "myname"
+    appwrapper_name, cluster_name = gen_names(name)
+    assert appwrapper_name == name
+    assert cluster_name == name
+
+
+def test_gen_names_without_name(mocker):
+    mocker.patch.object(
+        uuid, "uuid4", return_value=uuid.UUID("00000000-0000-0000-0000-000000000001")
+    )
+    appwrapper_name, cluster_name = gen_names(None)
+    assert appwrapper_name.startswith("appwrapper-")
+    assert cluster_name.startswith("cluster-")
 
 
 def arg_check_apply_effect(group, version, namespace, plural, body, *args):
@@ -351,6 +380,10 @@ def arg_check_del_effect(group, version, namespace, plural, name, *args):
 def test_cluster_up_down(mocker):
     mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
     mocker.patch(
+        "kubernetes.client.CustomObjectsApi.get_cluster_custom_object",
+        return_value={"spec": {"domain": ""}},
+    )
+    mocker.patch(
         "kubernetes.client.CustomObjectsApi.create_namespaced_custom_object",
         side_effect=arg_check_apply_effect,
     )
@@ -362,7 +395,7 @@ def test_cluster_up_down(mocker):
         "kubernetes.client.CustomObjectsApi.list_cluster_custom_object",
         return_value={"items": []},
     )
-    cluster = cluster = createClusterWithConfig()
+    cluster = cluster = createClusterWithConfig(mocker)
     cluster.up()
     cluster.down()
 
@@ -446,41 +479,29 @@ def test_rc_status(mocker):
     assert rc == None
 
 
-def uri_retreival(group, version, namespace, plural, *args):
-    assert group == "route.openshift.io"
-    assert version == "v1"
-    assert namespace == "ns"
-    assert plural == "routes"
-    assert args == tuple()
-    return {
-        "items": [
-            {
-                "metadata": {"name": "ray-dashboard-unit-test-cluster"},
-                "spec": {
-                    "host": "ray-dashboard-unit-test-cluster-ns.apps.cluster.awsroute.org"
-                },
-            }
-        ]
-    }
-
-
 def test_cluster_uris(mocker):
     mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
     mocker.patch(
-        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
-        side_effect=uri_retreival,
+        "codeflare_sdk.cluster.cluster._get_ingress_domain",
+        return_value="apps.cluster.awsroute.org",
     )
-
-    cluster = cluster = createClusterWithConfig()
+    cluster = cluster = createClusterWithConfig(mocker)
+    mocker.patch(
+        "kubernetes.client.NetworkingV1Api.list_namespaced_ingress",
+        return_value=ingress_retrieval(port=8265),
+    )
     assert cluster.cluster_uri() == "ray://unit-test-cluster-head-svc.ns.svc:10001"
     assert (
         cluster.cluster_dashboard_uri()
         == "http://ray-dashboard-unit-test-cluster-ns.apps.cluster.awsroute.org"
     )
     cluster.config.name = "fake"
+    mocker.patch(
+        "kubernetes.client.NetworkingV1Api.list_namespaced_ingress",
+    )
     assert (
         cluster.cluster_dashboard_uri()
-        == "Dashboard route not available yet, have you run cluster.up()?"
+        == "Dashboard ingress not available yet, have you run cluster.up()?"
     )
 
 
@@ -491,7 +512,7 @@ def test_local_client_url(mocker):
     )
     mocker.patch(
         "codeflare_sdk.cluster.cluster._get_ingress_domain",
-        return_value="apps.cluster.awsroute.org",
+        return_value="rayclient-unit-test-cluster-localinter-ns.apps.cluster.awsroute.org",
     )
     mocker.patch(
         "codeflare_sdk.cluster.cluster.Cluster.create_app_wrapper",
@@ -512,14 +533,41 @@ def ray_addr(self, *args):
     return self._address
 
 
-def test_ray_job_wrapping(mocker):
-    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
-    mocker.patch(
-        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
-        side_effect=uri_retreival,
+def ingress_retrieval(port):
+    if port == 10001:
+        serviceName = "client"
+    else:
+        serviceName = "dashboard"
+    mock_ingress = client.V1Ingress(
+        metadata=client.V1ObjectMeta(name=f"ray-{serviceName}-unit-test-cluster"),
+        spec=client.V1IngressSpec(
+            rules=[
+                client.V1IngressRule(
+                    host=f"ray-{serviceName}-unit-test-cluster-ns.apps.cluster.awsroute.org",
+                    http=client.V1HTTPIngressRuleValue(
+                        paths=[
+                            client.V1HTTPIngressPath(
+                                path_type="Prefix",
+                                path="/",
+                                backend=client.V1IngressBackend(
+                                    service=client.V1IngressServiceBackend(
+                                        name="head-svc-test",
+                                        port=client.V1ServiceBackendPort(number=port),
+                                    )
+                                ),
+                            )
+                        ]
+                    ),
+                )
+            ],
+        ),
     )
-    cluster = cluster = createClusterWithConfig()
+    mock_ingress_list = client.V1IngressList(items=[mock_ingress])
+    return mock_ingress_list
 
+
+def test_ray_job_wrapping(mocker):
+    cluster = cluster = createClusterWithConfig(mocker)
     mocker.patch(
         "ray.job_submission.JobSubmissionClient._check_connection_and_version_with_url",
         return_value="None",
@@ -528,6 +576,14 @@ def test_ray_job_wrapping(mocker):
         ray.job_submission.JobSubmissionClient, "list_jobs", autospec=True
     )
     mock_res.side_effect = ray_addr
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.get_cluster_custom_object",
+        return_value={"spec": {"domain": ""}},
+    )
+    mocker.patch(
+        "kubernetes.client.NetworkingV1Api.list_namespaced_ingress",
+        return_value=ingress_retrieval(8265),
+    )
     assert cluster.list_jobs() == cluster.cluster_dashboard_uri()
 
     mock_res = mocker.patch.object(
@@ -604,6 +660,10 @@ def test_print_appwrappers(capsys):
 
 
 def test_ray_details(mocker, capsys):
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.get_cluster_custom_object",
+        return_value={"spec": {"domain": ""}},
+    )
     ray1 = RayCluster(
         name="raytest1",
         status=RayClusterStatus.READY,
@@ -1665,6 +1725,10 @@ def get_aw_obj(group, version, namespace, plural):
 def test_get_cluster(mocker):
     mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
     mocker.patch(
+        "kubernetes.client.CustomObjectsApi.get_cluster_custom_object",
+        return_value={"spec": {"domain": ""}},
+    )
+    mocker.patch(
         "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
         side_effect=get_ray_obj,
     )
@@ -1691,6 +1755,9 @@ def test_list_clusters(mocker, capsys):
     mocker.patch(
         "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
         side_effect=get_obj_none,
+    )
+    mocker.patch(
+        "kubernetes.client.NetworkingV1Api.list_namespaced_ingress",
     )
     list_all_clusters("ns")
     captured = capsys.readouterr()
@@ -1764,6 +1831,10 @@ def test_list_queue(mocker, capsys):
 
 def test_cluster_status(mocker):
     mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.get_cluster_custom_object",
+        return_value={"spec": {"domain": ""}},
+    )
     fake_aw = AppWrapper(
         "test", AppWrapperStatus.FAILED, can_run=True, job_state="unused"
     )
@@ -1845,6 +1916,14 @@ def test_cluster_status(mocker):
 
 
 def test_wait_ready(mocker, capsys):
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.get_cluster_custom_object",
+        return_value={"spec": {"domain": ""}},
+    )
+    mocker.patch(
+        "kubernetes.client.NetworkingV1Api.list_namespaced_ingress",
+        return_value=ingress_retrieval(8265),
+    )
     mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
     mocker.patch("codeflare_sdk.cluster.cluster._app_wrapper_status", return_value=None)
     mocker.patch("codeflare_sdk.cluster.cluster._ray_cluster_status", return_value=None)
@@ -1893,9 +1972,13 @@ def test_wait_ready(mocker, capsys):
     )
 
 
-def test_jobdefinition_coverage():
+def test_jobdefinition_coverage(mocker):
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.get_cluster_custom_object",
+        return_value={"spec": {"domain": ""}},
+    )
     abstract = JobDefinition()
-    cluster = createClusterWithConfig()
+    cluster = createClusterWithConfig(mocker)
     abstract._dry_run(cluster)
     abstract.submit(cluster)
 
@@ -1937,8 +2020,8 @@ def test_DDPJobDefinition_dry_run(mocker: MockerFixture):
     )
     mocker.patch.object(Cluster, "job_client")
     ddp = createTestDDP()
-    cluster = createClusterWithConfig()
-    ddp_job, _ = ddp._dry_run(cluster)
+    cluster = createClusterWithConfig(mocker)
+    ddp_job, _ = ddp._dry_run(mocker, cluster)
     assert type(ddp_job) == AppDryRunInfo
     assert ddp_job._fmt is not None
     assert type(ddp_job.request) == RayJob
@@ -2007,10 +2090,14 @@ def test_DDPJobDefinition_dry_run_no_resource_args(mocker):
     """
     mocker.patch.object(Cluster, "job_client")
     mocker.patch(
+        "kubernetes.client.CustomObjectsApi.get_cluster_custom_object",
+        return_value={"spec": {"domain": ""}},
+    )
+    mocker.patch(
         "codeflare_sdk.cluster.cluster.Cluster.cluster_dashboard_uri",
         return_value="",
     )
-    cluster = createClusterWithConfig()
+    cluster = createClusterWithConfig(mocker)
     ddp = DDPJobDefinition(
         script="test.py",
         m=None,
@@ -2099,7 +2186,7 @@ def test_DDPJobDefinition_submit(mocker: MockerFixture):
     mock_schedule.return_value = "fake-dashboard-url"
     mocker.patch.object(Cluster, "job_client")
     ddp_def = createTestDDP()
-    cluster = createClusterWithConfig()
+    cluster = createClusterWithConfig(mocker)
     mocker.patch(
         "codeflare_sdk.job.jobs.get_current_namespace",
         side_effect="opendatahub",
@@ -2131,9 +2218,9 @@ def test_DDPJob_creation(mocker: MockerFixture):
         Cluster, "cluster_dashboard_uri", return_value="fake-dashboard-url"
     )
     ddp_def = createTestDDP()
-    cluster = createClusterWithConfig()
+    cluster = createClusterWithConfig(mocker)
     mock_schedule.return_value = "fake-dashboard-url"
-    ddp_job = createDDPJob_with_cluster(ddp_def, cluster)
+    ddp_job = createDDPJob_with_cluster(mocker, ddp_def, cluster)
     assert type(ddp_job) == DDPJob
     assert type(ddp_job.job_definition) == DDPJobDefinition
     assert type(ddp_job.cluster) == Cluster
@@ -2179,8 +2266,8 @@ def test_DDPJob_status(mocker: MockerFixture):
     mocker.patch.object(Runner, "status", mock_status)
     test_DDPJob_creation(mocker)
     ddp_def = createTestDDP()
-    cluster = createClusterWithConfig()
-    ddp_job = createDDPJob_with_cluster(ddp_def, cluster)
+    cluster = createClusterWithConfig(mocker)
+    ddp_job = createDDPJob_with_cluster(mocker, ddp_def, cluster)
     mock_status.return_value = "fake-status"
     assert ddp_job.status() == "fake-status"
     _, args, kwargs = mock_status.mock_calls[0]
@@ -2193,8 +2280,8 @@ def test_DDPJob_logs(mocker: MockerFixture):
     # Setup the neccesary mock patches
     test_DDPJob_creation(mocker)
     ddp_def = createTestDDP()
-    cluster = createClusterWithConfig()
-    ddp_job = createDDPJob_with_cluster(ddp_def, cluster)
+    cluster = createClusterWithConfig(mocker)
+    ddp_job = createDDPJob_with_cluster(mocker, ddp_def, cluster)
     mock_log.return_value = "fake-logs"
     assert ddp_job.logs() == "fake-logs"
     _, args, kwargs = mock_log.mock_calls[0]
@@ -2335,6 +2422,21 @@ def secret_ca_retreival(secret_name, namespace):
     assert secret_name == "ca-secret-cluster"
     assert namespace == "namespace"
     return client.models.V1Secret(data=data)
+
+
+def test_is_openshift_cluster(mocker):
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+    mocker.patch.object(
+        client.CustomObjectsApi,
+        "get_cluster_custom_object",
+        side_effect=client.ApiException(status=404),
+    )
+    assert is_openshift_cluster() == False
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.get_cluster_custom_object",
+        return_value={"spec": {"domain": ""}},
+    )
+    assert is_openshift_cluster() == True
 
 
 def test_generate_tls_cert(mocker):
