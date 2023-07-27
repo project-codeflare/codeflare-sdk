@@ -92,7 +92,7 @@ def test_cluster_definition_cli():
     define_cluster_command = """
                         define raycluster
                         --name=cli-test-cluster
-                        --namespace=ns
+                        --namespace=default
                         --min_worker=1
                         --max_worker=2
                         --min_cpus=3
@@ -168,6 +168,37 @@ def test_logout_cli(mocker):
 def test_load_auth():
     load_auth()
     assert sdk_auth.api_client is not None
+
+
+def test_cli_cluster_submission(mocker):
+    mocker.patch.object(client, "ApiClient")
+    runner = CliRunner()
+    submit_cluster_command = """
+                            submit raycluster
+                            --name=cli-test-cluster
+                            """
+    result = runner.invoke(cli, submit_cluster_command)
+
+    assert result.exit_code == 0
+    assert "Cluster submitted successfully" in result.output
+
+
+def test_cli_cluster_deletion(mocker):
+    mocker.patch.object(client, "ApiClient")
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
+        side_effect=get_ray_obj,
+    )
+    runner = CliRunner()
+    delete_cluster_command = """
+                            delete raycluster
+                            --name=quicktest
+                            """
+    result = runner.invoke(cli, delete_cluster_command)
+
+    assert result.exit_code == 0
+    assert "Cluster deleted successfully" in result.output
 
 
 # For mocking openshift client results
