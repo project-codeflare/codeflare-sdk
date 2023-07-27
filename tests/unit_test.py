@@ -175,7 +175,7 @@ def test_cli_cluster_submission(mocker):
     runner = CliRunner()
     submit_cluster_command = """
                             submit raycluster
-                            --name=cli-test-cluster
+                            cli-test-cluster
                             """
     result = runner.invoke(cli, submit_cluster_command)
 
@@ -193,7 +193,7 @@ def test_cli_cluster_deletion(mocker):
     runner = CliRunner()
     delete_cluster_command = """
                             delete raycluster
-                            --name=quicktest
+                            quicktest
                             """
     result = runner.invoke(cli, delete_cluster_command)
 

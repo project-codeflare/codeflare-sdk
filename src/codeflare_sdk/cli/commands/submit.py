@@ -13,8 +13,8 @@ def cli():
 
 
 @cli.command()
-@click.option("--name", type=str)
-@click.option("--wait", type=bool, default=False)
+@click.argument("name", type=str)
+@click.option("--wait", is_flag=True)
 def raycluster(name, wait):
     load_auth()
     cluster = Cluster.from_definition_yaml(name + ".yaml")

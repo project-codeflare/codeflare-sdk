@@ -10,8 +10,8 @@ def cli():
 
 
 @cli.command()
-@click.option("--name", type=str)
-@click.option("--namespace", type=str, default="default")
+@click.argument("name", type=str)
+@click.option("--namespace", type=str, required=True)
 def raycluster(name, namespace):
     load_auth()
     cluster = get_cluster(name, namespace)
