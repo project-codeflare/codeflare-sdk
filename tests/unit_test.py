@@ -18,6 +18,7 @@ import filecmp
 import os
 import re
 from click.testing import CliRunner
+import pickle
 
 parent = Path(__file__).resolve().parents[1]
 sys.path.append(str(parent) + "/src")
@@ -110,7 +111,7 @@ def test_cluster_definition_cli():
     )
 
 
-def test_login_logout_cli(mocker):
+def test_login_cli(mocker):
     runner = CliRunner()
     mocker.patch.object(client, "ApiClient")
     k8s_login_command = """
@@ -119,10 +120,18 @@ def test_login_logout_cli(mocker):
                         --token=testtoken
                         """
     login_result = runner.invoke(cli, k8s_login_command)
-    k8s_logout_command = "logout"
-    logout_result = runner.invoke(cli, k8s_logout_command)
     assert login_result.output == "Logged into 'testserver:6443'\n"
-    assert logout_result.output == "Successfully logged out of 'testserver:6443'\n"
+    try:
+        auth_file_path = os.path.expanduser("~/.codeflare/auth")
+        with open(auth_file_path, "rb") as file:
+            auth = pickle.load(file)
+    except:
+        assert 0 == 1
+    assert auth.server == "testserver:6443"
+    assert auth.token == "testtoken"
+    assert auth.api_client_config.api_key["authorization"] == "testtoken"
+    assert auth.api_client_config.verify_ssl
+    assert auth.api_client_config.host == "testserver:6443"
 
 
 def test_login_tls_cli(mocker):
@@ -145,6 +154,15 @@ def test_login_tls_cli(mocker):
     assert (
         tls_result.output == skip_tls_result.output == "Logged into 'testserver:6443'\n"
     )
+
+
+def test_logout_cli(mocker):
+    runner = CliRunner()
+    mocker.patch.object(client, "ApiClient")
+    k8s_logout_command = "logout"
+    logout_result = runner.invoke(cli, k8s_logout_command)
+    assert logout_result.output == "Successfully logged out of 'testserver:6443'\n"
+    assert not os.path.exists(os.path.expanduser("~/.codeflare/auth"))
 
 
 def test_load_auth():
@@ -2299,4 +2317,4 @@ def test_cleanup():
     os.remove("test.yaml")
     os.remove("raytest2.yaml")
     os.remove("cli-test-cluster.yaml")
-    os.remove("auth")
+    os.removedirs(os.path.expanduser("~/.codeflare"))
