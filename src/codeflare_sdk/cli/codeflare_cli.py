@@ -2,12 +2,23 @@ import click
 import sys
 import os
 
+from codeflare_sdk.cluster.cluster import get_current_namespace
+from codeflare_sdk.cli.cli_utils import load_auth
+
 cmd_folder = os.path.abspath(os.path.join(os.path.dirname(__file__), "commands"))
 
 
 class CodeflareContext:
-    def __init__(self, codeflare_path):
-        self.codeflare_path = codeflare_path
+    def __init__(self):
+        self.codeflare_path = _initialize_codeflare_folder()
+        self.namespace = get_current_namespace()
+
+
+def _initialize_codeflare_folder():
+    codeflare_folder = os.path.expanduser("~/.codeflare")
+    if not os.path.exists(codeflare_folder):
+        os.makedirs(codeflare_folder)
+    return codeflare_folder
 
 
 class CodeflareCLI(click.MultiCommand):
@@ -31,18 +42,11 @@ class CodeflareCLI(click.MultiCommand):
             return
 
 
-def initialize_cli(ctx):
-    # Make .codeflare folder
-    codeflare_folder = os.path.expanduser("~/.codeflare")
-    if not os.path.exists(codeflare_folder):
-        os.makedirs(codeflare_folder)
-    ctx.obj = CodeflareContext(codeflare_folder)
-
-
 @click.command(cls=CodeflareCLI)
 @click.pass_context
 def cli(ctx):
-    initialize_cli(ctx)  # Ran on every command
+    load_auth()
+    ctx.obj = CodeflareContext()  # Ran on every command
     pass
 
 
