@@ -1,6 +1,7 @@
 import click
 import pickle
 from kubernetes import client
+import os
 
 from codeflare_sdk.cluster.auth import TokenAuthentication
 from codeflare_sdk.cli.cli_utils import AuthenticationConfig
@@ -8,6 +9,7 @@ import codeflare_sdk.cluster.auth as sdk_auth
 
 
 @click.command()
+@click.pass_context
 @click.option("--server", "-s", type=str, required=True, help="Cluster API address")
 @click.option("--token", "-t", type=str, required=True, help="Authentication token")
 @click.option(
@@ -21,7 +23,7 @@ import codeflare_sdk.cluster.auth as sdk_auth
     type=str,
     help="Path to cert file for certificate authority",
 )
-def cli(server, token, insecure_skip_tls_verify, certificate_authority):
+def cli(ctx, server, token, insecure_skip_tls_verify, certificate_authority):
     """
     Login to your Kubernetes cluster and save login for subsequent use
     """
@@ -32,12 +34,13 @@ def cli(server, token, insecure_skip_tls_verify, certificate_authority):
     if not sdk_auth.api_client:  # TokenAuthentication failed
         return
 
-    authConfig = AuthenticationConfig(
+    auth_config = AuthenticationConfig(
         token,
         server,
         insecure_skip_tls_verify,
         certificate_authority,
     )
-    with open("auth", "wb") as file:
-        pickle.dump(authConfig, file)
+    auth_file_path = ctx.obj.codeflare_path + "/auth"
+    with open(auth_file_path, "wb") as file:
+        pickle.dump(auth_config, file)
     click.echo(f"Logged into '{server}'")

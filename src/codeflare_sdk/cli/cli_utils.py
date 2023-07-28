@@ -2,6 +2,7 @@ import ast
 import click
 from kubernetes import client, config
 import pickle
+import os
 
 from codeflare_sdk.cluster.auth import _create_api_client_config
 from codeflare_sdk.utils.kube_api_helpers import _kube_api_error_handling
@@ -47,7 +48,8 @@ def load_auth():
     which can be used by the SDK for authentication
     """
     try:
-        with open("auth", "rb") as file:
+        auth_file_path = os.path.expanduser("~/.codeflare/auth")
+        with open(auth_file_path, "rb") as file:
             auth = pickle.load(file)
             sdk_auth.api_client = auth.create_client()
             return auth
