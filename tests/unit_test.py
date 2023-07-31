@@ -18,6 +18,7 @@ import filecmp
 import os
 import re
 from click.testing import CliRunner
+import pickle
 
 parent = Path(__file__).resolve().parents[1]
 sys.path.append(str(parent) + "/src")
@@ -65,6 +66,8 @@ from codeflare_sdk.utils.generate_cert import (
     export_env,
 )
 from codeflare_sdk.cli.codeflare_cli import cli
+from codeflare_sdk.cli.cli_utils import load_auth
+import codeflare_sdk.cluster.auth as sdk_auth
 
 import openshift
 from openshift.selector import Selector
@@ -106,6 +109,65 @@ def test_cluster_definition_cli():
     assert filecmp.cmp(
         "cli-test-cluster.yaml", f"{parent}/tests/cli-test-case.yaml", shallow=True
     )
+
+
+def test_login_cli(mocker):
+    runner = CliRunner()
+    mocker.patch.object(client, "ApiClient")
+    k8s_login_command = """
+                        login
+                        --server=testserver:6443
+                        --token=testtoken
+                        """
+    login_result = runner.invoke(cli, k8s_login_command)
+    assert login_result.output == "Logged into 'testserver:6443'\n"
+    try:
+        auth_file_path = os.path.expanduser("~/.codeflare/auth")
+        with open(auth_file_path, "rb") as file:
+            auth = pickle.load(file)
+    except:
+        assert 0 == 1
+    assert auth.server == "testserver:6443"
+    assert auth.token == "testtoken"
+    assert auth.api_client_config.api_key["authorization"] == "testtoken"
+    assert auth.api_client_config.verify_ssl
+    assert auth.api_client_config.host == "testserver:6443"
+
+
+def test_login_tls_cli(mocker):
+    runner = CliRunner()
+    mocker.patch.object(client, "ApiClient")
+    k8s_tls_login_command = """
+                        login
+                        --server=testserver:6443
+                        --token=testtoken
+                        --insecure-skip-tls-verify=False
+                        """
+    k8s_skip_tls_login_command = """
+                                login
+                                --server=testserver:6443
+                                --token=testtoken
+                                --insecure-skip-tls-verify=True
+                                """
+    tls_result = runner.invoke(cli, k8s_tls_login_command)
+    skip_tls_result = runner.invoke(cli, k8s_skip_tls_login_command)
+    assert (
+        tls_result.output == skip_tls_result.output == "Logged into 'testserver:6443'\n"
+    )
+
+
+def test_logout_cli(mocker):
+    runner = CliRunner()
+    mocker.patch.object(client, "ApiClient")
+    k8s_logout_command = "logout"
+    logout_result = runner.invoke(cli, k8s_logout_command)
+    assert logout_result.output == "Successfully logged out of 'testserver:6443'\n"
+    assert not os.path.exists(os.path.expanduser("~/.codeflare/auth"))
+
+
+def test_load_auth():
+    load_auth()
+    assert sdk_auth.api_client is not None
 
 
 # For mocking openshift client results
@@ -2254,12 +2316,10 @@ def test_cleanup():
     os.remove("unit-test-default-cluster.yaml")
     os.remove("test.yaml")
     os.remove("raytest2.yaml")
-<<<<<<< HEAD
     os.remove("quicktest.yaml")
     os.remove("tls-cluster-namespace/ca.crt")
     os.remove("tls-cluster-namespace/tls.crt")
     os.remove("tls-cluster-namespace/tls.key")
     os.rmdir("tls-cluster-namespace")
-=======
     os.remove("cli-test-cluster.yaml")
->>>>>>> 3195eb1 (CLI Layout and Create RayCluster function (#227))
+    os.removedirs(os.path.expanduser("~/.codeflare"))
