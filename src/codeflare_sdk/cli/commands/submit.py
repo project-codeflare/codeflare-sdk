@@ -16,7 +16,6 @@ def cli():
 @click.argument("name", type=str)
 @click.option("--wait", is_flag=True)
 def raycluster(name, wait):
-    load_auth()
     cluster = Cluster.from_definition_yaml(name + ".yaml")
     if not cluster:
         click.echo(

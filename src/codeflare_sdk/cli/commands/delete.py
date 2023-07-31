@@ -13,7 +13,6 @@ def cli():
 @click.argument("name", type=str)
 @click.option("--namespace", type=str, required=True)
 def raycluster(name, namespace):
-    load_auth()
     cluster = get_cluster(name, namespace)
     cluster.down()
     click.echo(f"Cluster deleted successfully")
