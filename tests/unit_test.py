@@ -2353,4 +2353,3 @@ def test_cleanup():
     os.remove("tls-cluster-namespace/tls.key")
     os.rmdir("tls-cluster-namespace")
     os.remove("cli-test-cluster.yaml")
-    os.removedirs(os.path.expanduser("~/.codeflare"))
