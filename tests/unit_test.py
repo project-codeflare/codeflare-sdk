@@ -87,7 +87,8 @@ def test_cli_working():
     assert result.exit_code == 0
 
 
-def test_cluster_definition_cli():
+def test_cluster_definition_cli(mocker):
+    mocker.patch.object(client, "ApiClient")
     runner = CliRunner()
     define_cluster_command = """
                         define raycluster
@@ -105,7 +106,10 @@ def test_cluster_definition_cli():
                         --image_pull_secrets='["cli-test-pull-secret"]'
                         """
     result = runner.invoke(cli, define_cluster_command)
-    assert result.output == "Written to: cli-test-cluster.yaml\n"
+    assert (
+        result.output
+        == "No authentication found, trying default kubeconfig\nWritten to: cli-test-cluster.yaml\n"
+    )
     assert filecmp.cmp(
         "cli-test-cluster.yaml", f"{parent}/tests/cli-test-case.yaml", shallow=True
     )
@@ -120,7 +124,10 @@ def test_login_cli(mocker):
                         --token=testtoken
                         """
     login_result = runner.invoke(cli, k8s_login_command)
-    assert login_result.output == "Logged into 'testserver:6443'\n"
+    assert (
+        login_result.output
+        == "No authentication found, trying default kubeconfig\nLogged into 'testserver:6443'\n"
+    )
     try:
         auth_file_path = os.path.expanduser("~/.codeflare/auth")
         with open(auth_file_path, "rb") as file:
@@ -170,7 +177,7 @@ def test_load_auth():
     assert sdk_auth.api_client is not None
 
 
-def test_cli_cluster_submission(mocker):
+def test_cluster_submission_cli(mocker):
     mocker.patch.object(client, "ApiClient")
     runner = CliRunner()
     submit_cluster_command = """
@@ -183,7 +190,7 @@ def test_cli_cluster_submission(mocker):
     assert "Cluster submitted successfully" in result.output
 
 
-def test_cli_cluster_deletion(mocker):
+def test_cluster_deletion_cli(mocker):
     mocker.patch.object(client, "ApiClient")
     mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
     mocker.patch(
