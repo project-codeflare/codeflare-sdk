@@ -34,6 +34,7 @@ from codeflare_sdk.cluster.cluster import (
     get_cluster,
     _app_wrapper_status,
     _ray_cluster_status,
+    list_clusters_all_namespaces,
 )
 from codeflare_sdk.cluster.auth import (
     TokenAuthentication,
@@ -206,6 +207,33 @@ def test_cluster_deletion_cli(mocker):
 
     assert result.exit_code == 0
     assert "Cluster deleted successfully" in result.output
+def test_list_clusters_all_namespaces(mocker, capsys):
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_cluster_custom_object",
+        side_effect=get_ray_obj_no_namespace,
+    )
+    list_clusters_all_namespaces()
+    captured = capsys.readouterr()
+    assert captured.out == (
+        "                  🚀 CodeFlare Cluster Details 🚀                 \n"
+        "                                                                  \n"
+        " ╭──────────────────────────────────────────────────────────────╮ \n"
+        " │   Name                                                       │ \n"
+        " │   quicktest                                   Active ✅      │ \n"
+        " │                                                              │ \n"
+        " │   URI: ray://quicktest-head-svc.ns.svc:10001                 │ \n"
+        " │                                                              │ \n"
+        " │   Dashboard🔗                                                │ \n"
+        " │                                                              │ \n"
+        " │                      Cluster Resources                       │ \n"
+        " │   ╭─ Workers ──╮  ╭───────── Worker specs(each) ─────────╮   │ \n"
+        " │   │  Min  Max  │  │  Memory      CPU         GPU         │   │ \n"
+        " │   │            │  │                                      │   │ \n"
+        " │   │  1    1    │  │  2G~2G       1           0           │   │ \n"
+        " │   │            │  │                                      │   │ \n"
+        " │   ╰────────────╯  ╰──────────────────────────────────────╯   │ \n"
+        " ╰──────────────────────────────────────────────────────────────╯ \n"
+    )
 
 
 # For mocking openshift client results
@@ -987,6 +1015,10 @@ def get_ray_obj(group, version, namespace, plural, cls=None):
         ]
     }
     return api_obj
+
+
+def get_ray_obj_no_namespace(group, version, plural, cls=None):
+    return get_ray_obj(group, version, "ns", plural, cls)
 
 
 def get_aw_obj(group, version, namespace, plural):
