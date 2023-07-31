@@ -11,7 +11,6 @@ cmd_folder = os.path.abspath(os.path.join(os.path.dirname(__file__), "commands")
 class CodeflareContext:
     def __init__(self):
         self.codeflare_path = _initialize_codeflare_folder()
-        self.namespace = get_current_namespace()
 
 
 def _initialize_codeflare_folder():
