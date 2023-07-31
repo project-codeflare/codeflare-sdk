@@ -14,7 +14,7 @@ def cli():
 
 @cli.command()
 @click.argument("name", type=str)
-@click.option("--namespace", type=str, required=True)
+@click.option("--namespace", type=str, default="default")
 def raycluster(name, namespace):
     """
     Delete a specified RayCluster from the Kubernetes cluster
