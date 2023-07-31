@@ -243,10 +243,6 @@ def test_raycluster_details_cli(mocker):
         side_effect=get_ray_obj,
     )
     mocker.patch(
-        "codeflare_sdk.cluster.cluster.get_current_namespace",
-        return_value="ns",
-    )
-    mocker.patch(
         "codeflare_sdk.cluster.cluster.Cluster.status",
         return_value=(False, CodeFlareClusterStatus.UNKNOWN),
     )
@@ -282,6 +278,19 @@ def test_raycluster_details_cli(mocker):
 
 def test_raycluster_status_cli(mocker):
     runner = CliRunner()
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
+        side_effect=get_ray_obj,
+    )
+    mocker.patch(
+        "codeflare_sdk.cluster.cluster.get_current_namespace",
+        return_value="ns",
+    )
+    mocker.patch(
+        "codeflare_sdk.cluster.cluster.Cluster.cluster_dashboard_uri",
+        return_value="",
+    )
+    mocker.patch.object(client, "ApiClient")
     test_raycluster = RayCluster(
         "quicktest",
         RayClusterStatus.READY,
@@ -295,18 +304,6 @@ def test_raycluster_status_cli(mocker):
         "dashboard-url",
     )
     mocker.patch(
-        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
-        side_effect=get_ray_obj,
-    )
-    mocker.patch(
-        "codeflare_sdk.cluster.cluster.get_current_namespace",
-        return_value="ns",
-    )
-    mocker.patch(
-        "codeflare_sdk.cluster.cluster.Cluster.cluster_dashboard_uri",
-        return_value="",
-    )
-    mocker.patch(
         "codeflare_sdk.cluster.cluster._app_wrapper_status",
         return_value=test_raycluster,
     )
@@ -314,7 +311,6 @@ def test_raycluster_status_cli(mocker):
         "codeflare_sdk.cluster.cluster._ray_cluster_status",
         return_value=test_raycluster,
     )
-    mocker.patch.object(client, "ApiClient")
     raycluster_status_command = """
                                 status raycluster quicktest
                                 """
