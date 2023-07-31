@@ -9,6 +9,9 @@ import codeflare_sdk.cluster.auth as sdk_auth
 
 @click.group()
 def cli():
+    """
+    Submit a defined resource to the Kubernetes cluster
+    """
     pass
 
 
@@ -16,6 +19,9 @@ def cli():
 @click.argument("name", type=str)
 @click.option("--wait", is_flag=True)
 def raycluster(name, wait):
+    """
+    Submit a defined RayCluster to the Kubernetes cluster
+    """
     cluster = Cluster.from_definition_yaml(name + ".yaml")
     if not cluster:
         click.echo(
