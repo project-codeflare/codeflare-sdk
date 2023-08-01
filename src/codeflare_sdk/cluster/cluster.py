@@ -83,7 +83,7 @@ class Cluster:
         min_memory = self.config.min_memory
         max_memory = self.config.max_memory
         gpu = self.config.gpu
-        workers = self.config.max_worker
+        workers = self.config.worker
         template = self.config.template
         image = self.config.image
         instascale = self.config.instascale
@@ -318,8 +318,7 @@ class Cluster:
             name=rc["metadata"]["name"],
             namespace=rc["metadata"]["namespace"],
             machine_types=machine_types,
-            min_worker=rc["spec"]["workerGroupSpecs"][0]["minReplicas"],
-            max_worker=rc["spec"]["workerGroupSpecs"][0]["maxReplicas"],
+            worker=rc["spec"]["workerGroupSpecs"][0]["minReplicas"],
             min_cpus=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"][
                 "containers"
             ][0]["resources"]["requests"]["cpu"],
@@ -545,8 +544,7 @@ def _map_to_ray_cluster(rc) -> Optional[RayCluster]:
         name=rc["metadata"]["name"],
         status=status,
         # for now we are not using autoscaling so same replicas is fine
-        min_workers=rc["spec"]["workerGroupSpecs"][0]["replicas"],
-        max_workers=rc["spec"]["workerGroupSpecs"][0]["replicas"],
+        workers=rc["spec"]["workerGroupSpecs"][0]["replicas"],
         worker_mem_max=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"][
             "containers"
         ][0]["resources"]["limits"]["memory"],
@@ -575,8 +573,7 @@ def _copy_to_ray(cluster: Cluster) -> RayCluster:
     ray = RayCluster(
         name=cluster.config.name,
         status=cluster.status(print_to_console=False)[0],
-        min_workers=cluster.config.min_worker,
-        max_workers=cluster.config.max_worker,
+        workers=cluster.config.worker,
         worker_mem_min=cluster.config.min_memory,
         worker_mem_max=cluster.config.max_memory,
         worker_cpu=cluster.config.min_cpus,
