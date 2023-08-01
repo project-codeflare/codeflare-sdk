@@ -28,6 +28,7 @@ kubernetes = ">= 25.3.0, < 27"
 codeflare-torchx = "0.6.0.dev0"
 cryptography = "40.0.2"
 executing = "1.2.0"
+pydantic = "< 2"
 
 [tool.poetry.group.docs]
 optional = true
