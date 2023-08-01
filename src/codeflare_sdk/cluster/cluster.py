@@ -429,7 +429,7 @@ def get_cluster(cluster_name: str, namespace: str = "default"):
 def _get_ingress_domain():
     try:
         config.load_kube_config()
-        api_client = client.CustomObjectsApi()
+        api_client = client.CustomObjectsApi(api_config_handler())
         ingress = api_client.get_cluster_custom_object(
             "config.openshift.io", "v1", "ingresses", "cluster"
         )
