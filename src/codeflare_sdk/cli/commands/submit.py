@@ -1,10 +1,6 @@
 import click
-import yaml
-import time
 
 from codeflare_sdk.cluster.cluster import Cluster
-from codeflare_sdk.cli.cli_utils import load_auth
-import codeflare_sdk.cluster.auth as sdk_auth
 
 
 @click.group()

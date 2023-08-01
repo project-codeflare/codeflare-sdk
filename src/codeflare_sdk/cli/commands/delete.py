@@ -1,7 +1,6 @@
 import click
 
 from codeflare_sdk.cluster.cluster import get_cluster
-from codeflare_sdk.cli.cli_utils import load_auth
 
 
 @click.group()

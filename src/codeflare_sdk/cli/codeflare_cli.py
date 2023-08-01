@@ -1,8 +1,6 @@
 import click
-import sys
 import os
 
-from codeflare_sdk.cluster.cluster import get_current_namespace
 from codeflare_sdk.cli.cli_utils import load_auth
 
 cmd_folder = os.path.abspath(os.path.join(os.path.dirname(__file__), "commands"))
