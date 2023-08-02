@@ -16,7 +16,7 @@ def cli():
 
 
 @cli.command()
-@click.option("--namespace")
+@click.option("--namespace", type=str)
 @click.option("--all", is_flag=True)
 @click.pass_context
 def rayclusters(ctx, namespace, all):
@@ -24,7 +24,9 @@ def rayclusters(ctx, namespace, all):
     if all and namespace:
         click.echo("--all and --namespace are mutually exclusive")
         return
-    namespace = namespace or "default"
+    if not all and not namespace:
+        click.echo("You must specify either --namespace or --all")
+        return
     if not all:
         list_all_clusters(namespace)
         return

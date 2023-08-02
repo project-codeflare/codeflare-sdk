@@ -13,7 +13,7 @@ def cli():
 
 @cli.command()
 @click.argument("name", type=str)
-@click.option("--namespace", type=str, default="default")
+@click.option("--namespace", type=str, required=True)
 def raycluster(name, namespace):
     """
     Delete a specified RayCluster from the Kubernetes cluster

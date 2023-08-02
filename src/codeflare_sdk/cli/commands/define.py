@@ -13,7 +13,7 @@ def cli():
 
 @cli.command()
 @click.option("--name", type=str, required=True)
-@click.option("--namespace", "-n", type=str)
+@click.option("--namespace", "-n", type=str, required=True)
 @click.option("--head_info", cls=PythonLiteralOption, type=list)
 @click.option("--machine_types", cls=PythonLiteralOption, type=list)
 @click.option("--min_cpus", type=int)
