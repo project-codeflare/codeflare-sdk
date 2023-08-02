@@ -201,12 +201,14 @@ def test_cluster_deletion_cli(mocker):
     runner = CliRunner()
     delete_cluster_command = """
                             delete raycluster
-                            quicktest
+                            quicktest --namespace=default
                             """
     result = runner.invoke(cli, delete_cluster_command)
 
     assert result.exit_code == 0
     assert "Cluster deleted successfully" in result.output
+
+
 def test_list_clusters_all_namespaces(mocker, capsys):
     mocker.patch(
         "kubernetes.client.CustomObjectsApi.list_cluster_custom_object",
@@ -252,7 +254,7 @@ def test_raycluster_details_cli(mocker):
     )
     mocker.patch.object(client, "ApiClient")
     raycluster_details_command = """
-                                details raycluster quicktest
+                                details raycluster quicktest --namespace=default
                                 """
     result = runner.invoke(cli, raycluster_details_command)
     quicktest_details = (
@@ -312,7 +314,7 @@ def test_raycluster_status_cli(mocker):
         return_value=test_raycluster,
     )
     raycluster_status_command = """
-                                status raycluster quicktest
+                                status raycluster quicktest --namespace=default
                                 """
     result = runner.invoke(cli, raycluster_status_command)
     assert "Active" in result.output

@@ -11,7 +11,7 @@ def cli():
 
 @cli.command()
 @click.argument("name", type=str)
-@click.option("--namespace", type=str)
+@click.option("--namespace", type=str, required=True)
 @click.pass_context
 def raycluster(ctx, name, namespace):
     """Get the details of a specified RayCluster"""
