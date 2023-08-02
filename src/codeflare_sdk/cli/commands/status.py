@@ -15,6 +15,9 @@ def cli():
 @click.pass_context
 def raycluster(ctx, name, namespace):
     """Get the status of a specified RayCluster"""
-    namespace = namespace or "default"
-    cluster = get_cluster(name, namespace)
+    try:
+        cluster = get_cluster(name, namespace)
+    except FileNotFoundError:
+        click.echo(f"Cluster {name} not found in {namespace} namespace")
+        return
     cluster.status()
