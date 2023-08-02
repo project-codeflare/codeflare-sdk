@@ -313,7 +313,8 @@ class Cluster:
     def from_k8_cluster_object(rc):
         machine_types = (
             rc["metadata"]["labels"]["orderedinstance"].split("_")
-            if "orderedinstance" in rc["metadata"]["labels"]
+            if "labels" in rc["metadata"]
+            and "orderedinstance" in rc["metadata"]["labels"]
             else []
         )
         local_interactive = (
@@ -351,6 +352,58 @@ class Cluster:
             local_interactive=local_interactive,
         )
         return Cluster(cluster_config)
+
+    def from_definition_yaml(yaml_path):
+        try:
+            with open(yaml_path) as yaml_file:
+                rc = yaml.load(yaml_file, Loader=yaml.FullLoader)
+                machine_types = (
+                    rc["metadata"]["labels"]["orderedinstance"].split("_")
+                    if "labels" in rc["metadata"]
+                    and "orderedinstance" in rc["metadata"]["labels"]
+                    else []
+                )
+                worker_group_specs = rc["spec"]["resources"]["GenericItems"][0][
+                    "generictemplate"
+                ]["spec"]["workerGroupSpecs"][0]
+                local_interactive = (
+                    "volumeMounts"
+                    in worker_group_specs["template"]["spec"]["containers"][0]
+                )
+                cluster_config = ClusterConfiguration(
+                    name=rc["metadata"]["name"],
+                    namespace=rc["metadata"]["namespace"],
+                    machine_types=machine_types,
+                    min_worker=worker_group_specs["minReplicas"],
+                    max_worker=worker_group_specs["maxReplicas"],
+                    min_cpus=worker_group_specs["template"]["spec"]["containers"][0][
+                        "resources"
+                    ]["requests"]["cpu"],
+                    max_cpus=worker_group_specs["template"]["spec"]["containers"][0][
+                        "resources"
+                    ]["limits"]["cpu"],
+                    min_memory=int(
+                        worker_group_specs["template"]["spec"]["containers"][0][
+                            "resources"
+                        ]["requests"]["memory"][:-1]
+                    ),
+                    max_memory=int(
+                        worker_group_specs["template"]["spec"]["containers"][0][
+                            "resources"
+                        ]["limits"]["memory"][:-1]
+                    ),
+                    gpu=worker_group_specs["template"]["spec"]["containers"][0][
+                        "resources"
+                    ]["requests"]["nvidia.com/gpu"],
+                    instascale=True if machine_types else False,
+                    image=worker_group_specs["template"]["spec"]["containers"][0][
+                        "image"
+                    ],
+                    local_interactive=local_interactive,
+                )
+                return Cluster(cluster_config)
+        except IOError:
+            return None
 
     def local_client_url(self):
         if self.config.local_interactive == True:

@@ -4,7 +4,7 @@ metadata:
   labels:
     orderedinstance: cpu.small_gpu.large
   name: cli-test-cluster
-  namespace: ns
+  namespace: default
 spec:
   priority: 9
   resources:
@@ -36,7 +36,7 @@ spec:
             appwrapper.mcad.ibm.com: cli-test-cluster
             controller-tools.k8s.io: '1.0'
           name: cli-test-cluster
-          namespace: ns
+          namespace: default
         spec:
           autoscalerOptions:
             idleTimeoutSeconds: 60
@@ -184,7 +184,7 @@ spec:
           labels:
             odh-ray-cluster-service: cli-test-cluster-head-svc
           name: ray-dashboard-cli-test-cluster
-          namespace: ns
+          namespace: default
         spec:
           port:
             targetPort: dashboard
