@@ -162,7 +162,14 @@ def config_check() -> str:
     global config_path
     global api_client
     if config_path == None and api_client == None:
-        config.load_kube_config()
+        try:
+            config.load_kube_config()
+        except config.config_exception.ConfigException:
+            try:
+                config.load_incluster_config()
+            except:
+                print("Unable to load config file or in cluster configuration")
+
     if config_path != None and api_client == None:
         return config_path
 
