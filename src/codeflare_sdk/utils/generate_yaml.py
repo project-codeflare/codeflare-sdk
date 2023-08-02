@@ -267,26 +267,61 @@ def enable_local_interactive(resources, cluster_name, namespace):
 
 
 def disable_raycluster_tls(resources):
-    del resources["GenericItems"][0]["generictemplate"]["spec"]["headGroupSpec"][
-        "template"
-    ]["spec"]["volumes"]
-    del resources["GenericItems"][0]["generictemplate"]["spec"]["headGroupSpec"][
-        "template"
-    ]["spec"]["containers"][0]["volumeMounts"]
-    del resources["GenericItems"][0]["generictemplate"]["spec"]["headGroupSpec"][
-        "template"
-    ]["spec"]["initContainers"]
-    del resources["GenericItems"][0]["generictemplate"]["spec"]["workerGroupSpecs"][0][
-        "template"
-    ]["spec"]["volumes"]
-    del resources["GenericItems"][0]["generictemplate"]["spec"]["workerGroupSpecs"][0][
-        "template"
-    ]["spec"]["containers"][0]["volumeMounts"]
-    del resources["GenericItems"][0]["generictemplate"]["spec"]["workerGroupSpecs"][0][
-        "template"
-    ]["spec"]["initContainers"][1]
-    del resources["GenericItems"][3]  # rayclient route
-    del resources["GenericItems"][2]  # ca-secret
+    generic_template_spec = resources["GenericItems"][0]["generictemplate"]["spec"]
+
+    if "volumes" in generic_template_spec["headGroupSpec"]["template"]["spec"]:
+        del generic_template_spec["headGroupSpec"]["template"]["spec"]["volumes"]
+
+    if (
+        "volumeMounts"
+        in generic_template_spec["headGroupSpec"]["template"]["spec"]["containers"][0]
+    ):
+        del generic_template_spec["headGroupSpec"]["template"]["spec"]["containers"][0][
+            "volumeMounts"
+        ]
+
+    if "initContainers" in generic_template_spec["headGroupSpec"]["template"]["spec"]:
+        del generic_template_spec["headGroupSpec"]["template"]["spec"]["initContainers"]
+
+    if "volumes" in generic_template_spec["workerGroupSpecs"][0]["template"]["spec"]:
+        del generic_template_spec["workerGroupSpecs"][0]["template"]["spec"]["volumes"]
+
+    if (
+        "volumeMounts"
+        in generic_template_spec["workerGroupSpecs"][0]["template"]["spec"][
+            "containers"
+        ][0]
+    ):
+        del generic_template_spec["workerGroupSpecs"][0]["template"]["spec"][
+            "containers"
+        ][0]["volumeMounts"]
+
+    for i in range(
+        len(
+            generic_template_spec["workerGroupSpecs"][0]["template"]["spec"][
+                "initContainers"
+            ]
+        )
+    ):
+        if (
+            generic_template_spec["workerGroupSpecs"][0]["template"]["spec"][
+                "initContainers"
+            ][i]["name"]
+            == "create-cert"
+        ):
+            del generic_template_spec["workerGroupSpecs"][0]["template"]["spec"][
+                "initContainers"
+            ][i]
+
+    updated_items = []
+    for i in resources["GenericItems"][:]:
+        if "rayclient-deployment-name" in i["generictemplate"]["metadata"]["name"]:
+            continue
+        if "ca-secret-deployment-name" in i["generictemplate"]["metadata"]["name"]:
+            continue
+        updated_items.append(i)
+
+    resources["GenericItems"] = updated_items
 
 
 def write_user_appwrapper(user_yaml, output_file_name):
