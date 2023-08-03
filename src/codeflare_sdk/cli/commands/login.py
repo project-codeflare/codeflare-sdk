@@ -25,7 +25,7 @@ import codeflare_sdk.cluster.auth as sdk_auth
 )
 def cli(ctx, server, token, insecure_skip_tls_verify, certificate_authority):
     """
-    Login to your Kubernetes cluster and save login for subsequent use
+    Login to your Kubernetes cluster and save login for later use
     """
     auth = TokenAuthentication(
         token, server, insecure_skip_tls_verify, certificate_authority
