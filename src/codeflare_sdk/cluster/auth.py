@@ -21,6 +21,7 @@ authenticate to their cluster or add their own custom concrete classes here.
 
 import abc
 from kubernetes import client, config
+import os
 
 global api_client
 api_client = None
@@ -161,14 +162,16 @@ def config_check() -> str:
     """
     global config_path
     global api_client
+    home_directory = os.path.expanduser("~")
     if config_path == None and api_client == None:
-        try:
+        if os.path.isfile("%s/.kube/config" % home_directory):
             config.load_kube_config()
-        except config.config_exception.ConfigException:
-            try:
-                config.load_incluster_config()
-            except:
-                print("Unable to load config file or in cluster configuration")
+        elif "KUBERNETES_PORT" in os.environ:
+            config.load_incluster_config()
+        else:
+            print(
+                "Unable to load config file or in cluster configuration, try specifying a config file path with load_kube_config()"
+            )
 
     if config_path != None and api_client == None:
         return config_path
