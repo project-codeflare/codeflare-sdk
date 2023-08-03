@@ -82,8 +82,8 @@ class Cluster:
         max_cpu = self.config.max_cpus
         min_memory = self.config.min_memory
         max_memory = self.config.max_memory
-        gpu = self.config.gpu
-        workers = self.config.worker
+        gpu = self.config.num_gpus
+        workers = self.config.num_workers
         template = self.config.template
         image = self.config.image
         instascale = self.config.instascale
@@ -201,7 +201,7 @@ class Cluster:
 
             if print_to_console:
                 # overriding the number of gpus with requested
-                cluster.worker_gpu = self.config.gpu
+                cluster.worker_gpu = self.config.num_gpus
                 pretty_print.print_cluster_status(cluster)
         elif print_to_console:
             if status == CodeFlareClusterStatus.UNKNOWN:
@@ -318,7 +318,7 @@ class Cluster:
             name=rc["metadata"]["name"],
             namespace=rc["metadata"]["namespace"],
             machine_types=machine_types,
-            worker=rc["spec"]["workerGroupSpecs"][0]["minReplicas"],
+            num_workers=rc["spec"]["workerGroupSpecs"][0]["minReplicas"],
             min_cpus=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"][
                 "containers"
             ][0]["resources"]["requests"]["cpu"],
@@ -335,9 +335,9 @@ class Cluster:
                     "resources"
                 ]["limits"]["memory"][:-1]
             ),
-            gpu=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"]["containers"][0][
-                "resources"
-            ]["limits"]["nvidia.com/gpu"],
+            num_gpus=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"][
+                "containers"
+            ][0]["resources"]["limits"]["nvidia.com/gpu"],
             instascale=True if machine_types else False,
             image=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"]["containers"][
                 0
@@ -573,11 +573,11 @@ def _copy_to_ray(cluster: Cluster) -> RayCluster:
     ray = RayCluster(
         name=cluster.config.name,
         status=cluster.status(print_to_console=False)[0],
-        workers=cluster.config.worker,
+        workers=cluster.config.num_workers,
         worker_mem_min=cluster.config.min_memory,
         worker_mem_max=cluster.config.max_memory,
         worker_cpu=cluster.config.min_cpus,
-        worker_gpu=cluster.config.gpu,
+        worker_gpu=cluster.config.num_gpus,
         namespace=cluster.config.namespace,
         dashboard=cluster.cluster_dashboard_uri(),
     )

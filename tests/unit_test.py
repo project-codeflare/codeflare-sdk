@@ -173,22 +173,22 @@ def test_config_creation():
     config = ClusterConfiguration(
         name="unit-test-cluster",
         namespace="ns",
-        worker=2,
+        num_workers=2,
         min_cpus=3,
         max_cpus=4,
         min_memory=5,
         max_memory=6,
-        gpu=7,
+        num_gpus=7,
         instascale=True,
         machine_types=["cpu.small", "gpu.large"],
         image_pull_secrets=["unit-test-pull-secret"],
     )
 
     assert config.name == "unit-test-cluster" and config.namespace == "ns"
-    assert config.worker == 2
+    assert config.num_workers == 2
     assert config.min_cpus == 3 and config.max_cpus == 4
     assert config.min_memory == 5 and config.max_memory == 6
-    assert config.gpu == 7
+    assert config.num_gpus == 7
     assert config.image == "quay.io/project-codeflare/ray:2.5.0-py38-cu116"
     assert config.template == f"{parent}/src/codeflare_sdk/templates/base-template.yaml"
     assert config.instascale
@@ -1525,13 +1525,13 @@ def test_get_cluster(mocker):
     )
     assert cluster_config.min_cpus == 1 and cluster_config.max_cpus == 1
     assert cluster_config.min_memory == 2 and cluster_config.max_memory == 2
-    assert cluster_config.gpu == 0
+    assert cluster_config.num_gpus == 0
     assert cluster_config.instascale
     assert (
         cluster_config.image
         == "ghcr.io/foundation-model-stack/base:ray2.1.0-py38-gpu-pytorch1.12.0cu116-20221213-193103"
     )
-    assert cluster_config.worker == 1
+    assert cluster_config.num_workers == 1
 
 
 def test_list_clusters(mocker, capsys):
@@ -1864,11 +1864,11 @@ def test_DDPJobDefinition_dry_run_no_resource_args(mocker):
     ddp_job = ddp._dry_run(cluster)
 
     assert ddp_job._app.roles[0].resource.cpu == cluster.config.max_cpus
-    assert ddp_job._app.roles[0].resource.gpu == cluster.config.gpu
+    assert ddp_job._app.roles[0].resource.gpu == cluster.config.num_gpus
     assert ddp_job._app.roles[0].resource.memMB == cluster.config.max_memory * 1024
     assert (
         parse_j(ddp_job._app.roles[0].args[1])
-        == f"{cluster.config.worker}x{cluster.config.gpu}"
+        == f"{cluster.config.num_workers}x{cluster.config.num_gpus}"
     )
 
 
