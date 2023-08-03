@@ -34,6 +34,7 @@ from codeflare_sdk.cluster.cluster import (
     get_cluster,
     _app_wrapper_status,
     _ray_cluster_status,
+    list_clusters_all_namespaces,
 )
 from codeflare_sdk.cluster.auth import (
     TokenAuthentication,
@@ -200,12 +201,166 @@ def test_cluster_deletion_cli(mocker):
     runner = CliRunner()
     delete_cluster_command = """
                             delete raycluster
-                            quicktest
+                            quicktest --namespace=default
                             """
     result = runner.invoke(cli, delete_cluster_command)
 
     assert result.exit_code == 0
     assert "Cluster deleted successfully" in result.output
+
+
+def test_list_clusters_all_namespaces(mocker, capsys):
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_cluster_custom_object",
+        side_effect=get_ray_obj_no_namespace,
+    )
+    list_clusters_all_namespaces()
+    captured = capsys.readouterr()
+    assert captured.out == (
+        "                  🚀 CodeFlare Cluster Details 🚀                 \n"
+        "                                                                  \n"
+        " ╭──────────────────────────────────────────────────────────────╮ \n"
+        " │   Name                                                       │ \n"
+        " │   quicktest                                   Active ✅      │ \n"
+        " │                                                              │ \n"
+        " │   URI: ray://quicktest-head-svc.ns.svc:10001                 │ \n"
+        " │                                                              │ \n"
+        " │   Dashboard🔗                                                │ \n"
+        " │                                                              │ \n"
+        " │                      Cluster Resources                       │ \n"
+        " │   ╭─ Workers ──╮  ╭───────── Worker specs(each) ─────────╮   │ \n"
+        " │   │  Min  Max  │  │  Memory      CPU         GPU         │   │ \n"
+        " │   │            │  │                                      │   │ \n"
+        " │   │  1    1    │  │  2G~2G       1           0           │   │ \n"
+        " │   │            │  │                                      │   │ \n"
+        " │   ╰────────────╯  ╰──────────────────────────────────────╯   │ \n"
+        " ╰──────────────────────────────────────────────────────────────╯ \n"
+    )
+
+
+def test_raycluster_details_cli(mocker):
+    runner = CliRunner()
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
+        side_effect=get_ray_obj,
+    )
+    mocker.patch(
+        "codeflare_sdk.cluster.cluster.Cluster.status",
+        return_value=(False, CodeFlareClusterStatus.UNKNOWN),
+    )
+    mocker.patch(
+        "codeflare_sdk.cluster.cluster.Cluster.cluster_dashboard_uri",
+        return_value="",
+    )
+    mocker.patch.object(client, "ApiClient")
+    raycluster_details_command = """
+                                details raycluster quicktest --namespace=default
+                                """
+    result = runner.invoke(cli, raycluster_details_command)
+    quicktest_details = (
+        " ╭──────────────────────────────────────────────────────────────╮ \n"
+        + " │   Name                                                       │ \n"
+        + " │   quicktest                                   Inactive ❌    │ \n"
+        + " │                                                              │ \n"
+        + " │   URI: ray://quicktest-head-svc.ns.svc:10001                 │ \n"
+        + " │                                                              │ \n"
+        + " │   Dashboard🔗                                                │ \n"
+        + " │                                                              │ \n"
+        + " │                      Cluster Resources                       │ \n"
+        + " │   ╭─ Workers ──╮  ╭───────── Worker specs(each) ─────────╮   │ \n"
+        + " │   │  Min  Max  │  │  Memory      CPU         GPU         │   │ \n"
+        + " │   │            │  │                                      │   │ \n"
+        + " │   │  1    1    │  │  2~2         1           0           │   │ \n"
+        + " │   │            │  │                                      │   │ \n"
+        + " │   ╰────────────╯  ╰──────────────────────────────────────╯   │ \n"
+        + " ╰──────────────────────────────────────────────────────────────╯ "
+    )
+    assert quicktest_details in result.output
+
+
+def test_raycluster_status_cli(mocker):
+    runner = CliRunner()
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
+        side_effect=get_ray_obj,
+    )
+    mocker.patch(
+        "codeflare_sdk.cluster.cluster.get_current_namespace",
+        return_value="ns",
+    )
+    mocker.patch(
+        "codeflare_sdk.cluster.cluster.Cluster.cluster_dashboard_uri",
+        return_value="",
+    )
+    mocker.patch.object(client, "ApiClient")
+    test_raycluster = RayCluster(
+        "quicktest",
+        RayClusterStatus.READY,
+        1,
+        1,
+        "1",
+        "1",
+        1,
+        1,
+        "default",
+        "dashboard-url",
+    )
+    mocker.patch(
+        "codeflare_sdk.cluster.cluster._app_wrapper_status",
+        return_value=test_raycluster,
+    )
+    mocker.patch(
+        "codeflare_sdk.cluster.cluster._ray_cluster_status",
+        return_value=test_raycluster,
+    )
+    raycluster_status_command = """
+                                status raycluster quicktest --namespace=default
+                                """
+    result = runner.invoke(cli, raycluster_status_command)
+    assert "Active" in result.output
+
+
+def test_raycluster_list_cli(mocker):
+    runner = CliRunner()
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
+        side_effect=get_ray_obj,
+    )
+    mocker.patch(
+        "codeflare_sdk.cluster.cluster.get_current_namespace",
+        return_value="ns",
+    )
+    mocker.patch(
+        "codeflare_sdk.cluster.cluster.Cluster.status",
+        return_value=(False, CodeFlareClusterStatus.UNKNOWN),
+    )
+    mocker.patch(
+        "codeflare_sdk.cluster.cluster.Cluster.cluster_dashboard_uri",
+        return_value="",
+    )
+    mocker.patch.object(client, "ApiClient")
+    list_rayclusters_command = """
+                                list rayclusters --namespace=ns
+                                """
+    result = runner.invoke(cli, list_rayclusters_command)
+    assert (
+        " ╭──────────────────────────────────────────────────────────────╮ \n"
+        + " │   Name                                                       │ \n"
+        + " │   quicktest                                   Active ✅      │ \n"
+        + " │                                                              │ \n"
+        + " │   URI: ray://quicktest-head-svc.ns.svc:10001                 │ \n"
+        + " │                                                              │ \n"
+        + " │   Dashboard🔗                                                │ \n"
+        + " │                                                              │ \n"
+        + " │                      Cluster Resources                       │ \n"
+        + " │   ╭─ Workers ──╮  ╭───────── Worker specs(each) ─────────╮   │ \n"
+        + " │   │  Min  Max  │  │  Memory      CPU         GPU         │   │ \n"
+        + " │   │            │  │                                      │   │ \n"
+        + " │   │  1    1    │  │  2G~2G       1           0           │   │ \n"
+        + " │   │            │  │                                      │   │ \n"
+        + " │   ╰────────────╯  ╰──────────────────────────────────────╯   │ \n"
+        + " ╰──────────────────────────────────────────────────────────────╯ "
+    ) in result.output
 
 
 # For mocking openshift client results
@@ -990,6 +1145,10 @@ def get_ray_obj(group, version, namespace, plural, cls=None):
         ]
     }
     return api_obj
+
+
+def get_ray_obj_no_namespace(group, version, plural, cls=None):
+    return get_ray_obj(group, version, "ns", plural, cls)
 
 
 def get_aw_obj(group, version, namespace, plural):
@@ -2360,4 +2519,3 @@ def test_cleanup():
     os.remove("tls-cluster-namespace/tls.key")
     os.rmdir("tls-cluster-namespace")
     os.remove("cli-test-cluster.yaml")
-    os.removedirs(os.path.expanduser("~/.codeflare"))
