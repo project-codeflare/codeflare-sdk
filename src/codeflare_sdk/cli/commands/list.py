@@ -4,12 +4,11 @@ from kubernetes import client, config
 from codeflare_sdk.cluster.cluster import (
     list_clusters_all_namespaces,
     list_all_clusters,
-    get_current_namespace,
 )
-from codeflare_sdk.cli.cli_utils import load_auth
+from codeflare_sdk.cli.cli_utils import PluralAlias
 
 
-@click.group()
+@click.group(cls=PluralAlias)
 def cli():
     """List a specified resource"""
     pass
@@ -19,7 +18,7 @@ def cli():
 @click.option("--namespace", type=str)
 @click.option("--all", is_flag=True)
 @click.pass_context
-def rayclusters(ctx, namespace, all):
+def raycluster(ctx, namespace, all):
     """List all rayclusters in a specified namespace"""
     if all and namespace:
         click.echo("--all and --namespace are mutually exclusive")
