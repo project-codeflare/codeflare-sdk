@@ -1,6 +1,7 @@
 import click
 
 from codeflare_sdk.cluster.cluster import get_cluster
+from codeflare_sdk.cli.cli_utils import get_job
 
 
 @click.group()
@@ -22,3 +23,12 @@ def raycluster(ctx, name, namespace):
         click.echo(f"Cluster {name} not found in {namespace} namespace")
         return
     cluster.status()
+
+
+@cli.command()
+@click.pass_context
+@click.argument("submission-id", type=str)
+def job(ctx, submission_id):
+    """Get the status of a specified job"""
+    job = get_job(submission_id)
+    click.echo(job["Status"])
