@@ -57,3 +57,19 @@ def load_auth():
         click.echo("No authentication found, trying default kubeconfig")
     except client.ApiException:
         click.echo("Invalid authentication, trying default kubeconfig")
+
+
+class PluralAlias(click.Group):
+    def get_command(self, ctx, cmd_name):
+        rv = click.Group.get_command(self, ctx, cmd_name)
+        if rv is not None:
+            return rv
+        for x in self.list_commands(ctx):
+            if x + "s" == cmd_name:
+                return click.Group.get_command(self, ctx, x)
+        return None
+
+    def resolve_command(self, ctx, args):
+        # always return the full command name
+        _, cmd, args = super().resolve_command(ctx, args)
+        return cmd.name, cmd, args
