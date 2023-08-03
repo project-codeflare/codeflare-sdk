@@ -122,6 +122,7 @@ oauthlib==3.2.1; python_version >= '3.6'
 opencensus-context==0.1.3
 opencensus==0.11.0
 openshift-client==1.0.18
+openshift==0.13.2
 packaging==21.3
 pandas==1.5.0
 pandocfilters==1.5.0; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'
