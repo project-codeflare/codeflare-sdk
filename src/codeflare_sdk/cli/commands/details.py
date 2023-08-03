@@ -11,10 +11,11 @@ def cli():
 
 @cli.command()
 @click.argument("name", type=str)
-@click.option("--namespace", type=str, required=True)
+@click.option("--namespace", type=str)
 @click.pass_context
 def raycluster(ctx, name, namespace):
     """Get the details of a specified RayCluster"""
+    namespace = namespace or ctx.obj.current_namespace
     try:
         cluster = get_cluster(name, namespace)
     except FileNotFoundError:

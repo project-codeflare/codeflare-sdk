@@ -23,9 +23,7 @@ def raycluster(ctx, namespace, all):
     if all and namespace:
         click.echo("--all and --namespace are mutually exclusive")
         return
-    if not all and not namespace:
-        click.echo("You must specify either --namespace or --all")
-        return
+    namespace = namespace or ctx.obj.current_namespace
     if not all:
         list_all_clusters(namespace)
         return
