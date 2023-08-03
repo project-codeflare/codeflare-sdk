@@ -12,8 +12,9 @@ def cli():
 
 
 @cli.command()
+@click.pass_context
 @click.option("--name", type=str, required=True)
-@click.option("--namespace", "-n", type=str, required=True)
+@click.option("--namespace", "-n", type=str)
 @click.option("--head_info", cls=PythonLiteralOption, type=list)
 @click.option("--machine_types", cls=PythonLiteralOption, type=list)
 @click.option("--min_cpus", type=int)
@@ -29,8 +30,10 @@ def cli():
 @click.option("--image", type=str)
 @click.option("--local_interactive", type=bool)
 @click.option("--image_pull_secrets", cls=PythonLiteralOption, type=list)
-def raycluster(**kwargs):
+def raycluster(ctx, **kwargs):
     """Define a RayCluster with parameter specifications"""
     filtered_kwargs = {k: v for k, v in kwargs.items() if v is not None}
+    if "namespace" not in filtered_kwargs.keys():
+        filtered_kwargs["namespace"] = ctx.obj.current_namespace
     clusterConfig = ClusterConfiguration(**filtered_kwargs)
     Cluster(clusterConfig)  # Creates yaml file

@@ -2,6 +2,7 @@ import click
 import os
 
 from codeflare_sdk.cli.cli_utils import load_auth
+from codeflare_sdk.cluster.cluster import get_current_namespace
 
 cmd_folder = os.path.abspath(os.path.join(os.path.dirname(__file__), "commands"))
 
@@ -9,6 +10,7 @@ cmd_folder = os.path.abspath(os.path.join(os.path.dirname(__file__), "commands")
 class CodeflareContext:
     def __init__(self):
         self.codeflare_path = _initialize_codeflare_folder()
+        self.current_namespace = get_current_namespace()
 
 
 def _initialize_codeflare_folder():

@@ -160,7 +160,8 @@ def test_login_tls_cli(mocker):
     tls_result = runner.invoke(cli, k8s_tls_login_command)
     skip_tls_result = runner.invoke(cli, k8s_skip_tls_login_command)
     assert (
-        tls_result.output == skip_tls_result.output == "Logged into 'testserver:6443'\n"
+        "Logged into 'testserver:6443'\n" in tls_result.output
+        and "Logged into 'testserver:6443'\n" in skip_tls_result.output
     )
 
 
@@ -169,7 +170,7 @@ def test_logout_cli(mocker):
     mocker.patch.object(client, "ApiClient")
     k8s_logout_command = "logout"
     logout_result = runner.invoke(cli, k8s_logout_command)
-    assert logout_result.output == "Successfully logged out of 'testserver:6443'\n"
+    assert "Successfully logged out of 'testserver:6443'\n" in logout_result.output
     assert not os.path.exists(os.path.expanduser("~/.codeflare/auth"))
 
 
@@ -197,6 +198,10 @@ def test_cluster_deletion_cli(mocker):
     mocker.patch(
         "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
         side_effect=get_ray_obj,
+    )
+    mocker.patch(
+        "codeflare_sdk.cluster.cluster.get_current_namespace",
+        return_value="ns",
     )
     runner = CliRunner()
     delete_cluster_command = """
