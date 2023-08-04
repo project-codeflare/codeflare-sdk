@@ -412,7 +412,7 @@ def list_all_clusters(namespace: str, print_to_console: bool = True):
     """
     Returns (and prints by default) a list of all clusters in a given namespace.
     """
-    clusters = _get_ray_clusters_in_namespace(namespace)
+    clusters = _get_all_ray_clusters(namespace)
     if print_to_console:
         pretty_print.print_clusters(clusters)
     return clusters
@@ -539,37 +539,27 @@ def _ray_cluster_status(name, namespace="default") -> Optional[RayCluster]:
     return None
 
 
-def _get_ray_clusters_in_namespace(namespace="default") -> List[RayCluster]:
+def _get_all_ray_clusters(namespace: str = None) -> List[RayCluster]:
     list_of_clusters = []
     try:
         config_check()
         api_instance = client.CustomObjectsApi(api_config_handler())
-        rcs = api_instance.list_namespaced_custom_object(
-            group="ray.io",
-            version="v1alpha1",
-            namespace=namespace,
-            plural="rayclusters",
-        )
+        if namespace:
+            rcs = api_instance.list_namespaced_custom_object(
+                group="ray.io",
+                version="v1alpha1",
+                namespace=namespace,
+                plural="rayclusters",
+            )
+        else:
+            rcs = api_instance.list_cluster_custom_object(
+                group="ray.io",
+                version="v1alpha1",
+                plural="rayclusters",
+            )
     except Exception as e:  # pragma: no cover
         return _kube_api_error_handling(e)
 
-    for rc in rcs["items"]:
-        list_of_clusters.append(_map_to_ray_cluster(rc))
-    return list_of_clusters
-
-
-def _get_all_ray_clusters() -> List[RayCluster]:
-    list_of_clusters = []
-    try:
-        config_check()
-        api_instance = client.CustomObjectsApi(api_config_handler())
-        rcs = api_instance.list_cluster_custom_object(
-            group="ray.io",
-            version="v1alpha1",
-            plural="rayclusters",
-        )
-    except Exception as e:
-        return _kube_api_error_handling(e)
     for rc in rcs["items"]:
         list_of_clusters.append(_map_to_ray_cluster(rc))
     return list_of_clusters
