@@ -91,7 +91,7 @@ class DDPJobDefinition(JobDefinition):
         self.workspace = workspace
 
     def _dry_run(self, cluster: "Cluster"):
-        j = f"{cluster.config.max_worker}x{max(cluster.config.gpu, 1)}"  # # of proc. = # of gpus
+        j = f"{cluster.config.num_workers}x{max(cluster.config.num_gpus, 1)}"  # # of proc. = # of gpus
         return torchx_runner.dryrun(
             app=ddp(
                 *self.script_args,
@@ -100,7 +100,7 @@ class DDPJobDefinition(JobDefinition):
                 name=self.name,
                 h=self.h,
                 cpu=self.cpu if self.cpu is not None else cluster.config.max_cpus,
-                gpu=self.gpu if self.gpu is not None else cluster.config.gpu,
+                gpu=self.gpu if self.gpu is not None else cluster.config.num_gpus,
                 memMB=self.memMB
                 if self.memMB is not None
                 else cluster.config.max_memory * 1024,

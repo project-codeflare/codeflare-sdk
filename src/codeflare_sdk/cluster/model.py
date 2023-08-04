@@ -67,8 +67,7 @@ class RayCluster:
 
     name: str
     status: RayClusterStatus
-    min_workers: int
-    max_workers: int
+    workers: int
     worker_mem_min: str
     worker_mem_max: str
     worker_cpu: int

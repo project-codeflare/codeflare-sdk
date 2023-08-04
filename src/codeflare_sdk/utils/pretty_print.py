@@ -115,8 +115,7 @@ def print_clusters(clusters: List[RayCluster]):
         )
         name = cluster.name
         dashboard = cluster.dashboard
-        mincount = str(cluster.min_workers)
-        maxcount = str(cluster.max_workers)
+        workers = str(cluster.workers)
         memory = str(cluster.worker_mem_min) + "~" + str(cluster.worker_mem_max)
         cpu = str(cluster.worker_cpu)
         gpu = str(cluster.worker_gpu)
@@ -142,10 +141,9 @@ def print_clusters(clusters: List[RayCluster]):
         #'table1' to display the worker counts
         table1 = Table(box=None)
         table1.add_row()
-        table1.add_column("Min", style="cyan", no_wrap=True)
-        table1.add_column("Max", style="magenta")
+        table1.add_column("# Workers", style="magenta")
         table1.add_row()
-        table1.add_row(mincount, maxcount)
+        table1.add_row(workers)
         table1.add_row()
 
         #'table2' to display the worker resources
