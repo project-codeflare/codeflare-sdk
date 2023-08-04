@@ -44,7 +44,8 @@ class CodeflareCLI(click.MultiCommand):
 @click.command(cls=CodeflareCLI)
 @click.pass_context
 def cli(ctx):
-    load_auth()
+    if ctx.invoked_subcommand != "login":
+        load_auth()
     ctx.obj = CodeflareContext()  # Ran on every command
     pass
 
