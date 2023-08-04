@@ -40,7 +40,7 @@ def raycluster(name, wait):
 @click.pass_context
 @click.argument("name", type=str)
 @click.option("--cluster-name", type=str)
-@click.option("--namespace", type=str, required=True)
+@click.option("--namespace", type=str)
 def job(ctx, name, cluster_name, namespace):
     """
     Submit a defined job to the Kubernetes cluster or a RayCluster
@@ -60,7 +60,7 @@ def job(ctx, name, cluster_name, namespace):
         submission_id = runner.describe(job._app_handle).name.split(":")[1]
         click.echo(f"{submission_id} submitted successfully")
         return
-    cluster = get_cluster(cluster_name, namespace)
+    cluster = get_cluster(cluster_name, namespace or ctx.obj.current_namespace)
     job = job_def.submit(cluster)
     full_name = runner.describe(job._app_handle).name
     submission_id = full_name[full_name.rfind(name) :]
