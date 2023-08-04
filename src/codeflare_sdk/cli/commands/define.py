@@ -57,7 +57,7 @@ def raycluster(ctx, **kwargs):
 @click.option("--mounts", cls=PythonLiteralOption, type=list)
 @click.option("--rdzv-port", type=int)
 @click.option("--rdzv-backend", type=str)
-@click.option("--schedular-args", cls=PythonLiteralOption, type=dict)
+@click.option("--scheduler-args", cls=PythonLiteralOption, type=dict)
 @click.option("--image", type=str)
 @click.option("--workspace", type=str)
 def job(ctx, **kwargs):
