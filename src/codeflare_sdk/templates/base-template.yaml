@@ -114,7 +114,6 @@ spec:
                           operator: In
                           values:
                           - "aw-kuberay"
-                priorityClassName: "default-priority"
                 containers:
                 # The Ray head pod
                 - env:
@@ -224,7 +223,6 @@ spec:
                           operator: In
                           values:
                           - "aw-kuberay"
-                priorityClassName: "default-priority"
                 initContainers:
                 # the env var $RAY_IP is set by the operator if missing, with the value of the head service name
                 - name: init-myservice
