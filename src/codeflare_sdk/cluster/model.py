@@ -39,6 +39,7 @@ class AppWrapperStatus(Enum):
     Defines the possible reportable states of an AppWrapper.
     """
 
+    QUEUEING = "queueing"
     PENDING = "pending"
     RUNNING = "running"
     FAILED = "failed"
@@ -55,8 +56,9 @@ class CodeFlareClusterStatus(Enum):
     READY = 1
     STARTING = 2
     QUEUED = 3
-    FAILED = 4
-    UNKNOWN = 5
+    QUEUEING = 4
+    FAILED = 5
+    UNKNOWN = 6
 
 
 @dataclass
