@@ -58,12 +58,17 @@ def job(ctx, name, cluster_name, namespace):
     if not cluster_name:
         job = job_def.submit()
         submission_id = runner.describe(job._app_handle).name.split(":")[1]
-        click.echo(f"{submission_id} submitted successfully")
+        click.echo(f"Job {submission_id} submitted successfully")
         return
-    cluster = get_cluster(cluster_name, namespace or ctx.obj.current_namespace)
+    namespace = namespace or ctx.obj.current_namespace
+    try:
+        cluster = get_cluster(cluster_name, namespace)
+    except FileNotFoundError:
+        click.echo(f"Cluster {name} not found in {namespace} namespace")
+        return
     job = job_def.submit(cluster)
     full_name = runner.describe(job._app_handle).name
     submission_id = full_name[full_name.rfind(name) :]
     click.echo(
-        f"{submission_id} submitted onto {cluster_name} RayCluster successfully\nView dashboard: {cluster.cluster_dashboard_uri()}"
+        f"Job {submission_id} submitted onto {cluster_name} RayCluster successfully\nView dashboard: {cluster.cluster_dashboard_uri()}"
     )
