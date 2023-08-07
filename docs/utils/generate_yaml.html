@@ -52,7 +52,9 @@ import yaml
 import sys
 import argparse
 import uuid
-import openshift as oc
+from kubernetes import client, config
+from .kube_api_helpers import _kube_api_error_handling
+from ..cluster.auth import api_config_handler
 
 
 def read_template(template):
@@ -279,12 +281,16 @@ def enable_local_interactive(resources, cluster_name, namespace):
     ][0].get(&#34;command&#34;)[2]
 
     command = command.replace(&#34;deployment-name&#34;, cluster_name)
-
-    server_name = (
-        oc.whoami(&#34;--show-server&#34;).split(&#34;:&#34;)[1].split(&#34;//&#34;)[1].replace(&#34;api&#34;, &#34;apps&#34;)
-    )
-
-    command = command.replace(&#34;server-name&#34;, server_name)
+    try:
+        config.load_kube_config()
+        api_client = client.CustomObjectsApi(api_config_handler())
+        ingress = api_client.get_cluster_custom_object(
+            &#34;config.openshift.io&#34;, &#34;v1&#34;, &#34;ingresses&#34;, &#34;cluster&#34;
+        )
+    except Exception as e:  # pragma: no cover
+        return _kube_api_error_handling(e)
+    domain = ingress[&#34;spec&#34;][&#34;domain&#34;]
+    command = command.replace(&#34;server-name&#34;, domain)
 
     item[&#34;generictemplate&#34;][&#34;spec&#34;][&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;][
         &#34;initContainers&#34;
@@ -292,26 +298,61 @@ def enable_local_interactive(resources, cluster_name, namespace):
 
 
 def disable_raycluster_tls(resources):
-    del resources[&#34;GenericItems&#34;][0][&#34;generictemplate&#34;][&#34;spec&#34;][&#34;headGroupSpec&#34;][
-        &#34;template&#34;
-    ][&#34;spec&#34;][&#34;volumes&#34;]
-    del resources[&#34;GenericItems&#34;][0][&#34;generictemplate&#34;][&#34;spec&#34;][&#34;headGroupSpec&#34;][
-        &#34;template&#34;
-    ][&#34;spec&#34;][&#34;containers&#34;][0][&#34;volumeMounts&#34;]
-    del resources[&#34;GenericItems&#34;][0][&#34;generictemplate&#34;][&#34;spec&#34;][&#34;headGroupSpec&#34;][
-        &#34;template&#34;
-    ][&#34;spec&#34;][&#34;initContainers&#34;]
-    del resources[&#34;GenericItems&#34;][0][&#34;generictemplate&#34;][&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][
-        &#34;template&#34;
-    ][&#34;spec&#34;][&#34;volumes&#34;]
-    del resources[&#34;GenericItems&#34;][0][&#34;generictemplate&#34;][&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][
-        &#34;template&#34;
-    ][&#34;spec&#34;][&#34;containers&#34;][0][&#34;volumeMounts&#34;]
-    del resources[&#34;GenericItems&#34;][0][&#34;generictemplate&#34;][&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][
-        &#34;template&#34;
-    ][&#34;spec&#34;][&#34;initContainers&#34;][1]
-    del resources[&#34;GenericItems&#34;][3]  # rayclient route
-    del resources[&#34;GenericItems&#34;][2]  # ca-secret
+    generic_template_spec = resources[&#34;GenericItems&#34;][0][&#34;generictemplate&#34;][&#34;spec&#34;]
+
+    if &#34;volumes&#34; in generic_template_spec[&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;]:
+        del generic_template_spec[&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;][&#34;volumes&#34;]
+
+    if (
+        &#34;volumeMounts&#34;
+        in generic_template_spec[&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;][&#34;containers&#34;][0]
+    ):
+        del generic_template_spec[&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;][&#34;containers&#34;][0][
+            &#34;volumeMounts&#34;
+        ]
+
+    if &#34;initContainers&#34; in generic_template_spec[&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;]:
+        del generic_template_spec[&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;][&#34;initContainers&#34;]
+
+    if &#34;volumes&#34; in generic_template_spec[&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;]:
+        del generic_template_spec[&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][&#34;volumes&#34;]
+
+    if (
+        &#34;volumeMounts&#34;
+        in generic_template_spec[&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][
+            &#34;containers&#34;
+        ][0]
+    ):
+        del generic_template_spec[&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][
+            &#34;containers&#34;
+        ][0][&#34;volumeMounts&#34;]
+
+    for i in range(
+        len(
+            generic_template_spec[&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][
+                &#34;initContainers&#34;
+            ]
+        )
+    ):
+        if (
+            generic_template_spec[&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][
+                &#34;initContainers&#34;
+            ][i][&#34;name&#34;]
+            == &#34;create-cert&#34;
+        ):
+            del generic_template_spec[&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][
+                &#34;initContainers&#34;
+            ][i]
+
+    updated_items = []
+    for i in resources[&#34;GenericItems&#34;][:]:
+        if &#34;rayclient-deployment-name&#34; in i[&#34;generictemplate&#34;][&#34;metadata&#34;][&#34;name&#34;]:
+            continue
+        if &#34;ca-secret-deployment-name&#34; in i[&#34;generictemplate&#34;][&#34;metadata&#34;][&#34;name&#34;]:
+            continue
+        updated_items.append(i)
+
+    resources[&#34;GenericItems&#34;] = updated_items
 
 
 def write_user_appwrapper(user_yaml, output_file_name):
@@ -368,135 +409,7 @@ def generate_appwrapper(
         disable_raycluster_tls(resources[&#34;resources&#34;])
     outfile = appwrapper_name + &#34;.yaml&#34;
     write_user_appwrapper(user_yaml, outfile)
-    return outfile
-
-
-def main():  # pragma: no cover
-    parser = argparse.ArgumentParser(description=&#34;Generate user AppWrapper&#34;)
-    parser.add_argument(
-        &#34;--name&#34;,
-        required=False,
-        default=&#34;&#34;,
-        help=&#34;User selected name for AppWrapper and Ray Cluster (auto-generated if not provided)&#34;,
-    )
-    parser.add_argument(
-        &#34;--min-cpu&#34;,
-        type=int,
-        required=True,
-        help=&#34;min number of CPU(s) in a worker required for running job&#34;,
-    )
-    parser.add_argument(
-        &#34;--max-cpu&#34;,
-        type=int,
-        required=True,
-        help=&#34;max number of CPU(s) in a worker required for running job&#34;,
-    )
-    parser.add_argument(
-        &#34;--min-memory&#34;,
-        type=int,
-        required=True,
-        help=&#34;min RAM required in a worker for running job, in GB&#34;,
-    )
-    parser.add_argument(
-        &#34;--max-memory&#34;,
-        type=int,
-        required=True,
-        help=&#34;max RAM required in a worker for running job, in GB&#34;,
-    )
-    parser.add_argument(
-        &#34;--gpu&#34;,
-        type=int,
-        required=True,
-        help=&#34;GPU(s) required in a worker for running job&#34;,
-    )
-    parser.add_argument(
-        &#34;--workers&#34;,
-        type=int,
-        required=True,
-        help=&#34;How many workers are required in the cluster&#34;,
-    )
-    parser.add_argument(
-        &#34;--template&#34;, required=True, help=&#34;Template AppWrapper yaml file&#34;
-    )
-    parser.add_argument(
-        &#34;--image&#34;,
-        required=False,
-        default=&#34;rayproject/ray:latest&#34;,
-        help=&#34;Ray image to be used (defaults to rayproject/ray:latest)&#34;,
-    )
-    parser.add_argument(
-        &#34;--instascale&#34;,
-        default=False,
-        required=False,
-        action=&#34;store_true&#34;,
-        help=&#34;Indicates that instascale is installed on the cluster&#34;,
-    )
-    parser.add_argument(
-        &#34;--instance-types&#34;,
-        type=str,
-        nargs=&#34;+&#34;,
-        default=[],
-        required=False,
-        help=&#34;Head,worker instance types (space separated)&#34;,
-    )
-    parser.add_argument(
-        &#34;--namespace&#34;,
-        required=False,
-        default=&#34;default&#34;,
-        help=&#34;Set the kubernetes namespace you want to deploy your cluster to. Default. If left blank, uses the &#39;default&#39; namespace&#34;,
-    )
-    parser.add_argument(
-        &#34;--local-interactive&#34;,
-        required=False,
-        default=False,
-        help=&#34;Enable local interactive mode&#34;,
-    )
-    parser.add_argument(
-        &#34;--image-pull-secrets&#34;,
-        required=False,
-        default=[],
-        help=&#34;Set image pull secrets for private registries&#34;,
-    )
-
-    args = parser.parse_args()
-    name = args.name
-    min_cpu = args.min_cpu
-    max_cpu = args.max_cpu
-    min_memory = args.min_memory
-    max_memory = args.max_memory
-    gpu = args.gpu
-    workers = args.workers
-    template = args.template
-    image = args.image
-    instascale = args.instascale
-    instance_types = args.instance_types
-    namespace = args.namespace
-    local_interactive = args.local_interactive
-    env = {}
-    image_pull_secrets = args.image_pull_secrets
-
-    outfile = generate_appwrapper(
-        name,
-        namespace,
-        min_cpu,
-        max_cpu,
-        min_memory,
-        max_memory,
-        gpu,
-        workers,
-        template,
-        image,
-        instascale,
-        instance_types,
-        local_interactive,
-        env,
-        image_pull_secrets,
-    )
-    return outfile
-
-
-if __name__ == &#34;__main__&#34;:  # pragma: no cover
-    main()</code></pre>
+    return outfile</code></pre>
 </details>
 </section>
 <section>
@@ -516,26 +429,61 @@ if __name__ == &#34;__main__&#34;:  # pragma: no cover
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def disable_raycluster_tls(resources):
-    del resources[&#34;GenericItems&#34;][0][&#34;generictemplate&#34;][&#34;spec&#34;][&#34;headGroupSpec&#34;][
-        &#34;template&#34;
-    ][&#34;spec&#34;][&#34;volumes&#34;]
-    del resources[&#34;GenericItems&#34;][0][&#34;generictemplate&#34;][&#34;spec&#34;][&#34;headGroupSpec&#34;][
-        &#34;template&#34;
-    ][&#34;spec&#34;][&#34;containers&#34;][0][&#34;volumeMounts&#34;]
-    del resources[&#34;GenericItems&#34;][0][&#34;generictemplate&#34;][&#34;spec&#34;][&#34;headGroupSpec&#34;][
-        &#34;template&#34;
-    ][&#34;spec&#34;][&#34;initContainers&#34;]
-    del resources[&#34;GenericItems&#34;][0][&#34;generictemplate&#34;][&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][
-        &#34;template&#34;
-    ][&#34;spec&#34;][&#34;volumes&#34;]
-    del resources[&#34;GenericItems&#34;][0][&#34;generictemplate&#34;][&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][
-        &#34;template&#34;
-    ][&#34;spec&#34;][&#34;containers&#34;][0][&#34;volumeMounts&#34;]
-    del resources[&#34;GenericItems&#34;][0][&#34;generictemplate&#34;][&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][
-        &#34;template&#34;
-    ][&#34;spec&#34;][&#34;initContainers&#34;][1]
-    del resources[&#34;GenericItems&#34;][3]  # rayclient route
-    del resources[&#34;GenericItems&#34;][2]  # ca-secret</code></pre>
+    generic_template_spec = resources[&#34;GenericItems&#34;][0][&#34;generictemplate&#34;][&#34;spec&#34;]
+
+    if &#34;volumes&#34; in generic_template_spec[&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;]:
+        del generic_template_spec[&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;][&#34;volumes&#34;]
+
+    if (
+        &#34;volumeMounts&#34;
+        in generic_template_spec[&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;][&#34;containers&#34;][0]
+    ):
+        del generic_template_spec[&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;][&#34;containers&#34;][0][
+            &#34;volumeMounts&#34;
+        ]
+
+    if &#34;initContainers&#34; in generic_template_spec[&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;]:
+        del generic_template_spec[&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;][&#34;initContainers&#34;]
+
+    if &#34;volumes&#34; in generic_template_spec[&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;]:
+        del generic_template_spec[&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][&#34;volumes&#34;]
+
+    if (
+        &#34;volumeMounts&#34;
+        in generic_template_spec[&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][
+            &#34;containers&#34;
+        ][0]
+    ):
+        del generic_template_spec[&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][
+            &#34;containers&#34;
+        ][0][&#34;volumeMounts&#34;]
+
+    for i in range(
+        len(
+            generic_template_spec[&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][
+                &#34;initContainers&#34;
+            ]
+        )
+    ):
+        if (
+            generic_template_spec[&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][
+                &#34;initContainers&#34;
+            ][i][&#34;name&#34;]
+            == &#34;create-cert&#34;
+        ):
+            del generic_template_spec[&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][
+                &#34;initContainers&#34;
+            ][i]
+
+    updated_items = []
+    for i in resources[&#34;GenericItems&#34;][:]:
+        if &#34;rayclient-deployment-name&#34; in i[&#34;generictemplate&#34;][&#34;metadata&#34;][&#34;name&#34;]:
+            continue
+        if &#34;ca-secret-deployment-name&#34; in i[&#34;generictemplate&#34;][&#34;metadata&#34;][&#34;name&#34;]:
+            continue
+        updated_items.append(i)
+
+    resources[&#34;GenericItems&#34;] = updated_items</code></pre>
 </details>
 </dd>
 <dt id="codeflare_sdk.utils.generate_yaml.enable_local_interactive"><code class="name flex">
@@ -573,12 +521,16 @@ if __name__ == &#34;__main__&#34;:  # pragma: no cover
     ][0].get(&#34;command&#34;)[2]
 
     command = command.replace(&#34;deployment-name&#34;, cluster_name)
-
-    server_name = (
-        oc.whoami(&#34;--show-server&#34;).split(&#34;:&#34;)[1].split(&#34;//&#34;)[1].replace(&#34;api&#34;, &#34;apps&#34;)
-    )
-
-    command = command.replace(&#34;server-name&#34;, server_name)
+    try:
+        config.load_kube_config()
+        api_client = client.CustomObjectsApi(api_config_handler())
+        ingress = api_client.get_cluster_custom_object(
+            &#34;config.openshift.io&#34;, &#34;v1&#34;, &#34;ingresses&#34;, &#34;cluster&#34;
+        )
+    except Exception as e:  # pragma: no cover
+        return _kube_api_error_handling(e)
+    domain = ingress[&#34;spec&#34;][&#34;domain&#34;]
+    command = command.replace(&#34;server-name&#34;, domain)
 
     item[&#34;generictemplate&#34;][&#34;spec&#34;][&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;][
         &#34;initContainers&#34;
@@ -661,139 +613,6 @@ if __name__ == &#34;__main__&#34;:  # pragma: no cover
         disable_raycluster_tls(resources[&#34;resources&#34;])
     outfile = appwrapper_name + &#34;.yaml&#34;
     write_user_appwrapper(user_yaml, outfile)
-    return outfile</code></pre>
-</details>
-</dd>
-<dt id="codeflare_sdk.utils.generate_yaml.main"><code class="name flex">
-<span>def <span class="ident">main</span></span>(<span>)</span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def main():  # pragma: no cover
-    parser = argparse.ArgumentParser(description=&#34;Generate user AppWrapper&#34;)
-    parser.add_argument(
-        &#34;--name&#34;,
-        required=False,
-        default=&#34;&#34;,
-        help=&#34;User selected name for AppWrapper and Ray Cluster (auto-generated if not provided)&#34;,
-    )
-    parser.add_argument(
-        &#34;--min-cpu&#34;,
-        type=int,
-        required=True,
-        help=&#34;min number of CPU(s) in a worker required for running job&#34;,
-    )
-    parser.add_argument(
-        &#34;--max-cpu&#34;,
-        type=int,
-        required=True,
-        help=&#34;max number of CPU(s) in a worker required for running job&#34;,
-    )
-    parser.add_argument(
-        &#34;--min-memory&#34;,
-        type=int,
-        required=True,
-        help=&#34;min RAM required in a worker for running job, in GB&#34;,
-    )
-    parser.add_argument(
-        &#34;--max-memory&#34;,
-        type=int,
-        required=True,
-        help=&#34;max RAM required in a worker for running job, in GB&#34;,
-    )
-    parser.add_argument(
-        &#34;--gpu&#34;,
-        type=int,
-        required=True,
-        help=&#34;GPU(s) required in a worker for running job&#34;,
-    )
-    parser.add_argument(
-        &#34;--workers&#34;,
-        type=int,
-        required=True,
-        help=&#34;How many workers are required in the cluster&#34;,
-    )
-    parser.add_argument(
-        &#34;--template&#34;, required=True, help=&#34;Template AppWrapper yaml file&#34;
-    )
-    parser.add_argument(
-        &#34;--image&#34;,
-        required=False,
-        default=&#34;rayproject/ray:latest&#34;,
-        help=&#34;Ray image to be used (defaults to rayproject/ray:latest)&#34;,
-    )
-    parser.add_argument(
-        &#34;--instascale&#34;,
-        default=False,
-        required=False,
-        action=&#34;store_true&#34;,
-        help=&#34;Indicates that instascale is installed on the cluster&#34;,
-    )
-    parser.add_argument(
-        &#34;--instance-types&#34;,
-        type=str,
-        nargs=&#34;+&#34;,
-        default=[],
-        required=False,
-        help=&#34;Head,worker instance types (space separated)&#34;,
-    )
-    parser.add_argument(
-        &#34;--namespace&#34;,
-        required=False,
-        default=&#34;default&#34;,
-        help=&#34;Set the kubernetes namespace you want to deploy your cluster to. Default. If left blank, uses the &#39;default&#39; namespace&#34;,
-    )
-    parser.add_argument(
-        &#34;--local-interactive&#34;,
-        required=False,
-        default=False,
-        help=&#34;Enable local interactive mode&#34;,
-    )
-    parser.add_argument(
-        &#34;--image-pull-secrets&#34;,
-        required=False,
-        default=[],
-        help=&#34;Set image pull secrets for private registries&#34;,
-    )
-
-    args = parser.parse_args()
-    name = args.name
-    min_cpu = args.min_cpu
-    max_cpu = args.max_cpu
-    min_memory = args.min_memory
-    max_memory = args.max_memory
-    gpu = args.gpu
-    workers = args.workers
-    template = args.template
-    image = args.image
-    instascale = args.instascale
-    instance_types = args.instance_types
-    namespace = args.namespace
-    local_interactive = args.local_interactive
-    env = {}
-    image_pull_secrets = args.image_pull_secrets
-
-    outfile = generate_appwrapper(
-        name,
-        namespace,
-        min_cpu,
-        max_cpu,
-        min_memory,
-        max_memory,
-        gpu,
-        workers,
-        template,
-        image,
-        instascale,
-        instance_types,
-        local_interactive,
-        env,
-        image_pull_secrets,
-    )
     return outfile</code></pre>
 </details>
 </dd>
@@ -1138,7 +957,6 @@ if __name__ == &#34;__main__&#34;:  # pragma: no cover
 <li><code><a title="codeflare_sdk.utils.generate_yaml.enable_local_interactive" href="#codeflare_sdk.utils.generate_yaml.enable_local_interactive">enable_local_interactive</a></code></li>
 <li><code><a title="codeflare_sdk.utils.generate_yaml.gen_names" href="#codeflare_sdk.utils.generate_yaml.gen_names">gen_names</a></code></li>
 <li><code><a title="codeflare_sdk.utils.generate_yaml.generate_appwrapper" href="#codeflare_sdk.utils.generate_yaml.generate_appwrapper">generate_appwrapper</a></code></li>
-<li><code><a title="codeflare_sdk.utils.generate_yaml.main" href="#codeflare_sdk.utils.generate_yaml.main">main</a></code></li>
 <li><code><a title="codeflare_sdk.utils.generate_yaml.read_template" href="#codeflare_sdk.utils.generate_yaml.read_template">read_template</a></code></li>
 <li><code><a title="codeflare_sdk.utils.generate_yaml.update_affinity" href="#codeflare_sdk.utils.generate_yaml.update_affinity">update_affinity</a></code></li>
 <li><code><a title="codeflare_sdk.utils.generate_yaml.update_ca_secret" href="#codeflare_sdk.utils.generate_yaml.update_ca_secret">update_ca_secret</a></code></li>

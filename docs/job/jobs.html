@@ -45,13 +45,13 @@ import abc
 from typing import TYPE_CHECKING, Optional, Dict, List
 from pathlib import Path
 
-import openshift as oc
 from torchx.components.dist import ddp
 from torchx.runner import get_runner
 from torchx.specs import AppHandle, parse_app_handle, AppDryRunInfo
 
 if TYPE_CHECKING:
     from ..cluster.cluster import Cluster
+from ..cluster.cluster import get_current_namespace
 
 all_jobs: List[&#34;Job&#34;] = []
 torchx_runner = get_runner()
@@ -119,7 +119,7 @@ class DDPJobDefinition(JobDefinition):
         self.workspace = workspace
 
     def _dry_run(self, cluster: &#34;Cluster&#34;):
-        j = f&#34;{cluster.config.max_worker}x{max(cluster.config.gpu, 1)}&#34;  # # of proc. = # of gpus
+        j = f&#34;{cluster.config.num_workers}x{max(cluster.config.num_gpus, 1)}&#34;  # # of proc. = # of gpus
         return torchx_runner.dryrun(
             app=ddp(
                 *self.script_args,
@@ -128,7 +128,7 @@ class DDPJobDefinition(JobDefinition):
                 name=self.name,
                 h=self.h,
                 cpu=self.cpu if self.cpu is not None else cluster.config.max_cpus,
-                gpu=self.gpu if self.gpu is not None else cluster.config.gpu,
+                gpu=self.gpu if self.gpu is not None else cluster.config.num_gpus,
                 memMB=self.memMB
                 if self.memMB is not None
                 else cluster.config.max_memory * 1024,
@@ -152,7 +152,7 @@ class DDPJobDefinition(JobDefinition):
     def _dry_run_no_cluster(self):
         if self.scheduler_args is not None:
             if self.scheduler_args.get(&#34;namespace&#34;) is None:
-                self.scheduler_args[&#34;namespace&#34;] = oc.get_project_name()
+                self.scheduler_args[&#34;namespace&#34;] = get_current_namespace()
         return torchx_runner.dryrun(
             app=ddp(
                 *self.script_args,
@@ -359,7 +359,7 @@ class DDPJob(Job):
         self.workspace = workspace
 
     def _dry_run(self, cluster: &#34;Cluster&#34;):
-        j = f&#34;{cluster.config.max_worker}x{max(cluster.config.gpu, 1)}&#34;  # # of proc. = # of gpus
+        j = f&#34;{cluster.config.num_workers}x{max(cluster.config.num_gpus, 1)}&#34;  # # of proc. = # of gpus
         return torchx_runner.dryrun(
             app=ddp(
                 *self.script_args,
@@ -368,7 +368,7 @@ class DDPJob(Job):
                 name=self.name,
                 h=self.h,
                 cpu=self.cpu if self.cpu is not None else cluster.config.max_cpus,
-                gpu=self.gpu if self.gpu is not None else cluster.config.gpu,
+                gpu=self.gpu if self.gpu is not None else cluster.config.num_gpus,
                 memMB=self.memMB
                 if self.memMB is not None
                 else cluster.config.max_memory * 1024,
@@ -392,7 +392,7 @@ class DDPJob(Job):
     def _dry_run_no_cluster(self):
         if self.scheduler_args is not None:
             if self.scheduler_args.get(&#34;namespace&#34;) is None:
-                self.scheduler_args[&#34;namespace&#34;] = oc.get_project_name()
+                self.scheduler_args[&#34;namespace&#34;] = get_current_namespace()
         return torchx_runner.dryrun(
             app=ddp(
                 *self.script_args,

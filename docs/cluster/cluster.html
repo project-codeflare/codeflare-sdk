@@ -50,15 +50,15 @@ the resources requested by the user. It also contains functions for checking the
 cluster setup queue, a list of all existing clusters, and the user&#39;s working namespace.
 &#34;&#34;&#34;
 
-from os import stat
 from time import sleep
 from typing import List, Optional, Tuple, Dict
 
-import openshift as oc
 from ray.job_submission import JobSubmissionClient
 
+from .auth import config_check, api_config_handler
 from ..utils import pretty_print
 from ..utils.generate_yaml import generate_appwrapper
+from ..utils.kube_api_helpers import _kube_api_error_handling
 from .config import ClusterConfiguration
 from .model import (
     AppWrapper,
@@ -67,6 +67,9 @@ from .model import (
     RayCluster,
     RayClusterStatus,
 )
+from kubernetes import client, config
+import yaml
+import os
 
 
 class Cluster:
@@ -97,8 +100,10 @@ class Cluster:
         &#34;&#34;&#34;
 
         if self.config.namespace is None:
-            self.config.namespace = oc.get_project_name()
-            if type(self.config.namespace) is not str:
+            self.config.namespace = get_current_namespace()
+            if self.config.namespace is None:
+                print(&#34;Please specify with namespace=&lt;your_current_namespace&gt;&#34;)
+            elif type(self.config.namespace) is not str:
                 raise TypeError(
                     f&#34;Namespace {self.config.namespace} is of type {type(self.config.namespace)}. Check your Kubernetes Authentication.&#34;
                 )
@@ -109,8 +114,8 @@ class Cluster:
         max_cpu = self.config.max_cpus
         min_memory = self.config.min_memory
         max_memory = self.config.max_memory
-        gpu = self.config.gpu
-        workers = self.config.max_worker
+        gpu = self.config.num_gpus
+        workers = self.config.num_workers
         template = self.config.template
         image = self.config.image
         instascale = self.config.instascale
@@ -144,15 +149,19 @@ class Cluster:
         &#34;&#34;&#34;
         namespace = self.config.namespace
         try:
-            with oc.project(namespace):
-                oc.invoke(&#34;apply&#34;, [&#34;-f&#34;, self.app_wrapper_yaml])
-        except oc.OpenShiftPythonException as osp:  # pragma: no cover
-            error_msg = osp.result.err()
-            if &#34;Unauthorized&#34; in error_msg:
-                raise PermissionError(
-                    &#34;Action not permitted, have you put in correct/up-to-date auth credentials?&#34;
-                )
-            raise osp
+            config_check()
+            api_instance = client.CustomObjectsApi(api_config_handler())
+            with open(self.app_wrapper_yaml) as f:
+                aw = yaml.load(f, Loader=yaml.FullLoader)
+            api_instance.create_namespaced_custom_object(
+                group=&#34;mcad.ibm.com&#34;,
+                version=&#34;v1beta1&#34;,
+                namespace=namespace,
+                plural=&#34;appwrappers&#34;,
+                body=aw,
+            )
+        except Exception as e:  # pragma: no cover
+            return _kube_api_error_handling(e)
 
     def down(self):
         &#34;&#34;&#34;
@@ -161,23 +170,17 @@ class Cluster:
         &#34;&#34;&#34;
         namespace = self.config.namespace
         try:
-            with oc.project(namespace):
-                oc.invoke(&#34;delete&#34;, [&#34;AppWrapper&#34;, self.app_wrapper_name])
-        except oc.OpenShiftPythonException as osp:  # pragma: no cover
-            error_msg = osp.result.err()
-            if (
-                &#39;the server doesn\&#39;t have a resource type &#34;AppWrapper&#34;&#39; in error_msg
-                or &#34;forbidden&#34; in error_msg
-                or &#34;Unauthorized&#34; in error_msg
-                or &#34;Missing or incomplete configuration&#34; in error_msg
-            ):
-                raise PermissionError(
-                    &#34;Action not permitted, have you run auth.login()/cluster.up() yet?&#34;
-                )
-            elif &#34;not found&#34; in error_msg:
-                print(&#34;Cluster not found, have you run cluster.up() yet?&#34;)
-            else:
-                raise osp
+            config_check()
+            api_instance = client.CustomObjectsApi(api_config_handler())
+            api_instance.delete_namespaced_custom_object(
+                group=&#34;mcad.ibm.com&#34;,
+                version=&#34;v1beta1&#34;,
+                namespace=namespace,
+                plural=&#34;appwrappers&#34;,
+                name=self.app_wrapper_name,
+            )
+        except Exception as e:  # pragma: no cover
+            return _kube_api_error_handling(e)
 
     def status(
         self, print_to_console: bool = True
@@ -205,9 +208,15 @@ class Cluster:
                 ready = False
                 status = CodeFlareClusterStatus.FAILED  # should deleted be separate
                 return status, ready  # exit early, no need to check ray status
-            elif appwrapper.status in [AppWrapperStatus.PENDING]:
+            elif appwrapper.status in [
+                AppWrapperStatus.PENDING,
+                AppWrapperStatus.QUEUEING,
+            ]:
                 ready = False
-                status = CodeFlareClusterStatus.QUEUED
+                if appwrapper.status == AppWrapperStatus.PENDING:
+                    status = CodeFlareClusterStatus.QUEUED
+                else:
+                    status = CodeFlareClusterStatus.QUEUEING
                 if print_to_console:
                     pretty_print.print_app_wrappers_status([appwrapper])
                 return (
@@ -230,7 +239,7 @@ class Cluster:
 
             if print_to_console:
                 # overriding the number of gpus with requested
-                cluster.worker_gpu = self.config.gpu
+                cluster.worker_gpu = self.config.num_gpus
                 pretty_print.print_cluster_status(cluster)
         elif print_to_console:
             if status == CodeFlareClusterStatus.UNKNOWN:
@@ -279,16 +288,21 @@ class Cluster:
         Returns a string containing the cluster&#39;s dashboard URI.
         &#34;&#34;&#34;
         try:
-            with oc.project(self.config.namespace):
-                route = oc.invoke(
-                    &#34;get&#34;, [&#34;route&#34;, &#34;-o&#34;, &#34;jsonpath=&#39;{$.items[*].spec.host}&#39;&#34;]
-                )
-                route = route.out().split(&#34; &#34;)
-                route = [x for x in route if f&#34;ray-dashboard-{self.config.name}&#34; in x]
-                route = route[0].strip().strip(&#34;&#39;&#34;)
-            return f&#34;http://{route}&#34;
-        except:
-            return &#34;Dashboard route not available yet, have you run cluster.up()?&#34;
+            config_check()
+            api_instance = client.CustomObjectsApi(api_config_handler())
+            routes = api_instance.list_namespaced_custom_object(
+                group=&#34;route.openshift.io&#34;,
+                version=&#34;v1&#34;,
+                namespace=self.config.namespace,
+                plural=&#34;routes&#34;,
+            )
+        except Exception as e:  # pragma: no cover
+            return _kube_api_error_handling(e)
+
+        for route in routes[&#34;items&#34;]:
+            if route[&#34;metadata&#34;][&#34;name&#34;] == f&#34;ray-dashboard-{self.config.name}&#34;:
+                return f&#34;http://{route[&#39;spec&#39;][&#39;host&#39;]}&#34;
+        return &#34;Dashboard route not available yet, have you run cluster.up()?&#34;
 
     def list_jobs(self) -&gt; List:
         &#34;&#34;&#34;
@@ -328,6 +342,55 @@ class Cluster:
             to_return[&#34;requirements&#34;] = requirements
         return to_return
 
+    def from_k8_cluster_object(rc):
+        machine_types = (
+            rc[&#34;metadata&#34;][&#34;labels&#34;][&#34;orderedinstance&#34;].split(&#34;_&#34;)
+            if &#34;orderedinstance&#34; in rc[&#34;metadata&#34;][&#34;labels&#34;]
+            else []
+        )
+        local_interactive = (
+            &#34;volumeMounts&#34;
+            in rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][&#34;containers&#34;][0]
+        )
+        cluster_config = ClusterConfiguration(
+            name=rc[&#34;metadata&#34;][&#34;name&#34;],
+            namespace=rc[&#34;metadata&#34;][&#34;namespace&#34;],
+            machine_types=machine_types,
+            num_workers=rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;minReplicas&#34;],
+            min_cpus=rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][
+                &#34;containers&#34;
+            ][0][&#34;resources&#34;][&#34;requests&#34;][&#34;cpu&#34;],
+            max_cpus=rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][
+                &#34;containers&#34;
+            ][0][&#34;resources&#34;][&#34;limits&#34;][&#34;cpu&#34;],
+            min_memory=int(
+                rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][&#34;containers&#34;][0][
+                    &#34;resources&#34;
+                ][&#34;requests&#34;][&#34;memory&#34;][:-1]
+            ),
+            max_memory=int(
+                rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][&#34;containers&#34;][0][
+                    &#34;resources&#34;
+                ][&#34;limits&#34;][&#34;memory&#34;][:-1]
+            ),
+            num_gpus=rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][
+                &#34;containers&#34;
+            ][0][&#34;resources&#34;][&#34;limits&#34;][&#34;nvidia.com/gpu&#34;],
+            instascale=True if machine_types else False,
+            image=rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][&#34;containers&#34;][
+                0
+            ][&#34;image&#34;],
+            local_interactive=local_interactive,
+        )
+        return Cluster(cluster_config)
+
+    def local_client_url(self):
+        if self.config.local_interactive == True:
+            ingress_domain = _get_ingress_domain()
+            return f&#34;ray://rayclient-{self.config.name}-{self.config.namespace}.{ingress_domain}&#34;
+        else:
+            return &#34;None&#34;
+
 
 def list_all_clusters(namespace: str, print_to_console: bool = True):
     &#34;&#34;&#34;
@@ -352,78 +415,120 @@ def list_all_queued(namespace: str, print_to_console: bool = True):
     return app_wrappers
 
 
+def get_current_namespace():  # pragma: no cover
+    if api_config_handler() != None:
+        if os.path.isfile(&#34;/var/run/secrets/kubernetes.io/serviceaccount/namespace&#34;):
+            try:
+                file = open(
+                    &#34;/var/run/secrets/kubernetes.io/serviceaccount/namespace&#34;, &#34;r&#34;
+                )
+                active_context = file.readline().strip(&#34;\n&#34;)
+                return active_context
+            except Exception as e:
+                print(&#34;Unable to find current namespace&#34;)
+                return None
+        else:
+            print(&#34;Unable to find current namespace&#34;)
+            return None
+    else:
+        try:
+            _, active_context = config.list_kube_config_contexts(config_check())
+        except Exception as e:
+            return _kube_api_error_handling(e)
+        try:
+            return active_context[&#34;context&#34;][&#34;namespace&#34;]
+        except KeyError:
+            return None
+
+
+def get_cluster(cluster_name: str, namespace: str = &#34;default&#34;):
+    try:
+        config.load_kube_config()
+        api_instance = client.CustomObjectsApi()
+        rcs = api_instance.list_namespaced_custom_object(
+            group=&#34;ray.io&#34;,
+            version=&#34;v1alpha1&#34;,
+            namespace=namespace,
+            plural=&#34;rayclusters&#34;,
+        )
+    except Exception as e:
+        return _kube_api_error_handling(e)
+
+    for rc in rcs[&#34;items&#34;]:
+        if rc[&#34;metadata&#34;][&#34;name&#34;] == cluster_name:
+            return Cluster.from_k8_cluster_object(rc)
+    raise FileNotFoundError(
+        f&#34;Cluster {cluster_name} is not found in {namespace} namespace&#34;
+    )
+
+
 # private methods
+def _get_ingress_domain():
+    try:
+        config.load_kube_config()
+        api_client = client.CustomObjectsApi(api_config_handler())
+        ingress = api_client.get_cluster_custom_object(
+            &#34;config.openshift.io&#34;, &#34;v1&#34;, &#34;ingresses&#34;, &#34;cluster&#34;
+        )
+    except Exception as e:  # pragma: no cover
+        return _kube_api_error_handling(e)
+    return ingress[&#34;spec&#34;][&#34;domain&#34;]
 
 
 def _app_wrapper_status(name, namespace=&#34;default&#34;) -&gt; Optional[AppWrapper]:
-    cluster = None
     try:
-        with oc.project(namespace), oc.timeout(10 * 60):
-            cluster = oc.selector(f&#34;appwrapper/{name}&#34;).object()
-    except oc.OpenShiftPythonException as osp:  # pragma: no cover
-        msg = osp.msg
-        if &#34;Expected a single object, but selected 0&#34; in msg:
-            return cluster
-        error_msg = osp.result.err()
-        if not (
-            &#39;the server doesn\&#39;t have a resource type &#34;appwrapper&#34;&#39; in error_msg
-            or &#34;forbidden&#34; in error_msg
-            or &#34;Unauthorized&#34; in error_msg
-            or &#34;Missing or incomplete configuration&#34; in error_msg
-        ):
-            raise osp
+        config_check()
+        api_instance = client.CustomObjectsApi(api_config_handler())
+        aws = api_instance.list_namespaced_custom_object(
+            group=&#34;mcad.ibm.com&#34;,
+            version=&#34;v1beta1&#34;,
+            namespace=namespace,
+            plural=&#34;appwrappers&#34;,
+        )
+    except Exception as e:  # pragma: no cover
+        return _kube_api_error_handling(e)
 
-    if cluster:
-        return _map_to_app_wrapper(cluster)
-
-    return cluster
+    for aw in aws[&#34;items&#34;]:
+        if aw[&#34;metadata&#34;][&#34;name&#34;] == name:
+            return _map_to_app_wrapper(aw)
+    return None
 
 
 def _ray_cluster_status(name, namespace=&#34;default&#34;) -&gt; Optional[RayCluster]:
-    cluster = None
     try:
-        with oc.project(namespace), oc.timeout(10 * 60):
-            cluster = oc.selector(f&#34;rayclusters/{name}&#34;).object()
-    except oc.OpenShiftPythonException as osp:  # pragma: no cover
-        msg = osp.msg
-        if &#34;Expected a single object, but selected 0&#34; in msg:
-            return cluster
-        error_msg = osp.result.err()
-        if not (
-            &#39;the server doesn\&#39;t have a resource type &#34;rayclusters&#34;&#39; in error_msg
-            or &#34;forbidden&#34; in error_msg
-            or &#34;Unauthorized&#34; in error_msg
-            or &#34;Missing or incomplete configuration&#34; in error_msg
-        ):
-            raise osp
+        config_check()
+        api_instance = client.CustomObjectsApi(api_config_handler())
+        rcs = api_instance.list_namespaced_custom_object(
+            group=&#34;ray.io&#34;,
+            version=&#34;v1alpha1&#34;,
+            namespace=namespace,
+            plural=&#34;rayclusters&#34;,
+        )
+    except Exception as e:  # pragma: no cover
+        return _kube_api_error_handling(e)
 
-    if cluster:
-        return _map_to_ray_cluster(cluster)
-
-    return cluster
+    for rc in rcs[&#34;items&#34;]:
+        if rc[&#34;metadata&#34;][&#34;name&#34;] == name:
+            return _map_to_ray_cluster(rc)
+    return None
 
 
 def _get_ray_clusters(namespace=&#34;default&#34;) -&gt; List[RayCluster]:
     list_of_clusters = []
     try:
-        with oc.project(namespace), oc.timeout(10 * 60):
-            ray_clusters = oc.selector(&#34;rayclusters&#34;).objects()
-    except oc.OpenShiftPythonException as osp:  # pragma: no cover
-        error_msg = osp.result.err()
-        if (
-            &#39;the server doesn\&#39;t have a resource type &#34;rayclusters&#34;&#39; in error_msg
-            or &#34;forbidden&#34; in error_msg
-            or &#34;Unauthorized&#34; in error_msg
-            or &#34;Missing or incomplete configuration&#34; in error_msg
-        ):
-            raise PermissionError(
-                &#34;Action not permitted, have you put in correct/up-to-date auth credentials?&#34;
-            )
-        else:
-            raise osp
+        config_check()
+        api_instance = client.CustomObjectsApi(api_config_handler())
+        rcs = api_instance.list_namespaced_custom_object(
+            group=&#34;ray.io&#34;,
+            version=&#34;v1alpha1&#34;,
+            namespace=namespace,
+            plural=&#34;rayclusters&#34;,
+        )
+    except Exception as e:  # pragma: no cover
+        return _kube_api_error_handling(e)
 
-    for cluster in ray_clusters:
-        list_of_clusters.append(_map_to_ray_cluster(cluster))
+    for rc in rcs[&#34;items&#34;]:
+        list_of_clusters.append(_map_to_ray_cluster(rc))
     return list_of_clusters
 
 
@@ -433,23 +538,18 @@ def _get_app_wrappers(
     list_of_app_wrappers = []
 
     try:
-        with oc.project(namespace), oc.timeout(10 * 60):
-            app_wrappers = oc.selector(&#34;appwrappers&#34;).objects()
-    except oc.OpenShiftPythonException as osp:  # pragma: no cover
-        error_msg = osp.result.err()
-        if (
-            &#39;the server doesn\&#39;t have a resource type &#34;appwrappers&#34;&#39; in error_msg
-            or &#34;forbidden&#34; in error_msg
-            or &#34;Unauthorized&#34; in error_msg
-            or &#34;Missing or incomplete configuration&#34; in error_msg
-        ):
-            raise PermissionError(
-                &#34;Action not permitted, have you put in correct/up-to-date auth credentials?&#34;
-            )
-        else:
-            raise osp
+        config_check()
+        api_instance = client.CustomObjectsApi(api_config_handler())
+        aws = api_instance.list_namespaced_custom_object(
+            group=&#34;mcad.ibm.com&#34;,
+            version=&#34;v1beta1&#34;,
+            namespace=namespace,
+            plural=&#34;appwrappers&#34;,
+        )
+    except Exception as e:  # pragma: no cover
+        return _kube_api_error_handling(e)
 
-    for item in app_wrappers:
+    for item in aws[&#34;items&#34;]:
         app_wrapper = _map_to_app_wrapper(item)
         if filter and app_wrapper.status in filter:
             list_of_app_wrappers.append(app_wrapper)
@@ -459,48 +559,58 @@ def _get_app_wrappers(
     return list_of_app_wrappers
 
 
-def _map_to_ray_cluster(cluster) -&gt; Optional[RayCluster]:
-    cluster_model = cluster.model
-    if type(cluster_model.status.state) == oc.model.MissingModel:
-        status = RayClusterStatus.UNKNOWN
+def _map_to_ray_cluster(rc) -&gt; Optional[RayCluster]:
+    if &#34;state&#34; in rc[&#34;status&#34;]:
+        status = RayClusterStatus(rc[&#34;status&#34;][&#34;state&#34;].lower())
     else:
-        status = RayClusterStatus(cluster_model.status.state.lower())
+        status = RayClusterStatus.UNKNOWN
 
-    with oc.project(cluster.namespace()), oc.timeout(10 * 60):
-        route = (
-            oc.selector(f&#34;route/ray-dashboard-{cluster.name()}&#34;)
-            .object()
-            .model.spec.host
-        )
+    config_check()
+    api_instance = client.CustomObjectsApi(api_config_handler())
+    routes = api_instance.list_namespaced_custom_object(
+        group=&#34;route.openshift.io&#34;,
+        version=&#34;v1&#34;,
+        namespace=rc[&#34;metadata&#34;][&#34;namespace&#34;],
+        plural=&#34;routes&#34;,
+    )
+    ray_route = None
+    for route in routes[&#34;items&#34;]:
+        if route[&#34;metadata&#34;][&#34;name&#34;] == f&#34;ray-dashboard-{rc[&#39;metadata&#39;][&#39;name&#39;]}&#34;:
+            ray_route = route[&#34;spec&#34;][&#34;host&#34;]
 
     return RayCluster(
-        name=cluster.name(),
+        name=rc[&#34;metadata&#34;][&#34;name&#34;],
         status=status,
         # for now we are not using autoscaling so same replicas is fine
-        min_workers=cluster_model.spec.workerGroupSpecs[0].replicas,
-        max_workers=cluster_model.spec.workerGroupSpecs[0].replicas,
-        worker_mem_max=cluster_model.spec.workerGroupSpecs[0]
-        .template.spec.containers[0]
-        .resources.limits.memory,
-        worker_mem_min=cluster_model.spec.workerGroupSpecs[0]
-        .template.spec.containers[0]
-        .resources.requests.memory,
-        worker_cpu=cluster_model.spec.workerGroupSpecs[0]
-        .template.spec.containers[0]
-        .resources.limits.cpu,
+        workers=rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;replicas&#34;],
+        worker_mem_max=rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][
+            &#34;containers&#34;
+        ][0][&#34;resources&#34;][&#34;limits&#34;][&#34;memory&#34;],
+        worker_mem_min=rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][
+            &#34;containers&#34;
+        ][0][&#34;resources&#34;][&#34;requests&#34;][&#34;memory&#34;],
+        worker_cpu=rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][&#34;containers&#34;][
+            0
+        ][&#34;resources&#34;][&#34;limits&#34;][&#34;cpu&#34;],
         worker_gpu=0,  # hard to detect currently how many gpus, can override it with what the user asked for
-        namespace=cluster.namespace(),
-        dashboard=route,
+        namespace=rc[&#34;metadata&#34;][&#34;namespace&#34;],
+        dashboard=ray_route,
     )
 
 
-def _map_to_app_wrapper(cluster) -&gt; AppWrapper:
-    cluster_model = cluster.model
+def _map_to_app_wrapper(aw) -&gt; AppWrapper:
+    if &#34;status&#34; in aw and &#34;canrun&#34; in aw[&#34;status&#34;]:
+        return AppWrapper(
+            name=aw[&#34;metadata&#34;][&#34;name&#34;],
+            status=AppWrapperStatus(aw[&#34;status&#34;][&#34;state&#34;].lower()),
+            can_run=aw[&#34;status&#34;][&#34;canrun&#34;],
+            job_state=aw[&#34;status&#34;][&#34;queuejobstate&#34;],
+        )
     return AppWrapper(
-        name=cluster.name(),
-        status=AppWrapperStatus(cluster_model.status.state.lower()),
-        can_run=cluster_model.status.canrun,
-        job_state=cluster_model.status.queuejobstate,
+        name=aw[&#34;metadata&#34;][&#34;name&#34;],
+        status=AppWrapperStatus(&#34;queueing&#34;),
+        can_run=False,
+        job_state=&#34;Still adding to queue&#34;,
     )
 
 
@@ -508,12 +618,11 @@ def _copy_to_ray(cluster: Cluster) -&gt; RayCluster:
     ray = RayCluster(
         name=cluster.config.name,
         status=cluster.status(print_to_console=False)[0],
-        min_workers=cluster.config.min_worker,
-        max_workers=cluster.config.max_worker,
+        workers=cluster.config.num_workers,
         worker_mem_min=cluster.config.min_memory,
         worker_mem_max=cluster.config.max_memory,
         worker_cpu=cluster.config.min_cpus,
-        worker_gpu=cluster.config.gpu,
+        worker_gpu=cluster.config.num_gpus,
         namespace=cluster.config.namespace,
         dashboard=cluster.cluster_dashboard_uri(),
     )
@@ -529,6 +638,71 @@ def _copy_to_ray(cluster: Cluster) -&gt; RayCluster:
 <section>
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
+<dt id="codeflare_sdk.cluster.cluster.get_cluster"><code class="name flex">
+<span>def <span class="ident">get_cluster</span></span>(<span>cluster_name: str, namespace: str = 'default')</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_cluster(cluster_name: str, namespace: str = &#34;default&#34;):
+    try:
+        config.load_kube_config()
+        api_instance = client.CustomObjectsApi()
+        rcs = api_instance.list_namespaced_custom_object(
+            group=&#34;ray.io&#34;,
+            version=&#34;v1alpha1&#34;,
+            namespace=namespace,
+            plural=&#34;rayclusters&#34;,
+        )
+    except Exception as e:
+        return _kube_api_error_handling(e)
+
+    for rc in rcs[&#34;items&#34;]:
+        if rc[&#34;metadata&#34;][&#34;name&#34;] == cluster_name:
+            return Cluster.from_k8_cluster_object(rc)
+    raise FileNotFoundError(
+        f&#34;Cluster {cluster_name} is not found in {namespace} namespace&#34;
+    )</code></pre>
+</details>
+</dd>
+<dt id="codeflare_sdk.cluster.cluster.get_current_namespace"><code class="name flex">
+<span>def <span class="ident">get_current_namespace</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_current_namespace():  # pragma: no cover
+    if api_config_handler() != None:
+        if os.path.isfile(&#34;/var/run/secrets/kubernetes.io/serviceaccount/namespace&#34;):
+            try:
+                file = open(
+                    &#34;/var/run/secrets/kubernetes.io/serviceaccount/namespace&#34;, &#34;r&#34;
+                )
+                active_context = file.readline().strip(&#34;\n&#34;)
+                return active_context
+            except Exception as e:
+                print(&#34;Unable to find current namespace&#34;)
+                return None
+        else:
+            print(&#34;Unable to find current namespace&#34;)
+            return None
+    else:
+        try:
+            _, active_context = config.list_kube_config_contexts(config_check())
+        except Exception as e:
+            return _kube_api_error_handling(e)
+        try:
+            return active_context[&#34;context&#34;][&#34;namespace&#34;]
+        except KeyError:
+            return None</code></pre>
+</details>
+</dd>
 <dt id="codeflare_sdk.cluster.cluster.list_all_clusters"><code class="name flex">
 <span>def <span class="ident">list_all_clusters</span></span>(<span>namespace: str, print_to_console: bool = True)</span>
 </code></dt>
@@ -620,8 +794,10 @@ request.</p></div>
         &#34;&#34;&#34;
 
         if self.config.namespace is None:
-            self.config.namespace = oc.get_project_name()
-            if type(self.config.namespace) is not str:
+            self.config.namespace = get_current_namespace()
+            if self.config.namespace is None:
+                print(&#34;Please specify with namespace=&lt;your_current_namespace&gt;&#34;)
+            elif type(self.config.namespace) is not str:
                 raise TypeError(
                     f&#34;Namespace {self.config.namespace} is of type {type(self.config.namespace)}. Check your Kubernetes Authentication.&#34;
                 )
@@ -632,8 +808,8 @@ request.</p></div>
         max_cpu = self.config.max_cpus
         min_memory = self.config.min_memory
         max_memory = self.config.max_memory
-        gpu = self.config.gpu
-        workers = self.config.max_worker
+        gpu = self.config.num_gpus
+        workers = self.config.num_workers
         template = self.config.template
         image = self.config.image
         instascale = self.config.instascale
@@ -667,15 +843,19 @@ request.</p></div>
         &#34;&#34;&#34;
         namespace = self.config.namespace
         try:
-            with oc.project(namespace):
-                oc.invoke(&#34;apply&#34;, [&#34;-f&#34;, self.app_wrapper_yaml])
-        except oc.OpenShiftPythonException as osp:  # pragma: no cover
-            error_msg = osp.result.err()
-            if &#34;Unauthorized&#34; in error_msg:
-                raise PermissionError(
-                    &#34;Action not permitted, have you put in correct/up-to-date auth credentials?&#34;
-                )
-            raise osp
+            config_check()
+            api_instance = client.CustomObjectsApi(api_config_handler())
+            with open(self.app_wrapper_yaml) as f:
+                aw = yaml.load(f, Loader=yaml.FullLoader)
+            api_instance.create_namespaced_custom_object(
+                group=&#34;mcad.ibm.com&#34;,
+                version=&#34;v1beta1&#34;,
+                namespace=namespace,
+                plural=&#34;appwrappers&#34;,
+                body=aw,
+            )
+        except Exception as e:  # pragma: no cover
+            return _kube_api_error_handling(e)
 
     def down(self):
         &#34;&#34;&#34;
@@ -684,23 +864,17 @@ request.</p></div>
         &#34;&#34;&#34;
         namespace = self.config.namespace
         try:
-            with oc.project(namespace):
-                oc.invoke(&#34;delete&#34;, [&#34;AppWrapper&#34;, self.app_wrapper_name])
-        except oc.OpenShiftPythonException as osp:  # pragma: no cover
-            error_msg = osp.result.err()
-            if (
-                &#39;the server doesn\&#39;t have a resource type &#34;AppWrapper&#34;&#39; in error_msg
-                or &#34;forbidden&#34; in error_msg
-                or &#34;Unauthorized&#34; in error_msg
-                or &#34;Missing or incomplete configuration&#34; in error_msg
-            ):
-                raise PermissionError(
-                    &#34;Action not permitted, have you run auth.login()/cluster.up() yet?&#34;
-                )
-            elif &#34;not found&#34; in error_msg:
-                print(&#34;Cluster not found, have you run cluster.up() yet?&#34;)
-            else:
-                raise osp
+            config_check()
+            api_instance = client.CustomObjectsApi(api_config_handler())
+            api_instance.delete_namespaced_custom_object(
+                group=&#34;mcad.ibm.com&#34;,
+                version=&#34;v1beta1&#34;,
+                namespace=namespace,
+                plural=&#34;appwrappers&#34;,
+                name=self.app_wrapper_name,
+            )
+        except Exception as e:  # pragma: no cover
+            return _kube_api_error_handling(e)
 
     def status(
         self, print_to_console: bool = True
@@ -728,9 +902,15 @@ request.</p></div>
                 ready = False
                 status = CodeFlareClusterStatus.FAILED  # should deleted be separate
                 return status, ready  # exit early, no need to check ray status
-            elif appwrapper.status in [AppWrapperStatus.PENDING]:
+            elif appwrapper.status in [
+                AppWrapperStatus.PENDING,
+                AppWrapperStatus.QUEUEING,
+            ]:
                 ready = False
-                status = CodeFlareClusterStatus.QUEUED
+                if appwrapper.status == AppWrapperStatus.PENDING:
+                    status = CodeFlareClusterStatus.QUEUED
+                else:
+                    status = CodeFlareClusterStatus.QUEUEING
                 if print_to_console:
                     pretty_print.print_app_wrappers_status([appwrapper])
                 return (
@@ -753,7 +933,7 @@ request.</p></div>
 
             if print_to_console:
                 # overriding the number of gpus with requested
-                cluster.worker_gpu = self.config.gpu
+                cluster.worker_gpu = self.config.num_gpus
                 pretty_print.print_cluster_status(cluster)
         elif print_to_console:
             if status == CodeFlareClusterStatus.UNKNOWN:
@@ -802,16 +982,21 @@ request.</p></div>
         Returns a string containing the cluster&#39;s dashboard URI.
         &#34;&#34;&#34;
         try:
-            with oc.project(self.config.namespace):
-                route = oc.invoke(
-                    &#34;get&#34;, [&#34;route&#34;, &#34;-o&#34;, &#34;jsonpath=&#39;{$.items[*].spec.host}&#39;&#34;]
-                )
-                route = route.out().split(&#34; &#34;)
-                route = [x for x in route if f&#34;ray-dashboard-{self.config.name}&#34; in x]
-                route = route[0].strip().strip(&#34;&#39;&#34;)
-            return f&#34;http://{route}&#34;
-        except:
-            return &#34;Dashboard route not available yet, have you run cluster.up()?&#34;
+            config_check()
+            api_instance = client.CustomObjectsApi(api_config_handler())
+            routes = api_instance.list_namespaced_custom_object(
+                group=&#34;route.openshift.io&#34;,
+                version=&#34;v1&#34;,
+                namespace=self.config.namespace,
+                plural=&#34;routes&#34;,
+            )
+        except Exception as e:  # pragma: no cover
+            return _kube_api_error_handling(e)
+
+        for route in routes[&#34;items&#34;]:
+            if route[&#34;metadata&#34;][&#34;name&#34;] == f&#34;ray-dashboard-{self.config.name}&#34;:
+                return f&#34;http://{route[&#39;spec&#39;][&#39;host&#39;]}&#34;
+        return &#34;Dashboard route not available yet, have you run cluster.up()?&#34;
 
     def list_jobs(self) -&gt; List:
         &#34;&#34;&#34;
@@ -849,7 +1034,56 @@ request.</p></div>
             to_return[&#34;working_dir&#34;] = working_dir
         if requirements:
             to_return[&#34;requirements&#34;] = requirements
-        return to_return</code></pre>
+        return to_return
+
+    def from_k8_cluster_object(rc):
+        machine_types = (
+            rc[&#34;metadata&#34;][&#34;labels&#34;][&#34;orderedinstance&#34;].split(&#34;_&#34;)
+            if &#34;orderedinstance&#34; in rc[&#34;metadata&#34;][&#34;labels&#34;]
+            else []
+        )
+        local_interactive = (
+            &#34;volumeMounts&#34;
+            in rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][&#34;containers&#34;][0]
+        )
+        cluster_config = ClusterConfiguration(
+            name=rc[&#34;metadata&#34;][&#34;name&#34;],
+            namespace=rc[&#34;metadata&#34;][&#34;namespace&#34;],
+            machine_types=machine_types,
+            num_workers=rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;minReplicas&#34;],
+            min_cpus=rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][
+                &#34;containers&#34;
+            ][0][&#34;resources&#34;][&#34;requests&#34;][&#34;cpu&#34;],
+            max_cpus=rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][
+                &#34;containers&#34;
+            ][0][&#34;resources&#34;][&#34;limits&#34;][&#34;cpu&#34;],
+            min_memory=int(
+                rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][&#34;containers&#34;][0][
+                    &#34;resources&#34;
+                ][&#34;requests&#34;][&#34;memory&#34;][:-1]
+            ),
+            max_memory=int(
+                rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][&#34;containers&#34;][0][
+                    &#34;resources&#34;
+                ][&#34;limits&#34;][&#34;memory&#34;][:-1]
+            ),
+            num_gpus=rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][
+                &#34;containers&#34;
+            ][0][&#34;resources&#34;][&#34;limits&#34;][&#34;nvidia.com/gpu&#34;],
+            instascale=True if machine_types else False,
+            image=rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][&#34;containers&#34;][
+                0
+            ][&#34;image&#34;],
+            local_interactive=local_interactive,
+        )
+        return Cluster(cluster_config)
+
+    def local_client_url(self):
+        if self.config.local_interactive == True:
+            ingress_domain = _get_ingress_domain()
+            return f&#34;ray://rayclient-{self.config.name}-{self.config.namespace}.{ingress_domain}&#34;
+        else:
+            return &#34;None&#34;</code></pre>
 </details>
 <h3>Class variables</h3>
 <dl>
@@ -874,16 +1108,21 @@ request.</p></div>
     Returns a string containing the cluster&#39;s dashboard URI.
     &#34;&#34;&#34;
     try:
-        with oc.project(self.config.namespace):
-            route = oc.invoke(
-                &#34;get&#34;, [&#34;route&#34;, &#34;-o&#34;, &#34;jsonpath=&#39;{$.items[*].spec.host}&#39;&#34;]
-            )
-            route = route.out().split(&#34; &#34;)
-            route = [x for x in route if f&#34;ray-dashboard-{self.config.name}&#34; in x]
-            route = route[0].strip().strip(&#34;&#39;&#34;)
-        return f&#34;http://{route}&#34;
-    except:
-        return &#34;Dashboard route not available yet, have you run cluster.up()?&#34;</code></pre>
+        config_check()
+        api_instance = client.CustomObjectsApi(api_config_handler())
+        routes = api_instance.list_namespaced_custom_object(
+            group=&#34;route.openshift.io&#34;,
+            version=&#34;v1&#34;,
+            namespace=self.config.namespace,
+            plural=&#34;routes&#34;,
+        )
+    except Exception as e:  # pragma: no cover
+        return _kube_api_error_handling(e)
+
+    for route in routes[&#34;items&#34;]:
+        if route[&#34;metadata&#34;][&#34;name&#34;] == f&#34;ray-dashboard-{self.config.name}&#34;:
+            return f&#34;http://{route[&#39;spec&#39;][&#39;host&#39;]}&#34;
+    return &#34;Dashboard route not available yet, have you run cluster.up()?&#34;</code></pre>
 </details>
 </dd>
 <dt id="codeflare_sdk.cluster.cluster.Cluster.cluster_uri"><code class="name flex">
@@ -919,8 +1158,10 @@ the specifications of the ClusterConfiguration.</p></div>
     &#34;&#34;&#34;
 
     if self.config.namespace is None:
-        self.config.namespace = oc.get_project_name()
-        if type(self.config.namespace) is not str:
+        self.config.namespace = get_current_namespace()
+        if self.config.namespace is None:
+            print(&#34;Please specify with namespace=&lt;your_current_namespace&gt;&#34;)
+        elif type(self.config.namespace) is not str:
             raise TypeError(
                 f&#34;Namespace {self.config.namespace} is of type {type(self.config.namespace)}. Check your Kubernetes Authentication.&#34;
             )
@@ -931,8 +1172,8 @@ the specifications of the ClusterConfiguration.</p></div>
     max_cpu = self.config.max_cpus
     min_memory = self.config.min_memory
     max_memory = self.config.max_memory
-    gpu = self.config.gpu
-    workers = self.config.max_worker
+    gpu = self.config.num_gpus
+    workers = self.config.num_workers
     template = self.config.template
     image = self.config.image
     instascale = self.config.instascale
@@ -992,23 +1233,69 @@ associated with the cluster.</p></div>
     &#34;&#34;&#34;
     namespace = self.config.namespace
     try:
-        with oc.project(namespace):
-            oc.invoke(&#34;delete&#34;, [&#34;AppWrapper&#34;, self.app_wrapper_name])
-    except oc.OpenShiftPythonException as osp:  # pragma: no cover
-        error_msg = osp.result.err()
-        if (
-            &#39;the server doesn\&#39;t have a resource type &#34;AppWrapper&#34;&#39; in error_msg
-            or &#34;forbidden&#34; in error_msg
-            or &#34;Unauthorized&#34; in error_msg
-            or &#34;Missing or incomplete configuration&#34; in error_msg
-        ):
-            raise PermissionError(
-                &#34;Action not permitted, have you run auth.login()/cluster.up() yet?&#34;
-            )
-        elif &#34;not found&#34; in error_msg:
-            print(&#34;Cluster not found, have you run cluster.up() yet?&#34;)
-        else:
-            raise osp</code></pre>
+        config_check()
+        api_instance = client.CustomObjectsApi(api_config_handler())
+        api_instance.delete_namespaced_custom_object(
+            group=&#34;mcad.ibm.com&#34;,
+            version=&#34;v1beta1&#34;,
+            namespace=namespace,
+            plural=&#34;appwrappers&#34;,
+            name=self.app_wrapper_name,
+        )
+    except Exception as e:  # pragma: no cover
+        return _kube_api_error_handling(e)</code></pre>
+</details>
+</dd>
+<dt id="codeflare_sdk.cluster.cluster.Cluster.from_k8_cluster_object"><code class="name flex">
+<span>def <span class="ident">from_k8_cluster_object</span></span>(<span>rc)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def from_k8_cluster_object(rc):
+    machine_types = (
+        rc[&#34;metadata&#34;][&#34;labels&#34;][&#34;orderedinstance&#34;].split(&#34;_&#34;)
+        if &#34;orderedinstance&#34; in rc[&#34;metadata&#34;][&#34;labels&#34;]
+        else []
+    )
+    local_interactive = (
+        &#34;volumeMounts&#34;
+        in rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][&#34;containers&#34;][0]
+    )
+    cluster_config = ClusterConfiguration(
+        name=rc[&#34;metadata&#34;][&#34;name&#34;],
+        namespace=rc[&#34;metadata&#34;][&#34;namespace&#34;],
+        machine_types=machine_types,
+        num_workers=rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;minReplicas&#34;],
+        min_cpus=rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][
+            &#34;containers&#34;
+        ][0][&#34;resources&#34;][&#34;requests&#34;][&#34;cpu&#34;],
+        max_cpus=rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][
+            &#34;containers&#34;
+        ][0][&#34;resources&#34;][&#34;limits&#34;][&#34;cpu&#34;],
+        min_memory=int(
+            rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][&#34;containers&#34;][0][
+                &#34;resources&#34;
+            ][&#34;requests&#34;][&#34;memory&#34;][:-1]
+        ),
+        max_memory=int(
+            rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][&#34;containers&#34;][0][
+                &#34;resources&#34;
+            ][&#34;limits&#34;][&#34;memory&#34;][:-1]
+        ),
+        num_gpus=rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][
+            &#34;containers&#34;
+        ][0][&#34;resources&#34;][&#34;limits&#34;][&#34;nvidia.com/gpu&#34;],
+        instascale=True if machine_types else False,
+        image=rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][&#34;containers&#34;][
+            0
+        ][&#34;image&#34;],
+        local_interactive=local_interactive,
+    )
+    return Cluster(cluster_config)</code></pre>
 </details>
 </dd>
 <dt id="codeflare_sdk.cluster.cluster.Cluster.job_logs"><code class="name flex">
@@ -1065,6 +1352,23 @@ associated with the cluster.</p></div>
     return client.list_jobs()</code></pre>
 </details>
 </dd>
+<dt id="codeflare_sdk.cluster.cluster.Cluster.local_client_url"><code class="name flex">
+<span>def <span class="ident">local_client_url</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def local_client_url(self):
+    if self.config.local_interactive == True:
+        ingress_domain = _get_ingress_domain()
+        return f&#34;ray://rayclient-{self.config.name}-{self.config.namespace}.{ingress_domain}&#34;
+    else:
+        return &#34;None&#34;</code></pre>
+</details>
+</dd>
 <dt id="codeflare_sdk.cluster.cluster.Cluster.status"><code class="name flex">
 <span>def <span class="ident">status</span></span>(<span>self, print_to_console: bool = True) ‑> Tuple[<a title="codeflare_sdk.cluster.model.CodeFlareClusterStatus" href="model.html#codeflare_sdk.cluster.model.CodeFlareClusterStatus">CodeFlareClusterStatus</a>, bool]</span>
 </code></dt>
@@ -1101,9 +1405,15 @@ it is ready for use.</p></div>
             ready = False
             status = CodeFlareClusterStatus.FAILED  # should deleted be separate
             return status, ready  # exit early, no need to check ray status
-        elif appwrapper.status in [AppWrapperStatus.PENDING]:
+        elif appwrapper.status in [
+            AppWrapperStatus.PENDING,
+            AppWrapperStatus.QUEUEING,
+        ]:
             ready = False
-            status = CodeFlareClusterStatus.QUEUED
+            if appwrapper.status == AppWrapperStatus.PENDING:
+                status = CodeFlareClusterStatus.QUEUED
+            else:
+                status = CodeFlareClusterStatus.QUEUEING
             if print_to_console:
                 pretty_print.print_app_wrappers_status([appwrapper])
             return (
@@ -1126,7 +1436,7 @@ it is ready for use.</p></div>
 
         if print_to_console:
             # overriding the number of gpus with requested
-            cluster.worker_gpu = self.config.gpu
+            cluster.worker_gpu = self.config.num_gpus
             pretty_print.print_cluster_status(cluster)
     elif print_to_console:
         if status == CodeFlareClusterStatus.UNKNOWN:
@@ -1178,15 +1488,19 @@ the MCAD queue.</p></div>
     &#34;&#34;&#34;
     namespace = self.config.namespace
     try:
-        with oc.project(namespace):
-            oc.invoke(&#34;apply&#34;, [&#34;-f&#34;, self.app_wrapper_yaml])
-    except oc.OpenShiftPythonException as osp:  # pragma: no cover
-        error_msg = osp.result.err()
-        if &#34;Unauthorized&#34; in error_msg:
-            raise PermissionError(
-                &#34;Action not permitted, have you put in correct/up-to-date auth credentials?&#34;
-            )
-        raise osp</code></pre>
+        config_check()
+        api_instance = client.CustomObjectsApi(api_config_handler())
+        with open(self.app_wrapper_yaml) as f:
+            aw = yaml.load(f, Loader=yaml.FullLoader)
+        api_instance.create_namespaced_custom_object(
+            group=&#34;mcad.ibm.com&#34;,
+            version=&#34;v1beta1&#34;,
+            namespace=namespace,
+            plural=&#34;appwrappers&#34;,
+            body=aw,
+        )
+    except Exception as e:  # pragma: no cover
+        return _kube_api_error_handling(e)</code></pre>
 </details>
 </dd>
 <dt id="codeflare_sdk.cluster.cluster.Cluster.wait_ready"><code class="name flex">
@@ -1240,6 +1554,8 @@ Checks every five seconds.</p></div>
 </li>
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
+<li><code><a title="codeflare_sdk.cluster.cluster.get_cluster" href="#codeflare_sdk.cluster.cluster.get_cluster">get_cluster</a></code></li>
+<li><code><a title="codeflare_sdk.cluster.cluster.get_current_namespace" href="#codeflare_sdk.cluster.cluster.get_current_namespace">get_current_namespace</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.cluster.list_all_clusters" href="#codeflare_sdk.cluster.cluster.list_all_clusters">list_all_clusters</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.cluster.list_all_queued" href="#codeflare_sdk.cluster.cluster.list_all_queued">list_all_queued</a></code></li>
 </ul>
@@ -1254,9 +1570,11 @@ Checks every five seconds.</p></div>
 <li><code><a title="codeflare_sdk.cluster.cluster.Cluster.create_app_wrapper" href="#codeflare_sdk.cluster.cluster.Cluster.create_app_wrapper">create_app_wrapper</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.cluster.Cluster.details" href="#codeflare_sdk.cluster.cluster.Cluster.details">details</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.cluster.Cluster.down" href="#codeflare_sdk.cluster.cluster.Cluster.down">down</a></code></li>
+<li><code><a title="codeflare_sdk.cluster.cluster.Cluster.from_k8_cluster_object" href="#codeflare_sdk.cluster.cluster.Cluster.from_k8_cluster_object">from_k8_cluster_object</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.cluster.Cluster.job_logs" href="#codeflare_sdk.cluster.cluster.Cluster.job_logs">job_logs</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.cluster.Cluster.job_status" href="#codeflare_sdk.cluster.cluster.Cluster.job_status">job_status</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.cluster.Cluster.list_jobs" href="#codeflare_sdk.cluster.cluster.Cluster.list_jobs">list_jobs</a></code></li>
+<li><code><a title="codeflare_sdk.cluster.cluster.Cluster.local_client_url" href="#codeflare_sdk.cluster.cluster.Cluster.local_client_url">local_client_url</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.cluster.Cluster.status" href="#codeflare_sdk.cluster.cluster.Cluster.status">status</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.cluster.Cluster.torchx_config" href="#codeflare_sdk.cluster.cluster.Cluster.torchx_config">torchx_config</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.cluster.Cluster.torchx_scheduler" href="#codeflare_sdk.cluster.cluster.Cluster.torchx_scheduler">torchx_scheduler</a></code></li>

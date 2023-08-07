@@ -146,8 +146,7 @@ def print_clusters(clusters: List[RayCluster]):
         )
         name = cluster.name
         dashboard = cluster.dashboard
-        mincount = str(cluster.min_workers)
-        maxcount = str(cluster.max_workers)
+        workers = str(cluster.workers)
         memory = str(cluster.worker_mem_min) + &#34;~&#34; + str(cluster.worker_mem_max)
         cpu = str(cluster.worker_cpu)
         gpu = str(cluster.worker_gpu)
@@ -173,10 +172,9 @@ def print_clusters(clusters: List[RayCluster]):
         #&#39;table1&#39; to display the worker counts
         table1 = Table(box=None)
         table1.add_row()
-        table1.add_column(&#34;Min&#34;, style=&#34;cyan&#34;, no_wrap=True)
-        table1.add_column(&#34;Max&#34;, style=&#34;magenta&#34;)
+        table1.add_column(&#34;# Workers&#34;, style=&#34;magenta&#34;)
         table1.add_row()
-        table1.add_row(mincount, maxcount)
+        table1.add_row(workers)
         table1.add_row()
 
         #&#39;table2&#39; to display the worker resources
@@ -334,8 +332,7 @@ def print_clusters(clusters: List[RayCluster]):
         )
         name = cluster.name
         dashboard = cluster.dashboard
-        mincount = str(cluster.min_workers)
-        maxcount = str(cluster.max_workers)
+        workers = str(cluster.workers)
         memory = str(cluster.worker_mem_min) + &#34;~&#34; + str(cluster.worker_mem_max)
         cpu = str(cluster.worker_cpu)
         gpu = str(cluster.worker_gpu)
@@ -361,10 +358,9 @@ def print_clusters(clusters: List[RayCluster]):
         #&#39;table1&#39; to display the worker counts
         table1 = Table(box=None)
         table1.add_row()
-        table1.add_column(&#34;Min&#34;, style=&#34;cyan&#34;, no_wrap=True)
-        table1.add_column(&#34;Max&#34;, style=&#34;magenta&#34;)
+        table1.add_column(&#34;# Workers&#34;, style=&#34;magenta&#34;)
         table1.add_row()
-        table1.add_row(mincount, maxcount)
+        table1.add_row(workers)
         table1.add_row()
 
         #&#39;table2&#39; to display the worker resources

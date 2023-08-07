@@ -47,6 +47,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography import x509
 from cryptography.x509.oid import NameOID
 import datetime
+from ..cluster.auth import config_check, api_config_handler
 from kubernetes import client, config
 
 
@@ -110,8 +111,8 @@ def generate_tls_cert(cluster_name, namespace, days=30):
     # Similar to:
     # oc get secret ca-secret-&lt;cluster-name&gt; -o template=&#39;{{index .data &#34;ca.key&#34;}}&#39;
     # oc get secret ca-secret-&lt;cluster-name&gt; -o template=&#39;{{index .data &#34;ca.crt&#34;}}&#39;|base64 -d &gt; ${TLSDIR}/ca.crt
-    config.load_kube_config()
-    v1 = client.CoreV1Api()
+    config_check()
+    v1 = client.CoreV1Api(api_config_handler())
     secret = v1.read_namespaced_secret(f&#34;ca-secret-{cluster_name}&#34;, namespace).data
     ca_cert = secret.get(&#34;ca.crt&#34;)
     ca_key = secret.get(&#34;ca.key&#34;)
@@ -291,8 +292,8 @@ def export_env(cluster_name, namespace):
     # Similar to:
     # oc get secret ca-secret-&lt;cluster-name&gt; -o template=&#39;{{index .data &#34;ca.key&#34;}}&#39;
     # oc get secret ca-secret-&lt;cluster-name&gt; -o template=&#39;{{index .data &#34;ca.crt&#34;}}&#39;|base64 -d &gt; ${TLSDIR}/ca.crt
-    config.load_kube_config()
-    v1 = client.CoreV1Api()
+    config_check()
+    v1 = client.CoreV1Api(api_config_handler())
     secret = v1.read_namespaced_secret(f&#34;ca-secret-{cluster_name}&#34;, namespace).data
     ca_cert = secret.get(&#34;ca.crt&#34;)
     ca_key = secret.get(&#34;ca.key&#34;)
