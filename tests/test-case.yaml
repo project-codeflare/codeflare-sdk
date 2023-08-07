@@ -6,7 +6,7 @@ metadata:
   name: unit-test-cluster
   namespace: ns
 spec:
-  priority: 5
+  priority: 9
   resources:
     GenericItems:
     - custompodresources:
@@ -109,6 +109,7 @@ spec:
                       nvidia.com/gpu: 0
                 imagePullSecrets:
                 - name: unit-test-pull-secret
+                priorityClassName: default
           rayVersion: 2.5.0
           workerGroupSpecs:
           - groupName: small-group-unit-test-cluster
@@ -176,7 +177,7 @@ spec:
                     do echo waiting for myservice; sleep 2; done
                   image: busybox:1.28
                   name: init-myservice
-                priorityClassName: default-priority
+                priorityClassName: default
       replicas: 1
     - generictemplate:
         apiVersion: route.openshift.io/v1
@@ -192,7 +193,7 @@ spec:
           to:
             kind: Service
             name: unit-test-cluster-head-svc
-      replica: 1
+      replicas: 1
     Items: []
   schedulingSpec:
     minAvailable: 3
