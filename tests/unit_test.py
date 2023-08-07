@@ -302,6 +302,10 @@ def test_cluster_up_down(mocker):
         "kubernetes.client.CustomObjectsApi.delete_namespaced_custom_object",
         side_effect=arg_check_del_effect,
     )
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_cluster_custom_object",
+        return_value={"items": []},
+    )
     cluster = test_cluster_creation()
     cluster.up()
     cluster.down()
