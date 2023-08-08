@@ -2518,7 +2518,6 @@ def test_cleanup():
     os.remove("unit-test-default-cluster.yaml")
     os.remove("test.yaml")
     os.remove("raytest2.yaml")
-    os.remove("quicktest.yaml")
     os.remove("tls-cluster-namespace/ca.crt")
     os.remove("tls-cluster-namespace/tls.crt")
     os.remove("tls-cluster-namespace/tls.key")
