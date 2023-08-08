@@ -50,7 +50,7 @@ class Cluster:
 
     torchx_scheduler = "ray"
 
-    def __init__(self, config: ClusterConfiguration):
+    def __init__(self, config: ClusterConfiguration, generate_app_wrapper: bool = True):
         """
         Create the resource cluster object by passing in a ClusterConfiguration
         (defined in the config sub-module). An AppWrapper will then be generated
@@ -58,13 +58,17 @@ class Cluster:
         request.
         """
         self.config = config
-        self.app_wrapper_yaml = self.create_app_wrapper()
-        self.app_wrapper_name = self.app_wrapper_yaml.split(".")[0]
+        self.app_wrapper_yaml = None
+        self.app_wrapper_name = None
+
+        if generate_app_wrapper:
+            self.app_wrapper_yaml = self.create_app_wrapper()
+            self.app_wrapper_name = self.app_wrapper_yaml.split(".")[0]
 
     def create_app_wrapper(self):
         """
-        Called upon cluster object creation, creates an AppWrapper yaml based on
-        the specifications of the ClusterConfiguration.
+        Called upon cluster object creation if generate_app_wrapper is True, creates an AppWrapper yaml
+        based on the specifications of the ClusterConfiguration.
         """
 
         if self.config.namespace is None:
@@ -115,6 +119,9 @@ class Cluster:
         Applies the AppWrapper yaml, pushing the resource request onto
         the MCAD queue.
         """
+        if self.app_wrapper_yaml is None:
+            print("Error putting up RayCluster: AppWrapper yaml not generated")
+            return
         namespace = self.config.namespace
         try:
             config_check()
@@ -145,7 +152,7 @@ class Cluster:
                 version="v1beta1",
                 namespace=namespace,
                 plural="appwrappers",
-                name=self.app_wrapper_name,
+                name=self.config.name,
             )
         except Exception as e:  # pragma: no cover
             return _kube_api_error_handling(e)
@@ -351,7 +358,7 @@ class Cluster:
             ]["image"],
             local_interactive=local_interactive,
         )
-        return Cluster(cluster_config)
+        return Cluster(cluster_config, False)
 
     def from_definition_yaml(yaml_path):
         try:
