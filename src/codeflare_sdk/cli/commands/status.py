@@ -1,7 +1,8 @@
 import click
+from torchx.runner import get_runner
 
 from codeflare_sdk.cluster.cluster import get_cluster
-from codeflare_sdk.cli.cli_utils import get_job
+from codeflare_sdk.cli.cli_utils import get_job_app_handle
 
 
 @click.group()
@@ -30,5 +31,11 @@ def raycluster(ctx, name, namespace):
 @click.argument("submission-id", type=str)
 def job(ctx, submission_id):
     """Get the status of a specified job"""
-    job = get_job(submission_id)
-    click.echo(job["Status"])
+    runner = get_runner()
+    try:
+        app_handle = get_job_app_handle(submission_id)
+        click.echo(runner.status(app_handle=app_handle))
+    except FileNotFoundError:
+        click.echo(f"Submission ID {submission_id} not found in Kubernetes Cluster")
+    except Exception as e:
+        click.echo("Error getting job status: " + str(e))
