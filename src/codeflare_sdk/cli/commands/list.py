@@ -35,16 +35,17 @@ def raycluster(ctx, namespace, all):
 
 
 @cli.command()
+@click.pass_context
 @click.option("--cluster-name", "-c", type=str)
 @click.option("--namespace", type=str)
 @click.option("--all", is_flag=True)
-def job(cluster_name, namespace, all):
+def job(ctx, cluster_name, namespace, all):
     """List all jobs in a specified RayCluster or in K8S cluster"""
     if all:
         list_all_jobs(True)
         return
     if cluster_name:
-        cluster = get_cluster(cluster_name, namespace)
+        cluster = get_cluster(cluster_name, namespace or ctx.obj.current_namespace)
         list_raycluster_jobs(_copy_to_ray(cluster), True)
         return
     list_all_kubernetes_jobs(True)
