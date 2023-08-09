@@ -73,7 +73,15 @@ spec:
                     valueFrom:
                       fieldRef:
                         fieldPath: status.podIP
-                  image: ghcr.io/foundation-model-stack/base:ray2.1.0-py38-gpu-pytorch1.12.0cu116-20221213-193103
+                  - name: RAY_USE_TLS
+                    value: '0'
+                  - name: RAY_TLS_SERVER_CERT
+                    value: /home/ray/workspace/tls/server.crt
+                  - name: RAY_TLS_SERVER_KEY
+                    value: /home/ray/workspace/tls/server.key
+                  - name: RAY_TLS_CA_CERT
+                    value: /home/ray/workspace/tls/ca.crt
+                  image: quay.io/project-codeflare/ray:2.5.0-py38-cu116
                   imagePullPolicy: Always
                   lifecycle:
                     preStop:
@@ -99,7 +107,8 @@ spec:
                       cpu: 2
                       memory: 8G
                       nvidia.com/gpu: 0
-          rayVersion: 1.12.0
+                imagePullSecrets: []
+          rayVersion: 2.1.0
           workerGroupSpecs:
           - groupName: small-group-gptfttest
             maxReplicas: 2
@@ -130,7 +139,15 @@ spec:
                     valueFrom:
                       fieldRef:
                         fieldPath: status.podIP
-                  image: ghcr.io/foundation-model-stack/base:ray2.1.0-py38-gpu-pytorch1.12.0cu116-20221213-193103
+                  - name: RAY_USE_TLS
+                    value: '0'
+                  - name: RAY_TLS_SERVER_CERT
+                    value: /home/ray/workspace/tls/server.crt
+                  - name: RAY_TLS_SERVER_KEY
+                    value: /home/ray/workspace/tls/server.key
+                  - name: RAY_TLS_CA_CERT
+                    value: /home/ray/workspace/tls/ca.crt
+                  image: quay.io/project-codeflare/ray:2.5.0-py38-cu116
                   lifecycle:
                     preStop:
                       exec:
@@ -148,6 +165,7 @@ spec:
                       cpu: 2
                       memory: 8G
                       nvidia.com/gpu: 1
+                imagePullSecrets: []
                 initContainers:
                 - command:
                   - sh
