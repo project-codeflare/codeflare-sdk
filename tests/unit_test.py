@@ -475,7 +475,7 @@ def test_list_jobs_cli(mocker):
         "codeflare_sdk.cli.cli_utils.list_all_raycluster_jobs", return_value=[test_job]
     )
     list_jobs_command = """
-                        list jobs --all
+                        list jobs
                         """
     result = runner.invoke(cli, list_jobs_command)
     assert result.output == (
