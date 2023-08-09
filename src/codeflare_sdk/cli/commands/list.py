@@ -20,15 +20,13 @@ def cli():
 
 @cli.command()
 @click.option("--namespace", type=str)
-@click.option("--all", is_flag=True)
 @click.pass_context
-def raycluster(ctx, namespace, all):
-    """List all rayclusters in a specified namespace"""
-    if all and namespace:
-        click.echo("--all and --namespace are mutually exclusive")
-        return
-    namespace = namespace or ctx.obj.current_namespace
-    if not all:
+def raycluster(ctx, namespace):
+    """
+    List all rayclusters in a specified namespace or
+    all namespaces if no namespace is given
+    """
+    if namespace:
         list_all_clusters(namespace)
         return
     list_clusters_all_namespaces()
@@ -37,15 +35,17 @@ def raycluster(ctx, namespace, all):
 @cli.command()
 @click.pass_context
 @click.option("--cluster-name", "-c", type=str)
-@click.option("--namespace", type=str)
-@click.option("--all", is_flag=True)
-def job(ctx, cluster_name, namespace, all):
-    """List all jobs in a specified RayCluster or in K8S cluster"""
-    if all:
-        list_all_jobs(True)
-        return
+@click.option("--namespace", "-n", type=str)
+@click.option("--no-ray", is_flag=True)
+def job(ctx, cluster_name, namespace, no_ray):
+    """
+    List all jobs in a specified RayCluster or in K8S cluster
+    """
     if cluster_name:
         cluster = get_cluster(cluster_name, namespace or ctx.obj.current_namespace)
         list_raycluster_jobs(_copy_to_ray(cluster), True)
         return
-    list_all_kubernetes_jobs(True)
+    if no_ray:
+        list_all_kubernetes_jobs(True)
+        return
+    list_all_jobs(True)
