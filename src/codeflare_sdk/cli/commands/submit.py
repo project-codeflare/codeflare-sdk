@@ -1,4 +1,5 @@
 import click
+import os
 
 from codeflare_sdk.cluster.cluster import Cluster
 import pickle
@@ -46,15 +47,14 @@ def job(ctx, name, cluster_name, namespace):
     Submit a defined job to the Kubernetes cluster or a RayCluster
     """
     runner = get_runner()
-    try:
-        job_path = ctx.obj.codeflare_path + f"/{name}"
-        with open(job_path, "rb") as file:
-            job_def = pickle.load(file)
-    except Exception as e:
+    job_path = ctx.obj.codeflare_path + f"/{name}"
+    if not os.path.isfile(job_path):
         click.echo(
             f"Error submitting job. Make sure the job is defined before submitting it"
         )
         return
+    with open(job_path, "rb") as file:
+        job_def = pickle.load(file)
     if not cluster_name:
         job = job_def.submit()
         submission_id = runner.describe(job._app_handle).name.split(":")[1]
