@@ -43,10 +43,10 @@ def raycluster(ctx, **kwargs):
 
 @cli.command()
 @click.pass_context
-@click.option("--script", type=str)
+@click.option("--script", type=str, required=True)
 @click.option("--m", type=str)
 @click.option("--script-args", cls=PythonLiteralOption, type=list)
-@click.option("--name", type=str)
+@click.option("--name", type=str, required=True)
 @click.option("--cpu", type=int)
 @click.option("--gpu", type=int)
 @click.option("--memMB", type=int)
