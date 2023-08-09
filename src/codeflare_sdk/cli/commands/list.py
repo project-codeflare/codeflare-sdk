@@ -23,8 +23,7 @@ def cli():
 @click.pass_context
 def raycluster(ctx, namespace):
     """
-    List all rayclusters in a specified namespace or
-    all namespaces if no namespace is given
+    List all rayclusters
     """
     if namespace:
         list_all_clusters(namespace)
@@ -36,10 +35,10 @@ def raycluster(ctx, namespace):
 @click.pass_context
 @click.option("--cluster-name", "-c", type=str)
 @click.option("--namespace", "-n", type=str)
-@click.option("--no-ray", is_flag=True)
+@click.option("--kube-mcad-scheduler-only", is_flag=True)
 def job(ctx, cluster_name, namespace, no_ray):
     """
-    List all jobs in a specified RayCluster or in K8S cluster
+    List all jobs submitted
     """
     if cluster_name:
         cluster = get_cluster(cluster_name, namespace or ctx.obj.current_namespace)
