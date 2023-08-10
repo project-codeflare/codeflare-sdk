@@ -120,8 +120,8 @@ class Cluster:
         the MCAD queue.
         """
         if self.app_wrapper_yaml is None:
-            print("Error putting up RayCluster: AppWrapper yaml not generated")
-            return
+            self.app_wrapper_yaml = self.create_app_wrapper()
+            self.app_wrapper_name = self.app_wrapper_yaml.split(".")[0]
         namespace = self.config.namespace
         try:
             config_check()
@@ -144,6 +144,9 @@ class Cluster:
         associated with the cluster.
         """
         namespace = self.config.namespace
+        if not self.config.name and not self.app_wrapper_name:
+            print("Error taking down cluster: missing name or AppWrapper")
+            return
         try:
             config_check()
             api_instance = client.CustomObjectsApi(api_config_handler())
@@ -152,7 +155,7 @@ class Cluster:
                 version="v1beta1",
                 namespace=namespace,
                 plural="appwrappers",
-                name=self.config.name,
+                name=self.app_wrapper_name or self.config.name,
             )
         except Exception as e:  # pragma: no cover
             return _kube_api_error_handling(e)
