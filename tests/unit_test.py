@@ -119,16 +119,16 @@ def test_cluster_definition_cli(mocker):
 def test_login_cli(mocker):
     runner = CliRunner()
     mocker.patch.object(client, "ApiClient")
+    mocker.patch(
+        "codeflare_sdk.cli.codeflare_cli.get_current_namespace", return_value="ns"
+    )
     k8s_login_command = """
                         login
                         --server=testserver:6443
                         --token=testtoken
                         """
     login_result = runner.invoke(cli, k8s_login_command)
-    assert (
-        login_result.output
-        == "No authentication found, trying default kubeconfig\nLogged into 'testserver:6443'\n"
-    )
+    assert login_result.output == "Logged into 'testserver:6443'\n"
     try:
         auth_file_path = os.path.expanduser("~/.codeflare/auth")
         with open(auth_file_path, "rb") as file:
@@ -145,6 +145,9 @@ def test_login_cli(mocker):
 def test_login_tls_cli(mocker):
     runner = CliRunner()
     mocker.patch.object(client, "ApiClient")
+    mocker.patch(
+        "codeflare_sdk.cli.codeflare_cli.get_current_namespace", return_value="ns"
+    )
     k8s_tls_login_command = """
                         login
                         --server=testserver:6443
@@ -160,8 +163,7 @@ def test_login_tls_cli(mocker):
     tls_result = runner.invoke(cli, k8s_tls_login_command)
     skip_tls_result = runner.invoke(cli, k8s_skip_tls_login_command)
     assert (
-        "Logged into 'testserver:6443'\n" in tls_result.output
-        and "Logged into 'testserver:6443'\n" in skip_tls_result.output
+        "Logged into 'testserver:6443'\n" == tls_result.output == skip_tls_result.output
     )
 
 
@@ -234,8 +236,11 @@ def test_list_clusters_all_namespaces(mocker, capsys):
     )
 
 
-def test_job_definition_cli():
+def test_job_definition_cli(mocker):
     runner = CliRunner()
+    mocker.patch(
+        "codeflare_sdk.cli.codeflare_cli.get_current_namespace", return_value="ns"
+    )
     define_job_command = """
                         define job
                         --script=test-script.py
@@ -267,6 +272,9 @@ def test_job_submission_cli(mocker):
         side_effect=get_ray_obj,
     )
     mocker.patch(
+        "codeflare_sdk.cli.codeflare_cli.get_current_namespace", return_value="ns"
+    )
+    mocker.patch(
         "codeflare_sdk.cluster.cluster.Cluster.cluster_dashboard_uri",
         return_value="test-url.com",
     )
@@ -286,7 +294,7 @@ def test_job_submission_cli(mocker):
     assert (
         result.output
         == "Written to: quicktest.yaml\n"
-        + "test-1234 submitted onto quicktest RayCluster successfully\n"
+        + "Job test-1234 submitted onto quicktest RayCluster successfully\n"
         + "View dashboard: test-url.com\n"
     )
 
@@ -416,10 +424,82 @@ def test_raycluster_list_cli(mocker):
     ) in result.output
 
 
-# Keep this test at the end of CLI tests
+def test_status_job_cli(mocker):
+    runner = CliRunner()
+    mocker.patch(
+        "codeflare_sdk.cli.codeflare_cli.get_current_namespace",
+        return_value="opendatahub",
+    )
+    mocker.patch("torchx.runner.Runner.status", return_value="fake-status")
+    mocker.patch(
+        "codeflare_sdk.cli.cli_utils.get_job_app_handle",
+        return_value="fake-handle",
+    )
+    job_status_command = """
+                        status job test-job
+                        """
+    result = runner.invoke(cli, job_status_command)
+    assert result.output == "fake-status\n"
+
+
+def test_logs_job_cli(mocker):
+    runner = CliRunner()
+    mocker.patch.object(client, "ApiClient")
+    mocker.patch(
+        "codeflare_sdk.cli.codeflare_cli.get_current_namespace", return_value="ns"
+    )
+    mocker.patch("torchx.runner.Runner.log_lines", return_value=["fake-logs"])
+    mocker.patch(
+        "codeflare_sdk.cli.cli_utils.get_job_app_handle",
+        return_value="fake-handle",
+    )
+    job_logs_command = """
+                        logs job test-job
+                        """
+    result = runner.invoke(cli, job_logs_command)
+    assert result.output == "fake-logs\n"
+
+
+def test_list_jobs_cli(mocker):
+    runner = CliRunner()
+    mocker.patch.object(client, "ApiClient")
+    mocker.patch(
+        "codeflare_sdk.cli.codeflare_cli.get_current_namespace", return_value="ns"
+    )
+    test_job = {
+        "Submission ID": "fake-id",
+        "Job ID": "N/A",
+        "RayCluster": "N/A",
+        "Namespace": "default",
+        "Status": "Pending",
+        "App Handle": "test",
+    }
+    mocker.patch(
+        "codeflare_sdk.cli.cli_utils.list_all_kubernetes_jobs", return_value=[test_job]
+    )
+    mocker.patch(
+        "codeflare_sdk.cli.cli_utils.list_all_raycluster_jobs", return_value=[test_job]
+    )
+    list_jobs_command = """
+                        list jobs
+                        """
+    result = runner.invoke(cli, list_jobs_command)
+    assert result.output == (
+        "┏━━━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━┓\n"
+        + "┃ Submission ID ┃ Job ID ┃ RayCluster ┃ Namespace ┃ Status  ┃\n"
+        + "┡━━━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━┩\n"
+        + "│ fake-id       │ N/A    │ N/A        │ default   │ Pending │\n"
+        + "│ fake-id       │ N/A    │ N/A        │ default   │ Pending │\n"
+        + "└───────────────┴────────┴────────────┴───────────┴─────────┘\n"
+    )
+
+
 def test_logout_cli(mocker):
     runner = CliRunner()
     mocker.patch.object(client, "ApiClient")
+    mocker.patch(
+        "codeflare_sdk.cli.codeflare_cli.get_current_namespace", return_value="ns"
+    )
     k8s_logout_command = "logout"
     logout_result = runner.invoke(cli, k8s_logout_command)
     assert logout_result.output == "Successfully logged out of 'testserver:6443'\n"
