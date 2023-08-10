@@ -95,16 +95,16 @@ def test_cluster_definition_cli(mocker):
                         define raycluster
                         --name=cli-test-cluster
                         --namespace=default
-                        --min_worker=1
-                        --max_worker=2
-                        --min_cpus=3
-                        --max_cpus=4
-                        --min_memory=5
-                        --max_memory=6
+                        --min-worker=1
+                        --max-worker=2
+                        --min-cpus=3
+                        --max-cpus=4
+                        --min-memory=5
+                        --max-memory=6
                         --gpu=7
                         --instascale=True
-                        --machine_types='["cpu.small", "gpu.large"]'
-                        --image_pull_secrets='["cli-test-pull-secret"]'
+                        --machine-types='["cpu.small", "gpu.large"]'
+                        --image-pull-secrets='["cli-test-pull-secret"]'
                         """
     result = runner.invoke(cli, define_cluster_command)
     assert (
@@ -163,15 +163,6 @@ def test_login_tls_cli(mocker):
         "Logged into 'testserver:6443'\n" in tls_result.output
         and "Logged into 'testserver:6443'\n" in skip_tls_result.output
     )
-
-
-def test_logout_cli(mocker):
-    runner = CliRunner()
-    mocker.patch.object(client, "ApiClient")
-    k8s_logout_command = "logout"
-    logout_result = runner.invoke(cli, k8s_logout_command)
-    assert "Successfully logged out of 'testserver:6443'\n" in logout_result.output
-    assert not os.path.exists(os.path.expanduser("~/.codeflare/auth"))
 
 
 def test_load_auth():
@@ -240,6 +231,63 @@ def test_list_clusters_all_namespaces(mocker, capsys):
         " │   │            │  │                                      │   │ \n"
         " │   ╰────────────╯  ╰──────────────────────────────────────╯   │ \n"
         " ╰──────────────────────────────────────────────────────────────╯ \n"
+    )
+
+
+def test_job_definition_cli():
+    runner = CliRunner()
+    define_job_command = """
+                        define job
+                        --script=test-script.py
+                        --script-args='["arg1", "arg2"]'
+                        --memMB=2
+                        --image=test-image
+                        --name=test
+                        """
+    result = runner.invoke(cli, define_job_command)
+    file_path = os.path.expanduser("~") + "/.codeflare/test"
+    assert result.output == "Job definition saved to " + file_path + "\n"
+    try:
+        with open(file_path, "rb") as file:
+            job = pickle.load(file)
+    except Exception as e:
+        print("Error opening file: ", e)
+        assert 0 == 1
+    assert job.script == "test-script.py"
+    assert job.script_args == ["arg1", "arg2"]
+    assert job.memMB == 2
+    assert job.image == "test-image"
+    assert job.name == "test"
+
+
+def test_job_submission_cli(mocker):
+    mocker.patch.object(client, "ApiClient")
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
+        side_effect=get_ray_obj,
+    )
+    mocker.patch(
+        "codeflare_sdk.cluster.cluster.Cluster.cluster_dashboard_uri",
+        return_value="test-url.com",
+    )
+    mocker.patch(
+        "codeflare_sdk.job.jobs.torchx_runner.schedule",
+        return_value="test-url.com",
+    )
+    mocker.patch("torchx.runner.Runner.describe", return_value=AppDef(name="test-1234"))
+    runner = CliRunner()
+    submit_job_command = """
+                        submit job
+                        test
+                        --cluster-name=quicktest
+                        --namespace=default
+                        """
+    result = runner.invoke(cli, submit_job_command)
+    assert (
+        result.output
+        == "Written to: quicktest.yaml\n"
+        + "test-1234 submitted onto quicktest RayCluster successfully\n"
+        + "View dashboard: test-url.com\n"
     )
 
 
@@ -366,6 +414,16 @@ def test_raycluster_list_cli(mocker):
         + " │   ╰────────────╯  ╰──────────────────────────────────────╯   │ \n"
         + " ╰──────────────────────────────────────────────────────────────╯ "
     ) in result.output
+
+
+# Keep this test at the end of CLI tests
+def test_logout_cli(mocker):
+    runner = CliRunner()
+    mocker.patch.object(client, "ApiClient")
+    k8s_logout_command = "logout"
+    logout_result = runner.invoke(cli, k8s_logout_command)
+    assert logout_result.output == "Successfully logged out of 'testserver:6443'\n"
+    assert not os.path.exists(os.path.expanduser("~/.codeflare/auth"))
 
 
 # For mocking openshift client results
