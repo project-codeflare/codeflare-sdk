@@ -67,7 +67,7 @@ class Cluster:
 
     def create_app_wrapper(self):
         """
-        Called upon cluster object creation if generate_app_wrapper is True, creates an AppWrapper yaml
+        Creates an AppWrapper yaml based on the specified cluster config
         based on the specifications of the ClusterConfiguration.
         """
 
