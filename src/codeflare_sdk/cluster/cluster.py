@@ -21,12 +21,20 @@ cluster setup queue, a list of all existing clusters, and the user's working nam
 from time import sleep
 from typing import List, Optional, Tuple, Dict
 
+import openshift as oc
+from kubernetes import config
 from ray.job_submission import JobSubmissionClient
+import urllib3
 
 from .auth import config_check, api_config_handler
 from ..utils import pretty_print
 from ..utils.generate_yaml import generate_appwrapper
 from ..utils.kube_api_helpers import _kube_api_error_handling
+from ..utils.openshift_oauth import (
+    create_openshift_oauth_objects,
+    delete_openshift_oauth_objects,
+    download_tls_cert,
+)
 from .config import ClusterConfiguration
 from .model import (
     AppWrapper,
@@ -39,6 +47,8 @@ from kubernetes import client, config
 import yaml
 import os
 import requests
+
+from kubernetes import config
 
 
 class Cluster:
@@ -61,6 +71,39 @@ class Cluster:
         self.config = config
         self.app_wrapper_yaml = self.create_app_wrapper()
         self.app_wrapper_name = self.app_wrapper_yaml.split(".")[0]
+        self._client = None
+
+    @property
+    def _client_headers(self):
+        k8_client = api_config_handler() or client.ApiClient()
+        return {
+            "Authorization": k8_client.configuration.get_api_key_with_prefix(
+                "authorization"
+            )
+        }
+
+    @property
+    def _client_verify_tls(self):
+        return not self.config.openshift_oauth
+
+    @property
+    def client(self):
+        if self._client:
+            return self._client
+        if self.config.openshift_oauth:
+            print(
+                api_config_handler().configuration.get_api_key_with_prefix(
+                    "authorization"
+                )
+            )
+            self._client = JobSubmissionClient(
+                self.cluster_dashboard_uri(),
+                headers=self._client_headers,
+                verify=self._client_verify_tls,
+            )
+        else:
+            self._client = JobSubmissionClient(self.cluster_dashboard_uri())
+        return self._client
 
     def evaluate_dispatch_priority(self):
         priority_class = self.config.dispatch_priority
@@ -147,6 +190,7 @@ class Cluster:
             image_pull_secrets=image_pull_secrets,
             dispatch_priority=dispatch_priority,
             priority_val=priority_val,
+            openshift_oauth=self.config.openshift_oauth,
         )
 
     # creates a new cluster with the provided or default spec
@@ -156,6 +200,11 @@ class Cluster:
         the MCAD queue.
         """
         namespace = self.config.namespace
+        if self.config.openshift_oauth:
+            create_openshift_oauth_objects(
+                cluster_name=self.config.name, namespace=namespace
+            )
+
         try:
             config_check()
             api_instance = client.CustomObjectsApi(api_config_handler())
@@ -189,6 +238,11 @@ class Cluster:
             )
         except Exception as e:  # pragma: no cover
             return _kube_api_error_handling(e)
+
+        if self.config.openshift_oauth:
+            delete_openshift_oauth_objects(
+                cluster_name=self.config.name, namespace=namespace
+            )
 
     def status(
         self, print_to_console: bool = True
@@ -258,7 +312,16 @@ class Cluster:
         return status, ready
 
     def is_dashboard_ready(self) -> bool:
-        response = requests.get(self.cluster_dashboard_uri(), timeout=5)
+        try:
+            response = requests.get(
+                self.cluster_dashboard_uri(),
+                headers=self._client_headers,
+                timeout=5,
+                verify=self._client_verify_tls,
+            )
+        except requests.exceptions.SSLError:
+            # SSL exception occurs when oauth ingress has been created but cluster is not up
+            return False
         if response.status_code == 200:
             return True
         else:
@@ -330,7 +393,13 @@ class Cluster:
             return _kube_api_error_handling(e)
 
         for route in routes["items"]:
-            if route["metadata"]["name"] == f"ray-dashboard-{self.config.name}":
+            if route["metadata"][
+                "name"
+            ] == f"ray-dashboard-{self.config.name}" or route["metadata"][
+                "name"
+            ].startswith(
+                f"{self.config.name}-ingress"
+            ):
                 protocol = "https" if route["spec"].get("tls") else "http"
                 return f"{protocol}://{route['spec']['host']}"
         return "Dashboard route not available yet, have you run cluster.up()?"
@@ -339,30 +408,24 @@ class Cluster:
         """
         This method accesses the head ray node in your cluster and lists the running jobs.
         """
-        dashboard_route = self.cluster_dashboard_uri()
-        client = JobSubmissionClient(dashboard_route)
-        return client.list_jobs()
+        return self.client.list_jobs()
 
     def job_status(self, job_id: str) -> str:
         """
         This method accesses the head ray node in your cluster and returns the job status for the provided job id.
         """
-        dashboard_route = self.cluster_dashboard_uri()
-        client = JobSubmissionClient(dashboard_route)
-        return client.get_job_status(job_id)
+        return self.client.get_job_status(job_id)
 
     def job_logs(self, job_id: str) -> str:
         """
         This method accesses the head ray node in your cluster and returns the logs for the provided job id.
         """
-        dashboard_route = self.cluster_dashboard_uri()
-        client = JobSubmissionClient(dashboard_route)
-        return client.get_job_logs(job_id)
+        return self.client.get_job_logs(job_id)
 
     def torchx_config(
         self, working_dir: str = None, requirements: str = None
     ) -> Dict[str, str]:
-        dashboard_address = f"{self.cluster_dashboard_uri().lstrip('http://')}"
+        dashboard_address = urllib3.util.parse_url(self.cluster_dashboard_uri()).host
         to_return = {
             "cluster_name": self.config.name,
             "dashboard_address": dashboard_address,
@@ -591,7 +654,7 @@ def _get_app_wrappers(
 
 
 def _map_to_ray_cluster(rc) -> Optional[RayCluster]:
-    if "status" in rc and "state" in rc["status"]:
+    if "state" in rc["status"]:
         status = RayClusterStatus(rc["status"]["state"].lower())
     else:
         status = RayClusterStatus.UNKNOWN
@@ -606,7 +669,13 @@ def _map_to_ray_cluster(rc) -> Optional[RayCluster]:
     )
     ray_route = None
     for route in routes["items"]:
-        if route["metadata"]["name"] == f"ray-dashboard-{rc['metadata']['name']}":
+        if route["metadata"][
+            "name"
+        ] == f"ray-dashboard-{rc['metadata']['name']}" or route["metadata"][
+            "name"
+        ].startswith(
+            f"{rc['metadata']['name']}-ingress"
+        ):
             protocol = "https" if route["spec"].get("tls") else "http"
             ray_route = f"{protocol}://{route['spec']['host']}"
 

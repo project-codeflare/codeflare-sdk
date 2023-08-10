@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# TODO: replace all instances of torchx_runner
+
 from pathlib import Path
 import sys
 import filecmp
@@ -58,7 +60,6 @@ from codeflare_sdk.job.jobs import (
     Job,
     DDPJobDefinition,
     DDPJob,
-    torchx_runner,
 )
 from codeflare_sdk.utils.generate_cert import (
     generate_ca_cert,
@@ -83,7 +84,9 @@ from torchx.schedulers.ray_scheduler import RayJob
 from torchx.schedulers.kubernetes_mcad_scheduler import KubernetesMCADJob
 import pytest
 import yaml
-
+from unittest.mock import MagicMock
+from pytest_mock import MockerFixture
+from ray.job_submission import JobSubmissionClient
 
 # For mocking openshift client results
 fake_res = openshift.Result("fake")
@@ -1835,7 +1838,7 @@ def test_DDPJobDefinition_creation():
     assert ddp.scheduler_args == {"requirements": "test"}
 
 
-def test_DDPJobDefinition_dry_run(mocker):
+def test_DDPJobDefinition_dry_run(mocker: MockerFixture):
     """
     Test that the dry run method returns the correct type: AppDryRunInfo,
     that the attributes of the returned object are of the correct type,
@@ -1846,9 +1849,10 @@ def test_DDPJobDefinition_dry_run(mocker):
         "codeflare_sdk.cluster.cluster.Cluster.cluster_dashboard_uri",
         return_value="",
     )
+    mocker.patch.object(Cluster, "client")
     ddp = createTestDDP()
     cluster = createClusterWithConfig()
-    ddp_job = ddp._dry_run(cluster)
+    ddp_job, _ = ddp._dry_run(cluster)
     assert type(ddp_job) == AppDryRunInfo
     assert ddp_job._fmt is not None
     assert type(ddp_job.request) == RayJob
@@ -1884,7 +1888,7 @@ def test_DDPJobDefinition_dry_run_no_cluster(mocker):
 
     ddp = createTestDDP()
     ddp.image = "fake-image"
-    ddp_job = ddp._dry_run_no_cluster()
+    ddp_job, _ = ddp._dry_run_no_cluster()
     assert type(ddp_job) == AppDryRunInfo
     assert ddp_job._fmt is not None
     assert type(ddp_job.request) == KubernetesMCADJob
@@ -1915,6 +1919,7 @@ def test_DDPJobDefinition_dry_run_no_resource_args(mocker):
     Test that the dry run correctly gets resources from the cluster object
     when the job definition does not specify resources.
     """
+    mocker.patch.object(Cluster, "client")
     mocker.patch(
         "codeflare_sdk.cluster.cluster.Cluster.cluster_dashboard_uri",
         return_value="",
@@ -1932,7 +1937,7 @@ def test_DDPJobDefinition_dry_run_no_resource_args(mocker):
         rdzv_port=29500,
         scheduler_args={"requirements": "test"},
     )
-    ddp_job = ddp._dry_run(cluster)
+    ddp_job, _ = ddp._dry_run(cluster)
 
     assert ddp_job._app.roles[0].resource.cpu == cluster.config.max_cpus
     assert ddp_job._app.roles[0].resource.gpu == cluster.config.num_gpus
@@ -1998,25 +2003,24 @@ def test_DDPJobDefinition_dry_run_no_cluster_no_resource_args(mocker):
         assert str(e) == "Job definition missing arg: j (`workers`x`procs`)"
 
 
-def test_DDPJobDefinition_submit(mocker):
+def test_DDPJobDefinition_submit(mocker: MockerFixture):
     """
     Tests that the submit method returns the correct type: DDPJob
     And that the attributes of the returned object are of the correct type
     """
-    mocker.patch(
-        "codeflare_sdk.cluster.cluster.Cluster.cluster_dashboard_uri",
-        return_value="fake-dashboard-uri",
-    )
+    mock_schedule = MagicMock()
+    mocker.patch.object(Runner, "schedule", mock_schedule)
+    mock_schedule.return_value = "fake-dashboard-url"
+    mocker.patch.object(Cluster, "client")
     ddp_def = createTestDDP()
     cluster = createClusterWithConfig()
     mocker.patch(
         "codeflare_sdk.job.jobs.get_current_namespace",
         side_effect="opendatahub",
     )
-    mocker.patch(
-        "codeflare_sdk.job.jobs.torchx_runner.schedule",
-        return_value="fake-dashboard-url",
-    )  # a fake app_handle
+    mocker.patch.object(
+        Cluster, "cluster_dashboard_uri", return_value="fake-dashboard-url"
+    )
     ddp_job = ddp_def.submit(cluster)
     assert type(ddp_job) == DDPJob
     assert type(ddp_job.job_definition) == DDPJobDefinition
@@ -2033,24 +2037,23 @@ def test_DDPJobDefinition_submit(mocker):
     assert ddp_job._app_handle == "fake-dashboard-url"
 
 
-def test_DDPJob_creation(mocker):
-    mocker.patch(
-        "codeflare_sdk.cluster.cluster.Cluster.cluster_dashboard_uri",
-        return_value="fake-dashboard-uri",
+def test_DDPJob_creation(mocker: MockerFixture):
+    mocker.patch.object(Cluster, "client")
+    mock_schedule = MagicMock()
+    mocker.patch.object(Runner, "schedule", mock_schedule)
+    mocker.patch.object(
+        Cluster, "cluster_dashboard_uri", return_value="fake-dashboard-url"
     )
     ddp_def = createTestDDP()
     cluster = createClusterWithConfig()
-    mocker.patch(
-        "codeflare_sdk.job.jobs.torchx_runner.schedule",
-        return_value="fake-dashboard-url",
-    )  # a fake app_handle
+    mock_schedule.return_value = "fake-dashboard-url"
     ddp_job = createDDPJob_with_cluster(ddp_def, cluster)
     assert type(ddp_job) == DDPJob
     assert type(ddp_job.job_definition) == DDPJobDefinition
     assert type(ddp_job.cluster) == Cluster
     assert type(ddp_job._app_handle) == str
     assert ddp_job._app_handle == "fake-dashboard-url"
-    _, args, kwargs = torchx_runner.schedule.mock_calls[0]
+    _, args, kwargs = mock_schedule.mock_calls[0]
     assert type(args[0]) == AppDryRunInfo
     job_info = args[0]
     assert type(job_info.request) == RayJob
@@ -2059,24 +2062,23 @@ def test_DDPJob_creation(mocker):
     assert type(job_info._scheduler) == type(str())
 
 
-def test_DDPJob_creation_no_cluster(mocker):
+def test_DDPJob_creation_no_cluster(mocker: MockerFixture):
     ddp_def = createTestDDP()
     ddp_def.image = "fake-image"
     mocker.patch(
         "codeflare_sdk.job.jobs.get_current_namespace",
         side_effect="opendatahub",
     )
-    mocker.patch(
-        "codeflare_sdk.job.jobs.torchx_runner.schedule",
-        return_value="fake-app-handle",
-    )  # a fake app_handle
+    mock_schedule = MagicMock()
+    mocker.patch.object(Runner, "schedule", mock_schedule)
+    mock_schedule.return_value = "fake-app-handle"
     ddp_job = createDDPJob_no_cluster(ddp_def, None)
     assert type(ddp_job) == DDPJob
     assert type(ddp_job.job_definition) == DDPJobDefinition
     assert ddp_job.cluster == None
     assert type(ddp_job._app_handle) == str
     assert ddp_job._app_handle == "fake-app-handle"
-    _, args, kwargs = torchx_runner.schedule.mock_calls[0]
+    _, args, kwargs = mock_schedule.mock_calls[0]
     assert type(args[0]) == AppDryRunInfo
     job_info = args[0]
     assert type(job_info.request) == KubernetesMCADJob
@@ -2085,31 +2087,31 @@ def test_DDPJob_creation_no_cluster(mocker):
     assert type(job_info._scheduler) == type(str())
 
 
-def test_DDPJob_status(mocker):
+def test_DDPJob_status(mocker: MockerFixture):
     # Setup the neccesary mock patches
+    mock_status = MagicMock()
+    mocker.patch.object(Runner, "status", mock_status)
     test_DDPJob_creation(mocker)
     ddp_def = createTestDDP()
     cluster = createClusterWithConfig()
     ddp_job = createDDPJob_with_cluster(ddp_def, cluster)
-    mocker.patch(
-        "codeflare_sdk.job.jobs.torchx_runner.status", return_value="fake-status"
-    )
+    mock_status.return_value = "fake-status"
     assert ddp_job.status() == "fake-status"
-    _, args, kwargs = torchx_runner.status.mock_calls[0]
+    _, args, kwargs = mock_status.mock_calls[0]
     assert args[0] == "fake-dashboard-url"
 
 
-def test_DDPJob_logs(mocker):
+def test_DDPJob_logs(mocker: MockerFixture):
+    mock_log = MagicMock()
+    mocker.patch.object(Runner, "log_lines", mock_log)
     # Setup the neccesary mock patches
     test_DDPJob_creation(mocker)
     ddp_def = createTestDDP()
     cluster = createClusterWithConfig()
     ddp_job = createDDPJob_with_cluster(ddp_def, cluster)
-    mocker.patch(
-        "codeflare_sdk.job.jobs.torchx_runner.log_lines", return_value="fake-logs"
-    )
+    mock_log.return_value = "fake-logs"
     assert ddp_job.logs() == "fake-logs"
-    _, args, kwargs = torchx_runner.log_lines.mock_calls[0]
+    _, args, kwargs = mock_log.mock_calls[0]
     assert args[0] == "fake-dashboard-url"
 
 
@@ -2117,7 +2119,9 @@ def arg_check_side_effect(*args):
     assert args[0] == "fake-app-handle"
 
 
-def test_DDPJob_cancel(mocker):
+def test_DDPJob_cancel(mocker: MockerFixture):
+    mock_cancel = MagicMock()
+    mocker.patch.object(Runner, "cancel", mock_cancel)
     # Setup the neccesary mock patches
     test_DDPJob_creation_no_cluster(mocker)
     ddp_def = createTestDDP()
@@ -2127,9 +2131,7 @@ def test_DDPJob_cancel(mocker):
         "openshift.get_project_name",
         return_value="opendatahub",
     )
-    mocker.patch(
-        "codeflare_sdk.job.jobs.torchx_runner.cancel", side_effect=arg_check_side_effect
-    )
+    mock_cancel.side_effect = arg_check_side_effect
     ddp_job.cancel()
 
 
