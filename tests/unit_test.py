@@ -236,8 +236,11 @@ def test_list_clusters_all_namespaces(mocker, capsys):
     )
 
 
-def test_job_definition_cli():
+def test_job_definition_cli(mocker):
     runner = CliRunner()
+    mocker.patch(
+        "codeflare_sdk.cli.codeflare_cli.get_current_namespace", return_value="ns"
+    )
     define_job_command = """
                         define job
                         --script=test-script.py
@@ -269,6 +272,9 @@ def test_job_submission_cli(mocker):
         side_effect=get_ray_obj,
     )
     mocker.patch(
+        "codeflare_sdk.cli.codeflare_cli.get_current_namespace", return_value="ns"
+    )
+    mocker.patch(
         "codeflare_sdk.cluster.cluster.Cluster.cluster_dashboard_uri",
         return_value="test-url.com",
     )
@@ -288,7 +294,7 @@ def test_job_submission_cli(mocker):
     assert (
         result.output
         == "Written to: quicktest.yaml\n"
-        + "test-1234 submitted onto quicktest RayCluster successfully\n"
+        + "Job test-1234 submitted onto quicktest RayCluster successfully\n"
         + "View dashboard: test-url.com\n"
     )
 
@@ -491,6 +497,9 @@ def test_list_jobs_cli(mocker):
 def test_logout_cli(mocker):
     runner = CliRunner()
     mocker.patch.object(client, "ApiClient")
+    mocker.patch(
+        "codeflare_sdk.cli.codeflare_cli.get_current_namespace", return_value="ns"
+    )
     k8s_logout_command = "logout"
     logout_result = runner.invoke(cli, k8s_logout_command)
     assert logout_result.output == "Successfully logged out of 'testserver:6443'\n"
