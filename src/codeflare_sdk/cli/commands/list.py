@@ -36,7 +36,7 @@ def raycluster(ctx, namespace):
 @click.option("--cluster-name", "-c", type=str)
 @click.option("--namespace", "-n", type=str)
 @click.option("--kube-mcad-scheduler-only", is_flag=True)
-def job(ctx, cluster_name, namespace, no_ray):
+def job(ctx, cluster_name, namespace, kube_mcad_scheduler_only):
     """
     List all jobs submitted
     """
@@ -44,7 +44,7 @@ def job(ctx, cluster_name, namespace, no_ray):
         cluster = get_cluster(cluster_name, namespace or ctx.obj.current_namespace)
         list_raycluster_jobs(_copy_to_ray(cluster), True)
         return
-    if no_ray:
+    if kube_mcad_scheduler_only:
         list_all_kubernetes_jobs(True)
         return
     list_all_jobs(True)
