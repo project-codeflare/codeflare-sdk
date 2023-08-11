@@ -384,29 +384,23 @@ def list_all_queued(namespace: str, print_to_console: bool = True):
 
 
 def get_current_namespace():  # pragma: no cover
-    if api_config_handler() != None:
-        if os.path.isfile("/var/run/secrets/kubernetes.io/serviceaccount/namespace"):
-            try:
-                file = open(
-                    "/var/run/secrets/kubernetes.io/serviceaccount/namespace", "r"
-                )
-                active_context = file.readline().strip("\n")
-                return active_context
-            except Exception as e:
-                print("Unable to find current namespace")
-                return None
-        else:
-            print("Unable to find current namespace")
-            return None
-    else:
+    if os.path.isfile("/var/run/secrets/kubernetes.io/serviceaccount/namespace"):
         try:
-            _, active_context = config.list_kube_config_contexts(config_check())
+            file = open(
+                "/var/run/secrets/kubernetes.io/serviceaccount/namespace", "r"
+            )
+            active_context = file.readline().strip("\n")
+            return active_context
         except Exception as e:
-            return _kube_api_error_handling(e)
-        try:
-            return active_context["context"]["namespace"]
-        except KeyError:
-            return None
+            pass
+    try:
+        _, active_context = config.list_kube_config_contexts(config_check())
+    except Exception as e:
+        return _kube_api_error_handling(e)
+    try:
+        return active_context["context"]["namespace"]
+    except KeyError:
+        return None
 
 
 def get_cluster(cluster_name: str, namespace: str = "default"):
