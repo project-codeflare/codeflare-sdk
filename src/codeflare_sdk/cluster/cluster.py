@@ -384,8 +384,7 @@ class Cluster:
                     name=rc["metadata"]["name"],
                     namespace=rc["metadata"]["namespace"],
                     machine_types=machine_types,
-                    min_worker=worker_group_specs["minReplicas"],
-                    max_worker=worker_group_specs["maxReplicas"],
+                    num_workers=worker_group_specs["minReplicas"],
                     min_cpus=worker_group_specs["template"]["spec"]["containers"][0][
                         "resources"
                     ]["requests"]["cpu"],
@@ -402,7 +401,7 @@ class Cluster:
                             "resources"
                         ]["limits"]["memory"][:-1]
                     ),
-                    gpu=worker_group_specs["template"]["spec"]["containers"][0][
+                    num_gpus=worker_group_specs["template"]["spec"]["containers"][0][
                         "resources"
                     ]["requests"]["nvidia.com/gpu"],
                     instascale=True if machine_types else False,

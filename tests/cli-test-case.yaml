@@ -23,7 +23,7 @@ spec:
           cpu: 4
           memory: 6G
           nvidia.com/gpu: 7
-        replicas: 2
+        replicas: 1
         requests:
           cpu: 3
           memory: 5G
@@ -112,12 +112,12 @@ spec:
           rayVersion: 2.1.0
           workerGroupSpecs:
           - groupName: small-group-cli-test-cluster
-            maxReplicas: 2
-            minReplicas: 2
+            maxReplicas: 1
+            minReplicas: 1
             rayStartParams:
               block: 'true'
               num-gpus: '7'
-            replicas: 2
+            replicas: 1
             template:
               metadata:
                 annotations:
