@@ -165,10 +165,7 @@ def test_cluster_definition_cli(mocker):
                         --image-pull-secrets='["cli-test-pull-secret"]'
                         """
     result = runner.invoke(cli, define_cluster_command)
-    assert (
-        result.output
-        == "Written to: cli-test-cluster.yaml\n"
-    )
+    assert result.output == "Written to: cli-test-cluster.yaml\n"
     assert filecmp.cmp(
         "cli-test-cluster.yaml", f"{parent}/tests/cli-test-case.yaml", shallow=True
     )
@@ -187,7 +184,10 @@ def test_cluster_submission_cli(mocker):
     result = runner.invoke(cli, submit_cluster_command)
 
     assert result.exit_code == 0
-    assert result.output == "Written to: cli-test-cluster.yaml\nCluster submitted successfully\n"
+    assert (
+        result.output
+        == "Written to: cli-test-cluster.yaml\nCluster submitted successfully\n"
+    )
 
 
 def test_cluster_deletion_cli(mocker):
@@ -225,7 +225,9 @@ def test_raycluster_details_cli(mocker):
         "codeflare_sdk.cluster.cluster.Cluster.cluster_dashboard_uri",
         return_value="",
     )
-    mocker.patch("codeflare_sdk.cli.codeflare_cli.get_current_namespace", return_value="ns")
+    mocker.patch(
+        "codeflare_sdk.cli.codeflare_cli.get_current_namespace", return_value="ns"
+    )
     mocker.patch.object(client, "ApiClient")
     raycluster_details_command = """
                                 details raycluster quicktest --namespace=default
