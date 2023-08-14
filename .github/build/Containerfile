@@ -14,7 +14,11 @@ RUN tar -C /usr/local/bin -xvf $TMPDIR/oc.tar.gz && \
     rm $TMPDIR/oc.tar.gz
 USER $USERID
 
-COPY requirements.txt /tmp/requirements.txt
-RUN python -m pip install -r /tmp/requirements.txt
+RUN pip3 install poetry
+COPY pyproject.toml ./
+RUN poetry install
+
+#COPY requirements.txt /tmp/requirements.txt
+#RUN python -m pip install -r /tmp/requirements.txt
 
 CMD bash

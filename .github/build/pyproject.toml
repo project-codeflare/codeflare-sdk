@@ -1,0 +1,44 @@
+[tool.poetry]
+name = "codeflare-sdk"
+version = "0.0.0-dev"
+description = "Python SDK for codeflare client"
+
+license = "Apache-2.0"
+
+authors = [
+    "Michael Clifford <mcliffor@redhat.com>",
+    "Mustafa Eyceoz <meyceoz@redhat.com>",
+    "Abhishek Malvankar <asmalvan@us.ibm.com>",
+    "Atin Sood <asood@us.ibm.com>",
+]
+
+readme = 'README.md'
+
+repository = "https://github.com/project-codeflare/codeflare-sdk"
+homepage = "https://github.com/project-codeflare/codeflare-sdk"
+
+keywords = ['codeflare', 'python', 'sdk', 'client', 'batch', 'scale']
+
+[tool.poetry.dependencies]
+python = ">=3.8,<4.0"
+openshift-client = "1.0.18"
+rich = "^12.5"
+ray = {version = "2.5.0", extras = ["default"]}
+kubernetes = ">= 25.3.0, < 27"
+codeflare-torchx = "0.6.0.dev0"
+cryptography = "40.0.2"
+executing = "1.2.0"
+pydantic = "< 2"
+pre-commit = "3.3.3"
+
+[tool.poetry.group.docs]
+optional = true
+
+[tool.poetry.group.docs.dependencies]
+pdoc3 = "0.10.0"
+
+[tool.poetry.group.test.dependencies]
+pytest = "7.4.0"
+coverage = "7.2.7"
+pytest-mock = "3.11.1"
+black = "22.3.0"

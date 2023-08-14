@@ -22,7 +22,12 @@ Can be installed via `pip`: `pip install codeflare-sdk`
 ### Prerequisites
 
 We recommend using Python 3.9 for development.
-Install dependencies: `$ pip install -r requirements.txt`
+Install dependencies: `poetry install` 
+This will install all requirements as specified in the poetry.lock file.
+
+If you require a requirements.txt file you can run:
+
+`poetry export -f requirements.txt --output requirements.txt --without-hashes`
 
 ### Pre-commit
 

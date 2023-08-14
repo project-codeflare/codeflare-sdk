@@ -4,7 +4,6 @@ __pycache__/
 .coverage
 Pipfile
 Pipfile.lock
-poetry.lock
 .venv*
 build/
 tls-cluster-namespace
