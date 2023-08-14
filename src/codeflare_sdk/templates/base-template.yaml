@@ -16,21 +16,21 @@ spec:
       custompodresources:
       - replicas: 1
         requests:
-          cpu: 2
-          memory: 8G
+          cpu: 1
+          memory: 4G
           nvidia.com/gpu: 0
         limits:
-          cpu: 2
-          memory: 8G
+          cpu: 1
+          memory: 4G
           nvidia.com/gpu: 0
       - replicas: 3
         requests:
-          cpu: 2
-          memory: 12G
+          cpu: 1
+          memory: 4G
           nvidia.com/gpu: 1
         limits:
-          cpu: 2
-          memory: 12G
+          cpu: 1
+          memory: 4G
           nvidia.com/gpu: 1
       generictemplate:
         # This config demonstrates KubeRay's Ray autoscaler integration.
