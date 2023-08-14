@@ -189,5 +189,5 @@ spec:
           to:
             kind: Service
             name: gptfttest-head-svc
-      replica: 1
+      replicas: 1
     Items: []

@@ -191,5 +191,5 @@ spec:
           to:
             kind: Service
             name: unit-test-cluster-head-svc
-      replica: 1
+      replicas: 1
     Items: []
