@@ -65,7 +65,7 @@ The following instructions apply when doing release manually. This may be requir
 
 * Check and update the version in "pyproject.toml" file.
 * Generate new documentation.
-`pdoc --html -o docs src/codeflare_sdk && pushd docs && rm -rf cluster job utils && mv codeflare_sdk/* . && rm -rf codeflare_sdk && popd` (it is possible to install **pdoc** using the following command `poetry install --with docs`)
+`pdoc --html -o docs src/codeflare_sdk && pushd docs && rm -rf cluster job utils && mv codeflare_sdk/* . && rm -rf codeflare_sdk && popd && find docs -type f -name "*.html" -exec bash -c "echo '' >> {}" \;` (it is possible to install **pdoc** using the following command `poetry install --with docs`)
 * Commit all the changes to the repository.
 * Create Github release (https://docs.github.com/en/repositories/releasing-projects-on-github/managing-releases-in-a-repository#creating-a-release).
 * Build the Python package. `poetry build`
