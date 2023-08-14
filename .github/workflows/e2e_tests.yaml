@@ -1,0 +1,123 @@
+name: e2e
+
+on:
+  pull_request:
+    branches:
+      - main
+      - 'release-*'
+    paths-ignore:
+      - 'docs/**'
+      - '**.adoc'
+      - '**.md'
+      - 'LICENSE'
+  push:
+    branches:
+      - main
+      - 'release-*'
+    paths-ignore:
+      - 'docs/**'
+      - '**.adoc'
+      - '**.md'
+      - 'LICENSE'
+
+concurrency:
+  group: ${{ github.head_ref }}-${{ github.workflow }}
+  cancel-in-progress: true
+
+jobs:
+  kubernetes:
+
+    runs-on: ubuntu-20.04-4core
+
+    steps:
+      - name: Cleanup
+        run: |
+          ls -lart
+          echo "Initial status:"
+          df -h
+
+          echo "Cleaning up resources:"
+          sudo swapoff -a
+          sudo rm -f /swapfile
+          sudo apt clean
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf "/usr/local/share/boost"
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+          docker rmi $(docker image ls -aq)
+
+          echo "Final status:"
+          df -h
+
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          submodules: recursive
+
+      - name: Checkout CodeFlare operator repository
+        uses: actions/checkout@v3
+        with:
+          repository: project-codeflare/codeflare-operator
+          path: codeflare-operator
+
+      - name: Set Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: v1.19
+
+      - name: Set up gotestfmt
+        uses: gotesttools/gotestfmt-action@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup and start KinD cluster
+        uses: ./.github/actions/kind
+
+      - name: Deploy CodeFlare stack
+        id: deploy
+        run: |
+          cd codeflare-operator
+          echo Deploying CodeFlare operator
+          IMG="${REGISTRY_ADDRESS}"/codeflare-operator
+          make image-push -e IMG="${IMG}"
+          make deploy -e IMG="${IMG}" -e ENV="e2e"
+          kubectl wait --timeout=120s --for=condition=Available=true deployment -n openshift-operators codeflare-operator-manager
+
+          echo Setting up CodeFlare stack
+          make setup-e2e
+          make defaults manifests fmt vet
+
+          cd ..
+
+      - name: Run e2e tests
+        run: |
+          export CODEFLARE_TEST_TIMEOUT_SHORT=1m
+          export CODEFLARE_TEST_TIMEOUT_MEDIUM=5m
+          export CODEFLARE_TEST_TIMEOUT_LONG=10m
+
+          export CODEFLARE_TEST_OUTPUT_DIR=${{ env.TEMP_DIR }}
+          echo "CODEFLARE_TEST_OUTPUT_DIR=${CODEFLARE_TEST_OUTPUT_DIR}" >> $GITHUB_ENV
+
+          set -euo pipefail
+          go test -timeout 30m -v ./tests/e2e -json 2>&1 | tee ${CODEFLARE_TEST_OUTPUT_DIR}/gotest.log | gotestfmt
+
+      - name: Print CodeFlare operator logs
+        if: always() && steps.deploy.outcome == 'success'
+        run: |
+          echo "Printing CodeFlare operator logs"
+          kubectl logs -n openshift-operators --tail -1 -l app.kubernetes.io/name=codeflare-operator | tee ${CODEFLARE_TEST_OUTPUT_DIR}/codeflare-operator.log
+
+      - name: Print KubeRay operator logs
+        if: always() && steps.deploy.outcome == 'success'
+        run: |
+          echo "Printing KubeRay operator logs"
+          kubectl logs -n ray-system --tail -1 -l app.kubernetes.io/name=kuberay | tee ${CODEFLARE_TEST_OUTPUT_DIR}/kuberay.log
+
+      - name: Upload logs
+        uses: actions/upload-artifact@v3
+        if: always() && steps.deploy.outcome == 'success'
+        with:
+          name: logs
+          retention-days: 10
+          path: |
+            ${{ env.CODEFLARE_TEST_OUTPUT_DIR }}/**/*.log
