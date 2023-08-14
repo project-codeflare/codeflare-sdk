@@ -109,7 +109,7 @@ spec:
                       nvidia.com/gpu: 0
                 imagePullSecrets:
                 - name: unit-test-pull-secret
-          rayVersion: 2.1.0
+          rayVersion: 2.5.0
           workerGroupSpecs:
           - groupName: small-group-unit-test-cluster
             maxReplicas: 2
