@@ -23,7 +23,13 @@ Can be installed via `pip`: `pip install codeflare-sdk`
 
 We recommend using Python 3.9 for development.
 Install dependencies: `poetry install` 
-This will install all requirements as specified in the poetry.lock file.
+This will install standard requirements as specified in the poetry.lock file. Test and docs dependencies are optional.
+
+To include test dependencies run: `poetry install --with test`
+
+To include docs dependencies run: `poetry instal --with docs`
+
+To include test and docs dependencies run: `poetry install --with test,docs`
 
 If you require a requirements.txt file you can run:
 
