@@ -29,6 +29,8 @@ jobs:
         runs-on: ubuntu-latest
         permissions:
             contents: write
+        env:
+            PR_BRANCH_NAME: adjustments-release-${{ github.event.inputs.release-version }}
         steps:
             - name: Checkout the repository
               uses: actions/checkout@v3
@@ -48,26 +50,36 @@ jobs:
               run: poetry build
             - name: Create new documentation
               run: poetry run pdoc --html -o docs src/codeflare_sdk && pushd docs && rm -rf cluster job utils && mv codeflare_sdk/* . && rm -rf codeflare_sdk && popd && find docs -type f -name "*.html" -exec bash -c "echo '' >> {}" \;
-            - name: Set Pypi token
-              run: poetry config pypi-token.pypi ${{ secrets.PYPI_TOKEN }}
-            - name: Publish new release to Pypi repository
-              run: poetry publish
 
             - name: Commit changes in docs
               uses: stefanzweifel/git-auto-commit-action@v4
               with:
                 file_pattern: 'docs'
                 commit_message: "Changes in docs for release: v${{ github.event.inputs.release-version }}"
-            - name: Create Github release
-              uses: ncipollo/release-action@v1
-              with:
-                  tag: "v${{ github.event.inputs.release-version }}"
+                create_branch: true
+                branch: ${{ env.PR_BRANCH_NAME }}
+            - name: Create a PR with code changes
+              run: |
+                  if git branch -a | grep "${{ env.PR_BRANCH_NAME }}"; then
+                    GIT_BRANCH=${GITHUB_REF#refs/heads/}
+                    gh pr create --base "$GIT_BRANCH" --fill --head "${{ env.PR_BRANCH_NAME }}" --label "lgtm" --label "approved"
+                  fi
+              env:
+                GITHUB_TOKEN: ${{ secrets.CODEFLARE_MACHINE_ACCOUNT_TOKEN }}          
+            - name: Wait until PR with code changes is merged
+              run: |
+                  if git branch -a | grep "${{ env.PR_BRANCH_NAME }}"; then
+                    timeout 3600 bash -c 'until [[ $(gh pr view '${{ env.PR_BRANCH_NAME }}' --json state --jq .state) == "MERGED" ]]; do sleep 5 && echo "$(gh pr view '${{ env.PR_BRANCH_NAME }}' --json state --jq .state)"; done'
+                  fi
+              env:
+                GITHUB_TOKEN: ${{ github.TOKEN }}
 
             - name: Image Build
               run: |
                 cd custom-nb-image
                 docker build --build-arg SDK_VERSION="${{ github.event.inputs.release-version }}" -t quay.io/${{ github.event.inputs.quay-organization }}/notebook:v${{ github.event.inputs.release-version }} .
                 docker tag quay.io/${{ github.event.inputs.quay-organization }}/notebook:v${{ github.event.inputs.release-version }} quay.io/${{ github.event.inputs.quay-organization }}/notebook:latest
+
             - name: Login to Quay.io
               uses: docker/login-action@v2
               with:
@@ -79,3 +91,11 @@ jobs:
             - name: Image Push Latest
               if: ${{ inputs.is-latest }}
               run: docker push quay.io/${{ github.event.inputs.quay-organization }}/notebook:latest
+            - name: Create Github release
+              uses: ncipollo/release-action@v1
+              with:
+                  tag: "v${{ github.event.inputs.release-version }}"
+            - name: Set Pypi token
+              run: poetry config pypi-token.pypi ${{ secrets.PYPI_TOKEN }}
+            - name: Publish new release to Pypi repository
+              run: poetry publish
