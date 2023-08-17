@@ -165,12 +165,18 @@ def config_check() -> str:
     home_directory = os.path.expanduser("~")
     if config_path == None and api_client == None:
         if os.path.isfile("%s/.kube/config" % home_directory):
-            config.load_kube_config()
+            try:
+                config.load_kube_config()
+            except Exception as e:
+                print(e)
         elif "KUBERNETES_PORT" in os.environ:
-            config.load_incluster_config()
+            try:
+                config.load_incluster_config()
+            except Exception as e:
+                print(e)
         else:
-            print(
-                "Unable to load config file or in cluster configuration, try specifying a config file path with load_kube_config()"
+            raise PermissionError(
+                "Action not permitted, have you put in correct/up-to-date auth credentials?"
             )
 
     if config_path != None and api_client == None:
