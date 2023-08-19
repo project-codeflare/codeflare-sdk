@@ -29,6 +29,7 @@ jobs:
         runs-on: ubuntu-latest
         permissions:
             contents: write
+            id-token: write  # This permission is required for trusted publishing
         env:
             PR_BRANCH_NAME: adjustments-release-${{ github.event.inputs.release-version }}
         steps:
@@ -73,6 +74,12 @@ jobs:
                   fi
               env:
                 GITHUB_TOKEN: ${{ github.TOKEN }}
+            - name: Create Github release
+              uses: ncipollo/release-action@v1
+              with:
+                  tag: "v${{ github.event.inputs.release-version }}"
+            - name: Publish package distributions to PyPI
+              uses: pypa/gh-action-pypi-publish@release/v1
 
             - name: Image Build
               run: |
@@ -91,11 +98,3 @@ jobs:
             - name: Image Push Latest
               if: ${{ inputs.is-latest }}
               run: docker push quay.io/${{ github.event.inputs.quay-organization }}/notebook:latest
-            - name: Create Github release
-              uses: ncipollo/release-action@v1
-              with:
-                  tag: "v${{ github.event.inputs.release-version }}"
-            - name: Set Pypi token
-              run: poetry config pypi-token.pypi ${{ secrets.PYPI_TOKEN }}
-            - name: Publish new release to Pypi repository
-              run: poetry publish
