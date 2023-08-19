@@ -66,7 +66,7 @@ jobs:
                     gh pr create --base "$GIT_BRANCH" --fill --head "${{ env.PR_BRANCH_NAME }}" --label "lgtm" --label "approved"
                   fi
               env:
-                GITHUB_TOKEN: ${{ secrets.CODEFLARE_MACHINE_ACCOUNT_TOKEN }}          
+                GITHUB_TOKEN: ${{ secrets.CODEFLARE_MACHINE_ACCOUNT_TOKEN }}
             - name: Wait until PR with code changes is merged
               run: |
                   if git branch -a | grep "${{ env.PR_BRANCH_NAME }}"; then
@@ -84,17 +84,15 @@ jobs:
             - name: Image Build
               run: |
                 cd custom-nb-image
-                docker build --build-arg SDK_VERSION="${{ github.event.inputs.release-version }}" -t quay.io/${{ github.event.inputs.quay-organization }}/notebook:v${{ github.event.inputs.release-version }} .
-                docker tag quay.io/${{ github.event.inputs.quay-organization }}/notebook:v${{ github.event.inputs.release-version }} quay.io/${{ github.event.inputs.quay-organization }}/notebook:latest
-
+                podman build --build-arg SDK_VERSION="${{ github.event.inputs.release-version }}" -t quay.io/${{ github.event.inputs.quay-organization }}/notebook:v${{ github.event.inputs.release-version }} .
             - name: Login to Quay.io
-              uses: docker/login-action@v2
+              uses: redhat-actions/podman-login@v1
               with:
                 registry: quay.io
                 username: ${{ secrets.QUAY_ID }}
                 password: ${{ secrets.QUAY_TOKEN }}
             - name: Image Push
-              run: docker push quay.io/${{ github.event.inputs.quay-organization }}/notebook:v${{ github.event.inputs.release-version }}
+              run: podman push quay.io/${{ github.event.inputs.quay-organization }}/notebook:v${{ github.event.inputs.release-version }}
             - name: Image Push Latest
               if: ${{ inputs.is-latest }}
-              run: docker push quay.io/${{ github.event.inputs.quay-organization }}/notebook:latest
+              run: podman push quay.io/${{ github.event.inputs.quay-organization }}/notebook:v${{ github.event.inputs.release-version }} quay.io/${{ github.event.inputs.quay-organization }}/notebook:latest
