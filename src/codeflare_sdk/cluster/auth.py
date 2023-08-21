@@ -167,12 +167,12 @@ def config_check() -> str:
         if os.path.isfile("%s/.kube/config" % home_directory):
             try:
                 config.load_kube_config()
-            except Exception as e:
+            except Exception as e:  # pragma: no cover
                 print(e)
         elif "KUBERNETES_PORT" in os.environ:
             try:
                 config.load_incluster_config()
-            except Exception as e:
+            except Exception as e:  # pragma: no cover
                 print(e)
         else:
             raise PermissionError(
