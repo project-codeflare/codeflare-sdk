@@ -38,6 +38,7 @@ from .model import (
 from kubernetes import client, config
 import yaml
 import os
+import requests
 
 
 class Cluster:
@@ -250,6 +251,13 @@ class Cluster:
 
         return status, ready
 
+    def is_dashboard_ready(self) -> bool:
+        response = requests.get(self.cluster_dashboard_uri(), timeout=5)
+        if response.status_code == 200:
+            return True
+        else:
+            return False
+
     def wait_ready(self, timeout: Optional[int] = None):
         """
         Waits for requested cluster to be ready, up to an optional timeout (s).
@@ -257,20 +265,22 @@ class Cluster:
         """
         print("Waiting for requested resources to be set up...")
         ready = False
+        dashboard_ready = False
         status = None
         time = 0
-        while not ready:
+        while not ready or not dashboard_ready:
             status, ready = self.status(print_to_console=False)
+            dashboard_ready = self.is_dashboard_ready()
             if status == CodeFlareClusterStatus.UNKNOWN:
                 print(
                     "WARNING: Current cluster status is unknown, have you run cluster.up yet?"
                 )
-            if not ready:
+            if not ready or not dashboard_ready:
                 if timeout and time >= timeout:
                     raise TimeoutError(f"wait() timed out after waiting {timeout}s")
                 sleep(5)
                 time += 5
-        print("Requested cluster up and running!")
+        print("Requested cluster and dashboard are up and running!")
 
     def details(self, print_to_console: bool = True) -> RayCluster:
         cluster = _copy_to_ray(self)

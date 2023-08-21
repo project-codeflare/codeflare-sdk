@@ -1753,6 +1753,21 @@ def test_wait_ready(mocker, capsys):
     mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
     mocker.patch("codeflare_sdk.cluster.cluster._app_wrapper_status", return_value=None)
     mocker.patch("codeflare_sdk.cluster.cluster._ray_cluster_status", return_value=None)
+    mocker.patch.object(
+        client.CustomObjectsApi,
+        "list_namespaced_custom_object",
+        return_value={
+            "items": [
+                {
+                    "metadata": {"name": "ray-dashboard-test"},
+                    "spec": {"host": "mocked-host"},
+                }
+            ]
+        },
+    )
+    mock_response = mocker.Mock()
+    mock_response.status_code = 200
+    mocker.patch("requests.get", return_value=mock_response)
     cf = Cluster(ClusterConfiguration(name="test", namespace="ns"))
     try:
         cf.wait_ready(timeout=5)
@@ -1773,7 +1788,7 @@ def test_wait_ready(mocker, capsys):
     captured = capsys.readouterr()
     assert (
         captured.out
-        == "Waiting for requested resources to be set up...\nRequested cluster up and running!\n"
+        == "Waiting for requested resources to be set up...\nRequested cluster and dashboard are up and running!\n"
     )
 
 
