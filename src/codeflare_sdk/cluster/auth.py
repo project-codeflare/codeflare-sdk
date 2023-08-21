@@ -22,6 +22,7 @@ authenticate to their cluster or add their own custom concrete classes here.
 import abc
 from kubernetes import client, config
 import os
+from ..utils.kube_api_helpers import _kube_api_error_handling
 
 global api_client
 api_client = None
@@ -168,12 +169,12 @@ def config_check() -> str:
             try:
                 config.load_kube_config()
             except Exception as e:  # pragma: no cover
-                print(e)
+                _kube_api_error_handling(e)
         elif "KUBERNETES_PORT" in os.environ:
             try:
                 config.load_incluster_config()
             except Exception as e:  # pragma: no cover
-                print(e)
+                _kube_api_error_handling(e)
         else:
             raise PermissionError(
                 "Action not permitted, have you put in correct/up-to-date auth credentials?"
