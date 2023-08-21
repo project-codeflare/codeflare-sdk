@@ -50,7 +50,7 @@ class Cluster:
 
     torchx_scheduler = "ray"
 
-    def __init__(self, config: ClusterConfiguration):
+    def __init__(self, config: ClusterConfiguration, generate_app_wrapper: bool = True):
         """
         Create the resource cluster object by passing in a ClusterConfiguration
         (defined in the config sub-module). An AppWrapper will then be generated
@@ -58,13 +58,17 @@ class Cluster:
         request.
         """
         self.config = config
-        self.app_wrapper_yaml = self.create_app_wrapper()
-        self.app_wrapper_name = self.app_wrapper_yaml.split(".")[0]
+        self.app_wrapper_yaml = None
+        self.app_wrapper_name = None
+
+        if generate_app_wrapper:
+            self.app_wrapper_yaml = self.create_app_wrapper()
+            self.app_wrapper_name = self.app_wrapper_yaml.split(".")[0]
 
     def create_app_wrapper(self):
         """
-        Called upon cluster object creation, creates an AppWrapper yaml based on
-        the specifications of the ClusterConfiguration.
+        Creates an AppWrapper yaml based on the specified cluster config
+        based on the specifications of the ClusterConfiguration.
         """
 
         if self.config.namespace is None:
@@ -115,6 +119,9 @@ class Cluster:
         Applies the AppWrapper yaml, pushing the resource request onto
         the MCAD queue.
         """
+        if self.app_wrapper_yaml is None:
+            self.app_wrapper_yaml = self.create_app_wrapper()
+            self.app_wrapper_name = self.app_wrapper_yaml.split(".")[0]
         namespace = self.config.namespace
         try:
             config_check()
@@ -137,6 +144,9 @@ class Cluster:
         associated with the cluster.
         """
         namespace = self.config.namespace
+        if not self.config.name and not self.app_wrapper_name:
+            print("Error taking down cluster: missing name or AppWrapper")
+            return
         try:
             config_check()
             api_instance = client.CustomObjectsApi(api_config_handler())
@@ -145,7 +155,7 @@ class Cluster:
                 version="v1beta1",
                 namespace=namespace,
                 plural="appwrappers",
-                name=self.app_wrapper_name,
+                name=self.app_wrapper_name or self.config.name,
             )
         except Exception as e:  # pragma: no cover
             return _kube_api_error_handling(e)
@@ -313,7 +323,8 @@ class Cluster:
     def from_k8_cluster_object(rc):
         machine_types = (
             rc["metadata"]["labels"]["orderedinstance"].split("_")
-            if "orderedinstance" in rc["metadata"]["labels"]
+            if "labels" in rc["metadata"]
+            and "orderedinstance" in rc["metadata"]["labels"]
             else []
         )
         local_interactive = (
@@ -350,7 +361,58 @@ class Cluster:
             ]["image"],
             local_interactive=local_interactive,
         )
-        return Cluster(cluster_config)
+        return Cluster(cluster_config, False)
+
+    def from_definition_yaml(yaml_path):
+        try:
+            with open(yaml_path) as yaml_file:
+                rc = yaml.load(yaml_file, Loader=yaml.FullLoader)
+                machine_types = (
+                    rc["metadata"]["labels"]["orderedinstance"].split("_")
+                    if "labels" in rc["metadata"]
+                    and "orderedinstance" in rc["metadata"]["labels"]
+                    else []
+                )
+                worker_group_specs = rc["spec"]["resources"]["GenericItems"][0][
+                    "generictemplate"
+                ]["spec"]["workerGroupSpecs"][0]
+                local_interactive = (
+                    "volumeMounts"
+                    in worker_group_specs["template"]["spec"]["containers"][0]
+                )
+                cluster_config = ClusterConfiguration(
+                    name=rc["metadata"]["name"],
+                    namespace=rc["metadata"]["namespace"],
+                    machine_types=machine_types,
+                    num_workers=worker_group_specs["minReplicas"],
+                    min_cpus=worker_group_specs["template"]["spec"]["containers"][0][
+                        "resources"
+                    ]["requests"]["cpu"],
+                    max_cpus=worker_group_specs["template"]["spec"]["containers"][0][
+                        "resources"
+                    ]["limits"]["cpu"],
+                    min_memory=int(
+                        worker_group_specs["template"]["spec"]["containers"][0][
+                            "resources"
+                        ]["requests"]["memory"][:-1]
+                    ),
+                    max_memory=int(
+                        worker_group_specs["template"]["spec"]["containers"][0][
+                            "resources"
+                        ]["limits"]["memory"][:-1]
+                    ),
+                    num_gpus=worker_group_specs["template"]["spec"]["containers"][0][
+                        "resources"
+                    ]["requests"]["nvidia.com/gpu"],
+                    instascale=True if machine_types else False,
+                    image=worker_group_specs["template"]["spec"]["containers"][0][
+                        "image"
+                    ],
+                    local_interactive=local_interactive,
+                )
+                return Cluster(cluster_config)
+        except IOError:
+            return None
 
     def local_client_url(self):
         if self.config.local_interactive == True:
@@ -364,7 +426,17 @@ def list_all_clusters(namespace: str, print_to_console: bool = True):
     """
     Returns (and prints by default) a list of all clusters in a given namespace.
     """
-    clusters = _get_ray_clusters(namespace)
+    clusters = _get_all_ray_clusters(namespace)
+    if print_to_console:
+        pretty_print.print_clusters(clusters)
+    return clusters
+
+
+def list_clusters_all_namespaces(print_to_console: bool = True):
+    """
+    Returns (and prints by default) a list of all clusters in the Kubernetes cluster.
+    """
+    clusters = _get_all_ray_clusters()
     if print_to_console:
         pretty_print.print_clusters(clusters)
     return clusters
@@ -411,8 +483,8 @@ def get_current_namespace():  # pragma: no cover
 
 def get_cluster(cluster_name: str, namespace: str = "default"):
     try:
-        config.load_kube_config()
-        api_instance = client.CustomObjectsApi()
+        config_check()
+        api_instance = client.CustomObjectsApi(api_config_handler())
         rcs = api_instance.list_namespaced_custom_object(
             group="ray.io",
             version="v1alpha1",
@@ -481,17 +553,24 @@ def _ray_cluster_status(name, namespace="default") -> Optional[RayCluster]:
     return None
 
 
-def _get_ray_clusters(namespace="default") -> List[RayCluster]:
+def _get_all_ray_clusters(namespace: str = None) -> List[RayCluster]:
     list_of_clusters = []
     try:
         config_check()
         api_instance = client.CustomObjectsApi(api_config_handler())
-        rcs = api_instance.list_namespaced_custom_object(
-            group="ray.io",
-            version="v1alpha1",
-            namespace=namespace,
-            plural="rayclusters",
-        )
+        if namespace:
+            rcs = api_instance.list_namespaced_custom_object(
+                group="ray.io",
+                version="v1alpha1",
+                namespace=namespace,
+                plural="rayclusters",
+            )
+        else:
+            rcs = api_instance.list_cluster_custom_object(
+                group="ray.io",
+                version="v1alpha1",
+                plural="rayclusters",
+            )
     except Exception as e:  # pragma: no cover
         return _kube_api_error_handling(e)
 
