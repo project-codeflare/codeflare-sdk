@@ -310,7 +310,8 @@ class Cluster:
 
         for route in routes["items"]:
             if route["metadata"]["name"] == f"ray-dashboard-{self.config.name}":
-                return f"http://{route['spec']['host']}"
+                protocol = "https" if route["spec"].get("tls") else "http"
+                return f"{protocol}://{route['spec']['host']}"
         return "Dashboard route not available yet, have you run cluster.up()?"
 
     def list_jobs(self) -> List:
@@ -585,7 +586,8 @@ def _map_to_ray_cluster(rc) -> Optional[RayCluster]:
     ray_route = None
     for route in routes["items"]:
         if route["metadata"]["name"] == f"ray-dashboard-{rc['metadata']['name']}":
-            ray_route = route["spec"]["host"]
+            protocol = "https" if route["spec"].get("tls") else "http"
+            ray_route = f"{protocol}://{route['spec']['host']}"
 
     return RayCluster(
         name=rc["metadata"]["name"],
