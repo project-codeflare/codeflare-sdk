@@ -37,6 +37,8 @@ from codeflare_sdk.cluster.auth import (
     TokenAuthentication,
     Authentication,
     KubeConfigFileAuthentication,
+    config_check,
+    api_config_handler,
 )
 from codeflare_sdk.utils.pretty_print import (
     print_no_resources_found,
@@ -150,6 +152,46 @@ def test_token_auth_login_tls(mocker):
     assert token_auth.login() == ("Logged into testserver:6443")
 
 
+def test_config_check_no_config_file(mocker):
+    mocker.patch("os.path.expanduser", return_value="/mock/home/directory")
+    mocker.patch("os.path.isfile", return_value=False)
+    mocker.patch("codeflare_sdk.cluster.auth.config_path", None)
+    mocker.patch("codeflare_sdk.cluster.auth.api_client", None)
+
+    with pytest.raises(PermissionError) as e:
+        config_check()
+
+
+def test_config_check_with_incluster_config(mocker):
+    mocker.patch("os.path.expanduser", return_value="/mock/home/directory")
+    mocker.patch("os.path.isfile", return_value=False)
+    mocker.patch.dict(os.environ, {"KUBERNETES_PORT": "number"})
+    mocker.patch("kubernetes.config.load_incluster_config", side_effect=None)
+    mocker.patch("codeflare_sdk.cluster.auth.config_path", None)
+    mocker.patch("codeflare_sdk.cluster.auth.api_client", None)
+
+    result = config_check()
+    assert result == None
+
+
+def test_config_check_with_existing_config_file(mocker):
+    mocker.patch("os.path.expanduser", return_value="/mock/home/directory")
+    mocker.patch("os.path.isfile", return_value=True)
+    mocker.patch("kubernetes.config.load_kube_config", side_effect=None)
+    mocker.patch("codeflare_sdk.cluster.auth.config_path", None)
+    mocker.patch("codeflare_sdk.cluster.auth.api_client", None)
+
+    result = config_check()
+    assert result == None
+
+
+def test_config_check_with_config_path_and_no_api_client(mocker):
+    mocker.patch("codeflare_sdk.cluster.auth.config_path", "/mock/config/path")
+    mocker.patch("codeflare_sdk.cluster.auth.api_client", None)
+    result = config_check()
+    assert result == "/mock/config/path"
+
+
 def test_load_kube_config(mocker):
     mocker.patch.object(config, "load_kube_config")
     kube_config_auth = KubeConfigFileAuthentication(
@@ -161,6 +203,10 @@ def test_load_kube_config(mocker):
         response
         == "Loaded user config file at path %s" % kube_config_auth.kube_config_path
     )
+
+    kube_config_auth = KubeConfigFileAuthentication(kube_config_path=None)
+    response = kube_config_auth.load_kube_config()
+    assert response == "Please specify a config file path"
 
 
 def test_auth_coverage():
