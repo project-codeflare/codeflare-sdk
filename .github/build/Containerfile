@@ -18,7 +18,4 @@ RUN pip3 install poetry
 COPY pyproject.toml ./
 RUN poetry install
 
-#COPY requirements.txt /tmp/requirements.txt
-#RUN python -m pip install -r /tmp/requirements.txt
-
 CMD bash
