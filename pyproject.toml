@@ -40,3 +40,9 @@ pdoc3 = "0.10.0"
 pytest = "7.4.0"
 coverage = "7.2.7"
 pytest-mock = "3.11.1"
+
+[tool.pytest.ini_options]
+filterwarnings = [
+    "ignore::DeprecationWarning:pkg_resources",
+    "ignore:pkg_resources is deprecated as an API:DeprecationWarning",
+]

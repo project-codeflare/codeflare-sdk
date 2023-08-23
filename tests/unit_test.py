@@ -66,6 +66,14 @@ from codeflare_sdk.utils.generate_cert import (
     export_env,
 )
 
+from tests.unit_test_support import (
+    createClusterWithConfig,
+    createTestDDP,
+    createDDPJob_no_cluster,
+    createClusterConfig,
+    createDDPJob_with_cluster,
+)
+
 import openshift
 from openshift.selector import Selector
 import ray
@@ -216,20 +224,7 @@ def test_auth_coverage():
 
 
 def test_config_creation():
-    config = ClusterConfiguration(
-        name="unit-test-cluster",
-        namespace="ns",
-        num_workers=2,
-        min_cpus=3,
-        max_cpus=4,
-        min_memory=5,
-        max_memory=6,
-        num_gpus=7,
-        instascale=True,
-        machine_types=["cpu.small", "gpu.large"],
-        image_pull_secrets=["unit-test-pull-secret"],
-        dispatch_priority="default",
-    )
+    config = createClusterConfig()
 
     assert config.name == "unit-test-cluster" and config.namespace == "ns"
     assert config.num_workers == 2
@@ -242,17 +237,15 @@ def test_config_creation():
     assert config.machine_types == ["cpu.small", "gpu.large"]
     assert config.image_pull_secrets == ["unit-test-pull-secret"]
     assert config.dispatch_priority == "default"
-    return config
 
 
 def test_cluster_creation():
-    cluster = Cluster(test_config_creation())
+    cluster = createClusterWithConfig()
     assert cluster.app_wrapper_yaml == "unit-test-cluster.yaml"
     assert cluster.app_wrapper_name == "unit-test-cluster"
     assert filecmp.cmp(
         "unit-test-cluster.yaml", f"{parent}/tests/test-case.yaml", shallow=True
     )
-    return cluster
 
 
 def test_default_cluster_creation(mocker):
@@ -268,8 +261,6 @@ def test_default_cluster_creation(mocker):
     assert cluster.app_wrapper_yaml == "unit-test-default-cluster.yaml"
     assert cluster.app_wrapper_name == "unit-test-default-cluster"
     assert cluster.config.namespace == "opendatahub"
-
-    return cluster
 
 
 def arg_check_apply_effect(group, version, namespace, plural, body, *args):
@@ -306,7 +297,7 @@ def test_cluster_up_down(mocker):
         "kubernetes.client.CustomObjectsApi.list_cluster_custom_object",
         return_value={"items": []},
     )
-    cluster = test_cluster_creation()
+    cluster = cluster = createClusterWithConfig()
     cluster.up()
     cluster.down()
 
@@ -374,7 +365,7 @@ def test_cluster_uris(mocker):
         side_effect=uri_retreival,
     )
 
-    cluster = test_cluster_creation()
+    cluster = cluster = createClusterWithConfig()
     assert cluster.cluster_uri() == "ray://unit-test-cluster-head-svc.ns.svc:10001"
     assert (
         cluster.cluster_dashboard_uri()
@@ -421,7 +412,7 @@ def test_ray_job_wrapping(mocker):
         "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
         side_effect=uri_retreival,
     )
-    cluster = test_cluster_creation()
+    cluster = cluster = createClusterWithConfig()
 
     mocker.patch(
         "ray.job_submission.JobSubmissionClient._check_connection_and_version_with_url",
@@ -1771,7 +1762,7 @@ def test_wait_ready(mocker, capsys):
 
 def test_jobdefinition_coverage():
     abstract = JobDefinition()
-    cluster = Cluster(test_config_creation())
+    cluster = createClusterWithConfig()
     abstract._dry_run(cluster)
     abstract.submit(cluster)
 
@@ -1783,22 +1774,7 @@ def test_job_coverage():
 
 
 def test_DDPJobDefinition_creation():
-    ddp = DDPJobDefinition(
-        script="test.py",
-        m=None,
-        script_args=["test"],
-        name="test",
-        cpu=1,
-        gpu=0,
-        memMB=1024,
-        h=None,
-        j="2x1",
-        env={"test": "test"},
-        max_retries=0,
-        mounts=[],
-        rdzv_port=29500,
-        scheduler_args={"requirements": "test"},
-    )
+    ddp = createTestDDP()
     assert ddp.script == "test.py"
     assert ddp.m == None
     assert ddp.script_args == ["test"]
@@ -1813,7 +1789,6 @@ def test_DDPJobDefinition_creation():
     assert ddp.mounts == []
     assert ddp.rdzv_port == 29500
     assert ddp.scheduler_args == {"requirements": "test"}
-    return ddp
 
 
 def test_DDPJobDefinition_dry_run(mocker):
@@ -1827,8 +1802,8 @@ def test_DDPJobDefinition_dry_run(mocker):
         "codeflare_sdk.cluster.cluster.Cluster.cluster_dashboard_uri",
         return_value="",
     )
-    ddp = test_DDPJobDefinition_creation()
-    cluster = Cluster(test_config_creation())
+    ddp = createTestDDP()
+    cluster = createClusterWithConfig()
     ddp_job = ddp._dry_run(cluster)
     assert type(ddp_job) == AppDryRunInfo
     assert ddp_job._fmt is not None
@@ -1863,7 +1838,7 @@ def test_DDPJobDefinition_dry_run_no_cluster(mocker):
         return_value="opendatahub",
     )
 
-    ddp = test_DDPJobDefinition_creation()
+    ddp = createTestDDP()
     ddp.image = "fake-image"
     ddp_job = ddp._dry_run_no_cluster()
     assert type(ddp_job) == AppDryRunInfo
@@ -1900,7 +1875,7 @@ def test_DDPJobDefinition_dry_run_no_resource_args(mocker):
         "codeflare_sdk.cluster.cluster.Cluster.cluster_dashboard_uri",
         return_value="",
     )
-    cluster = Cluster(test_config_creation())
+    cluster = createClusterWithConfig()
     ddp = DDPJobDefinition(
         script="test.py",
         m=None,
@@ -1936,7 +1911,7 @@ def test_DDPJobDefinition_dry_run_no_cluster_no_resource_args(mocker):
         return_value="opendatahub",
     )
 
-    ddp = test_DDPJobDefinition_creation()
+    ddp = createTestDDP()
     try:
         ddp._dry_run_no_cluster()
         assert 0 == 1
@@ -1988,8 +1963,8 @@ def test_DDPJobDefinition_submit(mocker):
         "codeflare_sdk.cluster.cluster.Cluster.cluster_dashboard_uri",
         return_value="fake-dashboard-uri",
     )
-    ddp_def = test_DDPJobDefinition_creation()
-    cluster = Cluster(test_config_creation())
+    ddp_def = createTestDDP()
+    cluster = createClusterWithConfig()
     mocker.patch(
         "codeflare_sdk.job.jobs.get_current_namespace",
         side_effect="opendatahub",
@@ -2019,13 +1994,13 @@ def test_DDPJob_creation(mocker):
         "codeflare_sdk.cluster.cluster.Cluster.cluster_dashboard_uri",
         return_value="fake-dashboard-uri",
     )
-    ddp_def = test_DDPJobDefinition_creation()
-    cluster = Cluster(test_config_creation())
+    ddp_def = createTestDDP()
+    cluster = createClusterWithConfig()
     mocker.patch(
         "codeflare_sdk.job.jobs.torchx_runner.schedule",
         return_value="fake-dashboard-url",
     )  # a fake app_handle
-    ddp_job = DDPJob(ddp_def, cluster)
+    ddp_job = createDDPJob_with_cluster(ddp_def, cluster)
     assert type(ddp_job) == DDPJob
     assert type(ddp_job.job_definition) == DDPJobDefinition
     assert type(ddp_job.cluster) == Cluster
@@ -2038,11 +2013,10 @@ def test_DDPJob_creation(mocker):
     assert type(job_info._app) == AppDef
     assert type(job_info._cfg) == type(dict())
     assert type(job_info._scheduler) == type(str())
-    return ddp_job
 
 
 def test_DDPJob_creation_no_cluster(mocker):
-    ddp_def = test_DDPJobDefinition_creation()
+    ddp_def = createTestDDP()
     ddp_def.image = "fake-image"
     mocker.patch(
         "codeflare_sdk.job.jobs.get_current_namespace",
@@ -2052,7 +2026,7 @@ def test_DDPJob_creation_no_cluster(mocker):
         "codeflare_sdk.job.jobs.torchx_runner.schedule",
         return_value="fake-app-handle",
     )  # a fake app_handle
-    ddp_job = DDPJob(ddp_def, None)
+    ddp_job = createDDPJob_no_cluster(ddp_def, None)
     assert type(ddp_job) == DDPJob
     assert type(ddp_job.job_definition) == DDPJobDefinition
     assert ddp_job.cluster == None
@@ -2065,11 +2039,14 @@ def test_DDPJob_creation_no_cluster(mocker):
     assert type(job_info._app) == AppDef
     assert type(job_info._cfg) == type(dict())
     assert type(job_info._scheduler) == type(str())
-    return ddp_job
 
 
 def test_DDPJob_status(mocker):
-    ddp_job = test_DDPJob_creation(mocker)
+    # Setup the neccesary mock patches
+    test_DDPJob_creation(mocker)
+    ddp_def = createTestDDP()
+    cluster = createClusterWithConfig()
+    ddp_job = createDDPJob_with_cluster(ddp_def, cluster)
     mocker.patch(
         "codeflare_sdk.job.jobs.torchx_runner.status", return_value="fake-status"
     )
@@ -2079,7 +2056,11 @@ def test_DDPJob_status(mocker):
 
 
 def test_DDPJob_logs(mocker):
-    ddp_job = test_DDPJob_creation(mocker)
+    # Setup the neccesary mock patches
+    test_DDPJob_creation(mocker)
+    ddp_def = createTestDDP()
+    cluster = createClusterWithConfig()
+    ddp_job = createDDPJob_with_cluster(ddp_def, cluster)
     mocker.patch(
         "codeflare_sdk.job.jobs.torchx_runner.log_lines", return_value="fake-logs"
     )
@@ -2093,7 +2074,11 @@ def arg_check_side_effect(*args):
 
 
 def test_DDPJob_cancel(mocker):
-    ddp_job = test_DDPJob_creation_no_cluster(mocker)
+    # Setup the neccesary mock patches
+    test_DDPJob_creation_no_cluster(mocker)
+    ddp_def = createTestDDP()
+    ddp_def.image = "fake-image"
+    ddp_job = createDDPJob_no_cluster(ddp_def, None)
     mocker.patch(
         "openshift.get_project_name",
         return_value="opendatahub",
