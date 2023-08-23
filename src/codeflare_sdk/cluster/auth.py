@@ -109,11 +109,13 @@ class TokenAuthentication(Authentication):
             elif self.skip_tls == False:
                 configuration.ssl_ca_cert = self.ca_cert_path
             else:
+                urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+                print("Insecure request warnings have been disabled")
                 configuration.verify_ssl = False
+
             api_client = client.ApiClient(configuration)
             client.AuthenticationApi(api_client).get_api_group()
             config_path = None
-            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
             return "Logged into %s" % self.server
         except client.ApiException:  # pragma: no cover
             api_client = None
