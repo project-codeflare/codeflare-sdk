@@ -8,6 +8,8 @@ metadata:
     orderedinstance: "m4.xlarge_g4dn.xlarge"
 spec:
   priority: 9
+  schedulingSpec:
+    minAvailable: 3
   resources:
     Items: []
     GenericItems:

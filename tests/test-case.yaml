@@ -109,6 +109,7 @@ spec:
                       nvidia.com/gpu: 0
                 imagePullSecrets:
                 - name: unit-test-pull-secret
+                priorityClassName: default
           rayVersion: 2.5.0
           workerGroupSpecs:
           - groupName: small-group-unit-test-cluster
@@ -176,6 +177,7 @@ spec:
                     do echo waiting for myservice; sleep 2; done
                   image: busybox:1.28
                   name: init-myservice
+                priorityClassName: default
       replicas: 1
     - generictemplate:
         apiVersion: route.openshift.io/v1
@@ -193,3 +195,5 @@ spec:
             name: unit-test-cluster-head-svc
       replicas: 1
     Items: []
+  schedulingSpec:
+    minAvailable: 3

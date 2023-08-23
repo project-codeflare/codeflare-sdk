@@ -228,6 +228,7 @@ def test_config_creation():
         instascale=True,
         machine_types=["cpu.small", "gpu.large"],
         image_pull_secrets=["unit-test-pull-secret"],
+        dispatch_priority="default",
     )
 
     assert config.name == "unit-test-cluster" and config.namespace == "ns"
@@ -240,6 +241,7 @@ def test_config_creation():
     assert config.instascale
     assert config.machine_types == ["cpu.small", "gpu.large"]
     assert config.image_pull_secrets == ["unit-test-pull-secret"]
+    assert config.dispatch_priority == "default"
     return config
 
 
@@ -299,6 +301,10 @@ def test_cluster_up_down(mocker):
     mocker.patch(
         "kubernetes.client.CustomObjectsApi.delete_namespaced_custom_object",
         side_effect=arg_check_del_effect,
+    )
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_cluster_custom_object",
+        return_value={"items": []},
     )
     cluster = test_cluster_creation()
     cluster.up()

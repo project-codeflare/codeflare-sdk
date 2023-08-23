@@ -47,3 +47,4 @@ class ClusterConfiguration:
     image: str = "quay.io/project-codeflare/ray:2.5.0-py38-cu116"
     local_interactive: bool = False
     image_pull_secrets: list = field(default_factory=list)
+    dispatch_priority: str = None
