@@ -313,6 +313,22 @@ class Cluster:
                 return f"http://{route['spec']['host']}"
         return "Dashboard route not available yet, have you run cluster.up()?"
 
+    def get_head_ip(self) -> str:
+        """
+        Returns a string containing the cluster's head node IP.
+        """
+        try:
+            config_check()
+            api_instance = client.CoreV1Api()
+            ret = api_instance.list_namespaced_pod_with_http_info(
+                self.config.namespace
+            )[0]
+            for pod in ret.items:
+                if f"{self.config.name}-head-" in pod.metadata.name:
+                    return pod.status.pod_ip
+        except Exception as e:  # pragma: no cover
+            return _kube_api_error_handling(e)
+
     def list_jobs(self) -> List:
         """
         This method accesses the head ray node in your cluster and lists the running jobs.
