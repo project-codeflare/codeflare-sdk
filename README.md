@@ -27,7 +27,7 @@ This will install standard requirements as specified in the poetry.lock file. Te
 
 To include test dependencies run: `poetry install --with test`
 
-To include docs dependencies run: `poetry instal --with docs`
+To include docs dependencies run: `poetry install --with docs`
 
 To include test and docs dependencies run: `poetry install --with test,docs`
 
@@ -38,6 +38,8 @@ If you require a requirements.txt file you can run:
 ### Pre-commit
 
 We use pre-commit to make sure the code is consistently formatted. To make sure that pre-commit is run every time you commit changes, simply run `pre-commit install`
+
+To build the codeflare-sdk pre-commit image run `podman build -f .github/build/Containerfile .` from the root directory.
 
 ### Testing
 
