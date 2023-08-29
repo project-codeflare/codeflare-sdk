@@ -173,7 +173,7 @@ spec:
                   - -c
                   - until nslookup $RAY_IP.$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace).svc.cluster.local;
                     do echo waiting for myservice; sleep 2; done
-                  image: busybox:1.28
+                  image: quay.io/project-codeflare/busybox:latest
                   name: init-myservice
       replicas: 1
     - generictemplate:

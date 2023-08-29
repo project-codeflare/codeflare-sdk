@@ -224,7 +224,7 @@ spec:
                 initContainers:
                 # the env var $RAY_IP is set by the operator if missing, with the value of the head service name
                 - name: init-myservice
-                  image: busybox:1.28
+                  image: quay.io/project-codeflare/busybox:latest
                   command: ['sh', '-c', "until nslookup $RAY_IP.$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace).svc.cluster.local; do echo waiting for myservice; sleep 2; done"]
                 - name: create-cert
                   image: rayproject/ray:2.7.0
