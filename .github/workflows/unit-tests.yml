@@ -22,6 +22,6 @@ jobs:
           poetry install --with test
       - name: Test with pytest and check coverage
         run: |
-          coverage run -m --source=src pytest -v tests/unit_test.py
+          poetry run coverage run -m --source=src pytest -v tests/unit_test.py
           coverage=$(coverage report -m | tail -1 | tail -c 4 | head -c 2)
           if (( $coverage < 90 )); then exit 1; else echo "Coverage passed, ${coverage}%"; fi
