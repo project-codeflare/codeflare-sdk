@@ -54,6 +54,8 @@ authenticate to their cluster or add their own custom concrete classes here.
 
 import abc
 from kubernetes import client, config
+import os
+from ..utils.kube_api_helpers import _kube_api_error_handling
 
 global api_client
 api_client = None
@@ -194,8 +196,23 @@ def config_check() -&gt; str:
     &#34;&#34;&#34;
     global config_path
     global api_client
+    home_directory = os.path.expanduser(&#34;~&#34;)
     if config_path == None and api_client == None:
-        config.load_kube_config()
+        if os.path.isfile(&#34;%s/.kube/config&#34; % home_directory):
+            try:
+                config.load_kube_config()
+            except Exception as e:  # pragma: no cover
+                _kube_api_error_handling(e)
+        elif &#34;KUBERNETES_PORT&#34; in os.environ:
+            try:
+                config.load_incluster_config()
+            except Exception as e:  # pragma: no cover
+                _kube_api_error_handling(e)
+        else:
+            raise PermissionError(
+                &#34;Action not permitted, have you put in correct/up-to-date auth credentials?&#34;
+            )
+
     if config_path != None and api_client == None:
         return config_path
 
@@ -253,8 +270,23 @@ specified their own config file or has logged in with their token and server.</p
     &#34;&#34;&#34;
     global config_path
     global api_client
+    home_directory = os.path.expanduser(&#34;~&#34;)
     if config_path == None and api_client == None:
-        config.load_kube_config()
+        if os.path.isfile(&#34;%s/.kube/config&#34; % home_directory):
+            try:
+                config.load_kube_config()
+            except Exception as e:  # pragma: no cover
+                _kube_api_error_handling(e)
+        elif &#34;KUBERNETES_PORT&#34; in os.environ:
+            try:
+                config.load_incluster_config()
+            except Exception as e:  # pragma: no cover
+                _kube_api_error_handling(e)
+        else:
+            raise PermissionError(
+                &#34;Action not permitted, have you put in correct/up-to-date auth credentials?&#34;
+            )
+
     if config_path != None and api_client == None:
         return config_path</code></pre>
 </details>
