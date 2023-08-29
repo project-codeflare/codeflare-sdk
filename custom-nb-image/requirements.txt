@@ -118,7 +118,7 @@ notebook-shim==0.1.0; python_version >= '3.7'
 notebook==6.4.12; python_version >= '3.7'
 numpy==1.23.3
 nvidia-ml-py==11.495.46
-oauthlib==3.2.1; python_version >= '3.6'
+oauthlib==3.2.2; python_version >= '3.6'
 opencensus-context==0.1.3
 opencensus==0.11.0
 openshift-client==1.0.18
