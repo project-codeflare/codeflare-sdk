@@ -23,6 +23,9 @@ on:
               type: string
               default: "1.5.1"
               required: true
+            codeflare-repository-organization:
+              type: string
+              default: "project-codeflare"
 
 jobs:
     release:
@@ -81,18 +84,19 @@ jobs:
             - name: Publish package distributions to PyPI
               uses: pypa/gh-action-pypi-publish@release/v1
 
-            - name: Image Build
+            - name: Notebook Image Build and Push
               run: |
-                cd custom-nb-image
-                podman build --build-arg SDK_VERSION="${{ github.event.inputs.release-version }}" -t quay.io/${{ github.event.inputs.quay-organization }}/notebook:v${{ github.event.inputs.release-version }} .
-            - name: Login to Quay.io
-              uses: redhat-actions/podman-login@v1
-              with:
-                registry: quay.io
-                username: ${{ secrets.QUAY_ID }}
-                password: ${{ secrets.QUAY_TOKEN }}
-            - name: Image Push
-              run: podman push quay.io/${{ github.event.inputs.quay-organization }}/notebook:v${{ github.event.inputs.release-version }}
-            - name: Image Push Latest
-              if: ${{ inputs.is-latest }}
-              run: podman push quay.io/${{ github.event.inputs.quay-organization }}/notebook:v${{ github.event.inputs.release-version }} quay.io/${{ github.event.inputs.quay-organization }}/notebook:latest
+                gh workflow run image-build-and-push.yml --repo ${{ github.event.inputs.codeflare-repository-organization }}/codeflare-sdk --ref ${{ github.ref }} --field is-stable=${{ github.event.inputs.is-stable }} --field release-version=${{ github.event.inputs.release-version }} --field quay-organization=${{ github.event.inputs.quay-organization }}
+              env:
+                GITHUB_TOKEN: ${{ secrets.CODEFLARE_MACHINE_ACCOUNT_TOKEN }}
+              shell: bash
+
+            - name: Wait for Notebook image build and push to finish
+              run: |
+                # wait for a while for Run to be started
+                sleep 5
+                run_id=$(gh run list --workflow image-build-and-push.yaml --repo ${{ github.event.inputs.codeflare-repository-organization }}/codeflare-sdk --limit 1 --json databaseId --jq .[].databaseId)
+                gh run watch ${run_id} --repo ${{ github.event.inputs.codeflare-repository-organization }}/codeflare-sdk --interval 10 --exit-status
+              env:
+                GITHUB_TOKEN: ${{ secrets.CODEFLARE_MACHINE_ACCOUNT_TOKEN }}
+              shell: bash
