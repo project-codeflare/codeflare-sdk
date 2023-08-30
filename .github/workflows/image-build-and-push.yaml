@@ -8,7 +8,7 @@ on:
               required: true
               description: 'Version number (for example: 0.1.0)'
             is-stable:
-              description: 'Select if the built image should be tagged as latest'
+              description: 'Select if the built image should be tagged as stable'
               required: true
               type: boolean
             quay-organization:
