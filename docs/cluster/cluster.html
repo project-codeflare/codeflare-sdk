@@ -93,6 +93,39 @@ class Cluster:
         self.app_wrapper_yaml = self.create_app_wrapper()
         self.app_wrapper_name = self.app_wrapper_yaml.split(&#34;.&#34;)[0]
 
+    def evaluate_config(self):
+        if not self.evaluate_dispatch_priority():
+            return False
+        else:
+            return True
+
+    def evaluate_dispatch_priority(self):
+        priority_class = self.config.dispatch_priority
+        if priority_class is None:
+            return True
+        else:
+            try:
+                config_check()
+                api_instance = client.CustomObjectsApi(api_config_handler())
+                priority_classes = api_instance.list_cluster_custom_object(
+                    group=&#34;scheduling.k8s.io&#34;,
+                    version=&#34;v1&#34;,
+                    plural=&#34;priorityclasses&#34;,
+                )
+                available_priority_classes = [
+                    i[&#34;metadata&#34;][&#34;name&#34;] for i in priority_classes[&#34;items&#34;]
+                ]
+            except Exception as e:  # pragma: no cover
+                return _kube_api_error_handling(e)
+
+            if priority_class in available_priority_classes:
+                return True
+            else:
+                print(
+                    f&#34;Priority class {priority_class} is not available in the cluster&#34;
+                )
+                return False
+
     def create_app_wrapper(self):
         &#34;&#34;&#34;
         Called upon cluster object creation, creates an AppWrapper yaml based on
@@ -123,6 +156,7 @@ class Cluster:
         env = self.config.envs
         local_interactive = self.config.local_interactive
         image_pull_secrets = self.config.image_pull_secrets
+        dispatch_priority = self.config.dispatch_priority
         return generate_appwrapper(
             name=name,
             namespace=namespace,
@@ -139,6 +173,7 @@ class Cluster:
             env=env,
             local_interactive=local_interactive,
             image_pull_secrets=image_pull_secrets,
+            dispatch_priority=dispatch_priority,
         )
 
     # creates a new cluster with the provided or default spec
@@ -147,6 +182,12 @@ class Cluster:
         Applies the AppWrapper yaml, pushing the resource request onto
         the MCAD queue.
         &#34;&#34;&#34;
+
+        # Before attempting to bring up the cluster let&#39;s evaluate the ClusterConfig
+        if not self.evaluate_config():
+            print(&#34;Invalid Cluster Configuration&#34;)
+            return False
+
         namespace = self.config.namespace
         try:
             config_check()
@@ -787,6 +828,39 @@ request.</p></div>
         self.app_wrapper_yaml = self.create_app_wrapper()
         self.app_wrapper_name = self.app_wrapper_yaml.split(&#34;.&#34;)[0]
 
+    def evaluate_config(self):
+        if not self.evaluate_dispatch_priority():
+            return False
+        else:
+            return True
+
+    def evaluate_dispatch_priority(self):
+        priority_class = self.config.dispatch_priority
+        if priority_class is None:
+            return True
+        else:
+            try:
+                config_check()
+                api_instance = client.CustomObjectsApi(api_config_handler())
+                priority_classes = api_instance.list_cluster_custom_object(
+                    group=&#34;scheduling.k8s.io&#34;,
+                    version=&#34;v1&#34;,
+                    plural=&#34;priorityclasses&#34;,
+                )
+                available_priority_classes = [
+                    i[&#34;metadata&#34;][&#34;name&#34;] for i in priority_classes[&#34;items&#34;]
+                ]
+            except Exception as e:  # pragma: no cover
+                return _kube_api_error_handling(e)
+
+            if priority_class in available_priority_classes:
+                return True
+            else:
+                print(
+                    f&#34;Priority class {priority_class} is not available in the cluster&#34;
+                )
+                return False
+
     def create_app_wrapper(self):
         &#34;&#34;&#34;
         Called upon cluster object creation, creates an AppWrapper yaml based on
@@ -817,6 +891,7 @@ request.</p></div>
         env = self.config.envs
         local_interactive = self.config.local_interactive
         image_pull_secrets = self.config.image_pull_secrets
+        dispatch_priority = self.config.dispatch_priority
         return generate_appwrapper(
             name=name,
             namespace=namespace,
@@ -833,6 +908,7 @@ request.</p></div>
             env=env,
             local_interactive=local_interactive,
             image_pull_secrets=image_pull_secrets,
+            dispatch_priority=dispatch_priority,
         )
 
     # creates a new cluster with the provided or default spec
@@ -841,6 +917,12 @@ request.</p></div>
         Applies the AppWrapper yaml, pushing the resource request onto
         the MCAD queue.
         &#34;&#34;&#34;
+
+        # Before attempting to bring up the cluster let&#39;s evaluate the ClusterConfig
+        if not self.evaluate_config():
+            print(&#34;Invalid Cluster Configuration&#34;)
+            return False
+
         namespace = self.config.namespace
         try:
             config_check()
@@ -1181,6 +1263,7 @@ the specifications of the ClusterConfiguration.</p></div>
     env = self.config.envs
     local_interactive = self.config.local_interactive
     image_pull_secrets = self.config.image_pull_secrets
+    dispatch_priority = self.config.dispatch_priority
     return generate_appwrapper(
         name=name,
         namespace=namespace,
@@ -1197,6 +1280,7 @@ the specifications of the ClusterConfiguration.</p></div>
         env=env,
         local_interactive=local_interactive,
         image_pull_secrets=image_pull_secrets,
+        dispatch_priority=dispatch_priority,
     )</code></pre>
 </details>
 </dd>
@@ -1244,6 +1328,59 @@ associated with the cluster.</p></div>
         )
     except Exception as e:  # pragma: no cover
         return _kube_api_error_handling(e)</code></pre>
+</details>
+</dd>
+<dt id="codeflare_sdk.cluster.cluster.Cluster.evaluate_config"><code class="name flex">
+<span>def <span class="ident">evaluate_config</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def evaluate_config(self):
+    if not self.evaluate_dispatch_priority():
+        return False
+    else:
+        return True</code></pre>
+</details>
+</dd>
+<dt id="codeflare_sdk.cluster.cluster.Cluster.evaluate_dispatch_priority"><code class="name flex">
+<span>def <span class="ident">evaluate_dispatch_priority</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def evaluate_dispatch_priority(self):
+    priority_class = self.config.dispatch_priority
+    if priority_class is None:
+        return True
+    else:
+        try:
+            config_check()
+            api_instance = client.CustomObjectsApi(api_config_handler())
+            priority_classes = api_instance.list_cluster_custom_object(
+                group=&#34;scheduling.k8s.io&#34;,
+                version=&#34;v1&#34;,
+                plural=&#34;priorityclasses&#34;,
+            )
+            available_priority_classes = [
+                i[&#34;metadata&#34;][&#34;name&#34;] for i in priority_classes[&#34;items&#34;]
+            ]
+        except Exception as e:  # pragma: no cover
+            return _kube_api_error_handling(e)
+
+        if priority_class in available_priority_classes:
+            return True
+        else:
+            print(
+                f&#34;Priority class {priority_class} is not available in the cluster&#34;
+            )
+            return False</code></pre>
 </details>
 </dd>
 <dt id="codeflare_sdk.cluster.cluster.Cluster.from_k8_cluster_object"><code class="name flex">
@@ -1486,6 +1623,12 @@ the MCAD queue.</p></div>
     Applies the AppWrapper yaml, pushing the resource request onto
     the MCAD queue.
     &#34;&#34;&#34;
+
+    # Before attempting to bring up the cluster let&#39;s evaluate the ClusterConfig
+    if not self.evaluate_config():
+        print(&#34;Invalid Cluster Configuration&#34;)
+        return False
+
     namespace = self.config.namespace
     try:
         config_check()
@@ -1570,6 +1713,8 @@ Checks every five seconds.</p></div>
 <li><code><a title="codeflare_sdk.cluster.cluster.Cluster.create_app_wrapper" href="#codeflare_sdk.cluster.cluster.Cluster.create_app_wrapper">create_app_wrapper</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.cluster.Cluster.details" href="#codeflare_sdk.cluster.cluster.Cluster.details">details</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.cluster.Cluster.down" href="#codeflare_sdk.cluster.cluster.Cluster.down">down</a></code></li>
+<li><code><a title="codeflare_sdk.cluster.cluster.Cluster.evaluate_config" href="#codeflare_sdk.cluster.cluster.Cluster.evaluate_config">evaluate_config</a></code></li>
+<li><code><a title="codeflare_sdk.cluster.cluster.Cluster.evaluate_dispatch_priority" href="#codeflare_sdk.cluster.cluster.Cluster.evaluate_dispatch_priority">evaluate_dispatch_priority</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.cluster.Cluster.from_k8_cluster_object" href="#codeflare_sdk.cluster.cluster.Cluster.from_k8_cluster_object">from_k8_cluster_object</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.cluster.Cluster.job_logs" href="#codeflare_sdk.cluster.cluster.Cluster.job_logs">job_logs</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.cluster.Cluster.job_status" href="#codeflare_sdk.cluster.cluster.Cluster.job_status">job_status</a></code></li>

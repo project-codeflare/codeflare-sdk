@@ -1,0 +1,51 @@
+name: Notebook Image Build and Push
+
+on:
+    workflow_dispatch:
+        inputs:
+            release-version:
+              type: string
+              required: true
+              description: 'Version number (for example: 0.1.0)'
+            is-stable:
+              description: 'Select if the built image should be tagged as latest'
+              required: true
+              type: boolean
+            quay-organization:
+              description: 'Quay organization used to push the built images to'
+              required: true
+              default: 'project-codeflare'
+            python_version:
+              type: string
+              default: "3.8"
+              required: true
+            poetry_version:
+              type: string
+              default: "1.5.1"
+              required: true
+
+jobs:
+    release:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout the repository
+              uses: actions/checkout@v3
+            - name: Install Python
+              uses: actions/setup-python@v4
+              with:
+                python-version: ${{ github.event.inputs.python_version }}
+            - name: Image Build
+              run: |
+                cd custom-nb-image
+                podman build --build-arg SDK_VERSION="${{ github.event.inputs.release-version }}" -t quay.io/${{ github.event.inputs.quay-organization }}/notebook:v${{ github.event.inputs.release-version }} .
+            - name: Login to Quay.io
+              uses: redhat-actions/podman-login@v1
+              with:
+                registry: quay.io
+                username: ${{ secrets.QUAY_ID }}
+                password: ${{ secrets.QUAY_TOKEN }}
+            - name: Image Push
+              run: podman push quay.io/${{ github.event.inputs.quay-organization }}/notebook:v${{ github.event.inputs.release-version }}
+            - name: Image Push Stable
+              if: ${{ inputs.is-stable }}
+              run: podman push quay.io/${{ github.event.inputs.quay-organization }}/notebook:v${{ github.event.inputs.release-version }} quay.io/${{ github.event.inputs.quay-organization }}/notebook:stable
