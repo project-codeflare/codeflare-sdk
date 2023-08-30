@@ -66,7 +66,7 @@ from codeflare_sdk.utils.generate_cert import (
     export_env,
 )
 
-from tests.unit_test_support import (
+from unit_test_support import (
     createClusterWithConfig,
     createTestDDP,
     createDDPJob_no_cluster,
