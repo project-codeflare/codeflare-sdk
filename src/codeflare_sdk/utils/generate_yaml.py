@@ -95,13 +95,6 @@ def update_priority(yaml, item, workers, dispatch_priority):
         worker = item.get("generictemplate").get("spec").get("workerGroupSpecs")[0]
         head["template"]["spec"]["priorityClassName"] = dispatch_priority
         worker["template"]["spec"]["priorityClassName"] = dispatch_priority
-        update_scheduling_spec(yaml, workers)
-
-
-def update_scheduling_spec(yaml, workers):
-    spec = yaml.get("spec")
-    spec["schedulingSpec"] = {"minAvailable": ""}
-    spec["schedulingSpec"]["minAvailable"] = workers + 1
 
 
 def update_custompodresources(
