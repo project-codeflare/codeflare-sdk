@@ -89,7 +89,7 @@ def update_labels(yaml, instascale, instance_types):
         metadata.pop("labels")
 
 
-def update_priority(yaml, item, workers, dispatch_priority):
+def update_priority(item, dispatch_priority):
     if dispatch_priority is not None:
         head = item.get("generictemplate").get("spec").get("headGroupSpec")
         worker = item.get("generictemplate").get("spec").get("workerGroupSpecs")[0]
@@ -363,7 +363,7 @@ def generate_appwrapper(
     route_item = resources["resources"].get("GenericItems")[1]
     update_names(user_yaml, item, appwrapper_name, cluster_name, namespace)
     update_labels(user_yaml, instascale, instance_types)
-    update_priority(user_yaml, item, workers, dispatch_priority)
+    update_priority(item, dispatch_priority)
     update_custompodresources(
         item, min_cpu, max_cpu, min_memory, max_memory, gpu, workers
     )
