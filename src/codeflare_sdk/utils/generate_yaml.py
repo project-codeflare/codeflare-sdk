@@ -89,12 +89,21 @@ def update_labels(yaml, instascale, instance_types):
         metadata.pop("labels")
 
 
-def update_priority(item, dispatch_priority):
+def update_priority(yaml, item, dispatch_priority, priority_val):
+    spec = yaml.get("spec")
     if dispatch_priority is not None:
+        if priority_val:
+            spec["priority"] = priority_val
+        else:
+            raise ValueError(
+                "AW generation error: Priority value is None, while dispatch_priority is defined"
+            )
         head = item.get("generictemplate").get("spec").get("headGroupSpec")
         worker = item.get("generictemplate").get("spec").get("workerGroupSpecs")[0]
         head["template"]["spec"]["priorityClassName"] = dispatch_priority
         worker["template"]["spec"]["priorityClassName"] = dispatch_priority
+    else:
+        spec.pop("priority")
 
 
 def update_custompodresources(
@@ -355,6 +364,7 @@ def generate_appwrapper(
     local_interactive: bool,
     image_pull_secrets: list,
     dispatch_priority: str,
+    priority_val: int,
 ):
     user_yaml = read_template(template)
     appwrapper_name, cluster_name = gen_names(name)
@@ -363,7 +373,7 @@ def generate_appwrapper(
     route_item = resources["resources"].get("GenericItems")[1]
     update_names(user_yaml, item, appwrapper_name, cluster_name, namespace)
     update_labels(user_yaml, instascale, instance_types)
-    update_priority(item, dispatch_priority)
+    update_priority(user_yaml, item, dispatch_priority, priority_val)
     update_custompodresources(
         item, min_cpu, max_cpu, min_memory, max_memory, gpu, workers
     )
