@@ -3,9 +3,10 @@ kind: AppWrapper
 metadata:
   labels:
     orderedinstance: cpu.small_gpu.large
-  name: unit-test-cluster
+  name: prio-test-cluster
   namespace: ns
 spec:
+  priority: 10
   resources:
     GenericItems:
     - custompodresources:
@@ -32,9 +33,9 @@ spec:
         kind: RayCluster
         metadata:
           labels:
-            appwrapper.mcad.ibm.com: unit-test-cluster
+            appwrapper.mcad.ibm.com: prio-test-cluster
             controller-tools.k8s.io: '1.0'
-          name: unit-test-cluster
+          name: prio-test-cluster
           namespace: ns
         spec:
           autoscalerOptions:
@@ -62,10 +63,10 @@ spec:
                     requiredDuringSchedulingIgnoredDuringExecution:
                       nodeSelectorTerms:
                       - matchExpressions:
-                        - key: unit-test-cluster
+                        - key: prio-test-cluster
                           operator: In
                           values:
-                          - unit-test-cluster
+                          - prio-test-cluster
                 containers:
                 - env:
                   - name: MY_POD_IP
@@ -108,9 +109,10 @@ spec:
                       nvidia.com/gpu: 0
                 imagePullSecrets:
                 - name: unit-test-pull-secret
+                priorityClassName: default
           rayVersion: 2.5.0
           workerGroupSpecs:
-          - groupName: small-group-unit-test-cluster
+          - groupName: small-group-prio-test-cluster
             maxReplicas: 2
             minReplicas: 2
             rayStartParams:
@@ -129,10 +131,10 @@ spec:
                     requiredDuringSchedulingIgnoredDuringExecution:
                       nodeSelectorTerms:
                       - matchExpressions:
-                        - key: unit-test-cluster
+                        - key: prio-test-cluster
                           operator: In
                           values:
-                          - unit-test-cluster
+                          - prio-test-cluster
                 containers:
                 - env:
                   - name: MY_POD_IP
@@ -175,20 +177,21 @@ spec:
                     do echo waiting for myservice; sleep 2; done
                   image: busybox:1.28
                   name: init-myservice
+                priorityClassName: default
       replicas: 1
     - generictemplate:
         apiVersion: route.openshift.io/v1
         kind: Route
         metadata:
           labels:
-            odh-ray-cluster-service: unit-test-cluster-head-svc
-          name: ray-dashboard-unit-test-cluster
+            odh-ray-cluster-service: prio-test-cluster-head-svc
+          name: ray-dashboard-prio-test-cluster
           namespace: ns
         spec:
           port:
             targetPort: dashboard
           to:
             kind: Service
-            name: unit-test-cluster-head-svc
+            name: prio-test-cluster-head-svc
       replicas: 1
     Items: []

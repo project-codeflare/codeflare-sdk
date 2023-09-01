@@ -46,7 +46,7 @@ def createClusterConfig():
         instascale=True,
         machine_types=["cpu.small", "gpu.large"],
         image_pull_secrets=["unit-test-pull-secret"],
-        dispatch_priority="default",
+        # dispatch_priority="default",
     )
     return config
 

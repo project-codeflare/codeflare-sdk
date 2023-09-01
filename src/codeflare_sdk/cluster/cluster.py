@@ -61,38 +61,25 @@ class Cluster:
         self.app_wrapper_yaml = self.create_app_wrapper()
         self.app_wrapper_name = self.app_wrapper_yaml.split(".")[0]
 
-    def evaluate_config(self):
-        if not self.evaluate_dispatch_priority():
-            return False
-        else:
-            return True
-
     def evaluate_dispatch_priority(self):
         priority_class = self.config.dispatch_priority
-        if priority_class is None:
-            return True
-        else:
-            try:
-                config_check()
-                api_instance = client.CustomObjectsApi(api_config_handler())
-                priority_classes = api_instance.list_cluster_custom_object(
-                    group="scheduling.k8s.io",
-                    version="v1",
-                    plural="priorityclasses",
-                )
-                available_priority_classes = [
-                    i["metadata"]["name"] for i in priority_classes["items"]
-                ]
-            except Exception as e:  # pragma: no cover
-                return _kube_api_error_handling(e)
 
-            if priority_class in available_priority_classes:
-                return True
-            else:
-                print(
-                    f"Priority class {priority_class} is not available in the cluster"
-                )
-                return False
+        try:
+            config_check()
+            api_instance = client.CustomObjectsApi(api_config_handler())
+            priority_classes = api_instance.list_cluster_custom_object(
+                group="scheduling.k8s.io",
+                version="v1",
+                plural="priorityclasses",
+            )
+        except Exception as e:  # pragma: no cover
+            return _kube_api_error_handling(e)
+
+        for pc in priority_classes["items"]:
+            if pc["metadata"]["name"] == priority_class:
+                return pc["value"]
+        print(f"Priority class {priority_class} is not available in the cluster")
+        return None
 
     def create_app_wrapper(self):
         """
@@ -108,6 +95,16 @@ class Cluster:
                 raise TypeError(
                     f"Namespace {self.config.namespace} is of type {type(self.config.namespace)}. Check your Kubernetes Authentication."
                 )
+
+        # Before attempting to create the cluster AW, let's evaluate the ClusterConfig
+        if self.config.dispatch_priority:
+            priority_val = self.evaluate_dispatch_priority()
+            if priority_val == None:
+                raise ValueError(
+                    "Invalid Cluster Configuration, AppWrapper not generated"
+                )
+        else:
+            priority_val = None
 
         name = self.config.name
         namespace = self.config.namespace
@@ -142,6 +139,7 @@ class Cluster:
             local_interactive=local_interactive,
             image_pull_secrets=image_pull_secrets,
             dispatch_priority=dispatch_priority,
+            priority_val=priority_val,
         )
 
     # creates a new cluster with the provided or default spec
@@ -150,12 +148,6 @@ class Cluster:
         Applies the AppWrapper yaml, pushing the resource request onto
         the MCAD queue.
         """
-
-        # Before attempting to bring up the cluster let's evaluate the ClusterConfig
-        if not self.evaluate_config():
-            print("Invalid Cluster Configuration")
-            return False
-
         namespace = self.config.namespace
         try:
             config_check()

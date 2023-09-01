@@ -236,7 +236,7 @@ def test_config_creation():
     assert config.instascale
     assert config.machine_types == ["cpu.small", "gpu.large"]
     assert config.image_pull_secrets == ["unit-test-pull-secret"]
-    assert config.dispatch_priority == "default"
+    assert config.dispatch_priority == None
 
 
 def test_cluster_creation():
@@ -245,6 +245,23 @@ def test_cluster_creation():
     assert cluster.app_wrapper_name == "unit-test-cluster"
     assert filecmp.cmp(
         "unit-test-cluster.yaml", f"{parent}/tests/test-case.yaml", shallow=True
+    )
+
+
+def test_cluster_creation_priority(mocker):
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_cluster_custom_object",
+        return_value={"items": [{"metadata": {"name": "default"}, "value": 10}]},
+    )
+    config = createClusterConfig()
+    config.name = "prio-test-cluster"
+    config.dispatch_priority = "default"
+    cluster = Cluster(config)
+    assert cluster.app_wrapper_yaml == "prio-test-cluster.yaml"
+    assert cluster.app_wrapper_name == "prio-test-cluster"
+    assert filecmp.cmp(
+        "prio-test-cluster.yaml", f"{parent}/tests/test-case-prio.yaml", shallow=True
     )
 
 
@@ -2251,6 +2268,7 @@ def test_export_env():
 # Make sure to always keep this function last
 def test_cleanup():
     os.remove("unit-test-cluster.yaml")
+    os.remove("prio-test-cluster.yaml")
     os.remove("unit-test-default-cluster.yaml")
     os.remove("test.yaml")
     os.remove("raytest2.yaml")
