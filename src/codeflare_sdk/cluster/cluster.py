@@ -156,7 +156,7 @@ class Cluster:
             with open(self.app_wrapper_yaml) as f:
                 aw = yaml.load(f, Loader=yaml.FullLoader)
             api_instance.create_namespaced_custom_object(
-                group="mcad.ibm.com",
+                group="codeflare.dev",
                 version="v1beta1",
                 namespace=namespace,
                 plural="appwrappers",
@@ -175,7 +175,7 @@ class Cluster:
             config_check()
             api_instance = client.CustomObjectsApi(api_config_handler())
             api_instance.delete_namespaced_custom_object(
-                group="mcad.ibm.com",
+                group="codeflare.dev",
                 version="v1beta1",
                 namespace=namespace,
                 plural="appwrappers",
@@ -492,7 +492,7 @@ def _app_wrapper_status(name, namespace="default") -> Optional[AppWrapper]:
         config_check()
         api_instance = client.CustomObjectsApi(api_config_handler())
         aws = api_instance.list_namespaced_custom_object(
-            group="mcad.ibm.com",
+            group="codeflare.dev",
             version="v1beta1",
             namespace=namespace,
             plural="appwrappers",
@@ -553,7 +553,7 @@ def _get_app_wrappers(
         config_check()
         api_instance = client.CustomObjectsApi(api_config_handler())
         aws = api_instance.list_namespaced_custom_object(
-            group="mcad.ibm.com",
+            group="codeflare.dev",
             version="v1beta1",
             namespace=namespace,
             plural="appwrappers",

@@ -1,4 +1,4 @@
-apiVersion: mcad.ibm.com/v1beta1
+apiVersion: codeflare.dev/v1beta1
 kind: AppWrapper
 metadata:
   labels:
@@ -33,7 +33,7 @@ spec:
         kind: RayCluster
         metadata:
           labels:
-            appwrapper.mcad.ibm.com: gptfttest
+            appwrapper.codeflare.dev: gptfttest
             controller-tools.k8s.io: '1.0'
           name: gptfttest
           namespace: default
