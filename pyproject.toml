@@ -20,7 +20,7 @@ homepage = "https://github.com/project-codeflare/codeflare-sdk"
 keywords = ['codeflare', 'python', 'sdk', 'client', 'batch', 'scale']
 
 [tool.poetry.dependencies]
-python = "^3.7"
+python = "^3.8"
 openshift-client = "1.0.18"
 rich = "^12.5"
 ray = {version = "2.5.0", extras = ["default"]}
@@ -29,6 +29,7 @@ codeflare-torchx = "0.6.0.dev1"
 cryptography = "40.0.2"
 executing = "1.2.0"
 pydantic = "< 2"
+pytorch-lightning = "^2.0.8"
 
 [tool.poetry.group.docs]
 optional = true
