@@ -21,9 +21,13 @@ Can be installed via `pip`: `pip install codeflare-sdk`
 
 ### Prerequisites
 
-We recommend using Python 3.9 for development.
+We recommend using Python 3.9 for development, along with Poetry.
+Create a Poetry virtual environment with the required Python version 3.9, and run all commands within this environment.
+
+  - run: `poetry shell`
 
 #### Install dependencies:
+
   - run: `poetry install`
 
 This will install standard requirements as specified in the poetry.lock file. Test and docs dependencies are optional.
@@ -47,13 +51,13 @@ To build the codeflare-sdk pre-commit image run `podman build -f .github/build/C
 ### Testing
 
 - To install codeflare-sdk in editable mode, run `pip install -e .` from the repo root.
-- To run the unit tests, run `poetry run pytest -v tests/unit_test.py`
+- To run the unit tests, run `pytest -v tests/unit_test.py`
 - Any new test functions/scripts can be added into the `tests` folder
 - NOTE: Functional tests coming soon, will live in `tests/func_test.py`
 
 #### Code Coverage
 
-- Run tests with the following command: `poetry run coverage run -m --source=src pytest tests/unit_test.py`
+- Run tests with the following command: `coverage run -m --source=src pytest tests/unit_test.py`
 - To then view a code coverage report w/ missing lines, run `coverage report -m`
 
 ### Code Formatting
