@@ -281,7 +281,7 @@ def test_default_cluster_creation(mocker):
 
 
 def arg_check_apply_effect(group, version, namespace, plural, body, *args):
-    assert group == "codeflare.dev"
+    assert group == "workload.codeflare.dev"
     assert version == "v1beta1"
     assert namespace == "ns"
     assert plural == "appwrappers"
@@ -292,7 +292,7 @@ def arg_check_apply_effect(group, version, namespace, plural, body, *args):
 
 
 def arg_check_del_effect(group, version, namespace, plural, name, *args):
-    assert group == "codeflare.dev"
+    assert group == "workload.codeflare.dev"
     assert version == "v1beta1"
     assert namespace == "ns"
     assert plural == "appwrappers"
@@ -320,7 +320,7 @@ def test_cluster_up_down(mocker):
 
 
 def aw_status_fields(group, version, namespace, plural, *args):
-    assert group == "codeflare.dev"
+    assert group == "workload.codeflare.dev"
     assert version == "v1beta1"
     assert namespace == "test-ns"
     assert plural == "appwrappers"
@@ -651,7 +651,7 @@ def get_ray_obj(group, version, namespace, plural, cls=None):
                     "creationTimestamp": "2023-02-22T16:26:07Z",
                     "generation": 1,
                     "labels": {
-                        "appwrapper.codeflare.dev": "quicktest",
+                        "appwrapper.mcad.ibm.com": "quicktest",
                         "controller-tools.k8s.io": "1.0",
                         "resourceName": "quicktest",
                         "orderedinstance": "m4.xlarge_g4dn.xlarge",
@@ -664,7 +664,7 @@ def get_ray_obj(group, version, namespace, plural, cls=None):
                                 "f:metadata": {
                                     "f:labels": {
                                         ".": {},
-                                        "f:appwrapper.codeflare.dev": {},
+                                        "f:appwrapper.mcad.ibm.com": {},
                                         "f:controller-tools.k8s.io": {},
                                         "f:resourceName": {},
                                     },
@@ -747,7 +747,7 @@ def get_ray_obj(group, version, namespace, plural, cls=None):
                     "namespace": "ns",
                     "ownerReferences": [
                         {
-                            "apiVersion": "codeflare.dev/v1beta1",
+                            "apiVersion": "workload.codeflare.dev/v1beta1",
                             "blockOwnerDeletion": True,
                             "controller": True,
                             "kind": "AppWrapper",
@@ -920,7 +920,7 @@ def get_aw_obj(group, version, namespace, plural):
     api_obj1 = {
         "items": [
             {
-                "apiVersion": "codeflare.dev/v1beta1",
+                "apiVersion": "workload.codeflare.dev/v1beta1",
                 "kind": "AppWrapper",
                 "metadata": {
                     "annotations": {
@@ -930,7 +930,7 @@ def get_aw_obj(group, version, namespace, plural):
                     "generation": 4,
                     "managedFields": [
                         {
-                            "apiVersion": "codeflare.dev/v1beta1",
+                            "apiVersion": "workload.codeflare.dev/v1beta1",
                             "fieldsType": "FieldsV1",
                             "fieldsV1": {
                                 "f:spec": {
@@ -958,7 +958,7 @@ def get_aw_obj(group, version, namespace, plural):
                             "time": "2023-02-22T16:26:07Z",
                         },
                         {
-                            "apiVersion": "codeflare.dev/v1beta1",
+                            "apiVersion": "workload.codeflare.dev/v1beta1",
                             "fieldsType": "FieldsV1",
                             "fieldsV1": {
                                 "f:metadata": {
@@ -1022,7 +1022,7 @@ def get_aw_obj(group, version, namespace, plural):
                                     "kind": "RayCluster",
                                     "metadata": {
                                         "labels": {
-                                            "appwrapper.codeflare.dev": "quicktest1",
+                                            "appwrapper.mcad.ibm.com": "quicktest1",
                                             "controller-tools.k8s.io": "1.0",
                                         },
                                         "name": "quicktest1",
@@ -1243,7 +1243,7 @@ def get_aw_obj(group, version, namespace, plural):
                 },
             },
             {
-                "apiVersion": "codeflare.dev/v1beta1",
+                "apiVersion": "workload.codeflare.dev/v1beta1",
                 "kind": "AppWrapper",
                 "metadata": {
                     "annotations": {
@@ -1253,7 +1253,7 @@ def get_aw_obj(group, version, namespace, plural):
                     "generation": 4,
                     "managedFields": [
                         {
-                            "apiVersion": "codeflare.dev/v1beta1",
+                            "apiVersion": "workload.codeflare.dev/v1beta1",
                             "fieldsType": "FieldsV1",
                             "fieldsV1": {
                                 "f:spec": {
@@ -1281,7 +1281,7 @@ def get_aw_obj(group, version, namespace, plural):
                             "time": "2023-02-22T16:26:07Z",
                         },
                         {
-                            "apiVersion": "codeflare.dev/v1beta1",
+                            "apiVersion": "workload.codeflare.dev/v1beta1",
                             "fieldsType": "FieldsV1",
                             "fieldsV1": {
                                 "f:metadata": {
@@ -1345,7 +1345,7 @@ def get_aw_obj(group, version, namespace, plural):
                                     "kind": "RayCluster",
                                     "metadata": {
                                         "labels": {
-                                            "appwrapper.codeflare.dev": "quicktest2",
+                                            "appwrapper.mcad.ibm.com": "quicktest2",
                                             "controller-tools.k8s.io": "1.0",
                                         },
                                         "name": "quicktest2",
@@ -2155,7 +2155,7 @@ def test_AWManager_creation():
 
 
 def arg_check_aw_apply_effect(group, version, namespace, plural, body, *args):
-    assert group == "codeflare.dev"
+    assert group == "workload.codeflare.dev"
     assert version == "v1beta1"
     assert namespace == "ns"
     assert plural == "appwrappers"
@@ -2166,7 +2166,7 @@ def arg_check_aw_apply_effect(group, version, namespace, plural, body, *args):
 
 
 def arg_check_aw_del_effect(group, version, namespace, plural, name, *args):
-    assert group == "codeflare.dev"
+    assert group == "workload.codeflare.dev"
     assert version == "v1beta1"
     assert namespace == "ns"
     assert plural == "appwrappers"

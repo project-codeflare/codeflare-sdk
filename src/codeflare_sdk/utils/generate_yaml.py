@@ -68,7 +68,7 @@ def update_names(yaml, item, appwrapper_name, cluster_name, namespace):
     metadata["name"] = appwrapper_name
     metadata["namespace"] = namespace
     lower_meta = item.get("generictemplate", {}).get("metadata")
-    lower_meta["labels"]["appwrapper.codeflare.dev"] = appwrapper_name
+    lower_meta["labels"]["appwrapper.mcad.ibm.com"] = appwrapper_name
     lower_meta["name"] = cluster_name
     lower_meta["namespace"] = namespace
 

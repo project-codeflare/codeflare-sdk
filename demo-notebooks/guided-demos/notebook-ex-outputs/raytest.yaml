@@ -1,4 +1,4 @@
-apiVersion: codeflare.dev/v1beta1
+apiVersion: workload.codeflare.dev/v1beta1
 kind: AppWrapper
 metadata:
   name: raytest
@@ -31,7 +31,7 @@ spec:
         kind: RayCluster
         metadata:
           labels:
-            appwrapper.codeflare.dev: raytest
+            appwrapper.mcad.ibm.com: raytest
             controller-tools.k8s.io: '1.0'
           name: raytest
           namespace: default
