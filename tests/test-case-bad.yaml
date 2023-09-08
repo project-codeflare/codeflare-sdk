@@ -1,4 +1,4 @@
-apiVersion: codeflare.dev/v1beta1
+apiVersion: workload.codeflare.dev/v1beta1
 kind: AppsWrapper
 metadata:
   labels:
@@ -33,7 +33,7 @@ spec:
         kind: RayCluster
         metadata:
           labels:
-            appwrapper.codeflare.dev: unit-test-cluster
+            appwrapper.mcad.ibm.com: unit-test-cluster
             controller-tools.k8s.io: '1.0'
           name: unit-test-cluster
           namespace: ns
