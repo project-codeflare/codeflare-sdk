@@ -28,6 +28,22 @@ jobs:
     release:
         runs-on: ubuntu-latest
         steps:
+            - name: Cleanup
+              run: |
+                ls -lart
+                echo "Initial status:"
+                df -h
+                echo "Cleaning up resources:"
+                sudo swapoff -a
+                sudo rm -f /swapfile
+                sudo apt clean
+                sudo rm -rf /usr/share/dotnet
+                sudo rm -rf /opt/ghc
+                sudo rm -rf "/usr/local/share/boost"
+                sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+                docker rmi $(docker image ls -aq)
+                echo "Final status:"
+                df -h
             - name: Checkout the repository
               uses: actions/checkout@v3
             - name: Install Python
