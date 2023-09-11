@@ -86,7 +86,7 @@ jobs:
 
             - name: Notebook Image Build and Push
               run: |
-                gh workflow run image-build-and-push.yml --repo ${{ github.event.inputs.codeflare-repository-organization }}/codeflare-sdk --ref ${{ github.ref }} --field is-stable=${{ github.event.inputs.is-stable }} --field release-version=${{ github.event.inputs.release-version }} --field quay-organization=${{ github.event.inputs.quay-organization }}
+                gh workflow run image-build-and-push.yaml --repo ${{ github.event.inputs.codeflare-repository-organization }}/codeflare-sdk --ref ${{ github.ref }} --field is-stable=${{ github.event.inputs.is-stable }} --field release-version=${{ github.event.inputs.release-version }} --field quay-organization=${{ github.event.inputs.quay-organization }}
               env:
                 GITHUB_TOKEN: ${{ secrets.CODEFLARE_MACHINE_ACCOUNT_TOKEN }}
               shell: bash
