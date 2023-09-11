@@ -70,6 +70,7 @@ from .model import (
 from kubernetes import client, config
 import yaml
 import os
+import requests
 
 
 class Cluster:
@@ -93,38 +94,25 @@ class Cluster:
         self.app_wrapper_yaml = self.create_app_wrapper()
         self.app_wrapper_name = self.app_wrapper_yaml.split(&#34;.&#34;)[0]
 
-    def evaluate_config(self):
-        if not self.evaluate_dispatch_priority():
-            return False
-        else:
-            return True
-
     def evaluate_dispatch_priority(self):
         priority_class = self.config.dispatch_priority
-        if priority_class is None:
-            return True
-        else:
-            try:
-                config_check()
-                api_instance = client.CustomObjectsApi(api_config_handler())
-                priority_classes = api_instance.list_cluster_custom_object(
-                    group=&#34;scheduling.k8s.io&#34;,
-                    version=&#34;v1&#34;,
-                    plural=&#34;priorityclasses&#34;,
-                )
-                available_priority_classes = [
-                    i[&#34;metadata&#34;][&#34;name&#34;] for i in priority_classes[&#34;items&#34;]
-                ]
-            except Exception as e:  # pragma: no cover
-                return _kube_api_error_handling(e)
 
-            if priority_class in available_priority_classes:
-                return True
-            else:
-                print(
-                    f&#34;Priority class {priority_class} is not available in the cluster&#34;
-                )
-                return False
+        try:
+            config_check()
+            api_instance = client.CustomObjectsApi(api_config_handler())
+            priority_classes = api_instance.list_cluster_custom_object(
+                group=&#34;scheduling.k8s.io&#34;,
+                version=&#34;v1&#34;,
+                plural=&#34;priorityclasses&#34;,
+            )
+        except Exception as e:  # pragma: no cover
+            return _kube_api_error_handling(e)
+
+        for pc in priority_classes[&#34;items&#34;]:
+            if pc[&#34;metadata&#34;][&#34;name&#34;] == priority_class:
+                return pc[&#34;value&#34;]
+        print(f&#34;Priority class {priority_class} is not available in the cluster&#34;)
+        return None
 
     def create_app_wrapper(self):
         &#34;&#34;&#34;
@@ -140,6 +128,16 @@ class Cluster:
                 raise TypeError(
                     f&#34;Namespace {self.config.namespace} is of type {type(self.config.namespace)}. Check your Kubernetes Authentication.&#34;
                 )
+
+        # Before attempting to create the cluster AW, let&#39;s evaluate the ClusterConfig
+        if self.config.dispatch_priority:
+            priority_val = self.evaluate_dispatch_priority()
+            if priority_val == None:
+                raise ValueError(
+                    &#34;Invalid Cluster Configuration, AppWrapper not generated&#34;
+                )
+        else:
+            priority_val = None
 
         name = self.config.name
         namespace = self.config.namespace
@@ -174,6 +172,7 @@ class Cluster:
             local_interactive=local_interactive,
             image_pull_secrets=image_pull_secrets,
             dispatch_priority=dispatch_priority,
+            priority_val=priority_val,
         )
 
     # creates a new cluster with the provided or default spec
@@ -182,12 +181,6 @@ class Cluster:
         Applies the AppWrapper yaml, pushing the resource request onto
         the MCAD queue.
         &#34;&#34;&#34;
-
-        # Before attempting to bring up the cluster let&#39;s evaluate the ClusterConfig
-        if not self.evaluate_config():
-            print(&#34;Invalid Cluster Configuration&#34;)
-            return False
-
         namespace = self.config.namespace
         try:
             config_check()
@@ -195,7 +188,7 @@ class Cluster:
             with open(self.app_wrapper_yaml) as f:
                 aw = yaml.load(f, Loader=yaml.FullLoader)
             api_instance.create_namespaced_custom_object(
-                group=&#34;mcad.ibm.com&#34;,
+                group=&#34;workload.codeflare.dev&#34;,
                 version=&#34;v1beta1&#34;,
                 namespace=namespace,
                 plural=&#34;appwrappers&#34;,
@@ -214,7 +207,7 @@ class Cluster:
             config_check()
             api_instance = client.CustomObjectsApi(api_config_handler())
             api_instance.delete_namespaced_custom_object(
-                group=&#34;mcad.ibm.com&#34;,
+                group=&#34;workload.codeflare.dev&#34;,
                 version=&#34;v1beta1&#34;,
                 namespace=namespace,
                 plural=&#34;appwrappers&#34;,
@@ -290,6 +283,13 @@ class Cluster:
 
         return status, ready
 
+    def is_dashboard_ready(self) -&gt; bool:
+        response = requests.get(self.cluster_dashboard_uri(), timeout=5)
+        if response.status_code == 200:
+            return True
+        else:
+            return False
+
     def wait_ready(self, timeout: Optional[int] = None):
         &#34;&#34;&#34;
         Waits for requested cluster to be ready, up to an optional timeout (s).
@@ -297,20 +297,22 @@ class Cluster:
         &#34;&#34;&#34;
         print(&#34;Waiting for requested resources to be set up...&#34;)
         ready = False
+        dashboard_ready = False
         status = None
         time = 0
-        while not ready:
+        while not ready or not dashboard_ready:
             status, ready = self.status(print_to_console=False)
+            dashboard_ready = self.is_dashboard_ready()
             if status == CodeFlareClusterStatus.UNKNOWN:
                 print(
                     &#34;WARNING: Current cluster status is unknown, have you run cluster.up yet?&#34;
                 )
-            if not ready:
+            if not ready or not dashboard_ready:
                 if timeout and time &gt;= timeout:
                     raise TimeoutError(f&#34;wait() timed out after waiting {timeout}s&#34;)
                 sleep(5)
                 time += 5
-        print(&#34;Requested cluster up and running!&#34;)
+        print(&#34;Requested cluster and dashboard are up and running!&#34;)
 
     def details(self, print_to_console: bool = True) -&gt; RayCluster:
         cluster = _copy_to_ray(self)
@@ -342,7 +344,8 @@ class Cluster:
 
         for route in routes[&#34;items&#34;]:
             if route[&#34;metadata&#34;][&#34;name&#34;] == f&#34;ray-dashboard-{self.config.name}&#34;:
-                return f&#34;http://{route[&#39;spec&#39;][&#39;host&#39;]}&#34;
+                protocol = &#34;https&#34; if route[&#34;spec&#34;].get(&#34;tls&#34;) else &#34;http&#34;
+                return f&#34;{protocol}://{route[&#39;spec&#39;][&#39;host&#39;]}&#34;
         return &#34;Dashboard route not available yet, have you run cluster.up()?&#34;
 
     def list_jobs(self) -&gt; List:
@@ -521,7 +524,7 @@ def _app_wrapper_status(name, namespace=&#34;default&#34;) -&gt; Optional[AppWra
         config_check()
         api_instance = client.CustomObjectsApi(api_config_handler())
         aws = api_instance.list_namespaced_custom_object(
-            group=&#34;mcad.ibm.com&#34;,
+            group=&#34;workload.codeflare.dev&#34;,
             version=&#34;v1beta1&#34;,
             namespace=namespace,
             plural=&#34;appwrappers&#34;,
@@ -582,7 +585,7 @@ def _get_app_wrappers(
         config_check()
         api_instance = client.CustomObjectsApi(api_config_handler())
         aws = api_instance.list_namespaced_custom_object(
-            group=&#34;mcad.ibm.com&#34;,
+            group=&#34;workload.codeflare.dev&#34;,
             version=&#34;v1beta1&#34;,
             namespace=namespace,
             plural=&#34;appwrappers&#34;,
@@ -617,7 +620,8 @@ def _map_to_ray_cluster(rc) -&gt; Optional[RayCluster]:
     ray_route = None
     for route in routes[&#34;items&#34;]:
         if route[&#34;metadata&#34;][&#34;name&#34;] == f&#34;ray-dashboard-{rc[&#39;metadata&#39;][&#39;name&#39;]}&#34;:
-            ray_route = route[&#34;spec&#34;][&#34;host&#34;]
+            protocol = &#34;https&#34; if route[&#34;spec&#34;].get(&#34;tls&#34;) else &#34;http&#34;
+            ray_route = f&#34;{protocol}://{route[&#39;spec&#39;][&#39;host&#39;]}&#34;
 
     return RayCluster(
         name=rc[&#34;metadata&#34;][&#34;name&#34;],
@@ -828,38 +832,25 @@ request.</p></div>
         self.app_wrapper_yaml = self.create_app_wrapper()
         self.app_wrapper_name = self.app_wrapper_yaml.split(&#34;.&#34;)[0]
 
-    def evaluate_config(self):
-        if not self.evaluate_dispatch_priority():
-            return False
-        else:
-            return True
-
     def evaluate_dispatch_priority(self):
         priority_class = self.config.dispatch_priority
-        if priority_class is None:
-            return True
-        else:
-            try:
-                config_check()
-                api_instance = client.CustomObjectsApi(api_config_handler())
-                priority_classes = api_instance.list_cluster_custom_object(
-                    group=&#34;scheduling.k8s.io&#34;,
-                    version=&#34;v1&#34;,
-                    plural=&#34;priorityclasses&#34;,
-                )
-                available_priority_classes = [
-                    i[&#34;metadata&#34;][&#34;name&#34;] for i in priority_classes[&#34;items&#34;]
-                ]
-            except Exception as e:  # pragma: no cover
-                return _kube_api_error_handling(e)
 
-            if priority_class in available_priority_classes:
-                return True
-            else:
-                print(
-                    f&#34;Priority class {priority_class} is not available in the cluster&#34;
-                )
-                return False
+        try:
+            config_check()
+            api_instance = client.CustomObjectsApi(api_config_handler())
+            priority_classes = api_instance.list_cluster_custom_object(
+                group=&#34;scheduling.k8s.io&#34;,
+                version=&#34;v1&#34;,
+                plural=&#34;priorityclasses&#34;,
+            )
+        except Exception as e:  # pragma: no cover
+            return _kube_api_error_handling(e)
+
+        for pc in priority_classes[&#34;items&#34;]:
+            if pc[&#34;metadata&#34;][&#34;name&#34;] == priority_class:
+                return pc[&#34;value&#34;]
+        print(f&#34;Priority class {priority_class} is not available in the cluster&#34;)
+        return None
 
     def create_app_wrapper(self):
         &#34;&#34;&#34;
@@ -875,6 +866,16 @@ request.</p></div>
                 raise TypeError(
                     f&#34;Namespace {self.config.namespace} is of type {type(self.config.namespace)}. Check your Kubernetes Authentication.&#34;
                 )
+
+        # Before attempting to create the cluster AW, let&#39;s evaluate the ClusterConfig
+        if self.config.dispatch_priority:
+            priority_val = self.evaluate_dispatch_priority()
+            if priority_val == None:
+                raise ValueError(
+                    &#34;Invalid Cluster Configuration, AppWrapper not generated&#34;
+                )
+        else:
+            priority_val = None
 
         name = self.config.name
         namespace = self.config.namespace
@@ -909,6 +910,7 @@ request.</p></div>
             local_interactive=local_interactive,
             image_pull_secrets=image_pull_secrets,
             dispatch_priority=dispatch_priority,
+            priority_val=priority_val,
         )
 
     # creates a new cluster with the provided or default spec
@@ -917,12 +919,6 @@ request.</p></div>
         Applies the AppWrapper yaml, pushing the resource request onto
         the MCAD queue.
         &#34;&#34;&#34;
-
-        # Before attempting to bring up the cluster let&#39;s evaluate the ClusterConfig
-        if not self.evaluate_config():
-            print(&#34;Invalid Cluster Configuration&#34;)
-            return False
-
         namespace = self.config.namespace
         try:
             config_check()
@@ -930,7 +926,7 @@ request.</p></div>
             with open(self.app_wrapper_yaml) as f:
                 aw = yaml.load(f, Loader=yaml.FullLoader)
             api_instance.create_namespaced_custom_object(
-                group=&#34;mcad.ibm.com&#34;,
+                group=&#34;workload.codeflare.dev&#34;,
                 version=&#34;v1beta1&#34;,
                 namespace=namespace,
                 plural=&#34;appwrappers&#34;,
@@ -949,7 +945,7 @@ request.</p></div>
             config_check()
             api_instance = client.CustomObjectsApi(api_config_handler())
             api_instance.delete_namespaced_custom_object(
-                group=&#34;mcad.ibm.com&#34;,
+                group=&#34;workload.codeflare.dev&#34;,
                 version=&#34;v1beta1&#34;,
                 namespace=namespace,
                 plural=&#34;appwrappers&#34;,
@@ -1025,6 +1021,13 @@ request.</p></div>
 
         return status, ready
 
+    def is_dashboard_ready(self) -&gt; bool:
+        response = requests.get(self.cluster_dashboard_uri(), timeout=5)
+        if response.status_code == 200:
+            return True
+        else:
+            return False
+
     def wait_ready(self, timeout: Optional[int] = None):
         &#34;&#34;&#34;
         Waits for requested cluster to be ready, up to an optional timeout (s).
@@ -1032,20 +1035,22 @@ request.</p></div>
         &#34;&#34;&#34;
         print(&#34;Waiting for requested resources to be set up...&#34;)
         ready = False
+        dashboard_ready = False
         status = None
         time = 0
-        while not ready:
+        while not ready or not dashboard_ready:
             status, ready = self.status(print_to_console=False)
+            dashboard_ready = self.is_dashboard_ready()
             if status == CodeFlareClusterStatus.UNKNOWN:
                 print(
                     &#34;WARNING: Current cluster status is unknown, have you run cluster.up yet?&#34;
                 )
-            if not ready:
+            if not ready or not dashboard_ready:
                 if timeout and time &gt;= timeout:
                     raise TimeoutError(f&#34;wait() timed out after waiting {timeout}s&#34;)
                 sleep(5)
                 time += 5
-        print(&#34;Requested cluster up and running!&#34;)
+        print(&#34;Requested cluster and dashboard are up and running!&#34;)
 
     def details(self, print_to_console: bool = True) -&gt; RayCluster:
         cluster = _copy_to_ray(self)
@@ -1077,7 +1082,8 @@ request.</p></div>
 
         for route in routes[&#34;items&#34;]:
             if route[&#34;metadata&#34;][&#34;name&#34;] == f&#34;ray-dashboard-{self.config.name}&#34;:
-                return f&#34;http://{route[&#39;spec&#39;][&#39;host&#39;]}&#34;
+                protocol = &#34;https&#34; if route[&#34;spec&#34;].get(&#34;tls&#34;) else &#34;http&#34;
+                return f&#34;{protocol}://{route[&#39;spec&#39;][&#39;host&#39;]}&#34;
         return &#34;Dashboard route not available yet, have you run cluster.up()?&#34;
 
     def list_jobs(self) -&gt; List:
@@ -1203,7 +1209,8 @@ request.</p></div>
 
     for route in routes[&#34;items&#34;]:
         if route[&#34;metadata&#34;][&#34;name&#34;] == f&#34;ray-dashboard-{self.config.name}&#34;:
-            return f&#34;http://{route[&#39;spec&#39;][&#39;host&#39;]}&#34;
+            protocol = &#34;https&#34; if route[&#34;spec&#34;].get(&#34;tls&#34;) else &#34;http&#34;
+            return f&#34;{protocol}://{route[&#39;spec&#39;][&#39;host&#39;]}&#34;
     return &#34;Dashboard route not available yet, have you run cluster.up()?&#34;</code></pre>
 </details>
 </dd>
@@ -1248,6 +1255,16 @@ the specifications of the ClusterConfiguration.</p></div>
                 f&#34;Namespace {self.config.namespace} is of type {type(self.config.namespace)}. Check your Kubernetes Authentication.&#34;
             )
 
+    # Before attempting to create the cluster AW, let&#39;s evaluate the ClusterConfig
+    if self.config.dispatch_priority:
+        priority_val = self.evaluate_dispatch_priority()
+        if priority_val == None:
+            raise ValueError(
+                &#34;Invalid Cluster Configuration, AppWrapper not generated&#34;
+            )
+    else:
+        priority_val = None
+
     name = self.config.name
     namespace = self.config.namespace
     min_cpu = self.config.min_cpus
@@ -1281,6 +1298,7 @@ the specifications of the ClusterConfiguration.</p></div>
         local_interactive=local_interactive,
         image_pull_secrets=image_pull_secrets,
         dispatch_priority=dispatch_priority,
+        priority_val=priority_val,
     )</code></pre>
 </details>
 </dd>
@@ -1320,7 +1338,7 @@ associated with the cluster.</p></div>
         config_check()
         api_instance = client.CustomObjectsApi(api_config_handler())
         api_instance.delete_namespaced_custom_object(
-            group=&#34;mcad.ibm.com&#34;,
+            group=&#34;workload.codeflare.dev&#34;,
             version=&#34;v1beta1&#34;,
             namespace=namespace,
             plural=&#34;appwrappers&#34;,
@@ -1328,22 +1346,6 @@ associated with the cluster.</p></div>
         )
     except Exception as e:  # pragma: no cover
         return _kube_api_error_handling(e)</code></pre>
-</details>
-</dd>
-<dt id="codeflare_sdk.cluster.cluster.Cluster.evaluate_config"><code class="name flex">
-<span>def <span class="ident">evaluate_config</span></span>(<span>self)</span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def evaluate_config(self):
-    if not self.evaluate_dispatch_priority():
-        return False
-    else:
-        return True</code></pre>
 </details>
 </dd>
 <dt id="codeflare_sdk.cluster.cluster.Cluster.evaluate_dispatch_priority"><code class="name flex">
@@ -1357,30 +1359,23 @@ associated with the cluster.</p></div>
 </summary>
 <pre><code class="python">def evaluate_dispatch_priority(self):
     priority_class = self.config.dispatch_priority
-    if priority_class is None:
-        return True
-    else:
-        try:
-            config_check()
-            api_instance = client.CustomObjectsApi(api_config_handler())
-            priority_classes = api_instance.list_cluster_custom_object(
-                group=&#34;scheduling.k8s.io&#34;,
-                version=&#34;v1&#34;,
-                plural=&#34;priorityclasses&#34;,
-            )
-            available_priority_classes = [
-                i[&#34;metadata&#34;][&#34;name&#34;] for i in priority_classes[&#34;items&#34;]
-            ]
-        except Exception as e:  # pragma: no cover
-            return _kube_api_error_handling(e)
 
-        if priority_class in available_priority_classes:
-            return True
-        else:
-            print(
-                f&#34;Priority class {priority_class} is not available in the cluster&#34;
-            )
-            return False</code></pre>
+    try:
+        config_check()
+        api_instance = client.CustomObjectsApi(api_config_handler())
+        priority_classes = api_instance.list_cluster_custom_object(
+            group=&#34;scheduling.k8s.io&#34;,
+            version=&#34;v1&#34;,
+            plural=&#34;priorityclasses&#34;,
+        )
+    except Exception as e:  # pragma: no cover
+        return _kube_api_error_handling(e)
+
+    for pc in priority_classes[&#34;items&#34;]:
+        if pc[&#34;metadata&#34;][&#34;name&#34;] == priority_class:
+            return pc[&#34;value&#34;]
+    print(f&#34;Priority class {priority_class} is not available in the cluster&#34;)
+    return None</code></pre>
 </details>
 </dd>
 <dt id="codeflare_sdk.cluster.cluster.Cluster.from_k8_cluster_object"><code class="name flex">
@@ -1433,6 +1428,23 @@ associated with the cluster.</p></div>
         local_interactive=local_interactive,
     )
     return Cluster(cluster_config)</code></pre>
+</details>
+</dd>
+<dt id="codeflare_sdk.cluster.cluster.Cluster.is_dashboard_ready"><code class="name flex">
+<span>def <span class="ident">is_dashboard_ready</span></span>(<span>self) ‑> bool</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def is_dashboard_ready(self) -&gt; bool:
+    response = requests.get(self.cluster_dashboard_uri(), timeout=5)
+    if response.status_code == 200:
+        return True
+    else:
+        return False</code></pre>
 </details>
 </dd>
 <dt id="codeflare_sdk.cluster.cluster.Cluster.job_logs"><code class="name flex">
@@ -1623,12 +1635,6 @@ the MCAD queue.</p></div>
     Applies the AppWrapper yaml, pushing the resource request onto
     the MCAD queue.
     &#34;&#34;&#34;
-
-    # Before attempting to bring up the cluster let&#39;s evaluate the ClusterConfig
-    if not self.evaluate_config():
-        print(&#34;Invalid Cluster Configuration&#34;)
-        return False
-
     namespace = self.config.namespace
     try:
         config_check()
@@ -1636,7 +1642,7 @@ the MCAD queue.</p></div>
         with open(self.app_wrapper_yaml) as f:
             aw = yaml.load(f, Loader=yaml.FullLoader)
         api_instance.create_namespaced_custom_object(
-            group=&#34;mcad.ibm.com&#34;,
+            group=&#34;workload.codeflare.dev&#34;,
             version=&#34;v1beta1&#34;,
             namespace=namespace,
             plural=&#34;appwrappers&#34;,
@@ -1663,20 +1669,22 @@ Checks every five seconds.</p></div>
     &#34;&#34;&#34;
     print(&#34;Waiting for requested resources to be set up...&#34;)
     ready = False
+    dashboard_ready = False
     status = None
     time = 0
-    while not ready:
+    while not ready or not dashboard_ready:
         status, ready = self.status(print_to_console=False)
+        dashboard_ready = self.is_dashboard_ready()
         if status == CodeFlareClusterStatus.UNKNOWN:
             print(
                 &#34;WARNING: Current cluster status is unknown, have you run cluster.up yet?&#34;
             )
-        if not ready:
+        if not ready or not dashboard_ready:
             if timeout and time &gt;= timeout:
                 raise TimeoutError(f&#34;wait() timed out after waiting {timeout}s&#34;)
             sleep(5)
             time += 5
-    print(&#34;Requested cluster up and running!&#34;)</code></pre>
+    print(&#34;Requested cluster and dashboard are up and running!&#34;)</code></pre>
 </details>
 </dd>
 </dl>
@@ -1713,9 +1721,9 @@ Checks every five seconds.</p></div>
 <li><code><a title="codeflare_sdk.cluster.cluster.Cluster.create_app_wrapper" href="#codeflare_sdk.cluster.cluster.Cluster.create_app_wrapper">create_app_wrapper</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.cluster.Cluster.details" href="#codeflare_sdk.cluster.cluster.Cluster.details">details</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.cluster.Cluster.down" href="#codeflare_sdk.cluster.cluster.Cluster.down">down</a></code></li>
-<li><code><a title="codeflare_sdk.cluster.cluster.Cluster.evaluate_config" href="#codeflare_sdk.cluster.cluster.Cluster.evaluate_config">evaluate_config</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.cluster.Cluster.evaluate_dispatch_priority" href="#codeflare_sdk.cluster.cluster.Cluster.evaluate_dispatch_priority">evaluate_dispatch_priority</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.cluster.Cluster.from_k8_cluster_object" href="#codeflare_sdk.cluster.cluster.Cluster.from_k8_cluster_object">from_k8_cluster_object</a></code></li>
+<li><code><a title="codeflare_sdk.cluster.cluster.Cluster.is_dashboard_ready" href="#codeflare_sdk.cluster.cluster.Cluster.is_dashboard_ready">is_dashboard_ready</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.cluster.Cluster.job_logs" href="#codeflare_sdk.cluster.cluster.Cluster.job_logs">job_logs</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.cluster.Cluster.job_status" href="#codeflare_sdk.cluster.cluster.Cluster.job_status">job_status</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.cluster.Cluster.list_jobs" href="#codeflare_sdk.cluster.cluster.Cluster.list_jobs">list_jobs</a></code></li>
