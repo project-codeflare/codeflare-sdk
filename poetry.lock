@@ -424,12 +424,12 @@ colorama = {version = "*", markers = "platform_system == \"Windows\""}
 
 [[package]]
 name = "codeflare-torchx"
-version = "0.6.0.dev0"
+version = "0.6.0.dev1"
 description = "TorchX SDK and Components"
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "codeflare_torchx-0.6.0.dev0-py3-none-any.whl", hash = "sha256:fd6b2ee084097bc0e84a4b4b44772a7c44fc90e3490a93ec804ed088534cbd0a"},
+    {file = "codeflare_torchx-0.6.0.dev1-py3-none-any.whl", hash = "sha256:a03bf570c775cb7fc7787a436ef5a76c726669e287af510513c5bc03033d1fca"},
 ]
 
 [package.dependencies]
@@ -444,7 +444,7 @@ tabulate = "*"
 urllib3 = ">=1.21.1,<1.27"
 
 [package.extras]
-dev = ["aiobotocore (==2.4.2)", "ax-platform[mysql] (==0.2.3)", "black (==23.3.0)", "boto3 (==1.24.59)", "captum (>=0.4.0)", "flake8 (==3.9.0)", "fsspec[s3] (==2023.1.0)", "google-api-core", "google-cloud-batch (>=0.5.0)", "google-cloud-logging (>=3.0.0)", "google-cloud-runtimeconfig (>=0.33.2)", "hydra-core", "ipython", "kfp (==1.8.9)", "mlflow-skinny", "moto (==4.1.6)", "pyre-check", "pyre-extensions", "pytest", "pytorch-lightning (==1.5.10)", "ray[default]", "torch (>=1.10.0)", "torch-model-archiver (>=0.4.2)", "torchmetrics (<0.11.0)", "torchserve (>=0.4.2)", "torchtext (>=0.11.0)", "torchvision (>=0.11.1)", "ts (==0.5.1)", "usort (==1.0.2)"]
+dev = ["aiobotocore (==2.4.2)", "ax-platform[mysql] (==0.2.3)", "black (==23.3.0)", "boto3 (==1.24.59)", "captum (>=0.4.0)", "flake8 (==3.9.0)", "fsspec[s3] (==2023.1.0)", "google-api-core", "google-cloud-batch (>=0.5.0)", "google-cloud-logging (>=3.0.0)", "google-cloud-runtimeconfig (>=0.33.2)", "hydra-core", "ipython", "kfp (==1.8.22)", "mlflow-skinny", "moto (==4.1.6)", "pyre-check", "pyre-extensions", "pytest", "pytorch-lightning (==1.5.10)", "ray[default]", "torch (>=1.10.0)", "torch-model-archiver (>=0.4.2)", "torchmetrics (<0.11.0)", "torchserve (>=0.4.2)", "torchtext (>=0.11.0)", "torchvision (>=0.11.1)", "ts (==0.5.1)", "usort (==1.0.2)"]
 gcp-batch = ["google-cloud-batch (>=0.5.0)", "google-cloud-logging (>=3.0.0)", "google-cloud-runtimeconfig (>=0.33.2)"]
 kfp = ["kfp (==1.6.2)"]
 kubernetes = ["kubernetes (>=11)"]
@@ -2586,4 +2586,4 @@ testing = ["big-O", "flake8 (<5)", "jaraco.functools", "jaraco.itertools", "more
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.8"
-content-hash = "39b6e2a2b976633df18fa59b28a2b0dc7e8e05cda4629bd37c868b993742d750"
+content-hash = "18e18b306f8c91c2d0f995531cf7f20be3180815e8c82ac1d1fc2913d0bc90d8"
