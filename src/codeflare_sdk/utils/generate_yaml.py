@@ -23,7 +23,7 @@ import argparse
 import uuid
 from kubernetes import client, config
 from .kube_api_helpers import _kube_api_error_handling
-from ..cluster.auth import api_config_handler
+from ..cluster.auth import api_config_handler, config_check
 
 
 def read_template(template):
@@ -268,7 +268,7 @@ def enable_local_interactive(resources, cluster_name, namespace):
 
     command = command.replace("deployment-name", cluster_name)
     try:
-        config.load_kube_config()
+        config_check()
         api_client = client.CustomObjectsApi(api_config_handler())
         ingress = api_client.get_cluster_custom_object(
             "config.openshift.io", "v1", "ingresses", "cluster"

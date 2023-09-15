@@ -455,8 +455,8 @@ def get_current_namespace():  # pragma: no cover
 
 def get_cluster(cluster_name: str, namespace: str = "default"):
     try:
-        config.load_kube_config()
-        api_instance = client.CustomObjectsApi()
+        config_check()
+        api_instance = client.CustomObjectsApi(api_config_handler())
         rcs = api_instance.list_namespaced_custom_object(
             group="ray.io",
             version="v1alpha1",
@@ -477,7 +477,7 @@ def get_cluster(cluster_name: str, namespace: str = "default"):
 # private methods
 def _get_ingress_domain():
     try:
-        config.load_kube_config()
+        config_check()
         api_client = client.CustomObjectsApi(api_config_handler())
         ingress = api_client.get_cluster_custom_object(
             "config.openshift.io", "v1", "ingresses", "cluster"
