@@ -487,8 +487,8 @@ def get_current_namespace():  # pragma: no cover
 
 def get_cluster(cluster_name: str, namespace: str = &#34;default&#34;):
     try:
-        config.load_kube_config()
-        api_instance = client.CustomObjectsApi()
+        config_check()
+        api_instance = client.CustomObjectsApi(api_config_handler())
         rcs = api_instance.list_namespaced_custom_object(
             group=&#34;ray.io&#34;,
             version=&#34;v1alpha1&#34;,
@@ -509,7 +509,7 @@ def get_cluster(cluster_name: str, namespace: str = &#34;default&#34;):
 # private methods
 def _get_ingress_domain():
     try:
-        config.load_kube_config()
+        config_check()
         api_client = client.CustomObjectsApi(api_config_handler())
         ingress = api_client.get_cluster_custom_object(
             &#34;config.openshift.io&#34;, &#34;v1&#34;, &#34;ingresses&#34;, &#34;cluster&#34;
@@ -604,7 +604,7 @@ def _get_app_wrappers(
 
 
 def _map_to_ray_cluster(rc) -&gt; Optional[RayCluster]:
-    if &#34;state&#34; in rc[&#34;status&#34;]:
+    if &#34;status&#34; in rc and &#34;state&#34; in rc[&#34;status&#34;]:
         status = RayClusterStatus(rc[&#34;status&#34;][&#34;state&#34;].lower())
     else:
         status = RayClusterStatus.UNKNOWN
@@ -694,8 +694,8 @@ def _copy_to_ray(cluster: Cluster) -&gt; RayCluster:
 </summary>
 <pre><code class="python">def get_cluster(cluster_name: str, namespace: str = &#34;default&#34;):
     try:
-        config.load_kube_config()
-        api_instance = client.CustomObjectsApi()
+        config_check()
+        api_instance = client.CustomObjectsApi(api_config_handler())
         rcs = api_instance.list_namespaced_custom_object(
             group=&#34;ray.io&#34;,
             version=&#34;v1alpha1&#34;,
