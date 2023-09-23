@@ -109,6 +109,9 @@ class Cluster:
 
         name = self.config.name
         namespace = self.config.namespace
+        head_cpus = self.config.head_cpus
+        head_memory = self.config.head_memory
+        head_gpus = self.config.head_gpus
         min_cpu = self.config.min_cpus
         max_cpu = self.config.max_cpus
         min_memory = self.config.min_memory
@@ -126,6 +129,9 @@ class Cluster:
         return generate_appwrapper(
             name=name,
             namespace=namespace,
+            head_cpus=head_cpus,
+            head_memory=head_memory,
+            head_gpus=head_gpus,
             min_cpu=min_cpu,
             max_cpu=max_cpu,
             min_memory=min_memory,
