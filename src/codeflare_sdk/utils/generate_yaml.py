@@ -107,35 +107,41 @@ def update_priority(yaml, item, dispatch_priority, priority_val):
 
 
 def update_custompodresources(
-    item, min_cpu, max_cpu, min_memory, max_memory, gpu, workers
-):
+    item, min_cpu, max_cpu, min_memory, max_memory, gpu, workers, head_cpus, head_memory, head_gpus):
     if "custompodresources" in item.keys():
         custompodresources = item.get("custompodresources")
         for i in range(len(custompodresources)):
+            resource = custompodresources[i]
             if i == 0:
                 # Leave head node resources as template default
-                continue
-            resource = custompodresources[i]
-            for k, v in resource.items():
-                if k == "replicas" and i == 1:
-                    resource[k] = workers
-                if k == "requests" or k == "limits":
-                    for spec, _ in v.items():
-                        if spec == "cpu":
-                            if k == "limits":
-                                resource[k][spec] = max_cpu
-                            else:
-                                resource[k][spec] = min_cpu
-                        if spec == "memory":
-                            if k == "limits":
-                                resource[k][spec] = str(max_memory) + "G"
-                            else:
-                                resource[k][spec] = str(min_memory) + "G"
-                        if spec == "nvidia.com/gpu":
-                            if i == 0:
-                                resource[k][spec] = 0
-                            else:
-                                resource[k][spec] = gpu
+                resource["requests"]["cpu"] = head_cpus
+                resource["limits"]["cpu"] = head_cpus
+                resource["requests"]["memory"] = str(head_memory) + "G"
+                resource["limits"]["memory"] = str(head_memory) + "G"
+                resource["requests"]["nvidia.com/gpu"] = head_gpus
+                resource["limits"]["nvidia.com/gpu"] = head_gpus
+     
+            else: 
+                for k, v in resource.items():
+                    if k == "replicas" and i == 1:
+                        resource[k] = workers
+                    if k == "requests" or k == "limits":
+                        for spec, _ in v.items():
+                            if spec == "cpu":
+                                if k == "limits":
+                                    resource[k][spec] = max_cpu
+                                else:
+                                    resource[k][spec] = min_cpu
+                            if spec == "memory":
+                                if k == "limits":
+                                    resource[k][spec] = str(max_memory) + "G"
+                                else:
+                                    resource[k][spec] = str(min_memory) + "G"
+                            if spec == "nvidia.com/gpu":
+                                if i == 0:
+                                    resource[k][spec] = 0
+                                else:
+                                    resource[k][spec] = gpu
     else:
         sys.exit("Error: malformed template")
 
@@ -205,11 +211,15 @@ def update_nodes(
     instascale,
     env,
     image_pull_secrets,
+    head_cpus,
+    head_memory,
+    head_gpus,
 ):
     if "generictemplate" in item.keys():
         head = item.get("generictemplate").get("spec").get("headGroupSpec")
+        head["rayStartParams"]["num_gpus"] = str(int(head_gpus))
+        
         worker = item.get("generictemplate").get("spec").get("workerGroupSpecs")[0]
-
         # Head counts as first worker
         worker["replicas"] = workers
         worker["minReplicas"] = workers
@@ -225,7 +235,7 @@ def update_nodes(
             update_env(spec, env)
             if comp == head:
                 # TODO: Eventually add head node configuration outside of template
-                continue
+                update_resources(spec, head_cpus, head_cpus, head_memory, head_memory, head_gpus)
             else:
                 update_resources(spec, min_cpu, max_cpu, min_memory, max_memory, gpu)
 
@@ -350,6 +360,9 @@ def write_user_appwrapper(user_yaml, output_file_name):
 def generate_appwrapper(
     name: str,
     namespace: str,
+    head_cpus: int,
+    head_memory: int,
+    head_gpus: int,
     min_cpu: int,
     max_cpu: int,
     min_memory: int,
@@ -375,8 +388,7 @@ def generate_appwrapper(
     update_labels(user_yaml, instascale, instance_types)
     update_priority(user_yaml, item, dispatch_priority, priority_val)
     update_custompodresources(
-        item, min_cpu, max_cpu, min_memory, max_memory, gpu, workers
-    )
+        item, min_cpu, max_cpu, min_memory, max_memory, gpu, workers, head_cpus, head_memory, head_gpus) 
     update_nodes(
         item,
         appwrapper_name,
@@ -390,6 +402,9 @@ def generate_appwrapper(
         instascale,
         env,
         image_pull_secrets,
+        head_cpus,
+        head_memory,
+        head_gpus,
     )
     update_dashboard_route(route_item, cluster_name, namespace)
     if local_interactive:

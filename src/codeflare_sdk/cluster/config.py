@@ -34,6 +34,9 @@ class ClusterConfiguration:
     name: str
     namespace: str = None
     head_info: list = field(default_factory=list)
+    head_cpus: int = 2
+    head_memory: int = 8
+    head_gpus: int = 0
     machine_types: list = field(default_factory=list)  # ["m4.xlarge", "g4dn.xlarge"]
     min_cpus: int = 1
     max_cpus: int = 1
