@@ -107,7 +107,17 @@ def update_priority(yaml, item, dispatch_priority, priority_val):
 
 
 def update_custompodresources(
-    item, min_cpu, max_cpu, min_memory, max_memory, gpu, workers, head_cpus, head_memory, head_gpus):
+    item,
+    min_cpu,
+    max_cpu,
+    min_memory,
+    max_memory,
+    gpu,
+    workers,
+    head_cpus,
+    head_memory,
+    head_gpus,
+):
     if "custompodresources" in item.keys():
         custompodresources = item.get("custompodresources")
         for i in range(len(custompodresources)):
@@ -120,8 +130,8 @@ def update_custompodresources(
                 resource["limits"]["memory"] = str(head_memory) + "G"
                 resource["requests"]["nvidia.com/gpu"] = head_gpus
                 resource["limits"]["nvidia.com/gpu"] = head_gpus
-     
-            else: 
+
+            else:
                 for k, v in resource.items():
                     if k == "replicas" and i == 1:
                         resource[k] = workers
@@ -217,8 +227,8 @@ def update_nodes(
 ):
     if "generictemplate" in item.keys():
         head = item.get("generictemplate").get("spec").get("headGroupSpec")
-        head["rayStartParams"]["num_gpus"] = str(int(head_gpus))
-        
+        head["rayStartParams"]["num-gpus"] = str(int(head_gpus))
+
         worker = item.get("generictemplate").get("spec").get("workerGroupSpecs")[0]
         # Head counts as first worker
         worker["replicas"] = workers
@@ -235,7 +245,9 @@ def update_nodes(
             update_env(spec, env)
             if comp == head:
                 # TODO: Eventually add head node configuration outside of template
-                update_resources(spec, head_cpus, head_cpus, head_memory, head_memory, head_gpus)
+                update_resources(
+                    spec, head_cpus, head_cpus, head_memory, head_memory, head_gpus
+                )
             else:
                 update_resources(spec, min_cpu, max_cpu, min_memory, max_memory, gpu)
 
@@ -388,7 +400,17 @@ def generate_appwrapper(
     update_labels(user_yaml, instascale, instance_types)
     update_priority(user_yaml, item, dispatch_priority, priority_val)
     update_custompodresources(
-        item, min_cpu, max_cpu, min_memory, max_memory, gpu, workers, head_cpus, head_memory, head_gpus) 
+        item,
+        min_cpu,
+        max_cpu,
+        min_memory,
+        max_memory,
+        gpu,
+        workers,
+        head_cpus,
+        head_memory,
+        head_gpus,
+    )
     update_nodes(
         item,
         appwrapper_name,
