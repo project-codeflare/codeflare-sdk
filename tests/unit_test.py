@@ -525,6 +525,9 @@ def test_ray_details(mocker, capsys):
         worker_gpu=0,
         namespace="ns",
         dashboard="fake-uri",
+        head_cpus=2,
+        head_mem=8,
+        head_gpu=0,
     )
     mocker.patch(
         "codeflare_sdk.cluster.cluster.Cluster.status",
@@ -1685,6 +1688,9 @@ def test_cluster_status(mocker):
         worker_gpu=0,
         namespace="ns",
         dashboard="fake-uri",
+        head_cpus=2,
+        head_mem=8,
+        head_gpu=0,
     )
     cf = Cluster(ClusterConfiguration(name="test", namespace="ns"))
     mocker.patch("codeflare_sdk.cluster.cluster._app_wrapper_status", return_value=None)

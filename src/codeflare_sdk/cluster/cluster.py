@@ -614,6 +614,15 @@ def _map_to_ray_cluster(rc) -> Optional[RayCluster]:
         worker_gpu=0,  # hard to detect currently how many gpus, can override it with what the user asked for
         namespace=rc["metadata"]["namespace"],
         dashboard=ray_route,
+        head_cpus=rc["spec"]["headGroupSpec"]["template"]["spec"]["containers"][0][
+            "resources"
+        ]["limits"]["cpu"],
+        head_mem=rc["spec"]["headGroupSpec"]["template"]["spec"]["containers"][0][
+            "resources"
+        ]["limits"]["memory"],
+        head_gpu=rc["spec"]["headGroupSpec"]["template"]["spec"]["containers"][0][
+            "resources"
+        ]["limits"]["nvidia.com/gpu"],
     )
 
 
@@ -644,6 +653,9 @@ def _copy_to_ray(cluster: Cluster) -> RayCluster:
         worker_gpu=cluster.config.num_gpus,
         namespace=cluster.config.namespace,
         dashboard=cluster.cluster_dashboard_uri(),
+        head_cpus=cluster.config.head_cpus,
+        head_mem=cluster.config.head_memory,
+        head_gpu=cluster.config.head_gpus,
     )
     if ray.status == CodeFlareClusterStatus.READY:
         ray.status = RayClusterStatus.READY
