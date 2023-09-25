@@ -46,6 +46,7 @@ class ClusterConfiguration:
     num_gpus: int = 0
     template: str = f"{dir}/templates/base-template.yaml"
     instascale: bool = False
+    mcad: bool = True
     envs: dict = field(default_factory=dict)
     image: str = "quay.io/project-codeflare/ray:latest-py39-cu118"
     local_interactive: bool = False

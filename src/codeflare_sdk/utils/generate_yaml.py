@@ -457,6 +457,18 @@ def _create_oauth_sidecar_object(
     )
 
 
+def write_components(user_yaml, output_file_name):
+    components = user_yaml.get("spec", "resources")["resources"].get("GenericItems")
+    open(output_file_name, "w").close()
+    with open(output_file_name, "a") as outfile:
+        for component in components:
+            if "generictemplate" in component:
+                yaml.dump(
+                    component["generictemplate"], outfile, default_flow_style=False
+                )
+    print(f"Written to: {output_file_name}")
+
+
 def generate_appwrapper(
     name: str,
     namespace: str,
@@ -472,6 +484,7 @@ def generate_appwrapper(
     template: str,
     image: str,
     instascale: bool,
+    mcad: bool,
     instance_types: list,
     env,
     local_interactive: bool,
@@ -527,5 +540,8 @@ def generate_appwrapper(
         enable_openshift_oauth(user_yaml, cluster_name, namespace)
 
     outfile = appwrapper_name + ".yaml"
-    write_user_appwrapper(user_yaml, outfile)
+    if not mcad:
+        write_components(user_yaml, outfile)
+    else:
+        write_user_appwrapper(user_yaml, outfile)
     return outfile

@@ -141,6 +141,10 @@ class Cluster:
 
         # Before attempting to create the cluster AW, let's evaluate the ClusterConfig
         if self.config.dispatch_priority:
+            if not self.config.mcad:
+                raise ValueError(
+                    "Invalid Cluster Configuration, cannot have dispatch priority without MCAD"
+                )
             priority_val = self.evaluate_dispatch_priority()
             if priority_val == None:
                 raise ValueError(
@@ -163,6 +167,7 @@ class Cluster:
         template = self.config.template
         image = self.config.image
         instascale = self.config.instascale
+        mcad = self.config.mcad
         instance_types = self.config.machine_types
         env = self.config.envs
         local_interactive = self.config.local_interactive
@@ -183,6 +188,7 @@ class Cluster:
             template=template,
             image=image,
             instascale=instascale,
+            mcad=mcad,
             instance_types=instance_types,
             env=env,
             local_interactive=local_interactive,
