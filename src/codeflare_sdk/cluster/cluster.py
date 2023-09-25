@@ -274,19 +274,27 @@ class Cluster:
         dashboard_ready = False
         status = None
         time = 0
-        while not ready or not dashboard_ready:
+        while not ready:
             status, ready = self.status(print_to_console=False)
-            dashboard_ready = self.is_dashboard_ready()
             if status == CodeFlareClusterStatus.UNKNOWN:
                 print(
                     "WARNING: Current cluster status is unknown, have you run cluster.up yet?"
                 )
-            if not ready or not dashboard_ready:
+            if not ready:
                 if timeout and time >= timeout:
-                    raise TimeoutError(f"wait() timed out after waiting {timeout}s")
+                    raise TimeoutError(f"wait() timed out after waiting {timeout}s for cluster to be ready")
                 sleep(5)
                 time += 5
-        print("Requested cluster and dashboard are up and running!")
+        print("Requested cluster is up and running!")
+
+        while not dashboard_ready:
+            dashboard_ready = self.is_dashboard_ready()
+            if not dashboard_ready:
+                if timeout and time >= timeout:
+                    raise TimeoutError(f"wait() timed out after waiting {timeout}s for dashboard to be ready")
+                sleep(5)
+                time += 5
+        print("Dashboard is ready!")
 
     def details(self, print_to_console: bool = True) -> RayCluster:
         cluster = _copy_to_ray(self)

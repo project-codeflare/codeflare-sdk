@@ -1794,7 +1794,7 @@ def test_wait_ready(mocker, capsys):
     captured = capsys.readouterr()
     assert (
         captured.out
-        == "Waiting for requested resources to be set up...\nRequested cluster and dashboard are up and running!\n"
+        == "Waiting for requested resources to be set up...\nRequested cluster is up and running!\nDashboard is ready!\n"
     )
 
 
