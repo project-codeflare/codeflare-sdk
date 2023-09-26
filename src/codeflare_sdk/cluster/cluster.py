@@ -264,7 +264,7 @@ class Cluster:
         else:
             return False
 
-    def wait_ready(self, timeout: Optional[int] = None):
+    def wait_ready(self, timeout: Optional[int] = None, dashboard_check: bool = True):
         """
         Waits for requested cluster to be ready, up to an optional timeout (s).
         Checks every five seconds.
@@ -282,19 +282,24 @@ class Cluster:
                 )
             if not ready:
                 if timeout and time >= timeout:
-                    raise TimeoutError(f"wait() timed out after waiting {timeout}s for cluster to be ready")
+                    raise TimeoutError(
+                        f"wait() timed out after waiting {timeout}s for cluster to be ready"
+                    )
                 sleep(5)
                 time += 5
         print("Requested cluster is up and running!")
 
-        while not dashboard_ready:
+        while dashboard_check and not dashboard_ready:
             dashboard_ready = self.is_dashboard_ready()
             if not dashboard_ready:
                 if timeout and time >= timeout:
-                    raise TimeoutError(f"wait() timed out after waiting {timeout}s for dashboard to be ready")
+                    raise TimeoutError(
+                        f"wait() timed out after waiting {timeout}s for dashboard to be ready"
+                    )
                 sleep(5)
                 time += 5
-        print("Dashboard is ready!")
+        if dashboard_ready:
+            print("Dashboard is ready!")
 
     def details(self, print_to_console: bool = True) -> RayCluster:
         cluster = _copy_to_ray(self)

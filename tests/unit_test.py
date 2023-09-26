@@ -1796,6 +1796,12 @@ def test_wait_ready(mocker, capsys):
         captured.out
         == "Waiting for requested resources to be set up...\nRequested cluster is up and running!\nDashboard is ready!\n"
     )
+    cf.wait_ready(dashboard_check=False)
+    captured = capsys.readouterr()
+    assert (
+        captured.out
+        == "Waiting for requested resources to be set up...\nRequested cluster is up and running!\n"
+    )
 
 
 def test_jobdefinition_coverage():
