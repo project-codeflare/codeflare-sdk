@@ -227,14 +227,16 @@ class Cluster:
                 with open(self.app_wrapper_yaml) as f:
                     yamls = yaml.load_all(f, Loader=yaml.FullLoader)
                     for resource in yamls:
-                        print(resource["kind"])
-                # api_instance.create_namespaced_custom_object(
-                #    group="ray.io",
-                #    version="v1alpha1",
-                #    namespace=namespace,
-                #    plural="rayclusters",
-                #    body=aw,
-                # )
+                        if resource["kind"] == "RayCluster":
+                            api_instance.create_namespaced_custom_object(
+                                group="ray.io",
+                                version="v1alpha1",
+                                namespace=namespace,
+                                plural="rayclusters",
+                                body=resource,
+                            )
+                        else:
+                            print(resource["kind"])
         except Exception as e:  # pragma: no cover
             return _kube_api_error_handling(e)
 
