@@ -42,7 +42,7 @@ from .model import (
     RayCluster,
     RayClusterStatus,
 )
-from kubernetes import client, config
+from kubernetes import client, config, utils
 import yaml
 import os
 import requests
@@ -213,15 +213,28 @@ class Cluster:
         try:
             config_check()
             api_instance = client.CustomObjectsApi(api_config_handler())
-            with open(self.app_wrapper_yaml) as f:
-                aw = yaml.load(f, Loader=yaml.FullLoader)
-            api_instance.create_namespaced_custom_object(
-                group="workload.codeflare.dev",
-                version="v1beta1",
-                namespace=namespace,
-                plural="appwrappers",
-                body=aw,
-            )
+            if self.config.mcad:
+                with open(self.app_wrapper_yaml) as f:
+                    aw = yaml.load(f, Loader=yaml.FullLoader)
+                api_instance.create_namespaced_custom_object(
+                    group="workload.codeflare.dev",
+                    version="v1beta1",
+                    namespace=namespace,
+                    plural="appwrappers",
+                    body=aw,
+                )
+            else:
+                with open(self.app_wrapper_yaml) as f:
+                    yamls = yaml.load_all(f, Loader=yaml.FullLoader)
+                    for resource in yamls:
+                        print(resource["kind"])
+                # api_instance.create_namespaced_custom_object(
+                #    group="ray.io",
+                #    version="v1alpha1",
+                #    namespace=namespace,
+                #    plural="rayclusters",
+                #    body=aw,
+                # )
         except Exception as e:  # pragma: no cover
             return _kube_api_error_handling(e)
 

@@ -463,6 +463,7 @@ def write_components(user_yaml, output_file_name):
     with open(output_file_name, "a") as outfile:
         for component in components:
             if "generictemplate" in component:
+                outfile.write("---\n")
                 yaml.dump(
                     component["generictemplate"], outfile, default_flow_style=False
                 )
