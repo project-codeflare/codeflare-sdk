@@ -29,7 +29,6 @@ codeflare-torchx = "0.6.0.dev1"
 cryptography = "40.0.2"
 executing = "1.2.0"
 pydantic = "< 2"
-pytorch-lightning = "^2.0.8"
 
 [tool.poetry.group.docs]
 optional = true
