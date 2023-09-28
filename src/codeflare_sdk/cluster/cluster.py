@@ -249,13 +249,28 @@ class Cluster:
         try:
             config_check()
             api_instance = client.CustomObjectsApi(api_config_handler())
-            api_instance.delete_namespaced_custom_object(
-                group="workload.codeflare.dev",
-                version="v1beta1",
-                namespace=namespace,
-                plural="appwrappers",
-                name=self.app_wrapper_name,
-            )
+            if self.config.mcad:
+                api_instance.delete_namespaced_custom_object(
+                    group="workload.codeflare.dev",
+                    version="v1beta1",
+                    namespace=namespace,
+                    plural="appwrappers",
+                    name=self.app_wrapper_name,
+                )
+            else:
+                with open(self.app_wrapper_yaml) as f:
+                    yamls = yaml.load_all(f, Loader=yaml.FullLoader)
+                    for resource in yamls:
+                        if resource["kind"] == "RayCluster":
+                            api_instance.delete_namespaced_custom_object(
+                                group="ray.io",
+                                version="v1alpha1",
+                                namespace=namespace,
+                                plural="rayclusters",
+                                name=self.app_wrapper_name,
+                            )
+                        else:
+                            print(resource["kind"])
         except Exception as e:  # pragma: no cover
             return _kube_api_error_handling(e)
 
@@ -273,38 +288,39 @@ class Cluster:
         """
         ready = False
         status = CodeFlareClusterStatus.UNKNOWN
-        # check the app wrapper status
-        appwrapper = _app_wrapper_status(self.config.name, self.config.namespace)
-        if appwrapper:
-            if appwrapper.status in [
-                AppWrapperStatus.RUNNING,
-                AppWrapperStatus.COMPLETED,
-                AppWrapperStatus.RUNNING_HOLD_COMPLETION,
-            ]:
-                ready = False
-                status = CodeFlareClusterStatus.STARTING
-            elif appwrapper.status in [
-                AppWrapperStatus.FAILED,
-                AppWrapperStatus.DELETED,
-            ]:
-                ready = False
-                status = CodeFlareClusterStatus.FAILED  # should deleted be separate
-                return status, ready  # exit early, no need to check ray status
-            elif appwrapper.status in [
-                AppWrapperStatus.PENDING,
-                AppWrapperStatus.QUEUEING,
-            ]:
-                ready = False
-                if appwrapper.status == AppWrapperStatus.PENDING:
-                    status = CodeFlareClusterStatus.QUEUED
-                else:
-                    status = CodeFlareClusterStatus.QUEUEING
-                if print_to_console:
-                    pretty_print.print_app_wrappers_status([appwrapper])
-                return (
-                    status,
-                    ready,
-                )  # no need to check the ray status since still in queue
+        if self.config.mcad:
+            # check the app wrapper status
+            appwrapper = _app_wrapper_status(self.config.name, self.config.namespace)
+            if appwrapper:
+                if appwrapper.status in [
+                    AppWrapperStatus.RUNNING,
+                    AppWrapperStatus.COMPLETED,
+                    AppWrapperStatus.RUNNING_HOLD_COMPLETION,
+                ]:
+                    ready = False
+                    status = CodeFlareClusterStatus.STARTING
+                elif appwrapper.status in [
+                    AppWrapperStatus.FAILED,
+                    AppWrapperStatus.DELETED,
+                ]:
+                    ready = False
+                    status = CodeFlareClusterStatus.FAILED  # should deleted be separate
+                    return status, ready  # exit early, no need to check ray status
+                elif appwrapper.status in [
+                    AppWrapperStatus.PENDING,
+                    AppWrapperStatus.QUEUEING,
+                ]:
+                    ready = False
+                    if appwrapper.status == AppWrapperStatus.PENDING:
+                        status = CodeFlareClusterStatus.QUEUED
+                    else:
+                        status = CodeFlareClusterStatus.QUEUEING
+                    if print_to_console:
+                        pretty_print.print_app_wrappers_status([appwrapper])
+                    return (
+                        status,
+                        ready,
+                    )  # no need to check the ray status since still in queue
 
         # check the ray cluster status
         cluster = _ray_cluster_status(self.config.name, self.config.namespace)
