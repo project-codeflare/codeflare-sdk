@@ -42,7 +42,7 @@ from .model import (
     RayCluster,
     RayClusterStatus,
 )
-from kubernetes import client, config, utils
+from kubernetes import client, config
 import yaml
 import os
 import requests
