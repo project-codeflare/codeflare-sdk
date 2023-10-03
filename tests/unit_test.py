@@ -34,6 +34,7 @@ from codeflare_sdk.cluster.cluster import (
     get_cluster,
     _app_wrapper_status,
     _ray_cluster_status,
+    _get_ingress_domain,
 )
 from codeflare_sdk.cluster.auth import (
     TokenAuthentication,
@@ -242,6 +243,8 @@ def test_config_creation():
     assert config.machine_types == ["cpu.small", "gpu.large"]
     assert config.image_pull_secrets == ["unit-test-pull-secret"]
     assert config.dispatch_priority == None
+    assert config.mcad == True
+    assert config.local_interactive == False
 
 
 def test_cluster_creation():
@@ -250,6 +253,20 @@ def test_cluster_creation():
     assert cluster.app_wrapper_name == "unit-test-cluster"
     assert filecmp.cmp(
         "unit-test-cluster.yaml", f"{parent}/tests/test-case.yaml", shallow=True
+    )
+
+
+def test_cluster_creation_no_mcad():
+    config = createClusterConfig()
+    config.name = "unit-test-cluster-ray"
+    config.mcad = False
+    cluster = Cluster(config)
+    assert cluster.app_wrapper_yaml == "unit-test-cluster-ray.yaml"
+    assert cluster.app_wrapper_name == "unit-test-cluster-ray"
+    assert filecmp.cmp(
+        "unit-test-cluster-ray.yaml",
+        f"{parent}/tests/test-case-no-mcad.yamls",
+        shallow=True,
     )
 
 
@@ -286,23 +303,49 @@ def test_default_cluster_creation(mocker):
 
 
 def arg_check_apply_effect(group, version, namespace, plural, body, *args):
-    assert group == "workload.codeflare.dev"
-    assert version == "v1beta1"
     assert namespace == "ns"
-    assert plural == "appwrappers"
-    with open("unit-test-cluster.yaml") as f:
-        aw = yaml.load(f, Loader=yaml.FullLoader)
-    assert body == aw
     assert args == tuple()
+    if plural == "appwrappers":
+        assert group == "workload.codeflare.dev"
+        assert version == "v1beta1"
+        with open("unit-test-cluster.yaml") as f:
+            aw = yaml.load(f, Loader=yaml.FullLoader)
+        assert body == aw
+    elif plural == "rayclusters":
+        assert group == "ray.io"
+        assert version == "v1alpha1"
+        with open("unit-test-cluster-ray.yaml") as f:
+            yamls = yaml.load_all(f, Loader=yaml.FullLoader)
+            for resource in yamls:
+                if resource["kind"] == "RayCluster":
+                    assert body == resource
+    elif plural == "routes":
+        assert group == "route.openshift.io"
+        assert version == "v1"
+        with open("unit-test-cluster-ray.yaml") as f:
+            yamls = yaml.load_all(f, Loader=yaml.FullLoader)
+            for resource in yamls:
+                if resource["kind"] == "Route":
+                    assert body == resource
+    else:
+        assert 1 == 0
 
 
 def arg_check_del_effect(group, version, namespace, plural, name, *args):
-    assert group == "workload.codeflare.dev"
-    assert version == "v1beta1"
     assert namespace == "ns"
-    assert plural == "appwrappers"
-    assert name == "unit-test-cluster"
     assert args == tuple()
+    if plural == "appwrappers":
+        assert group == "workload.codeflare.dev"
+        assert version == "v1beta1"
+        assert name == "unit-test-cluster"
+    elif plural == "rayclusters":
+        assert group == "ray.io"
+        assert version == "v1alpha1"
+        assert name == "unit-test-cluster-ray"
+    elif plural == "routes":
+        assert group == "route.openshift.io"
+        assert version == "v1"
+        assert name == "ray-dashboard-unit-test-cluster-ray"
 
 
 def test_cluster_up_down(mocker):
@@ -322,6 +365,47 @@ def test_cluster_up_down(mocker):
     cluster = cluster = createClusterWithConfig()
     cluster.up()
     cluster.down()
+
+
+def test_cluster_up_down_no_mcad(mocker):
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.create_namespaced_custom_object",
+        side_effect=arg_check_apply_effect,
+    )
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.delete_namespaced_custom_object",
+        side_effect=arg_check_del_effect,
+    )
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_cluster_custom_object",
+        return_value={"items": []},
+    )
+    config = createClusterConfig()
+    config.name = "unit-test-cluster-ray"
+    config.mcad = False
+    cluster = Cluster(config)
+    cluster.up()
+    cluster.down()
+
+
+def arg_check_list_effect(group, version, plural, name, *args):
+    assert group == "config.openshift.io"
+    assert version == "v1"
+    assert plural == "ingresses"
+    assert name == "cluster"
+    assert args == tuple()
+    return {"spec": {"domain": "test"}}
+
+
+def test_get_ingress_domain(mocker):
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.get_cluster_custom_object",
+        side_effect=arg_check_list_effect,
+    )
+    domain = _get_ingress_domain()
+    assert domain == "test"
 
 
 def aw_status_fields(group, version, namespace, plural, *args):
@@ -2432,6 +2516,7 @@ def test_cleanup():
     os.remove("unit-test-cluster.yaml")
     os.remove("prio-test-cluster.yaml")
     os.remove("unit-test-default-cluster.yaml")
+    os.remove("unit-test-cluster-ray.yaml")
     os.remove("test.yaml")
     os.remove("raytest2.yaml")
     os.remove("quicktest.yaml")

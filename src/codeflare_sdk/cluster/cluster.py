@@ -235,8 +235,20 @@ class Cluster:
                                 plural="rayclusters",
                                 body=resource,
                             )
-                        else:
-                            print(resource["kind"])
+                        elif resource["kind"] == "Route":
+                            api_instance.create_namespaced_custom_object(
+                                group="route.openshift.io",
+                                version="v1",
+                                namespace=namespace,
+                                plural="routes",
+                                body=resource,
+                            )
+                        elif resource["kind"] == "Secret":
+                            secret_instance = client.CoreV1Api(api_config_handler())
+                            secret_instance.create_namespaced_secret(
+                                namespace=namespace,
+                                body=resource,
+                            )
         except Exception as e:  # pragma: no cover
             return _kube_api_error_handling(e)
 
@@ -269,8 +281,22 @@ class Cluster:
                                 plural="rayclusters",
                                 name=self.app_wrapper_name,
                             )
-                        else:
-                            print(resource["kind"])
+                        elif resource["kind"] == "Route":
+                            name = resource["metadata"]["name"]
+                            api_instance.delete_namespaced_custom_object(
+                                group="route.openshift.io",
+                                version="v1",
+                                namespace=namespace,
+                                plural="routes",
+                                name=name,
+                            )
+                        elif resource["kind"] == "Secret":
+                            name = resource["metadata"]["name"]
+                            secret_instance = client.CoreV1Api(api_config_handler())
+                            secret_instance.delete_namespaced_secret(
+                                namespace=namespace,
+                                name=name,
+                            )
         except Exception as e:  # pragma: no cover
             return _kube_api_error_handling(e)
 
@@ -375,7 +401,7 @@ class Cluster:
         time = 0
         while not ready:
             status, ready = self.status(print_to_console=False)
-            if status == CodeFlareClusterStatus.UNKNOWN:
+            if self.config.mcad and status == CodeFlareClusterStatus.UNKNOWN:
                 print(
                     "WARNING: Current cluster status is unknown, have you run cluster.up yet?"
                 )
@@ -472,7 +498,7 @@ class Cluster:
             to_return["requirements"] = requirements
         return to_return
 
-    def from_k8_cluster_object(rc):
+    def from_k8_cluster_object(rc, mcad=True):
         machine_types = (
             rc["metadata"]["labels"]["orderedinstance"].split("_")
             if "orderedinstance" in rc["metadata"]["labels"]
@@ -511,6 +537,7 @@ class Cluster:
                 0
             ]["image"],
             local_interactive=local_interactive,
+            mcad=mcad,
         )
         return Cluster(cluster_config)
 
@@ -571,7 +598,7 @@ def get_current_namespace():  # pragma: no cover
             return None
 
 
-def get_cluster(cluster_name: str, namespace: str = "default"):
+def get_cluster(cluster_name: str, namespace: str = "default", mcad=True):
     try:
         config_check()
         api_instance = client.CustomObjectsApi(api_config_handler())
@@ -586,7 +613,7 @@ def get_cluster(cluster_name: str, namespace: str = "default"):
 
     for rc in rcs["items"]:
         if rc["metadata"]["name"] == cluster_name:
-            return Cluster.from_k8_cluster_object(rc)
+            return Cluster.from_k8_cluster_object(rc, mcad=mcad)
     raise FileNotFoundError(
         f"Cluster {cluster_name} is not found in {namespace} namespace"
     )
@@ -697,6 +724,7 @@ def _map_to_ray_cluster(rc) -> Optional[RayCluster]:
 
     config_check()
     api_instance = client.CustomObjectsApi(api_config_handler())
+    # UPDATE THIS
     routes = api_instance.list_namespaced_custom_object(
         group="route.openshift.io",
         version="v1",
