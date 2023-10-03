@@ -237,11 +237,15 @@ def test_config_creation():
     assert config.machine_types == ["cpu.small", "gpu.large"]
     assert config.image_pull_secrets == ["unit-test-pull-secret"]
     assert config.dispatch_priority == None
+    assert config.write_to_file == True
 
 
 def test_cluster_creation():
     cluster = createClusterWithConfig()
-    assert cluster.app_wrapper_yaml == "unit-test-cluster.yaml"
+    # load yaml file and compare with in memory yaml
+    with open("unit-test-cluster.yaml") as f:
+        aw = yaml.load(f, Loader=yaml.FullLoader)
+        assert aw == cluster.app_wrapper_yaml
     assert cluster.app_wrapper_name == "unit-test-cluster"
     assert filecmp.cmp(
         "unit-test-cluster.yaml", f"{parent}/tests/test-case.yaml", shallow=True
@@ -258,7 +262,10 @@ def test_cluster_creation_priority(mocker):
     config.name = "prio-test-cluster"
     config.dispatch_priority = "default"
     cluster = Cluster(config)
-    assert cluster.app_wrapper_yaml == "prio-test-cluster.yaml"
+    # load yaml file and compare with in memory yaml
+    with open("prio-test-cluster.yaml") as f:
+        aw = yaml.load(f, Loader=yaml.FullLoader)
+        assert aw == cluster.app_wrapper_yaml
     assert cluster.app_wrapper_name == "prio-test-cluster"
     assert filecmp.cmp(
         "prio-test-cluster.yaml", f"{parent}/tests/test-case-prio.yaml", shallow=True
@@ -272,10 +279,14 @@ def test_default_cluster_creation(mocker):
     )
     default_config = ClusterConfiguration(
         name="unit-test-default-cluster",
+        write_to_file=True,
     )
     cluster = Cluster(default_config)
 
-    assert cluster.app_wrapper_yaml == "unit-test-default-cluster.yaml"
+    # open yaml file and compare with in memory yaml
+    with open("unit-test-default-cluster.yaml") as f:
+        aw = yaml.load(f, Loader=yaml.FullLoader)
+        assert aw == cluster.app_wrapper_yaml
     assert cluster.app_wrapper_name == "unit-test-default-cluster"
     assert cluster.config.namespace == "opendatahub"
 

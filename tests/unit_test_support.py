@@ -46,6 +46,7 @@ def createClusterConfig():
         instascale=True,
         machine_types=["cpu.small", "gpu.large"],
         image_pull_secrets=["unit-test-pull-secret"],
+        write_to_file=True,
     )
     return config
 
