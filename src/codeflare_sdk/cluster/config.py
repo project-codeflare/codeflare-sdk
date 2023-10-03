@@ -51,3 +51,4 @@ class ClusterConfiguration:
     local_interactive: bool = False
     image_pull_secrets: list = field(default_factory=list)
     dispatch_priority: str = None
+    write_to_file: bool = False

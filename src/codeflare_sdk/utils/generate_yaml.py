@@ -390,6 +390,7 @@ def generate_appwrapper(
     image_pull_secrets: list,
     dispatch_priority: str,
     priority_val: int,
+    write_to_file: bool,
 ):
     user_yaml = read_template(template)
     appwrapper_name, cluster_name = gen_names(name)
@@ -433,6 +434,9 @@ def generate_appwrapper(
         enable_local_interactive(resources, cluster_name, namespace)
     else:
         disable_raycluster_tls(resources["resources"])
-    outfile = appwrapper_name + ".yaml"
-    write_user_appwrapper(user_yaml, outfile)
-    return outfile
+        
+    if write_to_file:
+        outfile = appwrapper_name + ".yaml"
+        write_user_appwrapper(user_yaml, outfile)
+    
+    return user_yaml

@@ -60,7 +60,7 @@ class Cluster:
         """
         self.config = config
         self.app_wrapper_yaml = self.create_app_wrapper()
-        self.app_wrapper_name = self.app_wrapper_yaml.split(".")[0]
+        self.app_wrapper_name = self.config.name
 
     def evaluate_dispatch_priority(self):
         priority_class = self.config.dispatch_priority
@@ -147,6 +147,7 @@ class Cluster:
             image_pull_secrets=image_pull_secrets,
             dispatch_priority=dispatch_priority,
             priority_val=priority_val,
+            write_to_file=self.config.write_to_file,
         )
 
     # creates a new cluster with the provided or default spec
@@ -159,8 +160,8 @@ class Cluster:
         try:
             config_check()
             api_instance = client.CustomObjectsApi(api_config_handler())
-            with open(self.app_wrapper_yaml) as f:
-                aw = yaml.load(f, Loader=yaml.FullLoader)
+            
+            aw = self.app_wrapper_yaml
             api_instance.create_namespaced_custom_object(
                 group="workload.codeflare.dev",
                 version="v1beta1",
