@@ -457,7 +457,7 @@ def _create_oauth_sidecar_object(
     )
 
 
-def write_components(user_yaml, output_file_name):
+def write_components(user_yaml: dict, output_file_name: str):
     components = user_yaml.get("spec", "resources")["resources"].get("GenericItems")
     open(output_file_name, "w").close()
     with open(output_file_name, "a") as outfile:

@@ -224,31 +224,7 @@ class Cluster:
                     body=aw,
                 )
             else:
-                with open(self.app_wrapper_yaml) as f:
-                    yamls = yaml.load_all(f, Loader=yaml.FullLoader)
-                    for resource in yamls:
-                        if resource["kind"] == "RayCluster":
-                            api_instance.create_namespaced_custom_object(
-                                group="ray.io",
-                                version="v1alpha1",
-                                namespace=namespace,
-                                plural="rayclusters",
-                                body=resource,
-                            )
-                        elif resource["kind"] == "Route":
-                            api_instance.create_namespaced_custom_object(
-                                group="route.openshift.io",
-                                version="v1",
-                                namespace=namespace,
-                                plural="routes",
-                                body=resource,
-                            )
-                        elif resource["kind"] == "Secret":
-                            secret_instance = client.CoreV1Api(api_config_handler())
-                            secret_instance.create_namespaced_secret(
-                                namespace=namespace,
-                                body=resource,
-                            )
+                self._component_level_up(namespace, api_instance)
         except Exception as e:  # pragma: no cover
             return _kube_api_error_handling(e)
 
@@ -270,33 +246,7 @@ class Cluster:
                     name=self.app_wrapper_name,
                 )
             else:
-                with open(self.app_wrapper_yaml) as f:
-                    yamls = yaml.load_all(f, Loader=yaml.FullLoader)
-                    for resource in yamls:
-                        if resource["kind"] == "RayCluster":
-                            api_instance.delete_namespaced_custom_object(
-                                group="ray.io",
-                                version="v1alpha1",
-                                namespace=namespace,
-                                plural="rayclusters",
-                                name=self.app_wrapper_name,
-                            )
-                        elif resource["kind"] == "Route":
-                            name = resource["metadata"]["name"]
-                            api_instance.delete_namespaced_custom_object(
-                                group="route.openshift.io",
-                                version="v1",
-                                namespace=namespace,
-                                plural="routes",
-                                name=name,
-                            )
-                        elif resource["kind"] == "Secret":
-                            name = resource["metadata"]["name"]
-                            secret_instance = client.CoreV1Api(api_config_handler())
-                            secret_instance.delete_namespaced_secret(
-                                namespace=namespace,
-                                name=name,
-                            )
+                self._component_level_down(namespace, api_instance)
         except Exception as e:  # pragma: no cover
             return _kube_api_error_handling(e)
 
@@ -350,7 +300,10 @@ class Cluster:
 
         # check the ray cluster status
         cluster = _ray_cluster_status(self.config.name, self.config.namespace)
-        if cluster and not cluster.status == RayClusterStatus.UNKNOWN:
+        if cluster:
+            if cluster.status == RayClusterStatus.UNKNOWN:
+                ready = False
+                status = CodeFlareClusterStatus.STARTING
             if cluster.status == RayClusterStatus.READY:
                 ready = True
                 status = CodeFlareClusterStatus.READY
@@ -401,7 +354,7 @@ class Cluster:
         time = 0
         while not ready:
             status, ready = self.status(print_to_console=False)
-            if self.config.mcad and status == CodeFlareClusterStatus.UNKNOWN:
+            if status == CodeFlareClusterStatus.UNKNOWN:
                 print(
                     "WARNING: Current cluster status is unknown, have you run cluster.up yet?"
                 )
@@ -547,6 +500,66 @@ class Cluster:
             return f"ray://rayclient-{self.config.name}-{self.config.namespace}.{ingress_domain}"
         else:
             return "None"
+
+    def _component_level_up(
+        self, namespace: str, api_instance: client.CustomObjectsApi
+    ):
+        with open(self.app_wrapper_yaml) as f:
+            yamls = yaml.load_all(f, Loader=yaml.FullLoader)
+            for resource in yamls:
+                if resource["kind"] == "RayCluster":
+                    api_instance.create_namespaced_custom_object(
+                        group="ray.io",
+                        version="v1alpha1",
+                        namespace=namespace,
+                        plural="rayclusters",
+                        body=resource,
+                    )
+                elif resource["kind"] == "Route":
+                    api_instance.create_namespaced_custom_object(
+                        group="route.openshift.io",
+                        version="v1",
+                        namespace=namespace,
+                        plural="routes",
+                        body=resource,
+                    )
+                elif resource["kind"] == "Secret":
+                    secret_instance = client.CoreV1Api(api_config_handler())
+                    secret_instance.create_namespaced_secret(
+                        namespace=namespace,
+                        body=resource,
+                    )
+
+    def _component_level_down(
+        self, namespace: str, api_instance: client.CustomObjectsApi
+    ):
+        with open(self.app_wrapper_yaml) as f:
+            yamls = yaml.load_all(f, Loader=yaml.FullLoader)
+            for resource in yamls:
+                if resource["kind"] == "RayCluster":
+                    api_instance.delete_namespaced_custom_object(
+                        group="ray.io",
+                        version="v1alpha1",
+                        namespace=namespace,
+                        plural="rayclusters",
+                        name=self.app_wrapper_name,
+                    )
+                elif resource["kind"] == "Route":
+                    name = resource["metadata"]["name"]
+                    api_instance.delete_namespaced_custom_object(
+                        group="route.openshift.io",
+                        version="v1",
+                        namespace=namespace,
+                        plural="routes",
+                        name=name,
+                    )
+                elif resource["kind"] == "Secret":
+                    name = resource["metadata"]["name"]
+                    secret_instance = client.CoreV1Api(api_config_handler())
+                    secret_instance.delete_namespaced_secret(
+                        namespace=namespace,
+                        name=name,
+                    )
 
 
 def list_all_clusters(namespace: str, print_to_console: bool = True):
