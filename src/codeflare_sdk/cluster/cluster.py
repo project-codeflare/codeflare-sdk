@@ -224,7 +224,7 @@ class Cluster:
                     body=aw,
                 )
             else:
-                self._component_level_up(namespace, api_instance)
+                self._component_resources_up(namespace, api_instance)
         except Exception as e:  # pragma: no cover
             return _kube_api_error_handling(e)
 
@@ -246,7 +246,7 @@ class Cluster:
                     name=self.app_wrapper_name,
                 )
             else:
-                self._component_level_down(namespace, api_instance)
+                self._component_resources_down(namespace, api_instance)
         except Exception as e:  # pragma: no cover
             return _kube_api_error_handling(e)
 
@@ -501,7 +501,7 @@ class Cluster:
         else:
             return "None"
 
-    def _component_level_up(
+    def _component_resources_up(
         self, namespace: str, api_instance: client.CustomObjectsApi
     ):
         with open(self.app_wrapper_yaml) as f:
@@ -530,7 +530,7 @@ class Cluster:
                         body=resource,
                     )
 
-    def _component_level_down(
+    def _component_resources_down(
         self, namespace: str, api_instance: client.CustomObjectsApi
     ):
         with open(self.app_wrapper_yaml) as f:
