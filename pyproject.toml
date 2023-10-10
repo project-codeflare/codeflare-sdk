@@ -20,7 +20,7 @@ homepage = "https://github.com/project-codeflare/codeflare-sdk"
 keywords = ['codeflare', 'python', 'sdk', 'client', 'batch', 'scale']
 
 [tool.poetry.dependencies]
-python = "^3.9"
+python = "^3.8"
 openshift-client = "1.0.18"
 rich = "^12.5"
 ray = {version = "2.7.0", extras = ["default"]}
