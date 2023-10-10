@@ -12,8 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM  quay.io/opendatahub/notebooks:jupyter-minimal-ubi8-python-3.8-4c8f26e
-# Install: torch (v1.12), ray (v2.1.0) and others
+FROM  quay.io/opendatahub/notebooks:jupyter-minimal-ubi9-python-3.9-2023a_20230302
 
 COPY requirements.txt requirements.txt
 
