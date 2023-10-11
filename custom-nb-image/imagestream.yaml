@@ -21,7 +21,7 @@ metadata:
   annotations:
     opendatahub.io/notebook-image-name:
       "CodeFlare Notebook"
-    opendatahub.io/notebook-image-desc: "Custom Jupyter notebook image with CodeFlare SDK, Python 3.8, Ray 2.5.0 and PyTorch 1.12.1"
+    opendatahub.io/notebook-image-desc: "Custom Jupyter notebook image with CodeFlare SDK, Python 3.9, Ray 2.7.0 and PyTorch 1.12.1"
 spec:
   lookupPolicy:
     local: true
