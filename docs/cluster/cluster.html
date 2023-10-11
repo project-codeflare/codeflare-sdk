@@ -141,6 +141,9 @@ class Cluster:
 
         name = self.config.name
         namespace = self.config.namespace
+        head_cpus = self.config.head_cpus
+        head_memory = self.config.head_memory
+        head_gpus = self.config.head_gpus
         min_cpu = self.config.min_cpus
         max_cpu = self.config.max_cpus
         min_memory = self.config.min_memory
@@ -158,6 +161,9 @@ class Cluster:
         return generate_appwrapper(
             name=name,
             namespace=namespace,
+            head_cpus=head_cpus,
+            head_memory=head_memory,
+            head_gpus=head_gpus,
             min_cpu=min_cpu,
             max_cpu=max_cpu,
             min_memory=min_memory,
@@ -290,7 +296,7 @@ class Cluster:
         else:
             return False
 
-    def wait_ready(self, timeout: Optional[int] = None):
+    def wait_ready(self, timeout: Optional[int] = None, dashboard_check: bool = True):
         &#34;&#34;&#34;
         Waits for requested cluster to be ready, up to an optional timeout (s).
         Checks every five seconds.
@@ -300,19 +306,32 @@ class Cluster:
         dashboard_ready = False
         status = None
         time = 0
-        while not ready or not dashboard_ready:
+        while not ready:
             status, ready = self.status(print_to_console=False)
-            dashboard_ready = self.is_dashboard_ready()
             if status == CodeFlareClusterStatus.UNKNOWN:
                 print(
                     &#34;WARNING: Current cluster status is unknown, have you run cluster.up yet?&#34;
                 )
-            if not ready or not dashboard_ready:
+            if not ready:
                 if timeout and time &gt;= timeout:
-                    raise TimeoutError(f&#34;wait() timed out after waiting {timeout}s&#34;)
+                    raise TimeoutError(
+                        f&#34;wait() timed out after waiting {timeout}s for cluster to be ready&#34;
+                    )
                 sleep(5)
                 time += 5
-        print(&#34;Requested cluster and dashboard are up and running!&#34;)
+        print(&#34;Requested cluster is up and running!&#34;)
+
+        while dashboard_check and not dashboard_ready:
+            dashboard_ready = self.is_dashboard_ready()
+            if not dashboard_ready:
+                if timeout and time &gt;= timeout:
+                    raise TimeoutError(
+                        f&#34;wait() timed out after waiting {timeout}s for dashboard to be ready&#34;
+                    )
+                sleep(5)
+                time += 5
+        if dashboard_ready:
+            print(&#34;Dashboard is ready!&#34;)
 
     def details(self, print_to_console: bool = True) -&gt; RayCluster:
         cluster = _copy_to_ray(self)
@@ -640,6 +659,15 @@ def _map_to_ray_cluster(rc) -&gt; Optional[RayCluster]:
         worker_gpu=0,  # hard to detect currently how many gpus, can override it with what the user asked for
         namespace=rc[&#34;metadata&#34;][&#34;namespace&#34;],
         dashboard=ray_route,
+        head_cpus=rc[&#34;spec&#34;][&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;][&#34;containers&#34;][0][
+            &#34;resources&#34;
+        ][&#34;limits&#34;][&#34;cpu&#34;],
+        head_mem=rc[&#34;spec&#34;][&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;][&#34;containers&#34;][0][
+            &#34;resources&#34;
+        ][&#34;limits&#34;][&#34;memory&#34;],
+        head_gpu=rc[&#34;spec&#34;][&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;][&#34;containers&#34;][0][
+            &#34;resources&#34;
+        ][&#34;limits&#34;][&#34;nvidia.com/gpu&#34;],
     )
 
 
@@ -670,6 +698,9 @@ def _copy_to_ray(cluster: Cluster) -&gt; RayCluster:
         worker_gpu=cluster.config.num_gpus,
         namespace=cluster.config.namespace,
         dashboard=cluster.cluster_dashboard_uri(),
+        head_cpus=cluster.config.head_cpus,
+        head_mem=cluster.config.head_memory,
+        head_gpu=cluster.config.head_gpus,
     )
     if ray.status == CodeFlareClusterStatus.READY:
         ray.status = RayClusterStatus.READY
@@ -879,6 +910,9 @@ request.</p></div>
 
         name = self.config.name
         namespace = self.config.namespace
+        head_cpus = self.config.head_cpus
+        head_memory = self.config.head_memory
+        head_gpus = self.config.head_gpus
         min_cpu = self.config.min_cpus
         max_cpu = self.config.max_cpus
         min_memory = self.config.min_memory
@@ -896,6 +930,9 @@ request.</p></div>
         return generate_appwrapper(
             name=name,
             namespace=namespace,
+            head_cpus=head_cpus,
+            head_memory=head_memory,
+            head_gpus=head_gpus,
             min_cpu=min_cpu,
             max_cpu=max_cpu,
             min_memory=min_memory,
@@ -1028,7 +1065,7 @@ request.</p></div>
         else:
             return False
 
-    def wait_ready(self, timeout: Optional[int] = None):
+    def wait_ready(self, timeout: Optional[int] = None, dashboard_check: bool = True):
         &#34;&#34;&#34;
         Waits for requested cluster to be ready, up to an optional timeout (s).
         Checks every five seconds.
@@ -1038,19 +1075,32 @@ request.</p></div>
         dashboard_ready = False
         status = None
         time = 0
-        while not ready or not dashboard_ready:
+        while not ready:
             status, ready = self.status(print_to_console=False)
-            dashboard_ready = self.is_dashboard_ready()
             if status == CodeFlareClusterStatus.UNKNOWN:
                 print(
                     &#34;WARNING: Current cluster status is unknown, have you run cluster.up yet?&#34;
                 )
-            if not ready or not dashboard_ready:
+            if not ready:
                 if timeout and time &gt;= timeout:
-                    raise TimeoutError(f&#34;wait() timed out after waiting {timeout}s&#34;)
+                    raise TimeoutError(
+                        f&#34;wait() timed out after waiting {timeout}s for cluster to be ready&#34;
+                    )
                 sleep(5)
                 time += 5
-        print(&#34;Requested cluster and dashboard are up and running!&#34;)
+        print(&#34;Requested cluster is up and running!&#34;)
+
+        while dashboard_check and not dashboard_ready:
+            dashboard_ready = self.is_dashboard_ready()
+            if not dashboard_ready:
+                if timeout and time &gt;= timeout:
+                    raise TimeoutError(
+                        f&#34;wait() timed out after waiting {timeout}s for dashboard to be ready&#34;
+                    )
+                sleep(5)
+                time += 5
+        if dashboard_ready:
+            print(&#34;Dashboard is ready!&#34;)
 
     def details(self, print_to_console: bool = True) -&gt; RayCluster:
         cluster = _copy_to_ray(self)
@@ -1267,6 +1317,9 @@ the specifications of the ClusterConfiguration.</p></div>
 
     name = self.config.name
     namespace = self.config.namespace
+    head_cpus = self.config.head_cpus
+    head_memory = self.config.head_memory
+    head_gpus = self.config.head_gpus
     min_cpu = self.config.min_cpus
     max_cpu = self.config.max_cpus
     min_memory = self.config.min_memory
@@ -1284,6 +1337,9 @@ the specifications of the ClusterConfiguration.</p></div>
     return generate_appwrapper(
         name=name,
         namespace=namespace,
+        head_cpus=head_cpus,
+        head_memory=head_memory,
+        head_gpus=head_gpus,
         min_cpu=min_cpu,
         max_cpu=max_cpu,
         min_memory=min_memory,
@@ -1653,7 +1709,7 @@ the MCAD queue.</p></div>
 </details>
 </dd>
 <dt id="codeflare_sdk.cluster.cluster.Cluster.wait_ready"><code class="name flex">
-<span>def <span class="ident">wait_ready</span></span>(<span>self, timeout: Optional[int] = None)</span>
+<span>def <span class="ident">wait_ready</span></span>(<span>self, timeout: Optional[int] = None, dashboard_check: bool = True)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Waits for requested cluster to be ready, up to an optional timeout (s).
@@ -1662,7 +1718,7 @@ Checks every five seconds.</p></div>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def wait_ready(self, timeout: Optional[int] = None):
+<pre><code class="python">def wait_ready(self, timeout: Optional[int] = None, dashboard_check: bool = True):
     &#34;&#34;&#34;
     Waits for requested cluster to be ready, up to an optional timeout (s).
     Checks every five seconds.
@@ -1672,19 +1728,32 @@ Checks every five seconds.</p></div>
     dashboard_ready = False
     status = None
     time = 0
-    while not ready or not dashboard_ready:
+    while not ready:
         status, ready = self.status(print_to_console=False)
-        dashboard_ready = self.is_dashboard_ready()
         if status == CodeFlareClusterStatus.UNKNOWN:
             print(
                 &#34;WARNING: Current cluster status is unknown, have you run cluster.up yet?&#34;
             )
-        if not ready or not dashboard_ready:
+        if not ready:
             if timeout and time &gt;= timeout:
-                raise TimeoutError(f&#34;wait() timed out after waiting {timeout}s&#34;)
+                raise TimeoutError(
+                    f&#34;wait() timed out after waiting {timeout}s for cluster to be ready&#34;
+                )
             sleep(5)
             time += 5
-    print(&#34;Requested cluster and dashboard are up and running!&#34;)</code></pre>
+    print(&#34;Requested cluster is up and running!&#34;)
+
+    while dashboard_check and not dashboard_ready:
+        dashboard_ready = self.is_dashboard_ready()
+        if not dashboard_ready:
+            if timeout and time &gt;= timeout:
+                raise TimeoutError(
+                    f&#34;wait() timed out after waiting {timeout}s for dashboard to be ready&#34;
+                )
+            sleep(5)
+            time += 5
+    if dashboard_ready:
+        print(&#34;Dashboard is ready!&#34;)</code></pre>
 </details>
 </dd>
 </dl>
