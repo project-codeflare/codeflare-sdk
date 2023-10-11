@@ -102,6 +102,9 @@ class RayCluster:
 
     name: str
     status: RayClusterStatus
+    head_cpus: int
+    head_mem: str
+    head_gpu: int
     workers: int
     worker_mem_min: str
     worker_mem_max: str
@@ -287,7 +290,7 @@ class AppWrapper:
 </dd>
 <dt id="codeflare_sdk.cluster.model.RayCluster"><code class="flex name class">
 <span>class <span class="ident">RayCluster</span></span>
-<span>(</span><span>name: str, status: <a title="codeflare_sdk.cluster.model.RayClusterStatus" href="#codeflare_sdk.cluster.model.RayClusterStatus">RayClusterStatus</a>, workers: int, worker_mem_min: str, worker_mem_max: str, worker_cpu: int, worker_gpu: int, namespace: str, dashboard: str)</span>
+<span>(</span><span>name: str, status: <a title="codeflare_sdk.cluster.model.RayClusterStatus" href="#codeflare_sdk.cluster.model.RayClusterStatus">RayClusterStatus</a>, head_cpus: int, head_mem: str, head_gpu: int, workers: int, worker_mem_min: str, worker_mem_max: str, worker_cpu: int, worker_gpu: int, namespace: str, dashboard: str)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>For storing information about a Ray cluster.</p></div>
@@ -302,6 +305,9 @@ class AppWrapper:
 
     name: str
     status: RayClusterStatus
+    head_cpus: int
+    head_mem: str
+    head_gpu: int
     workers: int
     worker_mem_min: str
     worker_mem_max: str
@@ -313,6 +319,18 @@ class AppWrapper:
 <h3>Class variables</h3>
 <dl>
 <dt id="codeflare_sdk.cluster.model.RayCluster.dashboard"><code class="name">var <span class="ident">dashboard</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="codeflare_sdk.cluster.model.RayCluster.head_cpus"><code class="name">var <span class="ident">head_cpus</span> : int</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="codeflare_sdk.cluster.model.RayCluster.head_gpu"><code class="name">var <span class="ident">head_gpu</span> : int</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="codeflare_sdk.cluster.model.RayCluster.head_mem"><code class="name">var <span class="ident">head_mem</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -447,6 +465,9 @@ class AppWrapper:
 <h4><code><a title="codeflare_sdk.cluster.model.RayCluster" href="#codeflare_sdk.cluster.model.RayCluster">RayCluster</a></code></h4>
 <ul class="two-column">
 <li><code><a title="codeflare_sdk.cluster.model.RayCluster.dashboard" href="#codeflare_sdk.cluster.model.RayCluster.dashboard">dashboard</a></code></li>
+<li><code><a title="codeflare_sdk.cluster.model.RayCluster.head_cpus" href="#codeflare_sdk.cluster.model.RayCluster.head_cpus">head_cpus</a></code></li>
+<li><code><a title="codeflare_sdk.cluster.model.RayCluster.head_gpu" href="#codeflare_sdk.cluster.model.RayCluster.head_gpu">head_gpu</a></code></li>
+<li><code><a title="codeflare_sdk.cluster.model.RayCluster.head_mem" href="#codeflare_sdk.cluster.model.RayCluster.head_mem">head_mem</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.model.RayCluster.name" href="#codeflare_sdk.cluster.model.RayCluster.name">name</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.model.RayCluster.namespace" href="#codeflare_sdk.cluster.model.RayCluster.namespace">namespace</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.model.RayCluster.status" href="#codeflare_sdk.cluster.model.RayCluster.status">status</a></code></li>
