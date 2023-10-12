@@ -92,31 +92,39 @@ class DDPJobDefinition(JobDefinition):
 
     def _dry_run(self, cluster: "Cluster"):
         j = f"{cluster.config.num_workers}x{max(cluster.config.num_gpus, 1)}"  # # of proc. = # of gpus
+        app = ddp(
+            *self.script_args,
+            script=self.script,
+            m=self.m,
+            name=self.name,
+            h=self.h,
+            cpu=self.cpu if self.cpu is not None else cluster.config.max_cpus,
+            gpu=self.gpu if self.gpu is not None else cluster.config.num_gpus,
+            memMB=self.memMB
+            if self.memMB is not None
+            else cluster.config.max_memory * 1024,
+            j=self.j if self.j is not None else j,
+            env=self.env,
+            max_retries=self.max_retries,
+            rdzv_port=self.rdzv_port,
+            rdzv_backend=self.rdzv_backend
+            if self.rdzv_backend is not None
+            else "static",
+            mounts=self.mounts,
+        )
+        app = self._set_rdzv_as_head_node(app, cluster)
         return torchx_runner.dryrun(
-            app=ddp(
-                *self.script_args,
-                script=self.script,
-                m=self.m,
-                name=self.name,
-                h=self.h,
-                cpu=self.cpu if self.cpu is not None else cluster.config.max_cpus,
-                gpu=self.gpu if self.gpu is not None else cluster.config.num_gpus,
-                memMB=self.memMB
-                if self.memMB is not None
-                else cluster.config.max_memory * 1024,
-                j=self.j if self.j is not None else j,
-                env=self.env,
-                max_retries=self.max_retries,
-                rdzv_port=self.rdzv_port,
-                rdzv_backend=self.rdzv_backend
-                if self.rdzv_backend is not None
-                else "static",
-                mounts=self.mounts,
-            ),
+            app=app,
             scheduler=cluster.torchx_scheduler,
             cfg=cluster.torchx_config(**self.scheduler_args),
             workspace=self.workspace,
         )
+
+    def _set_rdzv_as_head_node(self, app: AppDryRunInfo, cluster: "Cluster"):
+        head_node_ip = app.roles[0].args[1].split(" ")
+        head_node_ip[4] = f"{cluster.get_head_ip()}:{self.rdzv_port}"
+        app.roles[0].args[1] = " ".join(head_node_ip)
+        return app
 
     def _missing_spec(self, spec: str):
         raise ValueError(f"Job definition missing arg: {spec}")
