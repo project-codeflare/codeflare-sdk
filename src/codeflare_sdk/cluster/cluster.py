@@ -611,7 +611,7 @@ def get_current_namespace():  # pragma: no cover
             return None
 
 
-def get_cluster(cluster_name: str, namespace: str = "default", mcad=True):
+def get_cluster(cluster_name: str, namespace: str = "default"):
     try:
         config_check()
         api_instance = client.CustomObjectsApi(api_config_handler())
@@ -626,6 +626,7 @@ def get_cluster(cluster_name: str, namespace: str = "default", mcad=True):
 
     for rc in rcs["items"]:
         if rc["metadata"]["name"] == cluster_name:
+            mcad = _check_aw_exists(cluster_name, namespace)
             return Cluster.from_k8_cluster_object(rc, mcad=mcad)
     raise FileNotFoundError(
         f"Cluster {cluster_name} is not found in {namespace} namespace"
@@ -633,6 +634,25 @@ def get_cluster(cluster_name: str, namespace: str = "default", mcad=True):
 
 
 # private methods
+def _check_aw_exists(name: str, namespace: str) -> bool:
+    try:
+        config_check()
+        api_instance = client.CustomObjectsApi(api_config_handler())
+        aws = api_instance.list_namespaced_custom_object(
+            group="workload.codeflare.dev",
+            version="v1beta1",
+            namespace=namespace,
+            plural="appwrappers",
+        )
+    except Exception as e:  # pragma: no cover
+        return _kube_api_error_handling(e, print_error=False)
+
+    for aw in aws["items"]:
+        if aw["metadata"]["name"] == name:
+            return True
+    return False
+
+
 def _get_ingress_domain():
     try:
         config_check()

@@ -51,7 +51,7 @@ spec:
             value: /home/ray/workspace/tls/server.key
           - name: RAY_TLS_CA_CERT
             value: /home/ray/workspace/tls/ca.crt
-          image: quay.io/project-codeflare/ray:2.5.0-py38-cu116
+          image: quay.io/project-codeflare/ray:latest-py39-cu118
           imagePullPolicy: Always
           lifecycle:
             preStop:
@@ -79,7 +79,7 @@ spec:
               nvidia.com/gpu: 0
         imagePullSecrets:
         - name: unit-test-pull-secret
-  rayVersion: 2.5.0
+  rayVersion: 2.7.0
   workerGroupSpecs:
   - groupName: small-group-unit-test-cluster-ray
     maxReplicas: 2
@@ -118,7 +118,7 @@ spec:
             value: /home/ray/workspace/tls/server.key
           - name: RAY_TLS_CA_CERT
             value: /home/ray/workspace/tls/ca.crt
-          image: quay.io/project-codeflare/ray:2.5.0-py38-cu116
+          image: quay.io/project-codeflare/ray:latest-py39-cu118
           lifecycle:
             preStop:
               exec:
