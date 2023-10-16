@@ -33,7 +33,7 @@ spec:
         kind: RayCluster
         metadata:
           labels:
-            appwrapper.mcad.ibm.com: interactivetest
+            workload.codeflare.dev/appwrapper: interactivetest
             controller-tools.k8s.io: '1.0'
           name: interactivetest
           namespace: default

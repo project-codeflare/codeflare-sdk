@@ -33,7 +33,7 @@ spec:
         kind: RayCluster
         metadata:
           labels:
-            appwrapper.mcad.ibm.com: instascaletest
+            workload.codeflare.dev/appwrapper: instascaletest
             controller-tools.k8s.io: '1.0'
           name: instascaletest
           namespace: default
