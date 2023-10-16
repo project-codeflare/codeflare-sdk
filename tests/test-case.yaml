@@ -32,8 +32,8 @@ spec:
         kind: RayCluster
         metadata:
           labels:
-            workload.codeflare.dev/appwrapper: unit-test-cluster
             controller-tools.k8s.io: '1.0'
+            workload.codeflare.dev/appwrapper: unit-test-cluster
           name: unit-test-cluster
           namespace: ns
         spec:
