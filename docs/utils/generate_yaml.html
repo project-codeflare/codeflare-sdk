@@ -110,7 +110,7 @@ def update_names(yaml, item, appwrapper_name, cluster_name, namespace):
     metadata[&#34;name&#34;] = appwrapper_name
     metadata[&#34;namespace&#34;] = namespace
     lower_meta = item.get(&#34;generictemplate&#34;, {}).get(&#34;metadata&#34;)
-    lower_meta[&#34;labels&#34;][&#34;appwrapper.mcad.ibm.com&#34;] = appwrapper_name
+    lower_meta[&#34;labels&#34;][&#34;workload.codeflare.dev/appwrapper&#34;] = appwrapper_name
     lower_meta[&#34;name&#34;] = cluster_name
     lower_meta[&#34;namespace&#34;] = namespace
 
@@ -1104,7 +1104,7 @@ def generate_appwrapper(
     metadata[&#34;name&#34;] = appwrapper_name
     metadata[&#34;namespace&#34;] = namespace
     lower_meta = item.get(&#34;generictemplate&#34;, {}).get(&#34;metadata&#34;)
-    lower_meta[&#34;labels&#34;][&#34;appwrapper.mcad.ibm.com&#34;] = appwrapper_name
+    lower_meta[&#34;labels&#34;][&#34;workload.codeflare.dev/appwrapper&#34;] = appwrapper_name
     lower_meta[&#34;name&#34;] = cluster_name
     lower_meta[&#34;namespace&#34;] = namespace</code></pre>
 </details>

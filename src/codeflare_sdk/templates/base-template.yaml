@@ -41,7 +41,7 @@ spec:
         kind: RayCluster
         metadata:
           labels:
-            appwrapper.mcad.ibm.com: "aw-kuberay"
+            workload.codeflare.dev/appwrapper: "aw-kuberay"
             controller-tools.k8s.io: "1.0"
             # A unique identifier for the head node and workers of this cluster.
           name: kuberay-cluster

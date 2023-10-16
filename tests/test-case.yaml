@@ -32,7 +32,7 @@ spec:
         kind: RayCluster
         metadata:
           labels:
-            appwrapper.mcad.ibm.com: unit-test-cluster
+            workload.codeflare.dev/appwrapper: unit-test-cluster
             controller-tools.k8s.io: '1.0'
           name: unit-test-cluster
           namespace: ns
