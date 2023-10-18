@@ -42,6 +42,7 @@ from codeflare_sdk.cluster.auth import (
     config_check,
     api_config_handler,
 )
+from codeflare_sdk.utils.openshift_oauth import create_openshift_oauth_objects
 from codeflare_sdk.utils.pretty_print import (
     print_no_resources_found,
     print_app_wrappers_status,
@@ -2291,6 +2292,56 @@ def test_export_env():
     )
     assert os.environ["RAY_TLS_CA_CERT"] == os.path.join(
         os.getcwd(), f"tls-{tls_dir}-{ns}", "ca.crt"
+    )
+
+
+# TODO add checks to make sure that when calling generate oauth objects that the fields that are expected to match do
+def test_create_openshift_oauth(mocker: MockerFixture):
+    create_namespaced_service_account = MagicMock()
+    create_cluster_role_binding = MagicMock()
+    create_namespaced_service = MagicMock()
+    create_namespaced_ingress = MagicMock()
+    mocker.patch.object(
+        client.CoreV1Api,
+        "create_namespaced_service_account",
+        create_namespaced_service_account,
+    )
+    mocker.patch.object(
+        client.RbacAuthorizationV1Api,
+        "create_cluster_role_binding",
+        create_cluster_role_binding,
+    )
+    mocker.patch.object(
+        client.CoreV1Api, "create_namespaced_service", create_namespaced_service
+    )
+    mocker.patch.object(
+        client.NetworkingV1Api, "create_namespaced_ingress", create_namespaced_ingress
+    )
+    mocker.patch(
+        "codeflare_sdk.utils.openshift_oauth._get_api_host", return_value="foo.com"
+    )
+    create_openshift_oauth_objects("foo", "bar")
+    create_ns_sa_args = create_namespaced_service_account.call_args
+    create_crb_args = create_cluster_role_binding.call_args
+    create_ns_serv_args = create_namespaced_service.call_args
+    create_ns_ingress_args = create_namespaced_ingress.call_args
+    assert (
+        create_ns_sa_args.kwargs["namespace"] == create_ns_serv_args.kwargs["namespace"]
+    )
+    assert (
+        create_ns_serv_args.kwargs["namespace"]
+        == create_ns_ingress_args.kwargs["namespace"]
+    )
+    assert isinstance(create_ns_sa_args.kwargs["body"], client.V1ServiceAccount)
+    assert isinstance(create_crb_args.kwargs["body"], client.V1ClusterRoleBinding)
+    assert isinstance(create_ns_serv_args.kwargs["body"], client.V1Service)
+    assert isinstance(create_ns_ingress_args.kwargs["body"], client.V1Ingress)
+    assert (
+        create_ns_serv_args.kwargs["body"].spec.ports[0].name
+        == create_ns_ingress_args.kwargs["body"]
+        .spec.rules[0]
+        .http.paths[0]
+        .backend.service.port.name
     )
 
 

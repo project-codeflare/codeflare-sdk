@@ -7,6 +7,10 @@ from ..cluster.auth import config_check, api_config_handler
 from kubernetes import client
 
 
+def _get_api_host(api_client: client.ApiClient):
+    return parse_url(api_client.configuration.host).host
+
+
 def create_openshift_oauth_objects(cluster_name, namespace):
     config_check()
     api_client = api_config_handler()
@@ -15,7 +19,7 @@ def create_openshift_oauth_objects(cluster_name, namespace):
     tls_secret_name = _gen_tls_secret_name(cluster_name)
     service_name = f"{cluster_name}-oauth"
     port_name = "oauth-proxy"
-    host = parse_url(api_client.configuration.host).host
+    host = _get_api_host(api_client)
 
     # replace "^api" with the expected host
     host = f"{gen_dashboard_route_name(cluster_name)}-{namespace}.apps" + host.lstrip(
