@@ -30,6 +30,8 @@ from urllib3.util import parse_url
 
 from kubernetes import client, config
 
+from .kube_api_helpers import _get_api_host
+
 
 def read_template(template):
     with open(template, "r") as stream:
@@ -380,14 +382,14 @@ def write_user_appwrapper(user_yaml, output_file_name):
 
 def enable_openshift_oauth(user_yaml, cluster_name, namespace):
     config_check()
-    k8_client = api_config_handler()
+    k8_client = api_config_handler() or client.ApiClient()
     tls_mount_location = "/etc/tls/private"
     oauth_port = 8443
     oauth_sa_name = f"{cluster_name}-oauth-proxy"
     tls_secret_name = f"{cluster_name}-proxy-tls-secret"
     tls_volume_name = "proxy-tls-secret"
     port_name = "oauth-proxy"
-    _, _, host, _, _, _, _ = parse_url(k8_client.configuration.host)
+    host = _get_api_host(k8_client)
     host = host.replace(
         "api.", f"{gen_dashboard_route_name(cluster_name)}-{namespace}.apps."
     )
@@ -414,14 +416,14 @@ def enable_openshift_oauth(user_yaml, cluster_name, namespace):
     user_yaml["spec"]["resources"]["GenericItems"].pop(1)
     ray_headgroup_pod["serviceAccount"] = oauth_sa_name
     ray_headgroup_pod["volumes"] = ray_headgroup_pod.get("volumes", [])
+
+    # we use a generic api client here so that the serialization function doesn't need to be mocked for unit tests
     ray_headgroup_pod["volumes"].append(
-        k8_client.sanitize_for_serialization(tls_secret_volume)
+        client.ApiClient().sanitize_for_serialization(tls_secret_volume)
     )
     ray_headgroup_pod["containers"].append(
-        k8_client.sanitize_for_serialization(oauth_sidecar)
+        client.ApiClient().sanitize_for_serialization(oauth_sidecar)
     )
-    # add volume to headnode
-    # add sidecar container to ray object
 
 
 def _create_oauth_sidecar_object(

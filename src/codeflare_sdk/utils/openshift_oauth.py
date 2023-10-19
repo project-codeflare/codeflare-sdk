@@ -1,5 +1,6 @@
 from urllib3.util import parse_url
 from .generate_yaml import gen_dashboard_route_name
+from .kube_api_helpers import _get_api_host
 from base64 import b64decode
 
 from ..cluster.auth import config_check, api_config_handler
@@ -7,13 +8,9 @@ from ..cluster.auth import config_check, api_config_handler
 from kubernetes import client
 
 
-def _get_api_host(api_client: client.ApiClient):
-    return parse_url(api_client.configuration.host).host
-
-
 def create_openshift_oauth_objects(cluster_name, namespace):
     config_check()
-    api_client = api_config_handler()
+    api_client = api_config_handler() or client.ApiClient()
     oauth_port = 8443
     oauth_sa_name = f"{cluster_name}-oauth-proxy"
     tls_secret_name = _gen_tls_secret_name(cluster_name)
@@ -116,19 +113,6 @@ def delete_openshift_oauth_objects(cluster_name, namespace):
     client.RbacAuthorizationV1Api(api_client).delete_cluster_role_binding(
         name=f"{cluster_name}-rb"
     )
-
-
-def download_tls_cert(cluster_name, namespace, output_file):
-    api_client = api_config_handler()
-    b64_tls_cert = (
-        client.CoreV1Api(api_client)
-        .read_namespaced_secret(
-            name=_gen_tls_secret_name(cluster_name=cluster_name), namespace=namespace
-        )
-        .data["tls.crt"]
-    )
-    with open(output_file, "w+") as f:
-        f.write(b64decode(b64_tls_cert).decode("ascii"))
 
 
 def _create_or_replace_oauth_service_obj(

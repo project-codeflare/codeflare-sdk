@@ -29,7 +29,6 @@ import openshift as oc
 if TYPE_CHECKING:
     from ..cluster.cluster import Cluster
 from ..cluster.cluster import get_current_namespace
-from ..utils.openshift_oauth import download_tls_cert
 
 all_jobs: List["Job"] = []
 

@@ -33,7 +33,6 @@ from ..utils.kube_api_helpers import _kube_api_error_handling
 from ..utils.openshift_oauth import (
     create_openshift_oauth_objects,
     delete_openshift_oauth_objects,
-    download_tls_cert,
 )
 from .config import ClusterConfiguration
 from .model import (

@@ -40,7 +40,6 @@ from codeflare_sdk.cluster.auth import (
     Authentication,
     KubeConfigFileAuthentication,
     config_check,
-    api_config_handler,
 )
 from codeflare_sdk.utils.openshift_oauth import create_openshift_oauth_objects
 from codeflare_sdk.utils.pretty_print import (
@@ -75,6 +74,8 @@ from unit_test_support import (
     createClusterConfig,
     createDDPJob_with_cluster,
 )
+
+import codeflare_sdk.utils.kube_api_helpers
 
 import openshift
 from openshift.selector import Selector
@@ -2295,7 +2296,6 @@ def test_export_env():
     )
 
 
-# TODO add checks to make sure that when calling generate oauth objects that the fields that are expected to match do
 def test_create_openshift_oauth(mocker: MockerFixture):
     create_namespaced_service_account = MagicMock()
     create_cluster_role_binding = MagicMock()
@@ -2342,6 +2342,88 @@ def test_create_openshift_oauth(mocker: MockerFixture):
         .spec.rules[0]
         .http.paths[0]
         .backend.service.port.name
+    )
+
+
+def test_replace_openshift_oauth(mocker: MockerFixture):
+    # not_found_exception = client.ApiException(reason="Conflict")
+    create_namespaced_service_account = MagicMock(
+        side_effect=client.ApiException(reason="Conflict")
+    )
+    create_cluster_role_binding = MagicMock(
+        side_effect=client.ApiException(reason="Conflict")
+    )
+    create_namespaced_service = MagicMock(
+        side_effect=client.ApiException(reason="Conflict")
+    )
+    create_namespaced_ingress = MagicMock(
+        side_effect=client.ApiException(reason="Conflict")
+    )
+    mocker.patch.object(
+        client.CoreV1Api,
+        "create_namespaced_service_account",
+        create_namespaced_service_account,
+    )
+    mocker.patch.object(
+        client.RbacAuthorizationV1Api,
+        "create_cluster_role_binding",
+        create_cluster_role_binding,
+    )
+    mocker.patch.object(
+        client.CoreV1Api, "create_namespaced_service", create_namespaced_service
+    )
+    mocker.patch.object(
+        client.NetworkingV1Api, "create_namespaced_ingress", create_namespaced_ingress
+    )
+    mocker.patch(
+        "codeflare_sdk.utils.openshift_oauth._get_api_host", return_value="foo.com"
+    )
+    replace_namespaced_service_account = MagicMock()
+    replace_cluster_role_binding = MagicMock()
+    replace_namespaced_service = MagicMock()
+    replace_namespaced_ingress = MagicMock()
+    mocker.patch.object(
+        client.CoreV1Api,
+        "replace_namespaced_service_account",
+        replace_namespaced_service_account,
+    )
+    mocker.patch.object(
+        client.RbacAuthorizationV1Api,
+        "replace_cluster_role_binding",
+        replace_cluster_role_binding,
+    )
+    mocker.patch.object(
+        client.CoreV1Api, "replace_namespaced_service", replace_namespaced_service
+    )
+    mocker.patch.object(
+        client.NetworkingV1Api, "replace_namespaced_ingress", replace_namespaced_ingress
+    )
+    create_openshift_oauth_objects("foo", "bar")
+    replace_namespaced_service_account.assert_called_once()
+    replace_cluster_role_binding.assert_called_once()
+    replace_namespaced_service.assert_called_once()
+    replace_namespaced_ingress.assert_called_once()
+
+
+def test_gen_app_wrapper_with_oauth(mocker: MockerFixture):
+    mocker.patch(
+        "codeflare_sdk.utils.generate_yaml._get_api_host", return_value="foo.com"
+    )
+    mocker.patch(
+        "codeflare_sdk.cluster.cluster.get_current_namespace",
+        return_value="opendatahub",
+    )
+    write_user_appwrapper = MagicMock()
+    mocker.patch(
+        "codeflare_sdk.utils.generate_yaml.write_user_appwrapper", write_user_appwrapper
+    )
+    Cluster(ClusterConfiguration("test_cluster", openshift_oauth=True))
+    user_yaml = write_user_appwrapper.call_args.args[0]
+    assert any(
+        container["name"] == "oauth-proxy"
+        for container in user_yaml["spec"]["resources"]["GenericItems"][0][
+            "generictemplate"
+        ]["spec"]["headGroupSpec"]["template"]["spec"]["containers"]
     )
 
 
