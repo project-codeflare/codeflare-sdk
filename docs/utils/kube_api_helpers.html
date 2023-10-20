@@ -50,6 +50,7 @@ API error handling or wrapping.
 
 import executing
 from kubernetes import client, config
+from urllib3.util import parse_url
 
 
 # private methods
@@ -72,7 +73,11 @@ def _kube_api_error_handling(e: Exception):  # pragma: no cover
             raise PermissionError(perm_msg)
         elif e.reason == &#34;Conflict&#34;:
             raise FileExistsError(exists_msg)
-    raise e</code></pre>
+    raise e
+
+
+def _get_api_host(api_client: client.ApiClient):  # pragma: no cover
+    return parse_url(api_client.configuration.host).host</code></pre>
 </details>
 </section>
 <section>

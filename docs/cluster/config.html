@@ -82,7 +82,8 @@ class ClusterConfiguration:
     image: str = &#34;quay.io/project-codeflare/ray:latest-py39-cu118&#34;
     local_interactive: bool = False
     image_pull_secrets: list = field(default_factory=list)
-    dispatch_priority: str = None</code></pre>
+    dispatch_priority: str = None
+    openshift_oauth: bool = False  # NOTE: to use the user must have permission to create a RoleBinding for system:auth-delegator</code></pre>
 </details>
 </section>
 <section>
@@ -96,7 +97,7 @@ class ClusterConfiguration:
 <dl>
 <dt id="codeflare_sdk.cluster.config.ClusterConfiguration"><code class="flex name class">
 <span>class <span class="ident">ClusterConfiguration</span></span>
-<span>(</span><span>name: str, namespace: str = None, head_info: list = &lt;factory&gt;, head_cpus: int = 2, head_memory: int = 8, head_gpus: int = 0, machine_types: list = &lt;factory&gt;, min_cpus: int = 1, max_cpus: int = 1, num_workers: int = 1, min_memory: int = 2, max_memory: int = 2, num_gpus: int = 0, template: str = '/home/runner/work/codeflare-sdk/codeflare-sdk/src/codeflare_sdk/templates/base-template.yaml', instascale: bool = False, envs: dict = &lt;factory&gt;, image: str = 'quay.io/project-codeflare/ray:latest-py39-cu118', local_interactive: bool = False, image_pull_secrets: list = &lt;factory&gt;, dispatch_priority: str = None)</span>
+<span>(</span><span>name: str, namespace: str = None, head_info: list = &lt;factory&gt;, head_cpus: int = 2, head_memory: int = 8, head_gpus: int = 0, machine_types: list = &lt;factory&gt;, min_cpus: int = 1, max_cpus: int = 1, num_workers: int = 1, min_memory: int = 2, max_memory: int = 2, num_gpus: int = 0, template: str = '/home/runner/work/codeflare-sdk/codeflare-sdk/src/codeflare_sdk/templates/base-template.yaml', instascale: bool = False, envs: dict = &lt;factory&gt;, image: str = 'quay.io/project-codeflare/ray:latest-py39-cu118', local_interactive: bool = False, image_pull_secrets: list = &lt;factory&gt;, dispatch_priority: str = None, openshift_oauth: bool = False)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>This dataclass is used to specify resource requirements and other details, and
@@ -130,7 +131,8 @@ is passed in as an argument when creating a Cluster object.</p></div>
     image: str = &#34;quay.io/project-codeflare/ray:latest-py39-cu118&#34;
     local_interactive: bool = False
     image_pull_secrets: list = field(default_factory=list)
-    dispatch_priority: str = None</code></pre>
+    dispatch_priority: str = None
+    openshift_oauth: bool = False  # NOTE: to use the user must have permission to create a RoleBinding for system:auth-delegator</code></pre>
 </details>
 <h3>Class variables</h3>
 <dl>
@@ -210,6 +212,10 @@ is passed in as an argument when creating a Cluster object.</p></div>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="codeflare_sdk.cluster.config.ClusterConfiguration.openshift_oauth"><code class="name">var <span class="ident">openshift_oauth</span> : bool</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="codeflare_sdk.cluster.config.ClusterConfiguration.template"><code class="name">var <span class="ident">template</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
@@ -254,6 +260,7 @@ is passed in as an argument when creating a Cluster object.</p></div>
 <li><code><a title="codeflare_sdk.cluster.config.ClusterConfiguration.namespace" href="#codeflare_sdk.cluster.config.ClusterConfiguration.namespace">namespace</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.config.ClusterConfiguration.num_gpus" href="#codeflare_sdk.cluster.config.ClusterConfiguration.num_gpus">num_gpus</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.config.ClusterConfiguration.num_workers" href="#codeflare_sdk.cluster.config.ClusterConfiguration.num_workers">num_workers</a></code></li>
+<li><code><a title="codeflare_sdk.cluster.config.ClusterConfiguration.openshift_oauth" href="#codeflare_sdk.cluster.config.ClusterConfiguration.openshift_oauth">openshift_oauth</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.config.ClusterConfiguration.template" href="#codeflare_sdk.cluster.config.ClusterConfiguration.template">template</a></code></li>
 </ul>
 </li>

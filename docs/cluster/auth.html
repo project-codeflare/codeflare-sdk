@@ -58,6 +58,8 @@ import os
 import urllib3
 from ..utils.kube_api_helpers import _kube_api_error_handling
 
+from typing import Optional
+
 global api_client
 api_client = None
 global config_path
@@ -221,7 +223,7 @@ def config_check() -&gt; str:
         return config_path
 
 
-def api_config_handler() -&gt; str:
+def api_config_handler() -&gt; Optional[client.ApiClient]:
     &#34;&#34;&#34;
     This function is used to load the api client if the user has logged in
     &#34;&#34;&#34;
@@ -239,7 +241,7 @@ def api_config_handler() -&gt; str:
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
 <dt id="codeflare_sdk.cluster.auth.api_config_handler"><code class="name flex">
-<span>def <span class="ident">api_config_handler</span></span>(<span>) ‑> str</span>
+<span>def <span class="ident">api_config_handler</span></span>(<span>) ‑> Optional[kubernetes.client.api_client.ApiClient]</span>
 </code></dt>
 <dd>
 <div class="desc"><p>This function is used to load the api client if the user has logged in</p></div>
@@ -247,7 +249,7 @@ def api_config_handler() -&gt; str:
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def api_config_handler() -&gt; str:
+<pre><code class="python">def api_config_handler() -&gt; Optional[client.ApiClient]:
     &#34;&#34;&#34;
     This function is used to load the api client if the user has logged in
     &#34;&#34;&#34;
