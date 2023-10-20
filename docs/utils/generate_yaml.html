@@ -55,6 +55,13 @@ import uuid
 from kubernetes import client, config
 from .kube_api_helpers import _kube_api_error_handling
 from ..cluster.auth import api_config_handler, config_check
+from os import urandom
+from base64 import b64encode
+from urllib3.util import parse_url
+
+from kubernetes import client, config
+
+from .kube_api_helpers import _get_api_host
 
 
 def read_template(template):
@@ -77,11 +84,15 @@ def gen_names(name):
 
 def update_dashboard_route(route_item, cluster_name, namespace):
     metadata = route_item.get(&#34;generictemplate&#34;, {}).get(&#34;metadata&#34;)
-    metadata[&#34;name&#34;] = f&#34;ray-dashboard-{cluster_name}&#34;
+    metadata[&#34;name&#34;] = gen_dashboard_route_name(cluster_name)
     metadata[&#34;namespace&#34;] = namespace
     metadata[&#34;labels&#34;][&#34;odh-ray-cluster-service&#34;] = f&#34;{cluster_name}-head-svc&#34;
     spec = route_item.get(&#34;generictemplate&#34;, {}).get(&#34;spec&#34;)
     spec[&#34;to&#34;][&#34;name&#34;] = f&#34;{cluster_name}-head-svc&#34;
+
+
+def gen_dashboard_route_name(cluster_name):
+    return f&#34;ray-dashboard-{cluster_name}&#34;
 
 
 # ToDo: refactor the update_x_route() functions
@@ -400,6 +411,83 @@ def write_user_appwrapper(user_yaml, output_file_name):
     print(f&#34;Written to: {output_file_name}&#34;)
 
 
+def enable_openshift_oauth(user_yaml, cluster_name, namespace):
+    config_check()
+    k8_client = api_config_handler() or client.ApiClient()
+    tls_mount_location = &#34;/etc/tls/private&#34;
+    oauth_port = 8443
+    oauth_sa_name = f&#34;{cluster_name}-oauth-proxy&#34;
+    tls_secret_name = f&#34;{cluster_name}-proxy-tls-secret&#34;
+    tls_volume_name = &#34;proxy-tls-secret&#34;
+    port_name = &#34;oauth-proxy&#34;
+    host = _get_api_host(k8_client)
+    host = host.replace(
+        &#34;api.&#34;, f&#34;{gen_dashboard_route_name(cluster_name)}-{namespace}.apps.&#34;
+    )
+    oauth_sidecar = _create_oauth_sidecar_object(
+        namespace,
+        tls_mount_location,
+        oauth_port,
+        oauth_sa_name,
+        tls_volume_name,
+        port_name,
+    )
+    tls_secret_volume = client.V1Volume(
+        name=tls_volume_name,
+        secret=client.V1SecretVolumeSource(secret_name=tls_secret_name),
+    )
+    # allows for setting value of Cluster object when initializing object from an existing AppWrapper on cluster
+    user_yaml[&#34;metadata&#34;][&#34;annotations&#34;] = user_yaml[&#34;metadata&#34;].get(&#34;annotations&#34;, {})
+    user_yaml[&#34;metadata&#34;][&#34;annotations&#34;][
+        &#34;codeflare-sdk-use-oauth&#34;
+    ] = &#34;true&#34;  # if the user gets an
+    ray_headgroup_pod = user_yaml[&#34;spec&#34;][&#34;resources&#34;][&#34;GenericItems&#34;][0][
+        &#34;generictemplate&#34;
+    ][&#34;spec&#34;][&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;]
+    user_yaml[&#34;spec&#34;][&#34;resources&#34;][&#34;GenericItems&#34;].pop(1)
+    ray_headgroup_pod[&#34;serviceAccount&#34;] = oauth_sa_name
+    ray_headgroup_pod[&#34;volumes&#34;] = ray_headgroup_pod.get(&#34;volumes&#34;, [])
+
+    # we use a generic api client here so that the serialization function doesn&#39;t need to be mocked for unit tests
+    ray_headgroup_pod[&#34;volumes&#34;].append(
+        client.ApiClient().sanitize_for_serialization(tls_secret_volume)
+    )
+    ray_headgroup_pod[&#34;containers&#34;].append(
+        client.ApiClient().sanitize_for_serialization(oauth_sidecar)
+    )
+
+
+def _create_oauth_sidecar_object(
+    namespace: str,
+    tls_mount_location: str,
+    oauth_port: int,
+    oauth_sa_name: str,
+    tls_volume_name: str,
+    port_name: str,
+) -&gt; client.V1Container:
+    return client.V1Container(
+        args=[
+            f&#34;--https-address=:{oauth_port}&#34;,
+            &#34;--provider=openshift&#34;,
+            f&#34;--openshift-service-account={oauth_sa_name}&#34;,
+            &#34;--upstream=http://localhost:8265&#34;,
+            f&#34;--tls-cert={tls_mount_location}/tls.crt&#34;,
+            f&#34;--tls-key={tls_mount_location}/tls.key&#34;,
+            f&#34;--cookie-secret={b64encode(urandom(64)).decode(&#39;utf-8&#39;)}&#34;,  # create random string for encrypting cookie
+            f&#39;--openshift-delegate-urls={{&#34;/&#34;:{{&#34;resource&#34;:&#34;pods&#34;,&#34;namespace&#34;:&#34;{namespace}&#34;,&#34;verb&#34;:&#34;get&#34;}}}}&#39;,
+        ],
+        image=&#34;registry.redhat.io/openshift4/ose-oauth-proxy@sha256:1ea6a01bf3e63cdcf125c6064cbd4a4a270deaf0f157b3eabb78f60556840366&#34;,
+        name=&#34;oauth-proxy&#34;,
+        ports=[client.V1ContainerPort(container_port=oauth_port, name=port_name)],
+        resources=client.V1ResourceRequirements(limits=None, requests=None),
+        volume_mounts=[
+            client.V1VolumeMount(
+                mount_path=tls_mount_location, name=tls_volume_name, read_only=True
+            )
+        ],
+    )
+
+
 def generate_appwrapper(
     name: str,
     namespace: str,
@@ -421,6 +509,7 @@ def generate_appwrapper(
     image_pull_secrets: list,
     dispatch_priority: str,
     priority_val: int,
+    openshift_oauth: bool,
 ):
     user_yaml = read_template(template)
     appwrapper_name, cluster_name = gen_names(name)
@@ -464,6 +553,10 @@ def generate_appwrapper(
         enable_local_interactive(resources, cluster_name, namespace)
     else:
         disable_raycluster_tls(resources[&#34;resources&#34;])
+
+    if openshift_oauth:
+        enable_openshift_oauth(user_yaml, cluster_name, namespace)
+
     outfile = appwrapper_name + &#34;.yaml&#34;
     write_user_appwrapper(user_yaml, outfile)
     return outfile</code></pre>
@@ -594,6 +687,74 @@ def generate_appwrapper(
     ][0].get(&#34;command&#34;)[2] = command</code></pre>
 </details>
 </dd>
+<dt id="codeflare_sdk.utils.generate_yaml.enable_openshift_oauth"><code class="name flex">
+<span>def <span class="ident">enable_openshift_oauth</span></span>(<span>user_yaml, cluster_name, namespace)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def enable_openshift_oauth(user_yaml, cluster_name, namespace):
+    config_check()
+    k8_client = api_config_handler() or client.ApiClient()
+    tls_mount_location = &#34;/etc/tls/private&#34;
+    oauth_port = 8443
+    oauth_sa_name = f&#34;{cluster_name}-oauth-proxy&#34;
+    tls_secret_name = f&#34;{cluster_name}-proxy-tls-secret&#34;
+    tls_volume_name = &#34;proxy-tls-secret&#34;
+    port_name = &#34;oauth-proxy&#34;
+    host = _get_api_host(k8_client)
+    host = host.replace(
+        &#34;api.&#34;, f&#34;{gen_dashboard_route_name(cluster_name)}-{namespace}.apps.&#34;
+    )
+    oauth_sidecar = _create_oauth_sidecar_object(
+        namespace,
+        tls_mount_location,
+        oauth_port,
+        oauth_sa_name,
+        tls_volume_name,
+        port_name,
+    )
+    tls_secret_volume = client.V1Volume(
+        name=tls_volume_name,
+        secret=client.V1SecretVolumeSource(secret_name=tls_secret_name),
+    )
+    # allows for setting value of Cluster object when initializing object from an existing AppWrapper on cluster
+    user_yaml[&#34;metadata&#34;][&#34;annotations&#34;] = user_yaml[&#34;metadata&#34;].get(&#34;annotations&#34;, {})
+    user_yaml[&#34;metadata&#34;][&#34;annotations&#34;][
+        &#34;codeflare-sdk-use-oauth&#34;
+    ] = &#34;true&#34;  # if the user gets an
+    ray_headgroup_pod = user_yaml[&#34;spec&#34;][&#34;resources&#34;][&#34;GenericItems&#34;][0][
+        &#34;generictemplate&#34;
+    ][&#34;spec&#34;][&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;]
+    user_yaml[&#34;spec&#34;][&#34;resources&#34;][&#34;GenericItems&#34;].pop(1)
+    ray_headgroup_pod[&#34;serviceAccount&#34;] = oauth_sa_name
+    ray_headgroup_pod[&#34;volumes&#34;] = ray_headgroup_pod.get(&#34;volumes&#34;, [])
+
+    # we use a generic api client here so that the serialization function doesn&#39;t need to be mocked for unit tests
+    ray_headgroup_pod[&#34;volumes&#34;].append(
+        client.ApiClient().sanitize_for_serialization(tls_secret_volume)
+    )
+    ray_headgroup_pod[&#34;containers&#34;].append(
+        client.ApiClient().sanitize_for_serialization(oauth_sidecar)
+    )</code></pre>
+</details>
+</dd>
+<dt id="codeflare_sdk.utils.generate_yaml.gen_dashboard_route_name"><code class="name flex">
+<span>def <span class="ident">gen_dashboard_route_name</span></span>(<span>cluster_name)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def gen_dashboard_route_name(cluster_name):
+    return f&#34;ray-dashboard-{cluster_name}&#34;</code></pre>
+</details>
+</dd>
 <dt id="codeflare_sdk.utils.generate_yaml.gen_names"><code class="name flex">
 <span>def <span class="ident">gen_names</span></span>(<span>name)</span>
 </code></dt>
@@ -614,7 +775,7 @@ def generate_appwrapper(
 </details>
 </dd>
 <dt id="codeflare_sdk.utils.generate_yaml.generate_appwrapper"><code class="name flex">
-<span>def <span class="ident">generate_appwrapper</span></span>(<span>name: str, namespace: str, head_cpus: int, head_memory: int, head_gpus: int, min_cpu: int, max_cpu: int, min_memory: int, max_memory: int, gpu: int, workers: int, template: str, image: str, instascale: bool, instance_types: list, env, local_interactive: bool, image_pull_secrets: list, dispatch_priority: str, priority_val: int)</span>
+<span>def <span class="ident">generate_appwrapper</span></span>(<span>name: str, namespace: str, head_cpus: int, head_memory: int, head_gpus: int, min_cpu: int, max_cpu: int, min_memory: int, max_memory: int, gpu: int, workers: int, template: str, image: str, instascale: bool, instance_types: list, env, local_interactive: bool, image_pull_secrets: list, dispatch_priority: str, priority_val: int, openshift_oauth: bool)</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -643,6 +804,7 @@ def generate_appwrapper(
     image_pull_secrets: list,
     dispatch_priority: str,
     priority_val: int,
+    openshift_oauth: bool,
 ):
     user_yaml = read_template(template)
     appwrapper_name, cluster_name = gen_names(name)
@@ -686,6 +848,10 @@ def generate_appwrapper(
         enable_local_interactive(resources, cluster_name, namespace)
     else:
         disable_raycluster_tls(resources[&#34;resources&#34;])
+
+    if openshift_oauth:
+        enable_openshift_oauth(user_yaml, cluster_name, namespace)
+
     outfile = appwrapper_name + &#34;.yaml&#34;
     write_user_appwrapper(user_yaml, outfile)
     return outfile</code></pre>
@@ -821,7 +987,7 @@ def generate_appwrapper(
 </summary>
 <pre><code class="python">def update_dashboard_route(route_item, cluster_name, namespace):
     metadata = route_item.get(&#34;generictemplate&#34;, {}).get(&#34;metadata&#34;)
-    metadata[&#34;name&#34;] = f&#34;ray-dashboard-{cluster_name}&#34;
+    metadata[&#34;name&#34;] = gen_dashboard_route_name(cluster_name)
     metadata[&#34;namespace&#34;] = namespace
     metadata[&#34;labels&#34;][&#34;odh-ray-cluster-service&#34;] = f&#34;{cluster_name}-head-svc&#34;
     spec = route_item.get(&#34;generictemplate&#34;, {}).get(&#34;spec&#34;)
@@ -1078,6 +1244,8 @@ def generate_appwrapper(
 <ul class="">
 <li><code><a title="codeflare_sdk.utils.generate_yaml.disable_raycluster_tls" href="#codeflare_sdk.utils.generate_yaml.disable_raycluster_tls">disable_raycluster_tls</a></code></li>
 <li><code><a title="codeflare_sdk.utils.generate_yaml.enable_local_interactive" href="#codeflare_sdk.utils.generate_yaml.enable_local_interactive">enable_local_interactive</a></code></li>
+<li><code><a title="codeflare_sdk.utils.generate_yaml.enable_openshift_oauth" href="#codeflare_sdk.utils.generate_yaml.enable_openshift_oauth">enable_openshift_oauth</a></code></li>
+<li><code><a title="codeflare_sdk.utils.generate_yaml.gen_dashboard_route_name" href="#codeflare_sdk.utils.generate_yaml.gen_dashboard_route_name">gen_dashboard_route_name</a></code></li>
 <li><code><a title="codeflare_sdk.utils.generate_yaml.gen_names" href="#codeflare_sdk.utils.generate_yaml.gen_names">gen_names</a></code></li>
 <li><code><a title="codeflare_sdk.utils.generate_yaml.generate_appwrapper" href="#codeflare_sdk.utils.generate_yaml.generate_appwrapper">generate_appwrapper</a></code></li>
 <li><code><a title="codeflare_sdk.utils.generate_yaml.read_template" href="#codeflare_sdk.utils.generate_yaml.read_template">read_template</a></code></li>
