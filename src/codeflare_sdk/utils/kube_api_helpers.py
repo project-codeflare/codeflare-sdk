@@ -19,6 +19,7 @@ API error handling or wrapping.
 
 import executing
 from kubernetes import client, config
+from urllib3.util import parse_url
 
 
 # private methods
@@ -42,3 +43,7 @@ def _kube_api_error_handling(e: Exception):  # pragma: no cover
         elif e.reason == "Conflict":
             raise FileExistsError(exists_msg)
     raise e
+
+
+def _get_api_host(api_client: client.ApiClient):  # pragma: no cover
+    return parse_url(api_client.configuration.host).host

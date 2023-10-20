@@ -18,15 +18,19 @@ from typing import TYPE_CHECKING, Optional, Dict, List
 from pathlib import Path
 
 from torchx.components.dist import ddp
-from torchx.runner import get_runner
+from torchx.runner import get_runner, Runner
+from torchx.schedulers.ray_scheduler import RayScheduler
 from torchx.specs import AppHandle, parse_app_handle, AppDryRunInfo
+
+from ray.job_submission import JobSubmissionClient
+
+import openshift as oc
 
 if TYPE_CHECKING:
     from ..cluster.cluster import Cluster
 from ..cluster.cluster import get_current_namespace
 
 all_jobs: List["Job"] = []
-torchx_runner = get_runner()
 
 
 class JobDefinition(metaclass=abc.ABCMeta):
@@ -92,30 +96,37 @@ class DDPJobDefinition(JobDefinition):
 
     def _dry_run(self, cluster: "Cluster"):
         j = f"{cluster.config.num_workers}x{max(cluster.config.num_gpus, 1)}"  # # of proc. = # of gpus
-        return torchx_runner.dryrun(
-            app=ddp(
-                *self.script_args,
-                script=self.script,
-                m=self.m,
-                name=self.name,
-                h=self.h,
-                cpu=self.cpu if self.cpu is not None else cluster.config.max_cpus,
-                gpu=self.gpu if self.gpu is not None else cluster.config.num_gpus,
-                memMB=self.memMB
-                if self.memMB is not None
-                else cluster.config.max_memory * 1024,
-                j=self.j if self.j is not None else j,
-                env=self.env,
-                max_retries=self.max_retries,
-                rdzv_port=self.rdzv_port,
-                rdzv_backend=self.rdzv_backend
-                if self.rdzv_backend is not None
-                else "static",
-                mounts=self.mounts,
+        runner = get_runner(ray_client=cluster.client)
+        runner._scheduler_instances["ray"] = RayScheduler(
+            session_name=runner._name, ray_client=cluster.client
+        )
+        return (
+            runner.dryrun(
+                app=ddp(
+                    *self.script_args,
+                    script=self.script,
+                    m=self.m,
+                    name=self.name,
+                    h=self.h,
+                    cpu=self.cpu if self.cpu is not None else cluster.config.max_cpus,
+                    gpu=self.gpu if self.gpu is not None else cluster.config.num_gpus,
+                    memMB=self.memMB
+                    if self.memMB is not None
+                    else cluster.config.max_memory * 1024,
+                    j=self.j if self.j is not None else j,
+                    env=self.env,
+                    max_retries=self.max_retries,
+                    rdzv_port=self.rdzv_port,
+                    rdzv_backend=self.rdzv_backend
+                    if self.rdzv_backend is not None
+                    else "static",
+                    mounts=self.mounts,
+                ),
+                scheduler=cluster.torchx_scheduler,
+                cfg=cluster.torchx_config(**self.scheduler_args),
+                workspace=self.workspace,
             ),
-            scheduler=cluster.torchx_scheduler,
-            cfg=cluster.torchx_config(**self.scheduler_args),
-            workspace=self.workspace,
+            runner,
         )
 
     def _missing_spec(self, spec: str):
@@ -125,41 +136,47 @@ class DDPJobDefinition(JobDefinition):
         if self.scheduler_args is not None:
             if self.scheduler_args.get("namespace") is None:
                 self.scheduler_args["namespace"] = get_current_namespace()
-        return torchx_runner.dryrun(
-            app=ddp(
-                *self.script_args,
-                script=self.script,
-                m=self.m,
-                name=self.name if self.name is not None else self._missing_spec("name"),
-                h=self.h,
-                cpu=self.cpu
-                if self.cpu is not None
-                else self._missing_spec("cpu (# cpus per worker)"),
-                gpu=self.gpu
-                if self.gpu is not None
-                else self._missing_spec("gpu (# gpus per worker)"),
-                memMB=self.memMB
-                if self.memMB is not None
-                else self._missing_spec("memMB (memory in MB)"),
-                j=self.j
-                if self.j is not None
-                else self._missing_spec(
-                    "j (`workers`x`procs`)"
-                ),  # # of proc. = # of gpus,
-                env=self.env,  # should this still exist?
-                max_retries=self.max_retries,
-                rdzv_port=self.rdzv_port,  # should this still exist?
-                rdzv_backend=self.rdzv_backend
-                if self.rdzv_backend is not None
-                else "c10d",
-                mounts=self.mounts,
-                image=self.image
-                if self.image is not None
-                else self._missing_spec("image"),
+        runner = get_runner()
+        return (
+            runner.dryrun(
+                app=ddp(
+                    *self.script_args,
+                    script=self.script,
+                    m=self.m,
+                    name=self.name
+                    if self.name is not None
+                    else self._missing_spec("name"),
+                    h=self.h,
+                    cpu=self.cpu
+                    if self.cpu is not None
+                    else self._missing_spec("cpu (# cpus per worker)"),
+                    gpu=self.gpu
+                    if self.gpu is not None
+                    else self._missing_spec("gpu (# gpus per worker)"),
+                    memMB=self.memMB
+                    if self.memMB is not None
+                    else self._missing_spec("memMB (memory in MB)"),
+                    j=self.j
+                    if self.j is not None
+                    else self._missing_spec(
+                        "j (`workers`x`procs`)"
+                    ),  # # of proc. = # of gpus,
+                    env=self.env,  # should this still exist?
+                    max_retries=self.max_retries,
+                    rdzv_port=self.rdzv_port,  # should this still exist?
+                    rdzv_backend=self.rdzv_backend
+                    if self.rdzv_backend is not None
+                    else "c10d",
+                    mounts=self.mounts,
+                    image=self.image
+                    if self.image is not None
+                    else self._missing_spec("image"),
+                ),
+                scheduler="kubernetes_mcad",
+                cfg=self.scheduler_args,
+                workspace="",
             ),
-            scheduler="kubernetes_mcad",
-            cfg=self.scheduler_args,
-            workspace="",
+            runner,
         )
 
     def submit(self, cluster: "Cluster" = None) -> "Job":
@@ -171,18 +188,20 @@ class DDPJob(Job):
         self.job_definition = job_definition
         self.cluster = cluster
         if self.cluster:
-            self._app_handle = torchx_runner.schedule(job_definition._dry_run(cluster))
+            definition, runner = job_definition._dry_run(cluster)
+            self._app_handle = runner.schedule(definition)
+            self._runner = runner
         else:
-            self._app_handle = torchx_runner.schedule(
-                job_definition._dry_run_no_cluster()
-            )
+            definition, runner = job_definition._dry_run_no_cluster()
+            self._app_handle = runner.schedule(definition)
+            self._runner = runner
         all_jobs.append(self)
 
     def status(self) -> str:
-        return torchx_runner.status(self._app_handle)
+        return self._runner.status(self._app_handle)
 
     def logs(self) -> str:
-        return "".join(torchx_runner.log_lines(self._app_handle, None))
+        return "".join(self._runner.log_lines(self._app_handle, None))
 
     def cancel(self):
-        torchx_runner.cancel(self._app_handle)
+        self._runner.cancel(self._app_handle)

@@ -25,6 +25,8 @@ import os
 import urllib3
 from ..utils.kube_api_helpers import _kube_api_error_handling
 
+from typing import Optional
+
 global api_client
 api_client = None
 global config_path
@@ -188,7 +190,7 @@ def config_check() -> str:
         return config_path
 
 
-def api_config_handler() -> str:
+def api_config_handler() -> Optional[client.ApiClient]:
     """
     This function is used to load the api client if the user has logged in
     """

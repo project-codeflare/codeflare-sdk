@@ -24,6 +24,13 @@ import uuid
 from kubernetes import client, config
 from .kube_api_helpers import _kube_api_error_handling
 from ..cluster.auth import api_config_handler, config_check
+from os import urandom
+from base64 import b64encode
+from urllib3.util import parse_url
+
+from kubernetes import client, config
+
+from .kube_api_helpers import _get_api_host
 
 
 def read_template(template):
@@ -46,11 +53,15 @@ def gen_names(name):
 
 def update_dashboard_route(route_item, cluster_name, namespace):
     metadata = route_item.get("generictemplate", {}).get("metadata")
-    metadata["name"] = f"ray-dashboard-{cluster_name}"
+    metadata["name"] = gen_dashboard_route_name(cluster_name)
     metadata["namespace"] = namespace
     metadata["labels"]["odh-ray-cluster-service"] = f"{cluster_name}-head-svc"
     spec = route_item.get("generictemplate", {}).get("spec")
     spec["to"]["name"] = f"{cluster_name}-head-svc"
+
+
+def gen_dashboard_route_name(cluster_name):
+    return f"ray-dashboard-{cluster_name}"
 
 
 # ToDo: refactor the update_x_route() functions
@@ -369,6 +380,83 @@ def write_user_appwrapper(user_yaml, output_file_name):
     print(f"Written to: {output_file_name}")
 
 
+def enable_openshift_oauth(user_yaml, cluster_name, namespace):
+    config_check()
+    k8_client = api_config_handler() or client.ApiClient()
+    tls_mount_location = "/etc/tls/private"
+    oauth_port = 8443
+    oauth_sa_name = f"{cluster_name}-oauth-proxy"
+    tls_secret_name = f"{cluster_name}-proxy-tls-secret"
+    tls_volume_name = "proxy-tls-secret"
+    port_name = "oauth-proxy"
+    host = _get_api_host(k8_client)
+    host = host.replace(
+        "api.", f"{gen_dashboard_route_name(cluster_name)}-{namespace}.apps."
+    )
+    oauth_sidecar = _create_oauth_sidecar_object(
+        namespace,
+        tls_mount_location,
+        oauth_port,
+        oauth_sa_name,
+        tls_volume_name,
+        port_name,
+    )
+    tls_secret_volume = client.V1Volume(
+        name=tls_volume_name,
+        secret=client.V1SecretVolumeSource(secret_name=tls_secret_name),
+    )
+    # allows for setting value of Cluster object when initializing object from an existing AppWrapper on cluster
+    user_yaml["metadata"]["annotations"] = user_yaml["metadata"].get("annotations", {})
+    user_yaml["metadata"]["annotations"][
+        "codeflare-sdk-use-oauth"
+    ] = "true"  # if the user gets an
+    ray_headgroup_pod = user_yaml["spec"]["resources"]["GenericItems"][0][
+        "generictemplate"
+    ]["spec"]["headGroupSpec"]["template"]["spec"]
+    user_yaml["spec"]["resources"]["GenericItems"].pop(1)
+    ray_headgroup_pod["serviceAccount"] = oauth_sa_name
+    ray_headgroup_pod["volumes"] = ray_headgroup_pod.get("volumes", [])
+
+    # we use a generic api client here so that the serialization function doesn't need to be mocked for unit tests
+    ray_headgroup_pod["volumes"].append(
+        client.ApiClient().sanitize_for_serialization(tls_secret_volume)
+    )
+    ray_headgroup_pod["containers"].append(
+        client.ApiClient().sanitize_for_serialization(oauth_sidecar)
+    )
+
+
+def _create_oauth_sidecar_object(
+    namespace: str,
+    tls_mount_location: str,
+    oauth_port: int,
+    oauth_sa_name: str,
+    tls_volume_name: str,
+    port_name: str,
+) -> client.V1Container:
+    return client.V1Container(
+        args=[
+            f"--https-address=:{oauth_port}",
+            "--provider=openshift",
+            f"--openshift-service-account={oauth_sa_name}",
+            "--upstream=http://localhost:8265",
+            f"--tls-cert={tls_mount_location}/tls.crt",
+            f"--tls-key={tls_mount_location}/tls.key",
+            f"--cookie-secret={b64encode(urandom(64)).decode('utf-8')}",  # create random string for encrypting cookie
+            f'--openshift-delegate-urls={{"/":{{"resource":"pods","namespace":"{namespace}","verb":"get"}}}}',
+        ],
+        image="registry.redhat.io/openshift4/ose-oauth-proxy@sha256:1ea6a01bf3e63cdcf125c6064cbd4a4a270deaf0f157b3eabb78f60556840366",
+        name="oauth-proxy",
+        ports=[client.V1ContainerPort(container_port=oauth_port, name=port_name)],
+        resources=client.V1ResourceRequirements(limits=None, requests=None),
+        volume_mounts=[
+            client.V1VolumeMount(
+                mount_path=tls_mount_location, name=tls_volume_name, read_only=True
+            )
+        ],
+    )
+
+
 def generate_appwrapper(
     name: str,
     namespace: str,
@@ -390,6 +478,7 @@ def generate_appwrapper(
     image_pull_secrets: list,
     dispatch_priority: str,
     priority_val: int,
+    openshift_oauth: bool,
 ):
     user_yaml = read_template(template)
     appwrapper_name, cluster_name = gen_names(name)
@@ -433,6 +522,10 @@ def generate_appwrapper(
         enable_local_interactive(resources, cluster_name, namespace)
     else:
         disable_raycluster_tls(resources["resources"])
+
+    if openshift_oauth:
+        enable_openshift_oauth(user_yaml, cluster_name, namespace)
+
     outfile = appwrapper_name + ".yaml"
     write_user_appwrapper(user_yaml, outfile)
     return outfile
