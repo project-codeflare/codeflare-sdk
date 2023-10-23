@@ -70,7 +70,7 @@ class Cluster:
         self.config = config
         self.app_wrapper_yaml = self.create_app_wrapper()
         self.app_wrapper_name = self.app_wrapper_yaml.split(".")[0]
-        self._client = None
+        self._job_submission_client = None
 
     @property
     def _client_headers(self):
@@ -86,23 +86,25 @@ class Cluster:
         return not self.config.openshift_oauth
 
     @property
-    def client(self):
-        if self._client:
-            return self._client
+    def job_client(self):
+        if self._job_submission_client:
+            return self._job_submission_client
         if self.config.openshift_oauth:
             print(
                 api_config_handler().configuration.get_api_key_with_prefix(
                     "authorization"
                 )
             )
-            self._client = JobSubmissionClient(
+            self._job_submission_client = JobSubmissionClient(
                 self.cluster_dashboard_uri(),
                 headers=self._client_headers,
                 verify=self._client_verify_tls,
             )
         else:
-            self._client = JobSubmissionClient(self.cluster_dashboard_uri())
-        return self._client
+            self._job_submission_client = JobSubmissionClient(
+                self.cluster_dashboard_uri()
+            )
+        return self._job_submission_client
 
     def evaluate_dispatch_priority(self):
         priority_class = self.config.dispatch_priority
@@ -423,19 +425,19 @@ class Cluster:
         """
         This method accesses the head ray node in your cluster and lists the running jobs.
         """
-        return self.client.list_jobs()
+        return self.job_client.list_jobs()
 
     def job_status(self, job_id: str) -> str:
         """
         This method accesses the head ray node in your cluster and returns the job status for the provided job id.
         """
-        return self.client.get_job_status(job_id)
+        return self.job_client.get_job_status(job_id)
 
     def job_logs(self, job_id: str) -> str:
         """
         This method accesses the head ray node in your cluster and returns the logs for the provided job id.
         """
-        return self.client.get_job_logs(job_id)
+        return self.job_client.get_job_logs(job_id)
 
     def torchx_config(
         self, working_dir: str = None, requirements: str = None

@@ -1935,7 +1935,7 @@ def test_DDPJobDefinition_dry_run(mocker: MockerFixture):
         "codeflare_sdk.cluster.cluster.Cluster.cluster_dashboard_uri",
         return_value="",
     )
-    mocker.patch.object(Cluster, "client")
+    mocker.patch.object(Cluster, "job_client")
     ddp = createTestDDP()
     cluster = createClusterWithConfig()
     ddp_job, _ = ddp._dry_run(cluster)
@@ -2005,7 +2005,7 @@ def test_DDPJobDefinition_dry_run_no_resource_args(mocker):
     Test that the dry run correctly gets resources from the cluster object
     when the job definition does not specify resources.
     """
-    mocker.patch.object(Cluster, "client")
+    mocker.patch.object(Cluster, "job_client")
     mocker.patch(
         "codeflare_sdk.cluster.cluster.Cluster.cluster_dashboard_uri",
         return_value="",
@@ -2097,7 +2097,7 @@ def test_DDPJobDefinition_submit(mocker: MockerFixture):
     mock_schedule = MagicMock()
     mocker.patch.object(Runner, "schedule", mock_schedule)
     mock_schedule.return_value = "fake-dashboard-url"
-    mocker.patch.object(Cluster, "client")
+    mocker.patch.object(Cluster, "job_client")
     ddp_def = createTestDDP()
     cluster = createClusterWithConfig()
     mocker.patch(
@@ -2124,7 +2124,7 @@ def test_DDPJobDefinition_submit(mocker: MockerFixture):
 
 
 def test_DDPJob_creation(mocker: MockerFixture):
-    mocker.patch.object(Cluster, "client")
+    mocker.patch.object(Cluster, "job_client")
     mock_schedule = MagicMock()
     mocker.patch.object(Runner, "schedule", mock_schedule)
     mocker.patch.object(

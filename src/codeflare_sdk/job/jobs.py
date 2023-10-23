@@ -22,9 +22,6 @@ from torchx.runner import get_runner, Runner
 from torchx.schedulers.ray_scheduler import RayScheduler
 from torchx.specs import AppHandle, parse_app_handle, AppDryRunInfo
 
-from ray.job_submission import JobSubmissionClient
-
-import openshift as oc
 
 if TYPE_CHECKING:
     from ..cluster.cluster import Cluster
@@ -96,9 +93,9 @@ class DDPJobDefinition(JobDefinition):
 
     def _dry_run(self, cluster: "Cluster"):
         j = f"{cluster.config.num_workers}x{max(cluster.config.num_gpus, 1)}"  # # of proc. = # of gpus
-        runner = get_runner(ray_client=cluster.client)
+        runner = get_runner(ray_client=cluster.job_client)
         runner._scheduler_instances["ray"] = RayScheduler(
-            session_name=runner._name, ray_client=cluster.client
+            session_name=runner._name, ray_client=cluster.job_client
         )
         return (
             runner.dryrun(
