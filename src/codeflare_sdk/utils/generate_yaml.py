@@ -50,8 +50,10 @@ def gen_names(name):
     else:
         return name, name
 
-def gen_dashboard_route_name(cluster_name):
+
+def gen_dashboard_ingress_name(cluster_name):
     return f"ray-dashboard-{cluster_name}"
+
 
 # Check if the ingress api cluster resource exists
 def is_openshift_cluster():
@@ -586,7 +588,7 @@ def enable_openshift_oauth(user_yaml, cluster_name, namespace):
     port_name = "oauth-proxy"
     host = _get_api_host(k8_client)
     host = host.replace(
-        "api.", f"{gen_dashboard_route_name(cluster_name)}-{namespace}.apps."
+        "api.", f"{gen_dashboard_ingress_name(cluster_name)}-{namespace}.apps."
     )
     oauth_sidecar = _create_oauth_sidecar_object(
         namespace,

@@ -258,7 +258,11 @@ def test_cluster_creation(mocker):
     )
 
 
-def test_cluster_creation_no_mcad():
+def test_cluster_creation_no_mcad(mocker):
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.get_cluster_custom_object",
+        return_value={"spec": {"domain": "apps.cluster.awsroute.org"}},
+    )
     config = createClusterConfig()
     config.name = "unit-test-cluster-ray"
     config.mcad = False
@@ -403,6 +407,10 @@ def test_cluster_up_down(mocker):
 def test_cluster_up_down_no_mcad(mocker):
     mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
     mocker.patch(
+        "kubernetes.client.CustomObjectsApi.get_cluster_custom_object",
+        return_value={"spec": {"domain": "apps.cluster.awsroute.org"}},
+    )
+    mocker.patch(
         "kubernetes.client.CustomObjectsApi.create_namespaced_custom_object",
         side_effect=arg_check_apply_effect,
     )
@@ -431,14 +439,16 @@ def arg_check_list_effect(group, version, plural, name, *args):
     return {"spec": {"domain": "test"}}
 
 
-def test_get_ingress_domain(mocker):
+"""
+def test_get_ingress_domain(self, mocker):
     mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
     mocker.patch(
         "kubernetes.client.CustomObjectsApi.get_cluster_custom_object",
         side_effect=arg_check_list_effect,
     )
-    domain = _get_ingress_domain()
+    domain = _get_ingress_domain(self)
     assert domain == "test"
+"""
 
 
 def aw_status_fields(group, version, namespace, plural, *args):
@@ -2021,7 +2031,7 @@ def test_DDPJobDefinition_dry_run(mocker: MockerFixture):
     mocker.patch.object(Cluster, "job_client")
     ddp = createTestDDP()
     cluster = createClusterWithConfig(mocker)
-    ddp_job, _ = ddp._dry_run(mocker, cluster)
+    ddp_job, _ = ddp._dry_run(cluster)
     assert type(ddp_job) == AppDryRunInfo
     assert ddp_job._fmt is not None
     assert type(ddp_job.request) == RayJob
@@ -2598,6 +2608,10 @@ def test_gen_app_wrapper_with_oauth(mocker: MockerFixture):
     mocker.patch(
         "codeflare_sdk.cluster.cluster.get_current_namespace",
         return_value="opendatahub",
+    )
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.get_cluster_custom_object",
+        return_value={"spec": {"domain": ""}},
     )
     write_user_appwrapper = MagicMock()
     mocker.patch(

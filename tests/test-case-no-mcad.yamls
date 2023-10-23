@@ -147,16 +147,20 @@ spec:
           image: busybox:1.28
           name: init-myservice
 ---
-apiVersion: route.openshift.io/v1
-kind: Route
+apiVersion: networking.k8s.io/v1
+kind: Ingress
 metadata:
-  labels:
-    odh-ray-cluster-service: unit-test-cluster-ray-head-svc
   name: ray-dashboard-unit-test-cluster-ray
   namespace: ns
 spec:
-  port:
-    targetPort: dashboard
-  to:
-    kind: Service
-    name: unit-test-cluster-ray-head-svc
+  rules:
+  - host: ray-dashboard-unit-test-cluster-ray-ns.apps.cluster.awsroute.org
+    http:
+      paths:
+      - backend:
+          service:
+            name: unit-test-cluster-ray-head-svc
+            port:
+              number: 8265
+        path: /
+        pathType: Prefix
