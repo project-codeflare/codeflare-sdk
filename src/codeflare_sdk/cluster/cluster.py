@@ -70,7 +70,7 @@ class Cluster:
         self.config = config
         self.app_wrapper_yaml = self.create_app_wrapper()
         self.app_wrapper_name = self.app_wrapper_yaml.split(".")[0]
-        self._client = None
+        self._job_submission_client = None
 
     @property
     def _client_headers(self):
@@ -86,23 +86,25 @@ class Cluster:
         return not self.config.openshift_oauth
 
     @property
-    def client(self):
-        if self._client:
-            return self._client
+    def job_client(self):
+        if self._job_submission_client:
+            return self._job_submission_client
         if self.config.openshift_oauth:
             print(
                 api_config_handler().configuration.get_api_key_with_prefix(
                     "authorization"
                 )
             )
-            self._client = JobSubmissionClient(
+            self._job_submission_client = JobSubmissionClient(
                 self.cluster_dashboard_uri(),
                 headers=self._client_headers,
                 verify=self._client_verify_tls,
             )
         else:
-            self._client = JobSubmissionClient(self.cluster_dashboard_uri())
-        return self._client
+            self._job_submission_client = JobSubmissionClient(
+                self.cluster_dashboard_uri()
+            )
+        return self._job_submission_client
 
     def evaluate_dispatch_priority(self):
         priority_class = self.config.dispatch_priority
@@ -141,6 +143,10 @@ class Cluster:
 
         # Before attempting to create the cluster AW, let's evaluate the ClusterConfig
         if self.config.dispatch_priority:
+            if not self.config.mcad:
+                raise ValueError(
+                    "Invalid Cluster Configuration, cannot have dispatch priority without MCAD"
+                )
             priority_val = self.evaluate_dispatch_priority()
             if priority_val == None:
                 raise ValueError(
@@ -163,6 +169,7 @@ class Cluster:
         template = self.config.template
         image = self.config.image
         instascale = self.config.instascale
+        mcad = self.config.mcad
         instance_types = self.config.machine_types
         env = self.config.envs
         local_interactive = self.config.local_interactive
@@ -183,6 +190,7 @@ class Cluster:
             template=template,
             image=image,
             instascale=instascale,
+            mcad=mcad,
             instance_types=instance_types,
             env=env,
             local_interactive=local_interactive,
@@ -207,15 +215,18 @@ class Cluster:
         try:
             config_check()
             api_instance = client.CustomObjectsApi(api_config_handler())
-            with open(self.app_wrapper_yaml) as f:
-                aw = yaml.load(f, Loader=yaml.FullLoader)
-            api_instance.create_namespaced_custom_object(
-                group="workload.codeflare.dev",
-                version="v1beta1",
-                namespace=namespace,
-                plural="appwrappers",
-                body=aw,
-            )
+            if self.config.mcad:
+                with open(self.app_wrapper_yaml) as f:
+                    aw = yaml.load(f, Loader=yaml.FullLoader)
+                api_instance.create_namespaced_custom_object(
+                    group="workload.codeflare.dev",
+                    version="v1beta1",
+                    namespace=namespace,
+                    plural="appwrappers",
+                    body=aw,
+                )
+            else:
+                self._component_resources_up(namespace, api_instance)
         except Exception as e:  # pragma: no cover
             return _kube_api_error_handling(e)
 
@@ -228,13 +239,16 @@ class Cluster:
         try:
             config_check()
             api_instance = client.CustomObjectsApi(api_config_handler())
-            api_instance.delete_namespaced_custom_object(
-                group="workload.codeflare.dev",
-                version="v1beta1",
-                namespace=namespace,
-                plural="appwrappers",
-                name=self.app_wrapper_name,
-            )
+            if self.config.mcad:
+                api_instance.delete_namespaced_custom_object(
+                    group="workload.codeflare.dev",
+                    version="v1beta1",
+                    namespace=namespace,
+                    plural="appwrappers",
+                    name=self.app_wrapper_name,
+                )
+            else:
+                self._component_resources_down(namespace, api_instance)
         except Exception as e:  # pragma: no cover
             return _kube_api_error_handling(e)
 
@@ -252,42 +266,46 @@ class Cluster:
         """
         ready = False
         status = CodeFlareClusterStatus.UNKNOWN
-        # check the app wrapper status
-        appwrapper = _app_wrapper_status(self.config.name, self.config.namespace)
-        if appwrapper:
-            if appwrapper.status in [
-                AppWrapperStatus.RUNNING,
-                AppWrapperStatus.COMPLETED,
-                AppWrapperStatus.RUNNING_HOLD_COMPLETION,
-            ]:
-                ready = False
-                status = CodeFlareClusterStatus.STARTING
-            elif appwrapper.status in [
-                AppWrapperStatus.FAILED,
-                AppWrapperStatus.DELETED,
-            ]:
-                ready = False
-                status = CodeFlareClusterStatus.FAILED  # should deleted be separate
-                return status, ready  # exit early, no need to check ray status
-            elif appwrapper.status in [
-                AppWrapperStatus.PENDING,
-                AppWrapperStatus.QUEUEING,
-            ]:
-                ready = False
-                if appwrapper.status == AppWrapperStatus.PENDING:
-                    status = CodeFlareClusterStatus.QUEUED
-                else:
-                    status = CodeFlareClusterStatus.QUEUEING
-                if print_to_console:
-                    pretty_print.print_app_wrappers_status([appwrapper])
-                return (
-                    status,
-                    ready,
-                )  # no need to check the ray status since still in queue
+        if self.config.mcad:
+            # check the app wrapper status
+            appwrapper = _app_wrapper_status(self.config.name, self.config.namespace)
+            if appwrapper:
+                if appwrapper.status in [
+                    AppWrapperStatus.RUNNING,
+                    AppWrapperStatus.COMPLETED,
+                    AppWrapperStatus.RUNNING_HOLD_COMPLETION,
+                ]:
+                    ready = False
+                    status = CodeFlareClusterStatus.STARTING
+                elif appwrapper.status in [
+                    AppWrapperStatus.FAILED,
+                    AppWrapperStatus.DELETED,
+                ]:
+                    ready = False
+                    status = CodeFlareClusterStatus.FAILED  # should deleted be separate
+                    return status, ready  # exit early, no need to check ray status
+                elif appwrapper.status in [
+                    AppWrapperStatus.PENDING,
+                    AppWrapperStatus.QUEUEING,
+                ]:
+                    ready = False
+                    if appwrapper.status == AppWrapperStatus.PENDING:
+                        status = CodeFlareClusterStatus.QUEUED
+                    else:
+                        status = CodeFlareClusterStatus.QUEUEING
+                    if print_to_console:
+                        pretty_print.print_app_wrappers_status([appwrapper])
+                    return (
+                        status,
+                        ready,
+                    )  # no need to check the ray status since still in queue
 
         # check the ray cluster status
         cluster = _ray_cluster_status(self.config.name, self.config.namespace)
-        if cluster and not cluster.status == RayClusterStatus.UNKNOWN:
+        if cluster:
+            if cluster.status == RayClusterStatus.UNKNOWN:
+                ready = False
+                status = CodeFlareClusterStatus.STARTING
             if cluster.status == RayClusterStatus.READY:
                 ready = True
                 status = CodeFlareClusterStatus.READY
@@ -407,19 +425,19 @@ class Cluster:
         """
         This method accesses the head ray node in your cluster and lists the running jobs.
         """
-        return self.client.list_jobs()
+        return self.job_client.list_jobs()
 
     def job_status(self, job_id: str) -> str:
         """
         This method accesses the head ray node in your cluster and returns the job status for the provided job id.
         """
-        return self.client.get_job_status(job_id)
+        return self.job_client.get_job_status(job_id)
 
     def job_logs(self, job_id: str) -> str:
         """
         This method accesses the head ray node in your cluster and returns the logs for the provided job id.
         """
-        return self.client.get_job_logs(job_id)
+        return self.job_client.get_job_logs(job_id)
 
     def torchx_config(
         self, working_dir: str = None, requirements: str = None
@@ -435,7 +453,7 @@ class Cluster:
             to_return["requirements"] = requirements
         return to_return
 
-    def from_k8_cluster_object(rc):
+    def from_k8_cluster_object(rc, mcad=True):
         machine_types = (
             rc["metadata"]["labels"]["orderedinstance"].split("_")
             if "orderedinstance" in rc["metadata"]["labels"]
@@ -474,6 +492,7 @@ class Cluster:
                 0
             ]["image"],
             local_interactive=local_interactive,
+            mcad=mcad,
         )
         return Cluster(cluster_config)
 
@@ -483,6 +502,66 @@ class Cluster:
             return f"ray://rayclient-{self.config.name}-{self.config.namespace}.{ingress_domain}"
         else:
             return "None"
+
+    def _component_resources_up(
+        self, namespace: str, api_instance: client.CustomObjectsApi
+    ):
+        with open(self.app_wrapper_yaml) as f:
+            yamls = yaml.load_all(f, Loader=yaml.FullLoader)
+            for resource in yamls:
+                if resource["kind"] == "RayCluster":
+                    api_instance.create_namespaced_custom_object(
+                        group="ray.io",
+                        version="v1alpha1",
+                        namespace=namespace,
+                        plural="rayclusters",
+                        body=resource,
+                    )
+                elif resource["kind"] == "Route":
+                    api_instance.create_namespaced_custom_object(
+                        group="route.openshift.io",
+                        version="v1",
+                        namespace=namespace,
+                        plural="routes",
+                        body=resource,
+                    )
+                elif resource["kind"] == "Secret":
+                    secret_instance = client.CoreV1Api(api_config_handler())
+                    secret_instance.create_namespaced_secret(
+                        namespace=namespace,
+                        body=resource,
+                    )
+
+    def _component_resources_down(
+        self, namespace: str, api_instance: client.CustomObjectsApi
+    ):
+        with open(self.app_wrapper_yaml) as f:
+            yamls = yaml.load_all(f, Loader=yaml.FullLoader)
+            for resource in yamls:
+                if resource["kind"] == "RayCluster":
+                    api_instance.delete_namespaced_custom_object(
+                        group="ray.io",
+                        version="v1alpha1",
+                        namespace=namespace,
+                        plural="rayclusters",
+                        name=self.app_wrapper_name,
+                    )
+                elif resource["kind"] == "Route":
+                    name = resource["metadata"]["name"]
+                    api_instance.delete_namespaced_custom_object(
+                        group="route.openshift.io",
+                        version="v1",
+                        namespace=namespace,
+                        plural="routes",
+                        name=name,
+                    )
+                elif resource["kind"] == "Secret":
+                    name = resource["metadata"]["name"]
+                    secret_instance = client.CoreV1Api(api_config_handler())
+                    secret_instance.delete_namespaced_secret(
+                        namespace=namespace,
+                        name=name,
+                    )
 
 
 def list_all_clusters(namespace: str, print_to_console: bool = True):
@@ -549,13 +628,33 @@ def get_cluster(cluster_name: str, namespace: str = "default"):
 
     for rc in rcs["items"]:
         if rc["metadata"]["name"] == cluster_name:
-            return Cluster.from_k8_cluster_object(rc)
+            mcad = _check_aw_exists(cluster_name, namespace)
+            return Cluster.from_k8_cluster_object(rc, mcad=mcad)
     raise FileNotFoundError(
         f"Cluster {cluster_name} is not found in {namespace} namespace"
     )
 
 
 # private methods
+def _check_aw_exists(name: str, namespace: str) -> bool:
+    try:
+        config_check()
+        api_instance = client.CustomObjectsApi(api_config_handler())
+        aws = api_instance.list_namespaced_custom_object(
+            group="workload.codeflare.dev",
+            version="v1beta1",
+            namespace=namespace,
+            plural="appwrappers",
+        )
+    except Exception as e:  # pragma: no cover
+        return _kube_api_error_handling(e, print_error=False)
+
+    for aw in aws["items"]:
+        if aw["metadata"]["name"] == name:
+            return True
+    return False
+
+
 def _get_ingress_domain():
     try:
         config_check()
@@ -660,6 +759,7 @@ def _map_to_ray_cluster(rc) -> Optional[RayCluster]:
 
     config_check()
     api_instance = client.CustomObjectsApi(api_config_handler())
+    # UPDATE THIS
     routes = api_instance.list_namespaced_custom_object(
         group="route.openshift.io",
         version="v1",
