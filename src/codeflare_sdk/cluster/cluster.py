@@ -342,7 +342,7 @@ class Cluster:
                 timeout=5,
                 verify=self._client_verify_tls,
             )
-        except requests.exceptions.SSLError:
+        except requests.exceptions.SSLError:  # pragma no cover
             # SSL exception occurs when oauth ingress has been created but cluster is not up
             return False
         if response.status_code == 200:
@@ -407,7 +407,7 @@ class Cluster:
             config_check()
             api_instance = client.NetworkingV1Api(api_config_handler())
             ingresses = api_instance.list_namespaced_ingress(self.config.namespace)
-        except Exception as e:
+        except Exception as e:  # pragma no cover
             return _kube_api_error_handling(e)
 
         for ingress in ingresses.items:
@@ -770,7 +770,7 @@ def _map_to_ray_cluster(rc) -> Optional[RayCluster]:
         config_check()
         api_instance = client.NetworkingV1Api(api_config_handler())
         ingresses = api_instance.list_namespaced_ingress(rc["metadata"]["namespace"])
-    except Exception as e:
+    except Exception as e:  # pragma no cover
         return _kube_api_error_handling(e)
     ray_ingress = None
     for ingress in ingresses.items:

@@ -43,7 +43,10 @@ from codeflare_sdk.cluster.auth import (
     KubeConfigFileAuthentication,
     config_check,
 )
-from codeflare_sdk.utils.openshift_oauth import create_openshift_oauth_objects
+from codeflare_sdk.utils.openshift_oauth import (
+    create_openshift_oauth_objects,
+    delete_openshift_oauth_objects,
+)
 from codeflare_sdk.utils.pretty_print import (
     print_no_resources_found,
     print_app_wrappers_status,
@@ -489,6 +492,27 @@ def test_rc_status(mocker):
     assert rc == None
 
 
+def test_delete_openshift_oauth_objects(mocker):
+    mocker.patch.object(client.CoreV1Api, "delete_namespaced_service_account")
+    mocker.patch.object(client.CoreV1Api, "delete_namespaced_service")
+    mocker.patch.object(client.NetworkingV1Api, "delete_namespaced_ingress")
+    mocker.patch.object(client.RbacAuthorizationV1Api, "delete_cluster_role_binding")
+    delete_openshift_oauth_objects("test-cluster", "test-namespace")
+
+    client.CoreV1Api.delete_namespaced_service_account.assert_called_with(
+        name="test-cluster-oauth-proxy", namespace="test-namespace"
+    )
+    client.CoreV1Api.delete_namespaced_service.assert_called_with(
+        name="test-cluster-oauth", namespace="test-namespace"
+    )
+    client.NetworkingV1Api.delete_namespaced_ingress.assert_called_with(
+        name="test-cluster-ingress", namespace="test-namespace"
+    )
+    client.RbacAuthorizationV1Api.delete_cluster_role_binding.assert_called_with(
+        name="test-cluster-rb"
+    )
+
+
 def test_cluster_uris(mocker):
     mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
     mocker.patch(
@@ -496,6 +520,16 @@ def test_cluster_uris(mocker):
         return_value="apps.cluster.awsroute.org",
     )
     cluster = cluster = createClusterWithConfig(mocker)
+    mocker.patch(
+        "kubernetes.client.NetworkingV1Api.list_namespaced_ingress",
+        return_value=ingress_retrieval(
+            port=8265, annotations={"route.openshift.io/termination": "passthrough"}
+        ),
+    )
+    assert (
+        cluster.cluster_dashboard_uri()
+        == "https://ray-dashboard-unit-test-cluster-ns.apps.cluster.awsroute.org"
+    )
     mocker.patch(
         "kubernetes.client.NetworkingV1Api.list_namespaced_ingress",
         return_value=ingress_retrieval(port=8265),
@@ -543,13 +577,15 @@ def ray_addr(self, *args):
     return self._address
 
 
-def ingress_retrieval(port):
+def ingress_retrieval(port, annotations=None):
     if port == 10001:
         serviceName = "client"
     else:
         serviceName = "dashboard"
     mock_ingress = client.V1Ingress(
-        metadata=client.V1ObjectMeta(name=f"ray-{serviceName}-unit-test-cluster"),
+        metadata=client.V1ObjectMeta(
+            name=f"ray-{serviceName}-unit-test-cluster", annotations=annotations
+        ),
         spec=client.V1IngressSpec(
             rules=[
                 client.V1IngressRule(
