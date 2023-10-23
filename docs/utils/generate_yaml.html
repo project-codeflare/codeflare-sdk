@@ -488,6 +488,19 @@ def _create_oauth_sidecar_object(
     )
 
 
+def write_components(user_yaml: dict, output_file_name: str):
+    components = user_yaml.get(&#34;spec&#34;, &#34;resources&#34;)[&#34;resources&#34;].get(&#34;GenericItems&#34;)
+    open(output_file_name, &#34;w&#34;).close()
+    with open(output_file_name, &#34;a&#34;) as outfile:
+        for component in components:
+            if &#34;generictemplate&#34; in component:
+                outfile.write(&#34;---\n&#34;)
+                yaml.dump(
+                    component[&#34;generictemplate&#34;], outfile, default_flow_style=False
+                )
+    print(f&#34;Written to: {output_file_name}&#34;)
+
+
 def generate_appwrapper(
     name: str,
     namespace: str,
@@ -503,6 +516,7 @@ def generate_appwrapper(
     template: str,
     image: str,
     instascale: bool,
+    mcad: bool,
     instance_types: list,
     env,
     local_interactive: bool,
@@ -558,7 +572,10 @@ def generate_appwrapper(
         enable_openshift_oauth(user_yaml, cluster_name, namespace)
 
     outfile = appwrapper_name + &#34;.yaml&#34;
-    write_user_appwrapper(user_yaml, outfile)
+    if not mcad:
+        write_components(user_yaml, outfile)
+    else:
+        write_user_appwrapper(user_yaml, outfile)
     return outfile</code></pre>
 </details>
 </section>
@@ -775,7 +792,7 @@ def generate_appwrapper(
 </details>
 </dd>
 <dt id="codeflare_sdk.utils.generate_yaml.generate_appwrapper"><code class="name flex">
-<span>def <span class="ident">generate_appwrapper</span></span>(<span>name: str, namespace: str, head_cpus: int, head_memory: int, head_gpus: int, min_cpu: int, max_cpu: int, min_memory: int, max_memory: int, gpu: int, workers: int, template: str, image: str, instascale: bool, instance_types: list, env, local_interactive: bool, image_pull_secrets: list, dispatch_priority: str, priority_val: int, openshift_oauth: bool)</span>
+<span>def <span class="ident">generate_appwrapper</span></span>(<span>name: str, namespace: str, head_cpus: int, head_memory: int, head_gpus: int, min_cpu: int, max_cpu: int, min_memory: int, max_memory: int, gpu: int, workers: int, template: str, image: str, instascale: bool, mcad: bool, instance_types: list, env, local_interactive: bool, image_pull_secrets: list, dispatch_priority: str, priority_val: int, openshift_oauth: bool)</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -798,6 +815,7 @@ def generate_appwrapper(
     template: str,
     image: str,
     instascale: bool,
+    mcad: bool,
     instance_types: list,
     env,
     local_interactive: bool,
@@ -853,7 +871,10 @@ def generate_appwrapper(
         enable_openshift_oauth(user_yaml, cluster_name, namespace)
 
     outfile = appwrapper_name + &#34;.yaml&#34;
-    write_user_appwrapper(user_yaml, outfile)
+    if not mcad:
+        write_components(user_yaml, outfile)
+    else:
+        write_user_appwrapper(user_yaml, outfile)
     return outfile</code></pre>
 </details>
 </dd>
@@ -1209,6 +1230,28 @@ def generate_appwrapper(
             limits[&#34;nvidia.com/gpu&#34;] = gpu</code></pre>
 </details>
 </dd>
+<dt id="codeflare_sdk.utils.generate_yaml.write_components"><code class="name flex">
+<span>def <span class="ident">write_components</span></span>(<span>user_yaml: dict, output_file_name: str)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def write_components(user_yaml: dict, output_file_name: str):
+    components = user_yaml.get(&#34;spec&#34;, &#34;resources&#34;)[&#34;resources&#34;].get(&#34;GenericItems&#34;)
+    open(output_file_name, &#34;w&#34;).close()
+    with open(output_file_name, &#34;a&#34;) as outfile:
+        for component in components:
+            if &#34;generictemplate&#34; in component:
+                outfile.write(&#34;---\n&#34;)
+                yaml.dump(
+                    component[&#34;generictemplate&#34;], outfile, default_flow_style=False
+                )
+    print(f&#34;Written to: {output_file_name}&#34;)</code></pre>
+</details>
+</dd>
 <dt id="codeflare_sdk.utils.generate_yaml.write_user_appwrapper"><code class="name flex">
 <span>def <span class="ident">write_user_appwrapper</span></span>(<span>user_yaml, output_file_name)</span>
 </code></dt>
@@ -1262,6 +1305,7 @@ def generate_appwrapper(
 <li><code><a title="codeflare_sdk.utils.generate_yaml.update_priority" href="#codeflare_sdk.utils.generate_yaml.update_priority">update_priority</a></code></li>
 <li><code><a title="codeflare_sdk.utils.generate_yaml.update_rayclient_route" href="#codeflare_sdk.utils.generate_yaml.update_rayclient_route">update_rayclient_route</a></code></li>
 <li><code><a title="codeflare_sdk.utils.generate_yaml.update_resources" href="#codeflare_sdk.utils.generate_yaml.update_resources">update_resources</a></code></li>
+<li><code><a title="codeflare_sdk.utils.generate_yaml.write_components" href="#codeflare_sdk.utils.generate_yaml.write_components">write_components</a></code></li>
 <li><code><a title="codeflare_sdk.utils.generate_yaml.write_user_appwrapper" href="#codeflare_sdk.utils.generate_yaml.write_user_appwrapper">write_user_appwrapper</a></code></li>
 </ul>
 </li>
