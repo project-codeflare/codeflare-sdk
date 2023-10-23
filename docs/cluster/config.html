@@ -78,6 +78,7 @@ class ClusterConfiguration:
     num_gpus: int = 0
     template: str = f&#34;{dir}/templates/base-template.yaml&#34;
     instascale: bool = False
+    mcad: bool = True
     envs: dict = field(default_factory=dict)
     image: str = &#34;quay.io/project-codeflare/ray:latest-py39-cu118&#34;
     local_interactive: bool = False
@@ -97,7 +98,7 @@ class ClusterConfiguration:
 <dl>
 <dt id="codeflare_sdk.cluster.config.ClusterConfiguration"><code class="flex name class">
 <span>class <span class="ident">ClusterConfiguration</span></span>
-<span>(</span><span>name: str, namespace: str = None, head_info: list = &lt;factory&gt;, head_cpus: int = 2, head_memory: int = 8, head_gpus: int = 0, machine_types: list = &lt;factory&gt;, min_cpus: int = 1, max_cpus: int = 1, num_workers: int = 1, min_memory: int = 2, max_memory: int = 2, num_gpus: int = 0, template: str = '/home/runner/work/codeflare-sdk/codeflare-sdk/src/codeflare_sdk/templates/base-template.yaml', instascale: bool = False, envs: dict = &lt;factory&gt;, image: str = 'quay.io/project-codeflare/ray:latest-py39-cu118', local_interactive: bool = False, image_pull_secrets: list = &lt;factory&gt;, dispatch_priority: str = None, openshift_oauth: bool = False)</span>
+<span>(</span><span>name: str, namespace: str = None, head_info: list = &lt;factory&gt;, head_cpus: int = 2, head_memory: int = 8, head_gpus: int = 0, machine_types: list = &lt;factory&gt;, min_cpus: int = 1, max_cpus: int = 1, num_workers: int = 1, min_memory: int = 2, max_memory: int = 2, num_gpus: int = 0, template: str = '/home/runner/work/codeflare-sdk/codeflare-sdk/src/codeflare_sdk/templates/base-template.yaml', instascale: bool = False, mcad: bool = True, envs: dict = &lt;factory&gt;, image: str = 'quay.io/project-codeflare/ray:latest-py39-cu118', local_interactive: bool = False, image_pull_secrets: list = &lt;factory&gt;, dispatch_priority: str = None, openshift_oauth: bool = False)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>This dataclass is used to specify resource requirements and other details, and
@@ -127,6 +128,7 @@ is passed in as an argument when creating a Cluster object.</p></div>
     num_gpus: int = 0
     template: str = f&#34;{dir}/templates/base-template.yaml&#34;
     instascale: bool = False
+    mcad: bool = True
     envs: dict = field(default_factory=dict)
     image: str = &#34;quay.io/project-codeflare/ray:latest-py39-cu118&#34;
     local_interactive: bool = False
@@ -185,6 +187,10 @@ is passed in as an argument when creating a Cluster object.</p></div>
 <div class="desc"></div>
 </dd>
 <dt id="codeflare_sdk.cluster.config.ClusterConfiguration.max_memory"><code class="name">var <span class="ident">max_memory</span> : int</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="codeflare_sdk.cluster.config.ClusterConfiguration.mcad"><code class="name">var <span class="ident">mcad</span> : bool</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -254,6 +260,7 @@ is passed in as an argument when creating a Cluster object.</p></div>
 <li><code><a title="codeflare_sdk.cluster.config.ClusterConfiguration.machine_types" href="#codeflare_sdk.cluster.config.ClusterConfiguration.machine_types">machine_types</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.config.ClusterConfiguration.max_cpus" href="#codeflare_sdk.cluster.config.ClusterConfiguration.max_cpus">max_cpus</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.config.ClusterConfiguration.max_memory" href="#codeflare_sdk.cluster.config.ClusterConfiguration.max_memory">max_memory</a></code></li>
+<li><code><a title="codeflare_sdk.cluster.config.ClusterConfiguration.mcad" href="#codeflare_sdk.cluster.config.ClusterConfiguration.mcad">mcad</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.config.ClusterConfiguration.min_cpus" href="#codeflare_sdk.cluster.config.ClusterConfiguration.min_cpus">min_cpus</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.config.ClusterConfiguration.min_memory" href="#codeflare_sdk.cluster.config.ClusterConfiguration.min_memory">min_memory</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.config.ClusterConfiguration.name" href="#codeflare_sdk.cluster.config.ClusterConfiguration.name">name</a></code></li>
