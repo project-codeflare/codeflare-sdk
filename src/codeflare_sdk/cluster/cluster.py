@@ -412,15 +412,17 @@ class Cluster:
 
         for ingress in ingresses.items:
             annotations = ingress.metadata.annotations
-            if ingress.metadata.name == f"ray-dashboard-{self.config.name}" or ingress.metadata.name.startswith(
-                f"{self.config.name}-ingress" ):
+            protocol = "http"
+            if (
+                ingress.metadata.name == f"ray-dashboard-{self.config.name}"
+                or ingress.metadata.name.startswith(f"{self.config.name}-ingress")
+            ):
                 if annotations == None:
                     protocol = "http"
                 elif "route.openshift.io/termination" in annotations:
                     protocol = "https"
             return f"{protocol}://{ingress.spec.rules[0].host}"
-        return "Dashboard route not available yet, have you run cluster.up()?"
-                            
+        return "Dashboard ingress not available yet, have you run cluster.up()?"
 
     def list_jobs(self) -> List:
         """
@@ -665,8 +667,8 @@ def _get_ingress_domain(self):  # pragma: no cover
             namespace = self.config.namespace
         else:
             namespace = get_current_namespace()
-            ingresses = api_client.list_namespaced_ingress(namespace)
-    except Exception as e: # pragma: no cover
+        ingresses = api_client.list_namespaced_ingress(namespace)
+    except Exception as e:  # pragma: no cover
         return _kube_api_error_handling(e)
     domain = None
     for ingress in ingresses.items:
@@ -773,8 +775,11 @@ def _map_to_ray_cluster(rc) -> Optional[RayCluster]:
     ray_ingress = None
     for ingress in ingresses.items:
         annotations = ingress.metadata.annotations
-        if ingress.metadata.name == f"ray-dashboard-{rc['metadata']['name']}" or ingress.metadata.name.startswith(
-            f"{rc['metadata']['name']}-ingress" ):
+        protocol = "http"
+        if (
+            ingress.metadata.name == f"ray-dashboard-{rc['metadata']['name']}"
+            or ingress.metadata.name.startswith(f"{rc['metadata']['name']}-ingress")
+        ):
             if annotations == None:
                 protocol = "http"
             elif "route.openshift.io/termination" in annotations:
