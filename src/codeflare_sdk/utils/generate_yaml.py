@@ -149,94 +149,50 @@ def update_dashboard_ingress(
 
 
 def update_rayclient_ingress(
-    ingress_item, cluster_name, namespace, ingress_options, ingress_domain
+    ingress_item, cluster_name, namespace, ingress_domain
 ):  # pragma: no cover
     metadata = ingress_item.get("generictemplate", {}).get("metadata")
     spec = ingress_item.get("generictemplate", {}).get("spec")
-    if ingress_options != {}:
-        for index, ingress_option in enumerate(ingress_options["ingresses"]):
-            if "ingressName" not in ingress_option.keys():
-                raise ValueError(
-                    f"Error: 'ingressName' is missing or empty for ingress item at index {index}"
-                )
-            if "port" not in ingress_option.keys():
-                raise ValueError(
-                    f"Error: 'port' is missing or empty for ingress item at index {index}"
-                )
-            elif not isinstance(ingress_option["port"], int):
-                raise ValueError(
-                    f"Error: 'port' is not of type int for ingress item at index {index}"
-                )
-            if ingress_option["port"] == 10001:
-                metadata["name"] = ingress_option["ingressName"]
-                metadata["namespace"] = namespace
-                if "annotations" not in ingress_option.keys():
-                    del metadata["annotations"]
-                else:
-                    metadata["annotations"] = ingress_option["annotations"]
-                if "path" not in ingress_option.keys():
-                    del spec["rules"][0]["http"]["paths"][0]["path"]
-                else:
-                    spec["rules"][0]["http"]["paths"][0]["path"] = ingress_option[
-                        "path"
-                    ]
-                if "pathType" not in ingress_option.keys():
-                    spec["rules"][0]["http"]["paths"][0][
-                        "pathType"
-                    ] = "ImplementationSpecific"
-                if "host" not in ingress_option.keys():
-                    del spec["rules"][0]["host"]
-                else:
-                    spec["rules"][0]["host"] = ingress_option["host"]
-                if "ingressClassName" not in ingress_option.keys():
-                    del spec["ingressClassName"]
-                else:
-                    spec["ingressClassName"] = ingress_option["ingressClassName"]
+    metadata["name"] = f"rayclient-{cluster_name}"
+    metadata["namespace"] = namespace
+    metadata["labels"]["odh-ray-cluster-service"] = f"{cluster_name}-head-svc"
 
-                spec["rules"][0]["http"]["paths"][0]["backend"]["service"][
-                    "name"
-                ] = f"{cluster_name}-head-svc"
-    else:
-        metadata["name"] = f"rayclient-{cluster_name}"
-        metadata["namespace"] = namespace
-        metadata["labels"]["odh-ray-cluster-service"] = f"{cluster_name}-head-svc"
+    spec["rules"][0]["http"]["paths"][0]["backend"]["service"][
+        "name"
+    ] = f"{cluster_name}-head-svc"
 
-        spec["rules"][0]["http"]["paths"][0]["backend"]["service"][
-            "name"
-        ] = f"{cluster_name}-head-svc"
-
-        if is_openshift_cluster():
-            try:
-                config_check()
-                api_client = client.CustomObjectsApi(api_config_handler())
-                ingress = api_client.get_cluster_custom_object(
-                    "config.openshift.io", "v1", "ingresses", "cluster"
-                )
-                ingressClassName = "openshift-default"
-                annotations = {
-                    "nginx.ingress.kubernetes.io/rewrite-target": "/",
-                    "nginx.ingress.kubernetes.io/ssl-redirect": "true",
-                    "route.openshift.io/termination": "passthrough",
-                }
-            except Exception as e:  # pragma: no cover
-                return _kube_api_error_handling(e)
-            domain = ingress["spec"]["domain"]
-        elif ingress_domain is None:
-            raise ValueError(
-                "ingress_domain is invalid. For Kubernetes Clusters please specify an ingress domain"
+    if is_openshift_cluster():
+        try:
+            config_check()
+            api_client = client.CustomObjectsApi(api_config_handler())
+            ingress = api_client.get_cluster_custom_object(
+                "config.openshift.io", "v1", "ingresses", "cluster"
             )
-        else:
-            domain = ingress_domain
-            ingressClassName = "nginx"
+            ingressClassName = "openshift-default"
             annotations = {
                 "nginx.ingress.kubernetes.io/rewrite-target": "/",
                 "nginx.ingress.kubernetes.io/ssl-redirect": "true",
-                "nginx.ingress.kubernetes.io/ssl-passthrough": "true",
+                "route.openshift.io/termination": "passthrough",
             }
+        except Exception as e:  # pragma: no cover
+            return _kube_api_error_handling(e)
+        domain = ingress["spec"]["domain"]
+    elif ingress_domain is None:
+        raise ValueError(
+            "ingress_domain is invalid. For Kubernetes Clusters please specify an ingress domain"
+        )
+    else:
+        domain = ingress_domain
+        ingressClassName = "nginx"
+        annotations = {
+            "nginx.ingress.kubernetes.io/rewrite-target": "/",
+            "nginx.ingress.kubernetes.io/ssl-redirect": "true",
+            "nginx.ingress.kubernetes.io/ssl-passthrough": "true",
+        }
 
-        metadata["annotations"] = annotations
-        spec["ingressClassName"] = ingressClassName
-        spec["rules"][0]["host"] = f"rayclient-{cluster_name}-{namespace}.{domain}"
+    metadata["annotations"] = annotations
+    spec["ingressClassName"] = ingressClassName
+    spec["rules"][0]["host"] = f"rayclient-{cluster_name}-{namespace}.{domain}"
 
 
 def update_names(yaml, item, appwrapper_name, cluster_name, namespace):
@@ -504,9 +460,7 @@ def enable_local_interactive(
             domain = ingress_domain
 
     command = command.replace("server-name", domain)
-    update_rayclient_ingress(
-        rayclient_ingress_item, cluster_name, namespace, ingress_options, domain
-    )
+    update_rayclient_ingress(rayclient_ingress_item, cluster_name, namespace, domain)
 
     item["generictemplate"]["spec"]["headGroupSpec"]["template"]["spec"][
         "initContainers"
