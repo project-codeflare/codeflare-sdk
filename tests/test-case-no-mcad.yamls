@@ -3,8 +3,8 @@ apiVersion: ray.io/v1alpha1
 kind: RayCluster
 metadata:
   labels:
-    appwrapper.mcad.ibm.com: unit-test-cluster-ray
     controller-tools.k8s.io: '1.0'
+    workload.codeflare.dev/appwrapper: unit-test-cluster-ray
   name: unit-test-cluster-ray
   namespace: ns
 spec:

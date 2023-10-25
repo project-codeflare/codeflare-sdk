@@ -31,7 +31,7 @@ spec:
         kind: RayCluster
         metadata:
           labels:
-            workload.codeflare.dev/appwrapper: raytest
+            appwrapper.mcad.ibm.com: raytest
             controller-tools.k8s.io: '1.0'
           name: raytest
           namespace: default
