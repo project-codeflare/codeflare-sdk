@@ -668,9 +668,7 @@ def generate_appwrapper(
         ingress_item, cluster_name, namespace, ingress_options, ingress_domain
     )
     if local_interactive:
-        enable_local_interactive(
-            resources, cluster_name, namespace, ingress_options, ingress_domain
-        )
+        enable_local_interactive(resources, cluster_name, namespace, ingress_domain)
     else:
         disable_raycluster_tls(resources["resources"])
 
