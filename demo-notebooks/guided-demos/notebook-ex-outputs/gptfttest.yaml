@@ -33,7 +33,7 @@ spec:
         kind: RayCluster
         metadata:
           labels:
-            workload.codeflare.dev/appwrapper: gptfttest
+            appwrapper.mcad.ibm.com: gptfttest
             controller-tools.k8s.io: '1.0'
           name: gptfttest
           namespace: default

@@ -31,7 +31,7 @@ spec:
         kind: RayCluster
         metadata:
           labels:
-            workload.codeflare.dev/appwrapper: jobtest
+            appwrapper.mcad.ibm.com: jobtest
             controller-tools.k8s.io: '1.0'
           name: jobtest
           namespace: default
