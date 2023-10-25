@@ -395,9 +395,7 @@ def update_ca_secret(ca_secret_item, cluster_name, namespace):
     data["ca.key"], data["ca.crt"] = generate_cert.generate_ca_cert(365)
 
 
-def enable_local_interactive(
-    resources, cluster_name, namespace, ingress_options, ingress_domain
-):
+def enable_local_interactive(resources, cluster_name, namespace, ingress_domain):
     rayclient_ingress_item = resources["resources"].get("GenericItems")[2]
     ca_secret_item = resources["resources"].get("GenericItems")[3]
     item = resources["resources"].get("GenericItems")[0]
@@ -423,41 +421,23 @@ def enable_local_interactive(
 
     command = command.replace("deployment-name", cluster_name)
 
-    if ingress_options != {}:
-        for index, ingress_option in enumerate(ingress_options["ingresses"]):
-            if ingress_option["port"] == 10001:
-                if "host" not in ingress_option.keys():
-                    raise ValueError(
-                        f"Client host is not specified please include a host for the ingress item at index {index}"
-                    )
-                else:
-                    host = ingress_option["host"]
-                    domain_split = host.split(".", 1)
-                    if len(domain_split) > 1:
-                        domain = domain_split[1]
-                    else:
-                        raise ValueError(
-                            f"The client ingress host is configured incorrectly please specify a host with a correct domain for the ingress item at index {index}"
-                        )
-
-    else:
-        if is_openshift_cluster():
-            # We can try get the domain through checking ingresses.config.openshift.io
-            try:
-                config_check()
-                api_client = client.CustomObjectsApi(api_config_handler())
-                ingress = api_client.get_cluster_custom_object(
-                    "config.openshift.io", "v1", "ingresses", "cluster"
-                )
-            except Exception as e:  # pragma: no cover
-                return _kube_api_error_handling(e)
-            domain = ingress["spec"]["domain"]
-        elif ingress_domain is None:
-            raise ValueError(
-                "ingress_domain is invalid. For Kubernetes Clusters please specify an ingress domain"
+    if is_openshift_cluster():
+        # We can try get the domain through checking ingresses.config.openshift.io
+        try:
+            config_check()
+            api_client = client.CustomObjectsApi(api_config_handler())
+            ingress = api_client.get_cluster_custom_object(
+                "config.openshift.io", "v1", "ingresses", "cluster"
             )
-        else:
-            domain = ingress_domain
+        except Exception as e:  # pragma: no cover
+            return _kube_api_error_handling(e)
+        domain = ingress["spec"]["domain"]
+    elif ingress_domain is None:
+        raise ValueError(
+            "ingress_domain is invalid. For Kubernetes Clusters please specify an ingress domain"
+        )
+    else:
+        domain = ingress_domain
 
     command = command.replace("server-name", domain)
     update_rayclient_ingress(rayclient_ingress_item, cluster_name, namespace, domain)
