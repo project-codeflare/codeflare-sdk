@@ -19,6 +19,7 @@ This sub-module exists primarily to be used internally by the Cluster object
 
 import yaml
 import sys
+import os
 import argparse
 import uuid
 from kubernetes import client, config
@@ -506,8 +507,14 @@ def disable_raycluster_tls(resources):
 
 
 def write_user_appwrapper(user_yaml, output_file_name):
+    # Create the directory if it doesn't exist
+    directory_path = os.path.dirname(output_file_name)
+    if not os.path.exists(directory_path):
+        os.makedirs(directory_path)
+
     with open(output_file_name, "w") as outfile:
         yaml.dump(user_yaml, outfile, default_flow_style=False)
+
     print(f"Written to: {output_file_name}")
 
 
@@ -675,7 +682,8 @@ def generate_appwrapper(
     if openshift_oauth:
         enable_openshift_oauth(user_yaml, cluster_name, namespace)
 
-    outfile = appwrapper_name + ".yaml"
+    directory_path = os.path.expanduser("~/.codeflare/appwrapper/")
+    outfile = os.path.join(directory_path, appwrapper_name + ".yaml")
     if not mcad:
         write_components(user_yaml, outfile)
     else:

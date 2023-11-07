@@ -24,6 +24,7 @@ import uuid
 from codeflare_sdk.cluster import cluster
 
 parent = Path(__file__).resolve().parents[1]
+aw_dir = os.path.expanduser("~/.codeflare/appwrapper/")
 sys.path.append(str(parent) + "/src")
 
 from kubernetes import client, config
@@ -261,10 +262,12 @@ def test_config_creation():
 
 def test_cluster_creation(mocker):
     cluster = createClusterWithConfig(mocker)
-    assert cluster.app_wrapper_yaml == "unit-test-cluster.yaml"
+    assert cluster.app_wrapper_yaml == f"{aw_dir}unit-test-cluster.yaml"
     assert cluster.app_wrapper_name == "unit-test-cluster"
     assert filecmp.cmp(
-        "unit-test-cluster.yaml", f"{parent}/tests/test-case.yaml", shallow=True
+        f"{aw_dir}unit-test-cluster.yaml",
+        f"{parent}/tests/test-case.yaml",
+        shallow=True,
     )
 
 
@@ -290,10 +293,10 @@ def test_cluster_creation_no_mcad(mocker):
     config.name = "unit-test-cluster-ray"
     config.mcad = False
     cluster = Cluster(config)
-    assert cluster.app_wrapper_yaml == "unit-test-cluster-ray.yaml"
+    assert cluster.app_wrapper_yaml == f"{aw_dir}unit-test-cluster-ray.yaml"
     assert cluster.app_wrapper_name == "unit-test-cluster-ray"
     assert filecmp.cmp(
-        "unit-test-cluster-ray.yaml",
+        f"{aw_dir}unit-test-cluster-ray.yaml",
         f"{parent}/tests/test-case-no-mcad.yamls",
         shallow=True,
     )
@@ -313,10 +316,12 @@ def test_cluster_creation_priority(mocker):
         return_value={"spec": {"domain": "apps.cluster.awsroute.org"}},
     )
     cluster = Cluster(config)
-    assert cluster.app_wrapper_yaml == "prio-test-cluster.yaml"
+    assert cluster.app_wrapper_yaml == f"{aw_dir}prio-test-cluster.yaml"
     assert cluster.app_wrapper_name == "prio-test-cluster"
     assert filecmp.cmp(
-        "prio-test-cluster.yaml", f"{parent}/tests/test-case-prio.yaml", shallow=True
+        f"{aw_dir}prio-test-cluster.yaml",
+        f"{parent}/tests/test-case-prio.yaml",
+        shallow=True,
     )
 
 
@@ -335,7 +340,7 @@ def test_default_cluster_creation(mocker):
     )
     cluster = Cluster(default_config)
 
-    assert cluster.app_wrapper_yaml == "unit-test-default-cluster.yaml"
+    assert cluster.app_wrapper_yaml == f"{aw_dir}unit-test-default-cluster.yaml"
     assert cluster.app_wrapper_name == "unit-test-default-cluster"
     assert cluster.config.namespace == "opendatahub"
 
@@ -365,13 +370,13 @@ def arg_check_apply_effect(group, version, namespace, plural, body, *args):
     if plural == "appwrappers":
         assert group == "workload.codeflare.dev"
         assert version == "v1beta1"
-        with open("unit-test-cluster.yaml") as f:
+        with open(f"{aw_dir}unit-test-cluster.yaml") as f:
             aw = yaml.load(f, Loader=yaml.FullLoader)
         assert body == aw
     elif plural == "rayclusters":
         assert group == "ray.io"
         assert version == "v1alpha1"
-        with open("unit-test-cluster-ray.yaml") as f:
+        with open(f"{aw_dir}unit-test-cluster-ray.yaml") as f:
             yamls = yaml.load_all(f, Loader=yaml.FullLoader)
             for resource in yamls:
                 if resource["kind"] == "RayCluster":
@@ -379,7 +384,7 @@ def arg_check_apply_effect(group, version, namespace, plural, body, *args):
     elif plural == "routes":
         assert group == "route.openshift.io"
         assert version == "v1"
-        with open("unit-test-cluster-ray.yaml") as f:
+        with open(f"{aw_dir}unit-test-cluster-ray.yaml") as f:
             yamls = yaml.load_all(f, Loader=yaml.FullLoader)
             for resource in yamls:
                 if resource["kind"] == "Route":
@@ -2408,7 +2413,7 @@ def parse_j(cmd):
 
 
 def test_AWManager_creation():
-    testaw = AWManager("test.yaml")
+    testaw = AWManager(f"{aw_dir}test.yaml")
     assert testaw.name == "test"
     assert testaw.namespace == "ns"
     assert testaw.submitted == False
@@ -2432,7 +2437,7 @@ def arg_check_aw_apply_effect(group, version, namespace, plural, body, *args):
     assert version == "v1beta1"
     assert namespace == "ns"
     assert plural == "appwrappers"
-    with open("test.yaml") as f:
+    with open(f"{aw_dir}test.yaml") as f:
         aw = yaml.load(f, Loader=yaml.FullLoader)
     assert body == aw
     assert args == tuple()
@@ -2448,7 +2453,7 @@ def arg_check_aw_del_effect(group, version, namespace, plural, name, *args):
 
 
 def test_AWManager_submit_remove(mocker, capsys):
-    testaw = AWManager("test.yaml")
+    testaw = AWManager(f"{aw_dir}test.yaml")
     testaw.remove()
     captured = capsys.readouterr()
     assert (
@@ -2876,13 +2881,12 @@ def test_gen_app_wrapper_with_oauth(mocker: MockerFixture):
 
 # Make sure to always keep this function last
 def test_cleanup():
-    os.remove("unit-test-cluster.yaml")
-    os.remove("prio-test-cluster.yaml")
-    os.remove("unit-test-default-cluster.yaml")
-    os.remove("unit-test-cluster-ray.yaml")
-    os.remove("test.yaml")
-    os.remove("raytest2.yaml")
-    os.remove("quicktest.yaml")
+    os.remove(f"{aw_dir}unit-test-cluster.yaml")
+    os.remove(f"{aw_dir}prio-test-cluster.yaml")
+    os.remove(f"{aw_dir}unit-test-default-cluster.yaml")
+    os.remove(f"{aw_dir}test.yaml")
+    os.remove(f"{aw_dir}raytest2.yaml")
+    os.remove(f"{aw_dir}quicktest.yaml")
     os.remove("tls-cluster-namespace/ca.crt")
     os.remove("tls-cluster-namespace/tls.crt")
     os.remove("tls-cluster-namespace/tls.key")
