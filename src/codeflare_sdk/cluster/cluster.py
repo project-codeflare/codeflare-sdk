@@ -71,8 +71,10 @@ class Cluster:
         """
         self.config = config
         self.app_wrapper_yaml = self.create_app_wrapper()
-        self.app_wrapper_name = self.app_wrapper_yaml.split(".")[0]
         self._job_submission_client = None
+        self.app_wrapper_name = self.app_wrapper_yaml.replace(".yaml", "").split("/")[
+            -1
+        ]
 
     @property
     def _client_headers(self):
