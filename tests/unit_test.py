@@ -242,7 +242,10 @@ def test_config_creation():
     assert config.min_cpus == 3 and config.max_cpus == 4
     assert config.min_memory == 5 and config.max_memory == 6
     assert config.num_gpus == 7
-    assert config.image == "quay.io/project-codeflare/ray:latest-py39-cu118"
+    assert (
+        config.image
+        == "quay.io/project-codeflare/ray@sha256:1ddf39c1bbb182bc9f9c477fa0003902506013f8721f7e203673f965156f5559"
+    )
     assert config.template == f"{parent}/src/codeflare_sdk/templates/base-template.yaml"
     assert config.instascale
     assert config.machine_types == ["cpu.small", "gpu.large"]
