@@ -263,6 +263,18 @@ def test_cluster_creation(mocker):
         "unit-test-cluster.yaml", f"{parent}/tests/test-case.yaml", shallow=True
     )
     
+def test_create_app_wrapper_raises_error_with_no_image():
+    config = createClusterConfig()
+    config.image = ""  # Clear the image to test error handling
+    try:
+        cluster = Cluster(config)
+        cluster.create_app_wrapper()
+        assert False, "Expected ValueError when 'image' is not specified."
+    except ValueError as error:
+        assert str(error) == "Image must be specified in the ClusterConfiguration", \
+            "Error message did not match expected output."
+
+
 def test_cluster_creation_no_mcad(mocker):
     mocker.patch(
         "kubernetes.client.CustomObjectsApi.get_cluster_custom_object",
