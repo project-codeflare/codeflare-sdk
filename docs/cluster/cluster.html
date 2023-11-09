@@ -160,6 +160,16 @@ class Cluster:
         print(f&#34;Priority class {priority_class} is not available in the cluster&#34;)
         return None
 
+    def validate_image_config(self):
+        &#34;&#34;&#34;
+        Validates that the image configuration is not empty.
+
+        :param image: The image string to validate
+        :raises ValueError: If the image is not specified
+        &#34;&#34;&#34;
+        if self.config.image == &#34;&#34; or self.config.image == None:
+            raise ValueError(&#34;Image must be specified in the ClusterConfiguration&#34;)
+
     def create_app_wrapper(self):
         &#34;&#34;&#34;
         Called upon cluster object creation, creates an AppWrapper yaml based on
@@ -174,6 +184,9 @@ class Cluster:
                 raise TypeError(
                     f&#34;Namespace {self.config.namespace} is of type {type(self.config.namespace)}. Check your Kubernetes Authentication.&#34;
                 )
+
+        # Validate image configuration
+        self.validate_image_config()
 
         # Before attempting to create the cluster AW, let&#39;s evaluate the ClusterConfig
         if self.config.dispatch_priority:
@@ -1095,6 +1108,16 @@ request.</p></div>
         print(f&#34;Priority class {priority_class} is not available in the cluster&#34;)
         return None
 
+    def validate_image_config(self):
+        &#34;&#34;&#34;
+        Validates that the image configuration is not empty.
+
+        :param image: The image string to validate
+        :raises ValueError: If the image is not specified
+        &#34;&#34;&#34;
+        if self.config.image == &#34;&#34; or self.config.image == None:
+            raise ValueError(&#34;Image must be specified in the ClusterConfiguration&#34;)
+
     def create_app_wrapper(self):
         &#34;&#34;&#34;
         Called upon cluster object creation, creates an AppWrapper yaml based on
@@ -1109,6 +1132,9 @@ request.</p></div>
                 raise TypeError(
                     f&#34;Namespace {self.config.namespace} is of type {type(self.config.namespace)}. Check your Kubernetes Authentication.&#34;
                 )
+
+        # Validate image configuration
+        self.validate_image_config()
 
         # Before attempting to create the cluster AW, let&#39;s evaluate the ClusterConfig
         if self.config.dispatch_priority:
@@ -1650,6 +1676,9 @@ the specifications of the ClusterConfiguration.</p></div>
                 f&#34;Namespace {self.config.namespace} is of type {type(self.config.namespace)}. Check your Kubernetes Authentication.&#34;
             )
 
+    # Validate image configuration
+    self.validate_image_config()
+
     # Before attempting to create the cluster AW, let&#39;s evaluate the ClusterConfig
     if self.config.dispatch_priority:
         if not self.config.mcad:
@@ -2088,6 +2117,28 @@ the MCAD queue.</p></div>
         return _kube_api_error_handling(e)</code></pre>
 </details>
 </dd>
+<dt id="codeflare_sdk.cluster.cluster.Cluster.validate_image_config"><code class="name flex">
+<span>def <span class="ident">validate_image_config</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Validates that the image configuration is not empty.</p>
+<p>:param image: The image string to validate
+:raises ValueError: If the image is not specified</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def validate_image_config(self):
+    &#34;&#34;&#34;
+    Validates that the image configuration is not empty.
+
+    :param image: The image string to validate
+    :raises ValueError: If the image is not specified
+    &#34;&#34;&#34;
+    if self.config.image == &#34;&#34; or self.config.image == None:
+        raise ValueError(&#34;Image must be specified in the ClusterConfiguration&#34;)</code></pre>
+</details>
+</dd>
 <dt id="codeflare_sdk.cluster.cluster.Cluster.wait_ready"><code class="name flex">
 <span>def <span class="ident">wait_ready</span></span>(<span>self, timeout: Optional[int] = None, dashboard_check: bool = True)</span>
 </code></dt>
@@ -2182,6 +2233,7 @@ Checks every five seconds.</p></div>
 <li><code><a title="codeflare_sdk.cluster.cluster.Cluster.torchx_config" href="#codeflare_sdk.cluster.cluster.Cluster.torchx_config">torchx_config</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.cluster.Cluster.torchx_scheduler" href="#codeflare_sdk.cluster.cluster.Cluster.torchx_scheduler">torchx_scheduler</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.cluster.Cluster.up" href="#codeflare_sdk.cluster.cluster.Cluster.up">up</a></code></li>
+<li><code><a title="codeflare_sdk.cluster.cluster.Cluster.validate_image_config" href="#codeflare_sdk.cluster.cluster.Cluster.validate_image_config">validate_image_config</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.cluster.Cluster.wait_ready" href="#codeflare_sdk.cluster.cluster.Cluster.wait_ready">wait_ready</a></code></li>
 </ul>
 </li>
