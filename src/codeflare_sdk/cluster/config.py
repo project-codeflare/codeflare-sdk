@@ -48,7 +48,7 @@ class ClusterConfiguration:
     instascale: bool = False
     mcad: bool = True
     envs: dict = field(default_factory=dict)
-    image: str = "quay.io/project-codeflare/ray:latest-py39-cu118"
+    image: str = ""
     local_interactive: bool = False
     image_pull_secrets: list = field(default_factory=list)
     dispatch_priority: str = None
