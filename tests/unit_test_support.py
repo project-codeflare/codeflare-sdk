@@ -47,6 +47,7 @@ def createClusterConfig():
         machine_types=["cpu.small", "gpu.large"],
         image_pull_secrets=["unit-test-pull-secret"],
         ingress_domain="apps.cluster.awsroute.org",
+        image="quay.io/project-codeflare/ray:latest-py39-cu118"
     )
     return config
 
