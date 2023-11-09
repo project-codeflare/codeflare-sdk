@@ -131,13 +131,12 @@ class Cluster:
     def validate_image_config(self):
         """
         Validates that the image configuration is not empty.
-        
+
         :param image: The image string to validate
         :raises ValueError: If the image is not specified
         """
         if self.config.image == "" or self.config.image == None:
             raise ValueError("Image must be specified in the ClusterConfiguration")
-
 
     def create_app_wrapper(self):
         """
@@ -153,7 +152,7 @@ class Cluster:
                 raise TypeError(
                     f"Namespace {self.config.namespace} is of type {type(self.config.namespace)}. Check your Kubernetes Authentication."
                 )
-                
+
         # Validate image configuration
         self.validate_image_config()
 
