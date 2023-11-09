@@ -252,7 +252,6 @@ def test_config_creation():
     assert config.dispatch_priority == None
     assert config.mcad == True
     assert config.local_interactive == False
-    
 
 
 def test_cluster_creation(mocker):
@@ -262,7 +261,8 @@ def test_cluster_creation(mocker):
     assert filecmp.cmp(
         "unit-test-cluster.yaml", f"{parent}/tests/test-case.yaml", shallow=True
     )
-    
+
+
 def test_create_app_wrapper_raises_error_with_no_image():
     config = createClusterConfig()
     config.image = ""  # Clear the image to test error handling
@@ -271,8 +271,9 @@ def test_create_app_wrapper_raises_error_with_no_image():
         cluster.create_app_wrapper()
         assert False, "Expected ValueError when 'image' is not specified."
     except ValueError as error:
-        assert str(error) == "Image must be specified in the ClusterConfiguration", \
-            "Error message did not match expected output."
+        assert (
+            str(error) == "Image must be specified in the ClusterConfiguration"
+        ), "Error message did not match expected output."
 
 
 def test_cluster_creation_no_mcad(mocker):
@@ -748,7 +749,13 @@ def test_ray_details(mocker, capsys):
         "codeflare_sdk.cluster.cluster.Cluster.cluster_dashboard_uri",
         return_value="",
     )
-    cf = Cluster(ClusterConfiguration(name="raytest2", namespace="ns", image= "quay.io/project-codeflare/ray:latest-py39-cu118"))
+    cf = Cluster(
+        ClusterConfiguration(
+            name="raytest2",
+            namespace="ns",
+            image="quay.io/project-codeflare/ray:latest-py39-cu118",
+        )
+    )
     captured = capsys.readouterr()
     ray2 = _copy_to_ray(cf)
     details = cf.details()
@@ -1914,7 +1921,13 @@ def test_cluster_status(mocker):
         head_mem=8,
         head_gpu=0,
     )
-    cf = Cluster(ClusterConfiguration(name="test", namespace="ns", image="quay.io/project-codeflare/ray:latest-py39-cu118"))
+    cf = Cluster(
+        ClusterConfiguration(
+            name="test",
+            namespace="ns",
+            image="quay.io/project-codeflare/ray:latest-py39-cu118",
+        )
+    )
     mocker.patch("codeflare_sdk.cluster.cluster._app_wrapper_status", return_value=None)
     mocker.patch("codeflare_sdk.cluster.cluster._ray_cluster_status", return_value=None)
     status, ready = cf.status()
@@ -2004,7 +2017,13 @@ def test_wait_ready(mocker, capsys):
     mock_response = mocker.Mock()
     mock_response.status_code = 200
     mocker.patch("requests.get", return_value=mock_response)
-    cf = Cluster(ClusterConfiguration(name="test", namespace="ns", image= "quay.io/project-codeflare/ray:latest-py39-cu118"))
+    cf = Cluster(
+        ClusterConfiguration(
+            name="test",
+            namespace="ns",
+            image="quay.io/project-codeflare/ray:latest-py39-cu118",
+        )
+    )
     try:
         cf.wait_ready(timeout=5)
         assert 1 == 0
@@ -2669,7 +2688,13 @@ def test_gen_app_wrapper_with_oauth(mocker: MockerFixture):
     mocker.patch(
         "codeflare_sdk.utils.generate_yaml.write_user_appwrapper", write_user_appwrapper
     )
-    Cluster(ClusterConfiguration("test_cluster", openshift_oauth=True, image= "quay.io/project-codeflare/ray:latest-py39-cu118"))
+    Cluster(
+        ClusterConfiguration(
+            "test_cluster",
+            openshift_oauth=True,
+            image="quay.io/project-codeflare/ray:latest-py39-cu118",
+        )
+    )
     user_yaml = write_user_appwrapper.call_args.args[0]
     assert any(
         container["name"] == "oauth-proxy"
