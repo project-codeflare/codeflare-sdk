@@ -128,6 +128,17 @@ class Cluster:
         print(f"Priority class {priority_class} is not available in the cluster")
         return None
 
+    def validate_image_config(self):
+        """
+        Validates that the image configuration is not empty.
+        
+        :param image: The image string to validate
+        :raises ValueError: If the image is not specified
+        """
+        if self.config.image == "" or self.config.image == None:
+            raise ValueError("Image must be specified in the ClusterConfiguration")
+
+
     def create_app_wrapper(self):
         """
         Called upon cluster object creation, creates an AppWrapper yaml based on
@@ -142,6 +153,9 @@ class Cluster:
                 raise TypeError(
                     f"Namespace {self.config.namespace} is of type {type(self.config.namespace)}. Check your Kubernetes Authentication."
                 )
+                
+        # Validate image configuration
+        self.validate_image_config()
 
         # Before attempting to create the cluster AW, let's evaluate the ClusterConfig
         if self.config.dispatch_priority:
