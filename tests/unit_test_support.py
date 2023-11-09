@@ -59,6 +59,7 @@ def createClusterWithConfig(mocker):
         return_value={"spec": {"domain": "apps.cluster.awsroute.org"}},
     )
     cluster = Cluster(createClusterConfig())
+    cluster.config.image = "quay.io/project-codeflare/ray:latest-py39-cu118"
     return cluster
 
 
