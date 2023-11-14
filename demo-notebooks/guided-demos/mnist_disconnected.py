@@ -30,7 +30,7 @@ PATH_DATASETS = os.environ.get("PATH_DATASETS", ".")
 BATCH_SIZE = 256 if torch.cuda.is_available() else 64
 # %%
 
-local_minst_path = os.path.dirname(os.path.abspath(__file__) + "/mnist_datasets")
+local_minst_path = os.path.dirname(os.path.abspath(__file__) + "/MNIST/raw")
 
 print("prior to running the trainer")
 print("MASTER_ADDR: is ", os.getenv("MASTER_ADDR"))

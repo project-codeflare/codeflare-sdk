@@ -41,7 +41,6 @@ def download_mnist_dataset(destination_dir):
 
 
 # Specify the directory where you
-script_dir = os.path.dirname(os.path.abspath(__file__))
-destination_dir = script_dir + "/mnist_datasets"
+destination_dir = os.path.dirname(os.path.abspath(__file__))
 
 download_mnist_dataset(destination_dir)
