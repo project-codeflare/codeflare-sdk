@@ -16,24 +16,29 @@ import os
 from torchvision.datasets import MNIST
 from torchvision import transforms
 
+
 def download_mnist_dataset(destination_dir):
     # Ensure the destination directory exists
     if not os.path.exists(destination_dir):
         os.makedirs(destination_dir)
 
     # Define transformations
-    transform = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Normalize((0.1307,), (0.3081,))
-    ])
+    transform = transforms.Compose(
+        [transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))]
+    )
 
     # Download the training data
-    train_set = MNIST(root=destination_dir, train=True, download=True, transform=transform)
+    train_set = MNIST(
+        root=destination_dir, train=True, download=True, transform=transform
+    )
 
     # Download the test data
-    test_set = MNIST(root=destination_dir, train=False, download=True, transform=transform)
+    test_set = MNIST(
+        root=destination_dir, train=False, download=True, transform=transform
+    )
 
     print(f"MNIST dataset downloaded in {destination_dir}")
+
 
 # Specify the directory where you
 script_dir = os.path.dirname(os.path.abspath(__file__))
