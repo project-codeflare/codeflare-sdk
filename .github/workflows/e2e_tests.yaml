@@ -85,7 +85,6 @@ jobs:
 
           echo Setting up CodeFlare stack
           make setup-e2e
-          make defaults manifests fmt vet
 
           cd ..
 
