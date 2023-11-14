@@ -30,7 +30,7 @@ PATH_DATASETS = os.environ.get("PATH_DATASETS", ".")
 BATCH_SIZE = 256 if torch.cuda.is_available() else 64
 # %%
 
-local_minst_path = os.path.join(PATH_DATASETS, "mnist")
+local_minst_path = os.path.dirname(os.path.abspath(__file__) + "/mnist_datasets")
 
 print("prior to running the trainer")
 print("MASTER_ADDR: is ", os.getenv("MASTER_ADDR"))
@@ -114,7 +114,7 @@ class LitMNIST(LightningModule):
 
     def prepare_data(self):
         # download
-        print("Downloading MNIST dataset...")
+        print("Preparing MNIST dataset...")
         MNIST(self.data_dir, train=True, download=False)
         MNIST(self.data_dir, train=False, download=False)
 
