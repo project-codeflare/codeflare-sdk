@@ -121,7 +121,9 @@ class LitMNIST(LightningModule):
     def setup(self, stage=None):
         # Assign train/val datasets for use in dataloaders
         if stage == "fit" or stage is None:
-            mnist_full = MNIST(self.data_dir, train=True, transform=self.transform, download=False)
+            mnist_full = MNIST(
+                self.data_dir, train=True, transform=self.transform, download=False
+            )
             self.mnist_train, self.mnist_val = random_split(mnist_full, [55000, 5000])
 
         # Assign test dataset for use in dataloader(s)
