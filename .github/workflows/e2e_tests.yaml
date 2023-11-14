@@ -27,7 +27,7 @@ concurrency:
 jobs:
   kubernetes:
 
-    runs-on: ubuntu-20.04-4core
+    runs-on: ubuntu-20.04
 
     steps:
       - name: Cleanup

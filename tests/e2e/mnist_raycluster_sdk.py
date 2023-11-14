@@ -11,8 +11,8 @@ from codeflare_sdk.cluster.cluster import Cluster, ClusterConfiguration
 from codeflare_sdk.job.jobs import DDPJobDefinition
 
 namespace = sys.argv[1]
-ray_image = os.getenv('RAY_IMAGE')
-host = os.getenv('CLUSTER_HOSTNAME')
+ray_image = os.getenv("RAY_IMAGE")
+host = os.getenv("CLUSTER_HOSTNAME")
 
 ingress_options = {}
 if host is not None:
@@ -33,7 +33,7 @@ cluster = Cluster(
         name="mnist",
         namespace=namespace,
         num_workers=1,
-        head_cpus='500m',
+        head_cpus="500m",
         head_memory=2,
         min_cpus="500m",
         max_cpus=1,
