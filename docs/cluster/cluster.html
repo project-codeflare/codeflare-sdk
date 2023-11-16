@@ -103,8 +103,10 @@ class Cluster:
         &#34;&#34;&#34;
         self.config = config
         self.app_wrapper_yaml = self.create_app_wrapper()
-        self.app_wrapper_name = self.app_wrapper_yaml.split(&#34;.&#34;)[0]
         self._job_submission_client = None
+        self.app_wrapper_name = self.app_wrapper_yaml.replace(&#34;.yaml&#34;, &#34;&#34;).split(&#34;/&#34;)[
+            -1
+        ]
 
     @property
     def _client_headers(self):
@@ -1051,8 +1053,10 @@ request.</p></div>
         &#34;&#34;&#34;
         self.config = config
         self.app_wrapper_yaml = self.create_app_wrapper()
-        self.app_wrapper_name = self.app_wrapper_yaml.split(&#34;.&#34;)[0]
         self._job_submission_client = None
+        self.app_wrapper_name = self.app_wrapper_yaml.replace(&#34;.yaml&#34;, &#34;&#34;).split(&#34;/&#34;)[
+            -1
+        ]
 
     @property
     def _client_headers(self):

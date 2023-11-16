@@ -50,6 +50,7 @@ This sub-module exists primarily to be used internally by the Cluster object
 
 import yaml
 import sys
+import os
 import argparse
 import uuid
 from kubernetes import client, config
@@ -537,8 +538,14 @@ def disable_raycluster_tls(resources):
 
 
 def write_user_appwrapper(user_yaml, output_file_name):
+    # Create the directory if it doesn&#39;t exist
+    directory_path = os.path.dirname(output_file_name)
+    if not os.path.exists(directory_path):
+        os.makedirs(directory_path)
+
     with open(output_file_name, &#34;w&#34;) as outfile:
         yaml.dump(user_yaml, outfile, default_flow_style=False)
+
     print(f&#34;Written to: {output_file_name}&#34;)
 
 
@@ -706,7 +713,8 @@ def generate_appwrapper(
     if openshift_oauth:
         enable_openshift_oauth(user_yaml, cluster_name, namespace)
 
-    outfile = appwrapper_name + &#34;.yaml&#34;
+    directory_path = os.path.expanduser(&#34;~/.codeflare/appwrapper/&#34;)
+    outfile = os.path.join(directory_path, appwrapper_name + &#34;.yaml&#34;)
     if not mcad:
         write_components(user_yaml, outfile)
     else:
@@ -1019,7 +1027,8 @@ def generate_appwrapper(
     if openshift_oauth:
         enable_openshift_oauth(user_yaml, cluster_name, namespace)
 
-    outfile = appwrapper_name + &#34;.yaml&#34;
+    directory_path = os.path.expanduser(&#34;~/.codeflare/appwrapper/&#34;)
+    outfile = os.path.join(directory_path, appwrapper_name + &#34;.yaml&#34;)
     if not mcad:
         write_components(user_yaml, outfile)
     else:
@@ -1541,8 +1550,14 @@ def generate_appwrapper(
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def write_user_appwrapper(user_yaml, output_file_name):
+    # Create the directory if it doesn&#39;t exist
+    directory_path = os.path.dirname(output_file_name)
+    if not os.path.exists(directory_path):
+        os.makedirs(directory_path)
+
     with open(output_file_name, &#34;w&#34;) as outfile:
         yaml.dump(user_yaml, outfile, default_flow_style=False)
+
     print(f&#34;Written to: {output_file_name}&#34;)</code></pre>
 </details>
 </dd>
