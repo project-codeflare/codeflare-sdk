@@ -189,7 +189,7 @@ class Cluster:
         local_interactive = self.config.local_interactive
         image_pull_secrets = self.config.image_pull_secrets
         dispatch_priority = self.config.dispatch_priority
-        ingress_domain = self.config.ingress_domain
+        domain_name = self.config.domain_name
         ingress_options = self.config.ingress_options
         return generate_appwrapper(
             name=name,
@@ -214,7 +214,7 @@ class Cluster:
             dispatch_priority=dispatch_priority,
             priority_val=priority_val,
             openshift_oauth=self.config.openshift_oauth,
-            ingress_domain=ingress_domain,
+            domain_name=domain_name,
             ingress_options=ingress_options,
         )
 
@@ -468,7 +468,7 @@ class Cluster:
             to_return["requirements"] = requirements
         return to_return
 
-    def from_k8_cluster_object(rc, mcad=True):
+    def from_k8_cluster_object(rc, mcad=True, domain_name=None):
         machine_types = (
             rc["metadata"]["labels"]["orderedinstance"].split("_")
             if "orderedinstance" in rc["metadata"]["labels"]
@@ -508,6 +508,7 @@ class Cluster:
             ]["image"],
             local_interactive=local_interactive,
             mcad=mcad,
+            domain_name=domain_name,
         )
         return Cluster(cluster_config)
 
@@ -644,7 +645,10 @@ def get_cluster(cluster_name: str, namespace: str = "default"):
     for rc in rcs["items"]:
         if rc["metadata"]["name"] == cluster_name:
             mcad = _check_aw_exists(cluster_name, namespace)
-            return Cluster.from_k8_cluster_object(rc, mcad=mcad)
+            domain_name = _extract_domain_name(cluster_name, namespace)
+            return Cluster.from_k8_cluster_object(
+                rc, mcad=mcad, domain_name=domain_name
+            )
     raise FileNotFoundError(
         f"Cluster {cluster_name} is not found in {namespace} namespace"
     )
@@ -663,14 +667,40 @@ def _check_aw_exists(name: str, namespace: str) -> bool:
         )
     except Exception as e:  # pragma: no cover
         return _kube_api_error_handling(e, print_error=False)
-
     for aw in aws["items"]:
         if aw["metadata"]["name"] == name:
             return True
     return False
 
 
-# Cant test this until get_current_namespace is fixed
+def _extract_domain_name(name: str, namespace: str) -> str:
+    try:
+        config_check()
+        api_instance = client.CustomObjectsApi(api_config_handler())
+        aws = api_instance.list_namespaced_custom_object(
+            group="workload.codeflare.dev",
+            version="v1beta1",
+            namespace=namespace,
+            plural="appwrappers",
+        )
+    except Exception as e:  # pragma: no cover
+        return _kube_api_error_handling(e, print_error=False)
+    for aw in aws["items"]:
+        if aw["metadata"]["name"] == name:
+            host = aw["spec"]["resources"]["GenericItems"][1]["generictemplate"][
+                "spec"
+            ]["rules"][0]["host"]
+
+    dot_index = host.find(".")
+    if dot_index != -1:
+        domain_name = host[dot_index + 1 :]
+        return domain_name
+    else:
+        print("Host is not configured correctly.")
+        return None
+
+
+# Cant test this until get_current_namespace is fixed and placed in this function over using `self`
 def _get_ingress_domain(self):  # pragma: no cover
     try:
         config_check()

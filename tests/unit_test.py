@@ -331,13 +331,10 @@ def test_default_cluster_creation(mocker):
         "codeflare_sdk.cluster.cluster.get_current_namespace",
         return_value="opendatahub",
     )
-    mocker.patch(
-        "kubernetes.client.CustomObjectsApi.get_cluster_custom_object",
-        return_value={"spec": {"domain": ""}},
-    )
     default_config = ClusterConfiguration(
         name="unit-test-default-cluster",
         image="quay.io/project-codeflare/ray:latest-py39-cu118",
+        domain_name="apps.cluster.awsroute.org",
     )
     cluster = Cluster(default_config)
 
@@ -469,14 +466,14 @@ def arg_check_list_effect(group, version, plural, name, *args):
     return {"spec": {"domain": "test"}}
 
 
-"""
-def test_get_ingress_domain(self, mocker):
+""" We need to fix get_current_namespace in order to reuse this test.
+def test_get_ingress_domain(mocker):
     mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
     mocker.patch(
         "kubernetes.client.CustomObjectsApi.get_cluster_custom_object",
         side_effect=arg_check_list_effect,
     )
-    domain = _get_ingress_domain(self)
+    domain = _get_ingress_domain()
     assert domain == "test"
 """
 
@@ -734,10 +731,6 @@ def test_print_appwrappers(capsys):
 
 
 def test_ray_details(mocker, capsys):
-    mocker.patch(
-        "kubernetes.client.CustomObjectsApi.get_cluster_custom_object",
-        return_value={"spec": {"domain": ""}},
-    )
     ray1 = RayCluster(
         name="raytest1",
         status=RayClusterStatus.READY,
@@ -765,6 +758,7 @@ def test_ray_details(mocker, capsys):
             name="raytest2",
             namespace="ns",
             image="quay.io/project-codeflare/ray:latest-py39-cu118",
+            domain_name="apps.cluster.awsroute.org",
         )
     )
     captured = capsys.readouterr()
@@ -1772,12 +1766,12 @@ def get_aw_obj(group, version, namespace, plural):
 def test_get_cluster(mocker):
     mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
     mocker.patch(
-        "kubernetes.client.CustomObjectsApi.get_cluster_custom_object",
-        return_value={"spec": {"domain": ""}},
-    )
-    mocker.patch(
         "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
         side_effect=get_ray_obj,
+    )
+    mocker.patch(
+        "codeflare_sdk.cluster.cluster._extract_domain_name",
+        return_value="apps.cluster.awsroute.org",
     )
     cluster = get_cluster("quicktest")
     cluster_config = cluster.config
@@ -1790,6 +1784,7 @@ def test_get_cluster(mocker):
     assert cluster_config.min_memory == 2 and cluster_config.max_memory == 2
     assert cluster_config.num_gpus == 0
     assert cluster_config.instascale
+    assert cluster_config.domain_name == "apps.cluster.awsroute.org"
     assert (
         cluster_config.image
         == "ghcr.io/foundation-model-stack/base:ray2.1.0-py38-gpu-pytorch1.12.0cu116-20221213-193103"
@@ -1878,10 +1873,6 @@ def test_list_queue(mocker, capsys):
 
 def test_cluster_status(mocker):
     mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
-    mocker.patch(
-        "kubernetes.client.CustomObjectsApi.get_cluster_custom_object",
-        return_value={"spec": {"domain": ""}},
-    )
     fake_aw = AppWrapper(
         "test", AppWrapperStatus.FAILED, can_run=True, job_state="unused"
     )
@@ -1904,6 +1895,7 @@ def test_cluster_status(mocker):
             name="test",
             namespace="ns",
             image="quay.io/project-codeflare/ray:latest-py39-cu118",
+            domain_name="apps.cluster.awsroute.org",
         )
     )
     mocker.patch("codeflare_sdk.cluster.cluster._app_wrapper_status", return_value=None)
@@ -1970,10 +1962,6 @@ def test_cluster_status(mocker):
 
 def test_wait_ready(mocker, capsys):
     mocker.patch(
-        "kubernetes.client.CustomObjectsApi.get_cluster_custom_object",
-        return_value={"spec": {"domain": ""}},
-    )
-    mocker.patch(
         "kubernetes.client.NetworkingV1Api.list_namespaced_ingress",
         return_value=ingress_retrieval(8265),
     )
@@ -2000,6 +1988,7 @@ def test_wait_ready(mocker, capsys):
             name="test",
             namespace="ns",
             image="quay.io/project-codeflare/ray:latest-py39-cu118",
+            domain_name="apps.cluster.awsroute.org",
         )
     )
     try:
@@ -2483,21 +2472,6 @@ def secret_ca_retreival(secret_name, namespace):
     return client.models.V1Secret(data=data)
 
 
-def test_is_openshift_cluster(mocker):
-    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
-    mocker.patch.object(
-        client.CustomObjectsApi,
-        "get_cluster_custom_object",
-        side_effect=client.ApiException(status=404),
-    )
-    assert is_openshift_cluster() == False
-    mocker.patch(
-        "kubernetes.client.CustomObjectsApi.get_cluster_custom_object",
-        return_value={"spec": {"domain": ""}},
-    )
-    assert is_openshift_cluster() == True
-
-
 def test_generate_tls_cert(mocker):
     """
     test the function codeflare_sdk.utils.generate_ca_cert generates the correct outputs
@@ -2823,10 +2797,6 @@ def test_gen_app_wrapper_with_oauth(mocker: MockerFixture):
         "codeflare_sdk.cluster.cluster.get_current_namespace",
         return_value="opendatahub",
     )
-    mocker.patch(
-        "kubernetes.client.CustomObjectsApi.get_cluster_custom_object",
-        return_value={"spec": {"domain": ""}},
-    )
     write_user_appwrapper = MagicMock()
     mocker.patch(
         "codeflare_sdk.utils.generate_yaml.write_user_appwrapper", write_user_appwrapper
@@ -2836,6 +2806,7 @@ def test_gen_app_wrapper_with_oauth(mocker: MockerFixture):
             "test_cluster",
             openshift_oauth=True,
             image="quay.io/project-codeflare/ray:latest-py39-cu118",
+            domain_name="apps.cluster.awsroute.org",
         )
     )
     user_yaml = write_user_appwrapper.call_args.args[0]

@@ -178,6 +178,7 @@ spec:
           name: ray-dashboard-prio-test-cluster
           namespace: ns
         spec:
+          ingressClassName: nginx
           rules:
           - host: ray-dashboard-prio-test-cluster-ns.apps.cluster.awsroute.org
             http:

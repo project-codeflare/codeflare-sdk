@@ -175,6 +175,7 @@ spec:
           name: ray-dashboard-unit-test-cluster
           namespace: ns
         spec:
+          ingressClassName: nginx
           rules:
           - host: ray-dashboard-unit-test-cluster-ns.apps.cluster.awsroute.org
             http:
