@@ -145,6 +145,7 @@ metadata:
   name: ray-dashboard-unit-test-cluster-ray
   namespace: ns
 spec:
+  ingressClassName: nginx
   rules:
   - host: ray-dashboard-unit-test-cluster-ray-ns.apps.cluster.awsroute.org
     http:
