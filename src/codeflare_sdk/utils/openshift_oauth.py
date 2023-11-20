@@ -34,7 +34,6 @@ def create_openshift_oauth_objects(cluster_name, namespace):
 
 
 def _create_or_replace_oauth_sa(namespace, oauth_sa_name, host):
-    api_client = api_config_handler()
     oauth_sa = client.V1ServiceAccount(
         api_version="v1",
         kind="ServiceAccount",
@@ -47,12 +46,12 @@ def _create_or_replace_oauth_sa(namespace, oauth_sa_name, host):
         ),
     )
     try:
-        client.CoreV1Api(api_client).create_namespaced_service_account(
+        client.CoreV1Api(api_config_handler()).create_namespaced_service_account(
             namespace=namespace, body=oauth_sa
         )
     except client.ApiException as e:
         if e.reason == "Conflict":
-            client.CoreV1Api(api_client).replace_namespaced_service_account(
+            client.CoreV1Api(api_config_handler()).replace_namespaced_service_account(
                 namespace=namespace,
                 body=oauth_sa,
                 name=oauth_sa_name,
@@ -62,7 +61,6 @@ def _create_or_replace_oauth_sa(namespace, oauth_sa_name, host):
 
 
 def _create_or_replace_oauth_rb(cluster_name, namespace, oauth_sa_name):
-    api_client = api_config_handler()
     oauth_crb = client.V1ClusterRoleBinding(
         api_version="rbac.authorization.k8s.io/v1",
         kind="ClusterRoleBinding",
@@ -79,14 +77,14 @@ def _create_or_replace_oauth_rb(cluster_name, namespace, oauth_sa_name):
         ],
     )
     try:
-        client.RbacAuthorizationV1Api(api_client).create_cluster_role_binding(
+        client.RbacAuthorizationV1Api(api_config_handler()).create_cluster_role_binding(
             body=oauth_crb
         )
     except client.ApiException as e:
         if e.reason == "Conflict":
-            client.RbacAuthorizationV1Api(api_client).replace_cluster_role_binding(
-                body=oauth_crb, name=f"{cluster_name}-rb"
-            )
+            client.RbacAuthorizationV1Api(
+                api_config_handler()
+            ).replace_cluster_role_binding(body=oauth_crb, name=f"{cluster_name}-rb")
         else:
             raise e
 
@@ -98,19 +96,18 @@ def _gen_tls_secret_name(cluster_name):
 def delete_openshift_oauth_objects(cluster_name, namespace):
     # NOTE: it might be worth adding error handling here, but shouldn't be necessary because cluster.down(...) checks
     # for an existing cluster before calling this => the objects should never be deleted twice
-    api_client = api_config_handler()
     oauth_sa_name = f"{cluster_name}-oauth-proxy"
     service_name = f"{cluster_name}-oauth"
-    client.CoreV1Api(api_client).delete_namespaced_service_account(
+    client.CoreV1Api(api_config_handler()).delete_namespaced_service_account(
         name=oauth_sa_name, namespace=namespace
     )
-    client.CoreV1Api(api_client).delete_namespaced_service(
+    client.CoreV1Api(api_config_handler()).delete_namespaced_service(
         name=service_name, namespace=namespace
     )
-    client.NetworkingV1Api(api_client).delete_namespaced_ingress(
+    client.NetworkingV1Api(api_config_handler()).delete_namespaced_ingress(
         name=f"{cluster_name}-ingress", namespace=namespace
     )
-    client.RbacAuthorizationV1Api(api_client).delete_cluster_role_binding(
+    client.RbacAuthorizationV1Api(api_config_handler()).delete_cluster_role_binding(
         name=f"{cluster_name}-rb"
     )
 
@@ -123,7 +120,6 @@ def _create_or_replace_oauth_service_obj(
     service_name: str,
     port_name: str,
 ) -> client.V1Service:
-    api_client = api_config_handler()
     oauth_service = client.V1Service(
         api_version="v1",
         kind="Service",
@@ -153,12 +149,12 @@ def _create_or_replace_oauth_service_obj(
         ),
     )
     try:
-        client.CoreV1Api(api_client).create_namespaced_service(
+        client.CoreV1Api(api_config_handler()).create_namespaced_service(
             namespace=namespace, body=oauth_service
         )
     except client.ApiException as e:
         if e.reason == "Conflict":
-            client.CoreV1Api(api_client).replace_namespaced_service(
+            client.CoreV1Api(api_config_handler()).replace_namespaced_service(
                 namespace=namespace, body=oauth_service, name=service_name
             )
         else:
@@ -172,7 +168,6 @@ def _create_or_replace_oauth_ingress_object(
     port_name: str,
     host: str,
 ) -> client.V1Ingress:
-    api_client = api_config_handler()
     ingress = client.V1Ingress(
         api_version="networking.k8s.io/v1",
         kind="Ingress",
@@ -205,12 +200,12 @@ def _create_or_replace_oauth_ingress_object(
         ),
     )
     try:
-        client.NetworkingV1Api(api_client).create_namespaced_ingress(
+        client.NetworkingV1Api(api_config_handler()).create_namespaced_ingress(
             namespace=namespace, body=ingress
         )
     except client.ApiException as e:
         if e.reason == "Conflict":
-            client.NetworkingV1Api(api_client).replace_namespaced_ingress(
+            client.NetworkingV1Api(api_config_handler()).replace_namespaced_ingress(
                 namespace=namespace, body=ingress, name=f"{cluster_name}-ingress"
             )
         else:

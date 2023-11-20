@@ -91,14 +91,11 @@ class Cluster:
 
     @property
     def job_client(self):
+        k8client = api_config_handler() or client.ApiClient()
         if self._job_submission_client:
             return self._job_submission_client
         if self.config.openshift_oauth:
-            print(
-                api_config_handler().configuration.get_api_key_with_prefix(
-                    "authorization"
-                )
-            )
+            print(k8client.configuration.get_api_key_with_prefix("authorization"))
             self._job_submission_client = JobSubmissionClient(
                 self.cluster_dashboard_uri(),
                 headers=self._client_headers,
