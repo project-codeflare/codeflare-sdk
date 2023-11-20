@@ -261,7 +261,28 @@ def test_config_creation():
     assert config.local_interactive == False
 
 
+def sample_no_routes():
+    api_versions = client.V1APIGroupList(
+        api_version="v1",
+        groups=[
+            {
+                "name": "route.openshift.io",
+                "preferred_version": {
+                    "group_version": "route.openshift.io/v1",
+                    "version": "v1",
+                },
+                "versions": [
+                    {"group_version": "route.openshift.io/v1", "version": "v1"}
+                ],
+            }
+        ],
+    )
+
+    return api_versions
+
+
 def test_cluster_creation(mocker):
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     cluster = createClusterWithConfig(mocker)
     assert cluster.app_wrapper_yaml == f"{aw_dir}unit-test-cluster.yaml"
     assert cluster.app_wrapper_name == "unit-test-cluster"
@@ -286,6 +307,7 @@ def test_create_app_wrapper_raises_error_with_no_image():
 
 
 def test_cluster_creation_no_mcad(mocker):
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch(
         "kubernetes.client.CustomObjectsApi.get_cluster_custom_object",
         return_value={"spec": {"domain": "apps.cluster.awsroute.org"}},
@@ -304,6 +326,7 @@ def test_cluster_creation_no_mcad(mocker):
 
 
 def test_cluster_creation_priority(mocker):
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
     mocker.patch(
         "kubernetes.client.CustomObjectsApi.list_cluster_custom_object",
@@ -327,6 +350,7 @@ def test_cluster_creation_priority(mocker):
 
 
 def test_default_cluster_creation(mocker):
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch(
         "codeflare_sdk.cluster.cluster.get_current_namespace",
         return_value="opendatahub",
@@ -409,6 +433,7 @@ def arg_check_del_effect(group, version, namespace, plural, name, *args):
 
 
 def test_cluster_up_down(mocker):
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
     mocker.patch(
         "kubernetes.client.CustomObjectsApi.get_cluster_custom_object",
@@ -432,6 +457,7 @@ def test_cluster_up_down(mocker):
 
 
 def test_cluster_up_down_no_mcad(mocker):
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
     mocker.patch(
         "kubernetes.client.CustomObjectsApi.get_cluster_custom_object",
@@ -538,6 +564,7 @@ def test_delete_openshift_oauth_objects(mocker):
 
 
 def test_cluster_uris(mocker):
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
     mocker.patch(
         "codeflare_sdk.cluster.cluster._get_ingress_domain",
@@ -637,6 +664,7 @@ def ingress_retrieval(port, annotations=None):
 
 
 def test_ray_job_wrapping(mocker):
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     cluster = cluster = createClusterWithConfig(mocker)
     cluster.config.image = "quay.io/project-codeflare/ray:latest-py39-cu118"
     mocker.patch(
@@ -731,6 +759,7 @@ def test_print_appwrappers(capsys):
 
 
 def test_ray_details(mocker, capsys):
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     ray1 = RayCluster(
         name="raytest1",
         status=RayClusterStatus.READY,
@@ -1764,6 +1793,7 @@ def get_aw_obj(group, version, namespace, plural):
 
 
 def test_get_cluster(mocker):
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
     mocker.patch(
         "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
@@ -1872,6 +1902,7 @@ def test_list_queue(mocker, capsys):
 
 
 def test_cluster_status(mocker):
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
     fake_aw = AppWrapper(
         "test", AppWrapperStatus.FAILED, can_run=True, job_state="unused"
@@ -1961,6 +1992,7 @@ def test_cluster_status(mocker):
 
 
 def test_wait_ready(mocker, capsys):
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch(
         "kubernetes.client.NetworkingV1Api.list_namespaced_ingress",
         return_value=ingress_retrieval(8265),
@@ -2021,6 +2053,7 @@ def test_wait_ready(mocker, capsys):
 
 
 def test_jobdefinition_coverage(mocker):
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch(
         "kubernetes.client.CustomObjectsApi.get_cluster_custom_object",
         return_value={"spec": {"domain": ""}},
@@ -2037,7 +2070,8 @@ def test_job_coverage():
     abstract.logs()
 
 
-def test_DDPJobDefinition_creation():
+def test_DDPJobDefinition_creation(mocker):
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     ddp = createTestDDP()
     assert ddp.script == "test.py"
     assert ddp.m == None
@@ -2061,6 +2095,7 @@ def test_DDPJobDefinition_dry_run(mocker: MockerFixture):
     that the attributes of the returned object are of the correct type,
     and that the values from cluster and job definition are correctly passed.
     """
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
     mocker.patch(
         "codeflare_sdk.cluster.cluster.Cluster.cluster_dashboard_uri",
@@ -2097,7 +2132,7 @@ def test_DDPJobDefinition_dry_run_no_cluster(mocker):
     that the attributes of the returned object are of the correct type,
     and that the values from cluster and job definition are correctly passed.
     """
-
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch(
         "codeflare_sdk.job.jobs.get_current_namespace",
         return_value="opendatahub",
@@ -2136,6 +2171,7 @@ def test_DDPJobDefinition_dry_run_no_resource_args(mocker):
     Test that the dry run correctly gets resources from the cluster object
     when the job definition does not specify resources.
     """
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch.object(Cluster, "job_client")
     mocker.patch(
         "kubernetes.client.CustomObjectsApi.get_cluster_custom_object",
@@ -2175,6 +2211,7 @@ def test_DDPJobDefinition_dry_run_no_cluster_no_resource_args(mocker):
     that the attributes of the returned object are of the correct type,
     and that the values from cluster and job definition are correctly passed.
     """
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
 
     mocker.patch(
         "codeflare_sdk.job.jobs.get_current_namespace",
@@ -2229,6 +2266,7 @@ def test_DDPJobDefinition_submit(mocker: MockerFixture):
     Tests that the submit method returns the correct type: DDPJob
     And that the attributes of the returned object are of the correct type
     """
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mock_schedule = MagicMock()
     mocker.patch.object(Runner, "schedule", mock_schedule)
     mock_schedule.return_value = "fake-dashboard-url"
@@ -2259,6 +2297,7 @@ def test_DDPJobDefinition_submit(mocker: MockerFixture):
 
 
 def test_DDPJob_creation(mocker: MockerFixture):
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch.object(Cluster, "job_client")
     mock_schedule = MagicMock()
     mocker.patch.object(Runner, "schedule", mock_schedule)
@@ -2284,6 +2323,7 @@ def test_DDPJob_creation(mocker: MockerFixture):
 
 
 def test_DDPJob_creation_no_cluster(mocker: MockerFixture):
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     ddp_def = createTestDDP()
     ddp_def.image = "fake-image"
     mocker.patch(
@@ -2309,6 +2349,7 @@ def test_DDPJob_creation_no_cluster(mocker: MockerFixture):
 
 
 def test_DDPJob_status(mocker: MockerFixture):
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     # Setup the neccesary mock patches
     mock_status = MagicMock()
     mocker.patch.object(Runner, "status", mock_status)
@@ -2323,6 +2364,7 @@ def test_DDPJob_status(mocker: MockerFixture):
 
 
 def test_DDPJob_logs(mocker: MockerFixture):
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mock_log = MagicMock()
     mocker.patch.object(Runner, "log_lines", mock_log)
     # Setup the neccesary mock patches
@@ -2369,7 +2411,8 @@ def parse_j(cmd):
     return f"{worker}x{gpu}"
 
 
-def test_AWManager_creation():
+def test_AWManager_creation(mocker):
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     testaw = AWManager(f"{aw_dir}test.yaml")
     assert testaw.name == "test"
     assert testaw.namespace == "ns"
@@ -2410,6 +2453,7 @@ def arg_check_aw_del_effect(group, version, namespace, plural, name, *args):
 
 
 def test_AWManager_submit_remove(mocker, capsys):
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     testaw = AWManager(f"{aw_dir}test.yaml")
     testaw.remove()
     captured = capsys.readouterr()
@@ -2790,6 +2834,7 @@ def test_replace_openshift_oauth(mocker: MockerFixture):
 
 
 def test_gen_app_wrapper_with_oauth(mocker: MockerFixture):
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch(
         "codeflare_sdk.utils.generate_yaml._get_api_host", return_value="foo.com"
     )
