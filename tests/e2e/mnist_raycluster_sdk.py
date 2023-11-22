@@ -67,7 +67,7 @@ job = jobdef.submit(cluster)
 
 done = False
 time = 0
-timeout = 300
+timeout = 500
 while not done:
     status = job.status()
     if is_terminal(status.state):

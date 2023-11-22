@@ -17,6 +17,8 @@ limitations under the License.
 package e2e
 
 import (
+	"bytes"
+	"os/exec"
 	"testing"
 
 	. "github.com/onsi/gomega"
@@ -51,8 +53,6 @@ func TestMNISTRayClusterSDK(t *testing.T) {
 		"requirements.txt": ReadFile(test, "mnist_pip_requirements.txt"),
 		// MNIST training script
 		"mnist.py": ReadFile(test, "mnist.py"),
-		// SDK Wheel File
-		"codeflare_sdk-0.0.0.dev0-py3-none-any.whl": ReadWhlFile(test, "codeflare_sdk-0.0.0.dev0-py3-none-any.whl"),
 		// codeflare-sdk installation script
 		"install-codeflare-sdk.sh": ReadFile(test, "install-codeflare-sdk.sh"),
 	})
@@ -113,6 +113,30 @@ func TestMNISTRayClusterSDK(t *testing.T) {
 			BackoffLimit: Ptr(int32(0)),
 			Template: corev1.PodTemplateSpec{
 				Spec: corev1.PodSpec{
+					Volumes: []corev1.Volume{
+						{
+							Name: "test",
+							VolumeSource: corev1.VolumeSource{
+								ConfigMap: &corev1.ConfigMapVolumeSource{
+									LocalObjectReference: corev1.LocalObjectReference{
+										Name: config.Name,
+									},
+								},
+							},
+						},
+						{
+							Name: "codeflare-sdk",
+							VolumeSource: corev1.VolumeSource{
+								EmptyDir: &corev1.EmptyDirVolumeSource{},
+							},
+						},
+						{
+							Name: "workdir",
+							VolumeSource: corev1.VolumeSource{
+								EmptyDir: &corev1.EmptyDirVolumeSource{},
+							},
+						},
+					},
 					Containers: []corev1.Container{
 						{
 							Name: "test",
@@ -123,12 +147,19 @@ func TestMNISTRayClusterSDK(t *testing.T) {
 								{Name: "PYTHONUSERBASE", Value: "/workdir"},
 								{Name: "RAY_IMAGE", Value: GetRayImage()},
 							},
-							Command: []string{"/bin/sh", "-c", "cp /test/* . && chmod +x install-codeflare-sdk.sh && ./install-codeflare-sdk.sh && python mnist_raycluster_sdk.py" + " " + namespace.Name},
-							// Command: []string{"/bin/sh", "-c", "pip install /test/codeflare_sdk-0.0.0.dev0-py3-none-any.whl && cp /test/* . && python mnist_raycluster_sdk.py" + " " + namespace.Name},
+							Command: []string{
+								"/bin/sh", "-c",
+								"while [ ! -f /codeflare-sdk/pyproject.toml ]; do sleep 1; done; " +
+								"cp /test/* . && chmod +x install-codeflare-sdk.sh && ./install-codeflare-sdk.sh && python mnist_raycluster_sdk.py " + namespace.Name,
+							},
 							VolumeMounts: []corev1.VolumeMount{
 								{
 									Name:      "test",
 									MountPath: "/test",
+								},
+								{
+									Name:      "codeflare-sdk",
+									MountPath: "/codeflare-sdk",
 								},
 								{
 									Name:      "workdir",
@@ -145,24 +176,6 @@ func TestMNISTRayClusterSDK(t *testing.T) {
 									Drop: []corev1.Capability{"ALL"},
 								},
 								RunAsNonRoot: Ptr(true),
-							},
-						},
-					},
-					Volumes: []corev1.Volume{
-						{
-							Name: "test",
-							VolumeSource: corev1.VolumeSource{
-								ConfigMap: &corev1.ConfigMapVolumeSource{
-									LocalObjectReference: corev1.LocalObjectReference{
-										Name: config.Name,
-									},
-								},
-							},
-						},
-						{
-							Name: "workdir",
-							VolumeSource: corev1.VolumeSource{
-								EmptyDir: &corev1.EmptyDirVolumeSource{},
 							},
 						},
 					},
@@ -193,6 +206,22 @@ func TestMNISTRayClusterSDK(t *testing.T) {
 	job, err := test.Client().Core().BatchV1().Jobs(namespace.Name).Create(test.Ctx(), job, metav1.CreateOptions{})
 	test.Expect(err).NotTo(HaveOccurred())
 	test.T().Logf("Created Job %s/%s successfully", job.Namespace, job.Name)
+
+	go func() {
+        scriptName := "../.././copyscript.sh"
+        cmd := exec.Command(scriptName, namespace.Name)
+
+		var stdoutBuf, stderrBuf bytes.Buffer
+		cmd.Stdout = &stdoutBuf
+		cmd.Stderr = &stderrBuf
+
+        // Run the script
+        if err := cmd.Run(); err != nil {
+			t.Logf("STDOUT: %s", stdoutBuf.String())
+        	t.Logf("STDERR: %s", stderrBuf.String())
+            t.Logf("Failed to run the script: %v", err)
+        }
+    }()
 
 	test.T().Logf("Waiting for Job %s/%s to complete", job.Namespace, job.Name)
 	test.Eventually(Job(test, job.Namespace, job.Name), TestTimeoutLong).Should(
