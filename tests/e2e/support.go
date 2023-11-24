@@ -19,8 +19,6 @@ package e2e
 import (
 	"embed"
 
-	"io/ioutil"
-
 	"github.com/onsi/gomega"
 
 	"github.com/project-codeflare/codeflare-common/support"
@@ -32,13 +30,6 @@ var files embed.FS
 func ReadFile(t support.Test, fileName string) []byte {
 	t.T().Helper()
 	file, err := files.ReadFile(fileName)
-	t.Expect(err).NotTo(gomega.HaveOccurred())
-	return file
-}
-
-func ReadWhlFile(t support.Test, fileName string) []byte {
-	t.T().Helper()
-	file, err := ioutil.ReadFile(fileName)
 	t.Expect(err).NotTo(gomega.HaveOccurred())
 	return file
 }

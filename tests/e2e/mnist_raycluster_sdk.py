@@ -62,12 +62,11 @@ jobdef = DDPJobDefinition(
     script="mnist.py",
     scheduler_args={"requirements": "requirements.txt"},
 )
-print("Submitting Job OSAOUBDAUDDAOUBDOUBUBAD")
 job = jobdef.submit(cluster)
 
 done = False
 time = 0
-timeout = 500
+timeout = 900
 while not done:
     status = job.status()
     if is_terminal(status.state):

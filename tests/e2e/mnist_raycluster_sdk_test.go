@@ -208,14 +208,14 @@ func TestMNISTRayClusterSDK(t *testing.T) {
 	test.T().Logf("Created Job %s/%s successfully", job.Namespace, job.Name)
 
 	go func() {
-        scriptName := "../.././copyscript.sh"
+        scriptName := "./sdk-to-pod.sh"
         cmd := exec.Command(scriptName, namespace.Name)
 
 		var stdoutBuf, stderrBuf bytes.Buffer
 		cmd.Stdout = &stdoutBuf
 		cmd.Stderr = &stderrBuf
 
-        // Run the script
+        // Run the script to copy the SDK to the pod
         if err := cmd.Run(); err != nil {
 			t.Logf("STDOUT: %s", stdoutBuf.String())
         	t.Logf("STDERR: %s", stderrBuf.String())
