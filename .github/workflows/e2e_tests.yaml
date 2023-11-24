@@ -35,7 +35,6 @@ jobs:
           ls -lart
           echo "Initial status:"
           df -h
-
           echo "Cleaning up resources:"
           sudo swapoff -a
           sudo rm -f /swapfile
@@ -45,7 +44,6 @@ jobs:
           sudo rm -rf "/usr/local/share/boost"
           sudo rm -rf "$AGENT_TOOLSDIRECTORY"
           docker rmi $(docker image ls -aq)
-
           echo "Final status:"
           df -h
 
