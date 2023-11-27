@@ -261,26 +261,6 @@ def test_config_creation():
     assert config.local_interactive == False
 
 
-def sample_no_routes():
-    api_versions = client.V1APIGroupList(
-        api_version="v1",
-        groups=[
-            {
-                "name": "route.openshift.io",
-                "preferred_version": {
-                    "group_version": "route.openshift.io/v1",
-                    "version": "v1",
-                },
-                "versions": [
-                    {"group_version": "route.openshift.io/v1", "version": "v1"}
-                ],
-            }
-        ],
-    )
-
-    return api_versions
-
-
 def test_cluster_creation(mocker):
     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     cluster = createClusterWithConfig(mocker)
@@ -358,7 +338,7 @@ def test_default_cluster_creation(mocker):
     default_config = ClusterConfiguration(
         name="unit-test-default-cluster",
         image="quay.io/project-codeflare/ray:latest-py39-cu118",
-        domain_name="apps.cluster.awsroute.org",
+        ingress_domain="apps.cluster.awsroute.org",
     )
     cluster = Cluster(default_config)
 
@@ -402,6 +382,14 @@ def arg_check_apply_effect(group, version, namespace, plural, body, *args):
             yamls = yaml.load_all(f, Loader=yaml.FullLoader)
             for resource in yamls:
                 if resource["kind"] == "RayCluster":
+                    assert body == resource
+    elif plural == "ingresses":
+        assert group == "networking.k8s.io"
+        assert version == "v1"
+        with open(f"{aw_dir}unit-test-cluster-ray.yaml") as f:
+            yamls = yaml.load_all(f, Loader=yaml.FullLoader)
+            for resource in yamls:
+                if resource["kind"] == "Ingress":
                     assert body == resource
     elif plural == "routes":
         assert group == "route.openshift.io"
@@ -787,7 +775,7 @@ def test_ray_details(mocker, capsys):
             name="raytest2",
             namespace="ns",
             image="quay.io/project-codeflare/ray:latest-py39-cu118",
-            domain_name="apps.cluster.awsroute.org",
+            ingress_domain="apps.cluster.awsroute.org",
         )
     )
     captured = capsys.readouterr()
@@ -1799,11 +1787,9 @@ def test_get_cluster(mocker):
         "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
         side_effect=get_ray_obj,
     )
-    mocker.patch(
-        "codeflare_sdk.cluster.cluster._extract_domain_name",
-        return_value="apps.cluster.awsroute.org",
+    cluster = get_cluster(
+        cluster_name="quicktest", ingress_domain="apps.cluster.awsroute.org"
     )
-    cluster = get_cluster("quicktest")
     cluster_config = cluster.config
     assert cluster_config.name == "quicktest" and cluster_config.namespace == "ns"
     assert (
@@ -1814,7 +1800,7 @@ def test_get_cluster(mocker):
     assert cluster_config.min_memory == 2 and cluster_config.max_memory == 2
     assert cluster_config.num_gpus == 0
     assert cluster_config.instascale
-    assert cluster_config.domain_name == "apps.cluster.awsroute.org"
+    assert cluster_config.ingress_domain == "apps.cluster.awsroute.org"
     assert (
         cluster_config.image
         == "ghcr.io/foundation-model-stack/base:ray2.1.0-py38-gpu-pytorch1.12.0cu116-20221213-193103"
@@ -1926,7 +1912,7 @@ def test_cluster_status(mocker):
             name="test",
             namespace="ns",
             image="quay.io/project-codeflare/ray:latest-py39-cu118",
-            domain_name="apps.cluster.awsroute.org",
+            ingress_domain="apps.cluster.awsroute.org",
         )
     )
     mocker.patch("codeflare_sdk.cluster.cluster._app_wrapper_status", return_value=None)
@@ -2020,7 +2006,7 @@ def test_wait_ready(mocker, capsys):
             name="test",
             namespace="ns",
             image="quay.io/project-codeflare/ray:latest-py39-cu118",
-            domain_name="apps.cluster.awsroute.org",
+            ingress_domain="apps.cluster.awsroute.org",
         )
     )
     try:
@@ -2566,6 +2552,7 @@ def test_enable_local_interactive(mocker):
     cluster_name = "test-enable-local"
     namespace = "default"
     ingress_domain = "mytest.domain"
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch(
         "codeflare_sdk.utils.generate_yaml.is_openshift_cluster", return_value=False
     )
@@ -2599,7 +2586,7 @@ def test_enable_local_interactive(mocker):
     worker_group_spec = aw_spec["resources"]["GenericItems"][0]["generictemplate"][
         "spec"
     ]["workerGroupSpecs"]
-    ca_secret = aw_spec["resources"]["GenericItems"][3]["generictemplate"]
+    ca_secret = aw_spec["resources"]["GenericItems"][5]["generictemplate"]
     # At a minimal, make sure the following items are presented in the appwrapper spec.resources.
     # 1. headgroup has the initContainers command to generated TLS cert from the mounted CA cert.
     #    Note: In this particular command, the DNS.5 in [alt_name] must match the exposed local_client_url: rayclient-{cluster_name}.{namespace}.{ingress_domain}
@@ -2655,7 +2642,7 @@ def test_enable_local_interactive(mocker):
     assert ca_secret["metadata"]["namespace"] == namespace
 
     # 5. Rayclient ingress - Kind
-    rayclient_ingress = aw_spec["resources"]["GenericItems"][2]["generictemplate"]
+    rayclient_ingress = aw_spec["resources"]["GenericItems"][3]["generictemplate"]
     paths = [
         {
             "backend": {
@@ -2678,47 +2665,6 @@ def test_enable_local_interactive(mocker):
     }
     assert rayclient_ingress["metadata"]["name"] == f"rayclient-{cluster_name}"
     assert rayclient_ingress["spec"]["rules"][0] == {
-        "host": f"rayclient-{cluster_name}-{namespace}.{ingress_domain}",
-        "http": {"paths": paths},
-    }
-    # 5.1 Rayclient ingress - OCP
-    user_yaml = read_template(template)
-    aw_spec = user_yaml.get("spec", None)
-    cluster_name = "test-ocp-enable-local"
-    namespace = "default"
-    ocp_cluster_domain = {"spec": {"domain": "mytest.ocp.domain"}}
-    ingress_domain = ocp_cluster_domain["spec"]["domain"]
-    mocker.patch(
-        "codeflare_sdk.utils.generate_yaml.is_openshift_cluster", return_value=True
-    )
-    mocker.patch(
-        "kubernetes.client.CustomObjectsApi.get_cluster_custom_object",
-        return_value=ocp_cluster_domain,
-    )
-    paths = [
-        {
-            "backend": {
-                "service": {
-                    "name": f"{cluster_name}-head-svc",
-                    "port": {"number": 10001},
-                }
-            },
-            "path": "",
-            "pathType": "ImplementationSpecific",
-        }
-    ]
-    enable_local_interactive(aw_spec, cluster_name, namespace, ingress_domain)
-    rayclient_ocp_ingress = aw_spec["resources"]["GenericItems"][2]["generictemplate"]
-    assert rayclient_ocp_ingress["kind"] == "Ingress"
-    assert rayclient_ocp_ingress["metadata"]["annotations"] == {
-        "nginx.ingress.kubernetes.io/rewrite-target": "/",
-        "nginx.ingress.kubernetes.io/ssl-redirect": "true",
-        "route.openshift.io/termination": "passthrough",
-    }
-    assert rayclient_ocp_ingress["metadata"]["name"] == f"rayclient-{cluster_name}"
-    assert rayclient_ocp_ingress["metadata"]["namespace"] == namespace
-    assert rayclient_ocp_ingress["spec"]["ingressClassName"] == "openshift-default"
-    assert rayclient_ocp_ingress["spec"]["rules"][0] == {
         "host": f"rayclient-{cluster_name}-{namespace}.{ingress_domain}",
         "http": {"paths": paths},
     }
@@ -2851,7 +2797,7 @@ def test_gen_app_wrapper_with_oauth(mocker: MockerFixture):
             "test_cluster",
             openshift_oauth=True,
             image="quay.io/project-codeflare/ray:latest-py39-cu118",
-            domain_name="apps.cluster.awsroute.org",
+            ingress_domain="apps.cluster.awsroute.org",
         )
     )
     user_yaml = write_user_appwrapper.call_args.args[0]

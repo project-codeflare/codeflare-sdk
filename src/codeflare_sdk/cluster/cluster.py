@@ -32,6 +32,7 @@ from ..utils.generate_yaml import (
     generate_appwrapper,
 )
 from ..utils.kube_api_helpers import _kube_api_error_handling
+from ..utils.generate_yaml import is_openshift_cluster
 from ..utils.openshift_oauth import (
     create_openshift_oauth_objects,
     delete_openshift_oauth_objects,
@@ -189,7 +190,7 @@ class Cluster:
         local_interactive = self.config.local_interactive
         image_pull_secrets = self.config.image_pull_secrets
         dispatch_priority = self.config.dispatch_priority
-        domain_name = self.config.domain_name
+        ingress_domain = self.config.ingress_domain
         ingress_options = self.config.ingress_options
         return generate_appwrapper(
             name=name,
@@ -214,7 +215,7 @@ class Cluster:
             dispatch_priority=dispatch_priority,
             priority_val=priority_val,
             openshift_oauth=self.config.openshift_oauth,
-            domain_name=domain_name,
+            ingress_domain=ingress_domain,
             ingress_options=ingress_options,
         )
 
@@ -415,25 +416,48 @@ class Cluster:
         """
         Returns a string containing the cluster's dashboard URI.
         """
-        try:
-            config_check()
-            api_instance = client.NetworkingV1Api(api_config_handler())
-            ingresses = api_instance.list_namespaced_ingress(self.config.namespace)
-        except Exception as e:  # pragma no cover
-            return _kube_api_error_handling(e)
+        config_check()
+        if is_openshift_cluster():
+            try:
+                api_instance = client.CustomObjectsApi(api_config_handler())
+                routes = api_instance.list_namespaced_custom_object(
+                    group="route.openshift.io",
+                    version="v1",
+                    namespace=self.config.namespace,
+                    plural="routes",
+                )
+            except Exception as e:  # pragma: no cover
+                return _kube_api_error_handling(e)
 
-        for ingress in ingresses.items:
-            annotations = ingress.metadata.annotations
-            protocol = "http"
-            if (
-                ingress.metadata.name == f"ray-dashboard-{self.config.name}"
-                or ingress.metadata.name.startswith(f"{self.config.name}-ingress")
-            ):
-                if annotations == None:
-                    protocol = "http"
-                elif "route.openshift.io/termination" in annotations:
-                    protocol = "https"
-            return f"{protocol}://{ingress.spec.rules[0].host}"
+            for route in routes["items"]:
+                if route["metadata"][
+                    "name"
+                ] == f"ray-dashboard-{self.config.name}" or route["metadata"][
+                    "name"
+                ].startswith(
+                    f"{self.config.name}-ingress"
+                ):
+                    protocol = "https" if route["spec"].get("tls") else "http"
+                    return f"{protocol}://{route['spec']['host']}"
+        else:
+            try:
+                api_instance = client.NetworkingV1Api(api_config_handler())
+                ingresses = api_instance.list_namespaced_ingress(self.config.namespace)
+            except Exception as e:  # pragma no cover
+                return _kube_api_error_handling(e)
+
+            for ingress in ingresses.items:
+                annotations = ingress.metadata.annotations
+                protocol = "http"
+                if (
+                    ingress.metadata.name == f"ray-dashboard-{self.config.name}"
+                    or ingress.metadata.name.startswith(f"{self.config.name}-ingress")
+                ):
+                    if annotations == None:
+                        protocol = "http"
+                    elif "route.openshift.io/termination" in annotations:
+                        protocol = "https"
+                return f"{protocol}://{ingress.spec.rules[0].host}"
         return "Dashboard ingress not available yet, have you run cluster.up()?"
 
     def list_jobs(self) -> List:
@@ -468,7 +492,7 @@ class Cluster:
             to_return["requirements"] = requirements
         return to_return
 
-    def from_k8_cluster_object(rc, mcad=True, domain_name=None):
+    def from_k8_cluster_object(rc, mcad=True, ingress_domain=None):
         machine_types = (
             rc["metadata"]["labels"]["orderedinstance"].split("_")
             if "orderedinstance" in rc["metadata"]["labels"]
@@ -508,7 +532,7 @@ class Cluster:
             ]["image"],
             local_interactive=local_interactive,
             mcad=mcad,
-            domain_name=domain_name,
+            ingress_domain=ingress_domain,
         )
         return Cluster(cluster_config)
 
@@ -531,6 +555,14 @@ class Cluster:
                         version="v1alpha1",
                         namespace=namespace,
                         plural="rayclusters",
+                        body=resource,
+                    )
+                elif resource["kind"] == "Ingress":
+                    api_instance.create_namespaced_custom_object(
+                        group="networking.k8s.io",
+                        version="v1",
+                        namespace=namespace,
+                        plural="ingresses",
                         body=resource,
                     )
                 elif resource["kind"] == "Route":
@@ -561,6 +593,15 @@ class Cluster:
                         namespace=namespace,
                         plural="rayclusters",
                         name=self.app_wrapper_name,
+                    )
+                elif resource["kind"] == "Ingress":
+                    name = resource["metadata"]["name"]
+                    api_instance.delete_namespaced_custom_object(
+                        group="networking.k8s.io",
+                        version="v1",
+                        namespace=namespace,
+                        plural="ingresses",
+                        name=name,
                     )
                 elif resource["kind"] == "Route":
                     name = resource["metadata"]["name"]
@@ -629,7 +670,7 @@ def get_current_namespace():  # pragma: no cover
             return None
 
 
-def get_cluster(cluster_name: str, namespace: str = "default"):
+def get_cluster(cluster_name: str, namespace: str = "default", ingress_domain=None):
     try:
         config_check()
         api_instance = client.CustomObjectsApi(api_config_handler())
@@ -645,9 +686,8 @@ def get_cluster(cluster_name: str, namespace: str = "default"):
     for rc in rcs["items"]:
         if rc["metadata"]["name"] == cluster_name:
             mcad = _check_aw_exists(cluster_name, namespace)
-            domain_name = _extract_domain_name(cluster_name, namespace)
             return Cluster.from_k8_cluster_object(
-                rc, mcad=mcad, domain_name=domain_name
+                rc, mcad=mcad, ingress_domain=ingress_domain
             )
     raise FileNotFoundError(
         f"Cluster {cluster_name} is not found in {namespace} namespace"
@@ -673,49 +713,42 @@ def _check_aw_exists(name: str, namespace: str) -> bool:
     return False
 
 
-def _extract_domain_name(name: str, namespace: str) -> str:
-    try:
-        config_check()
-        api_instance = client.CustomObjectsApi(api_config_handler())
-        aws = api_instance.list_namespaced_custom_object(
-            group="workload.codeflare.dev",
-            version="v1beta1",
-            namespace=namespace,
-            plural="appwrappers",
-        )
-    except Exception as e:  # pragma: no cover
-        return _kube_api_error_handling(e, print_error=False)
-    for aw in aws["items"]:
-        if aw["metadata"]["name"] == name:
-            host = aw["spec"]["resources"]["GenericItems"][1]["generictemplate"][
-                "spec"
-            ]["rules"][0]["host"]
-
-    dot_index = host.find(".")
-    if dot_index != -1:
-        domain_name = host[dot_index + 1 :]
-        return domain_name
-    else:
-        print("Host is not configured correctly.")
-        return None
-
-
 # Cant test this until get_current_namespace is fixed and placed in this function over using `self`
 def _get_ingress_domain(self):  # pragma: no cover
-    try:
-        config_check()
-        api_client = client.NetworkingV1Api(api_config_handler())
-        if self.config.namespace != None:
-            namespace = self.config.namespace
-        else:
-            namespace = get_current_namespace()
-        ingresses = api_client.list_namespaced_ingress(namespace)
-    except Exception as e:  # pragma: no cover
-        return _kube_api_error_handling(e)
+    config_check()
+
+    if self.config.namespace != None:
+        namespace = self.config.namespace
+    else:
+        namespace = get_current_namespace()
     domain = None
-    for ingress in ingresses.items:
-        if ingress.spec.rules[0].http.paths[0].backend.service.port.number == 10001:
-            domain = ingress.spec.rules[0].host
+
+    if is_openshift_cluster():
+        try:
+            api_instance = client.CustomObjectsApi(api_config_handler())
+
+            routes = api_instance.list_namespaced_custom_object(
+                group="route.openshift.io",
+                version="v1",
+                namespace=namespace,
+                plural="routes",
+            )
+        except Exception as e:  # pragma: no cover
+            return _kube_api_error_handling(e)
+
+        for route in routes["items"]:
+            if route["spec"]["port"]["targetPort"] == "client":
+                domain = route["spec"]["host"]
+    else:
+        try:
+            api_client = client.NetworkingV1Api(api_config_handler())
+            ingresses = api_client.list_namespaced_ingress(namespace)
+        except Exception as e:  # pragma: no cover
+            return _kube_api_error_handling(e)
+
+        for ingress in ingresses.items:
+            if ingress.spec.rules[0].http.paths[0].backend.service.port.number == 10001:
+                domain = ingress.spec.rules[0].host
     return domain
 
 

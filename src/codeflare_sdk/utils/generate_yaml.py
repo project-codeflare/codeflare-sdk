@@ -69,8 +69,49 @@ def is_openshift_cluster():
         return False
 
 
+def update_dashboard_route(route_item, cluster_name, namespace):
+    metadata = route_item.get("generictemplate", {}).get("metadata")
+    metadata["name"] = gen_dashboard_ingress_name(cluster_name)
+    metadata["namespace"] = namespace
+    metadata["labels"]["odh-ray-cluster-service"] = f"{cluster_name}-head-svc"
+    spec = route_item.get("generictemplate", {}).get("spec")
+    spec["to"]["name"] = f"{cluster_name}-head-svc"
+
+
+# ToDo: refactor the update_x_route() functions
+def update_rayclient_route(route_item, cluster_name, namespace):
+    metadata = route_item.get("generictemplate", {}).get("metadata")
+    metadata["name"] = f"rayclient-{cluster_name}"
+    metadata["namespace"] = namespace
+    metadata["labels"]["odh-ray-cluster-service"] = f"{cluster_name}-head-svc"
+    spec = route_item.get("generictemplate", {}).get("spec")
+    spec["to"]["name"] = f"{cluster_name}-head-svc"
+
+
+def update_dashboard_exposure(
+    ingress_item, route_item, cluster_name, namespace, ingress_options, ingress_domain
+):
+    if is_openshift_cluster():
+        update_dashboard_route(route_item, cluster_name, namespace)
+    else:
+        update_dashboard_ingress(
+            ingress_item, cluster_name, namespace, ingress_options, ingress_domain
+        )
+
+
+def update_rayclient_exposure(
+    client_route_item, client_ingress_item, cluster_name, namespace, ingress_domain
+):
+    if is_openshift_cluster():
+        update_rayclient_route(client_route_item, cluster_name, namespace)
+    else:
+        update_rayclient_ingress(
+            client_ingress_item, cluster_name, namespace, ingress_domain
+        )
+
+
 def update_dashboard_ingress(
-    ingress_item, cluster_name, namespace, ingress_options, domain_name
+    ingress_item, cluster_name, namespace, ingress_options, ingress_domain
 ):  # pragma: no cover
     metadata = ingress_item.get("generictemplate", {}).get("metadata")
     spec = ingress_item.get("generictemplate", {}).get("spec")
@@ -118,26 +159,24 @@ def update_dashboard_ingress(
                     "name"
                 ] = f"{cluster_name}-head-svc"
     else:
-        if is_openshift_cluster():
-            spec["ingressClassName"] = "openshift-default"
-        else:
-            spec["ingressClassName"] = "nginx"
-
-        metadata["name"] = f"ray-dashboard-{cluster_name}"
+        spec["ingressClassName"] = "nginx"
+        metadata["name"] = gen_dashboard_ingress_name(cluster_name)
         metadata["namespace"] = namespace
         spec["rules"][0]["http"]["paths"][0]["backend"]["service"][
             "name"
         ] = f"{cluster_name}-head-svc"
-        if domain_name is None:
-            raise ValueError("domain_name is invalid. Please specify an ingress domain")
+        if ingress_domain is None:
+            raise ValueError(
+                "ingress_domain is invalid. Please specify an ingress domain"
+            )
         else:
-            domain = domain_name
+            domain = ingress_domain
         del metadata["annotations"]
         spec["rules"][0]["host"] = f"ray-dashboard-{cluster_name}-{namespace}.{domain}"
 
 
 def update_rayclient_ingress(
-    ingress_item, cluster_name, namespace, domain_name
+    ingress_item, cluster_name, namespace, ingress_domain
 ):  # pragma: no cover
     metadata = ingress_item.get("generictemplate", {}).get("metadata")
     spec = ingress_item.get("generictemplate", {}).get("spec")
@@ -149,27 +188,19 @@ def update_rayclient_ingress(
         "name"
     ] = f"{cluster_name}-head-svc"
 
-    if domain_name is not None:
-        if is_openshift_cluster():
-            ingressClassName = "openshift-default"
-            annotations = {
-                "nginx.ingress.kubernetes.io/rewrite-target": "/",
-                "nginx.ingress.kubernetes.io/ssl-redirect": "true",
-                "route.openshift.io/termination": "passthrough",
-            }
-        else:
-            ingressClassName = "nginx"
-            annotations = {
-                "nginx.ingress.kubernetes.io/rewrite-target": "/",
-                "nginx.ingress.kubernetes.io/ssl-redirect": "true",
-                "nginx.ingress.kubernetes.io/ssl-passthrough": "true",
-            }
+    if ingress_domain is not None:
+        ingressClassName = "nginx"
+        annotations = {
+            "nginx.ingress.kubernetes.io/rewrite-target": "/",
+            "nginx.ingress.kubernetes.io/ssl-redirect": "true",
+            "nginx.ingress.kubernetes.io/ssl-passthrough": "true",
+        }
     else:
-        raise ValueError("domain_name is invalid. Please specify a domain")
+        raise ValueError("ingress_domain is invalid. Please specify a domain")
 
     metadata["annotations"] = annotations
     spec["ingressClassName"] = ingressClassName
-    spec["rules"][0]["host"] = f"rayclient-{cluster_name}-{namespace}.{domain_name}"
+    spec["rules"][0]["host"] = f"rayclient-{cluster_name}-{namespace}.{ingress_domain}"
 
 
 def update_names(yaml, item, appwrapper_name, cluster_name, namespace):
@@ -372,9 +403,10 @@ def update_ca_secret(ca_secret_item, cluster_name, namespace):
     data["ca.key"], data["ca.crt"] = generate_cert.generate_ca_cert(365)
 
 
-def enable_local_interactive(resources, cluster_name, namespace, domain_name):
-    rayclient_ingress_item = resources["resources"].get("GenericItems")[2]
-    ca_secret_item = resources["resources"].get("GenericItems")[3]
+def enable_local_interactive(resources, cluster_name, namespace, ingress_domain):
+    rayclient_ingress_item = resources["resources"].get("GenericItems")[3]
+    rayclient_route_item = resources["resources"].get("GenericItems")[4]
+    ca_secret_item = resources["resources"].get("GenericItems")[5]
     item = resources["resources"].get("GenericItems")[0]
     update_ca_secret(ca_secret_item, cluster_name, namespace)
     # update_ca_secret_volumes
@@ -398,15 +430,21 @@ def enable_local_interactive(resources, cluster_name, namespace, domain_name):
 
     command = command.replace("deployment-name", cluster_name)
 
-    if domain_name is None:
+    if ingress_domain is None:
         raise ValueError(
-            "domain_name is invalid. For Kubernetes Clusters please specify an ingress domain"
+            "ingress_domain is invalid. For creating the client route/ingress please specify an ingress domain"
         )
     else:
-        domain = domain_name
+        domain = ingress_domain
 
     command = command.replace("server-name", domain)
-    update_rayclient_ingress(rayclient_ingress_item, cluster_name, namespace, domain)
+    update_rayclient_exposure(
+        rayclient_route_item,
+        rayclient_ingress_item,
+        cluster_name,
+        namespace,
+        ingress_domain,
+    )
 
     item["generictemplate"]["spec"]["headGroupSpec"]["template"]["spec"][
         "initContainers"
@@ -449,10 +487,32 @@ def disable_raycluster_tls(resources):
 
     updated_items = []
     for i in resources["GenericItems"][:]:
-        if "rayclient-deployment-name" in i["generictemplate"]["metadata"]["name"]:
+        if "rayclient-deployment-ingress" in i["generictemplate"]["metadata"]["name"]:
+            continue
+        if "rayclient-deployment-route" in i["generictemplate"]["metadata"]["name"]:
             continue
         if "ca-secret-deployment-name" in i["generictemplate"]["metadata"]["name"]:
             continue
+        updated_items.append(i)
+
+    resources["GenericItems"] = updated_items
+
+
+def delete_route_or_ingress(resources):
+    if is_openshift_cluster():
+        client_to_remove_name = "rayclient-deployment-ingress"
+        dashboard_to_remove_name = "ray-dashboard-deployment-ingress"
+    else:
+        client_to_remove_name = "rayclient-deployment-route"
+        dashboard_to_remove_name = "ray-dashboard-deployment-route"
+
+    updated_items = []
+    for i in resources["GenericItems"][:]:
+        if dashboard_to_remove_name in i["generictemplate"]["metadata"]["name"]:
+            continue
+        elif client_to_remove_name in i["generictemplate"]["metadata"]["name"]:
+            continue
+
         updated_items.append(i)
 
     resources["GenericItems"] = updated_items
@@ -583,7 +643,7 @@ def generate_appwrapper(
     dispatch_priority: str,
     priority_val: int,
     openshift_oauth: bool,
-    domain_name: str,
+    ingress_domain: str,
     ingress_options: dict,
 ):
     user_yaml = read_template(template)
@@ -591,6 +651,7 @@ def generate_appwrapper(
     resources = user_yaml.get("spec", "resources")
     item = resources["resources"].get("GenericItems")[0]
     ingress_item = resources["resources"].get("GenericItems")[1]
+    route_item = resources["resources"].get("GenericItems")[2]
     update_names(user_yaml, item, appwrapper_name, cluster_name, namespace)
     update_labels(user_yaml, instascale, instance_types)
     update_priority(user_yaml, item, dispatch_priority, priority_val)
@@ -623,13 +684,22 @@ def generate_appwrapper(
         head_memory,
         head_gpus,
     )
-    update_dashboard_ingress(
-        ingress_item, cluster_name, namespace, ingress_options, domain_name
+    update_dashboard_exposure(
+        ingress_item,
+        route_item,
+        cluster_name,
+        namespace,
+        ingress_options,
+        ingress_domain,
     )
     if local_interactive:
-        enable_local_interactive(resources, cluster_name, namespace, domain_name)
+        enable_local_interactive(
+            resources["resources"], cluster_name, namespace, ingress_domain
+        )
     else:
         disable_raycluster_tls(resources["resources"])
+
+    delete_route_or_ingress(resources["resources"])
 
     if openshift_oauth:
         enable_openshift_oauth(user_yaml, cluster_name, namespace)

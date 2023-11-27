@@ -54,4 +54,4 @@ class ClusterConfiguration:
     dispatch_priority: str = None
     openshift_oauth: bool = False  # NOTE: to use the user must have permission to create a RoleBinding for system:auth-delegator
     ingress_options: dict = field(default_factory=dict)
-    domain_name: str = None
+    ingress_domain: str = None
