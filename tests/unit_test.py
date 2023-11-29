@@ -103,6 +103,7 @@ import yaml
 from unittest.mock import MagicMock
 from pytest_mock import MockerFixture
 from ray.job_submission import JobSubmissionClient
+from codeflare_sdk.job.ray_jobs import RayJobClient
 
 # For mocking openshift client results
 fake_res = openshift.Result("fake")
@@ -2844,6 +2845,85 @@ def test_gen_app_wrapper_with_oauth(mocker: MockerFixture):
             "generictemplate"
         ]["spec"]["headGroupSpec"]["template"]["spec"]["containers"]
     )
+
+
+"""
+Ray Jobs tests
+"""
+# rjc == RayJobClient
+@pytest.fixture
+def ray_job_client(mocker):
+    # Creating a fixture to instantiate RayJobClient with a mocked JobSubmissionClient
+    mocker.patch.object(JobSubmissionClient, "__init__", return_value=None)
+    return RayJobClient(
+        "https://ray-dashboard-unit-test-cluster-ns.apps.cluster.awsroute.org"
+    )
+
+
+def test_rjc_submit_job(ray_job_client, mocker):
+    mocked_submit_job = mocker.patch.object(
+        JobSubmissionClient, "submit_job", return_value="mocked_submission_id"
+    )
+    submission_id = ray_job_client.submit_job(entrypoint={"pip": ["numpy"]})
+
+    mocked_submit_job.assert_called_once_with(
+        entrypoint={"pip": ["numpy"]},
+        job_id=None,
+        runtime_env=None,
+        metadata=None,
+        submission_id=None,
+        entrypoint_num_cpus=None,
+        entrypoint_num_gpus=None,
+        entrypoint_resources=None,
+    )
+
+    assert submission_id == "mocked_submission_id"
+
+
+def test_rjc_delete_job(ray_job_client, mocker):
+    mocked_delete_job = mocker.patch.object(
+        JobSubmissionClient, "delete_job", return_value=True
+    )
+    result = ray_job_client.delete_job(job_id="mocked_job_id")
+
+    mocked_delete_job.assert_called_once_with(job_id="mocked_job_id")
+    assert result is True
+
+
+def test_rjc_address(ray_job_client, mocker):
+    mocked_rjc_address = mocker.patch.object(
+        JobSubmissionClient,
+        "get_address",
+        return_value="https://ray-dashboard-unit-test-cluster-ns.apps.cluster.awsroute.org",
+    )
+    address = ray_job_client.get_address()
+
+    mocked_rjc_address.assert_called_once()
+    assert (
+        address
+        == "https://ray-dashboard-unit-test-cluster-ns.apps.cluster.awsroute.org"
+    )
+
+
+def test_rjc_get_job_logs(ray_job_client, mocker):
+    mocked_rjc_get_job_logs = mocker.patch.object(
+        JobSubmissionClient, "get_job_logs", return_value="Logs"
+    )
+    logs = ray_job_client.get_job_logs(job_id="mocked_job_id")
+
+    mocked_rjc_get_job_logs.assert_called_once_with(job_id="mocked_job_id")
+    assert logs == "Logs"
+
+
+def test_rjc_get_job_info(ray_job_client, mocker):
+    job_details_example = "JobDetails(type=<JobType.SUBMISSION: 'SUBMISSION'>, job_id=None, submission_id='mocked_submission_id', driver_info=None, status=<JobStatus.PENDING: 'PENDING'>, entrypoint='python test.py', message='Job has not started yet. It may be waiting for the runtime environment to be set up.', error_type=None, start_time=1701271760641, end_time=None, metadata={}, runtime_env={'working_dir': 'gcs://_ray_pkg_67de6f0e60d43b19.zip', 'pip': {'packages': ['numpy'], 'pip_check': False}, '_ray_commit': 'b4bba4717f5ba04ee25580fe8f88eed63ef0c5dc'}, driver_agent_http_address=None, driver_node_id=None)"
+    mocked_rjc_get_job_info = mocker.patch.object(
+        JobSubmissionClient, "get_job_info", return_value=job_details_example
+    )
+    job_details = ray_job_client.get_job_info(job_id="mocked_job_id")
+
+    mocked_rjc_get_job_info.assert_called_once_with(job_id="mocked_job_id")
+    assert job_details == job_details_example
 
 
 # Make sure to always keep this function last
