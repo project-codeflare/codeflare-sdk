@@ -2850,6 +2850,8 @@ def test_gen_app_wrapper_with_oauth(mocker: MockerFixture):
 """
 Ray Jobs tests
 """
+
+
 # rjc == RayJobClient
 @pytest.fixture
 def ray_job_client(mocker):
