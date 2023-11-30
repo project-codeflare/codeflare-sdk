@@ -2883,13 +2883,43 @@ def test_rjc_submit_job(ray_job_client, mocker):
 
 
 def test_rjc_delete_job(ray_job_client, mocker):
-    mocked_delete_job = mocker.patch.object(
+    # Case return True
+    mocked_delete_job_True = mocker.patch.object(
         JobSubmissionClient, "delete_job", return_value=True
     )
     result = ray_job_client.delete_job(job_id="mocked_job_id")
 
-    mocked_delete_job.assert_called_once_with(job_id="mocked_job_id")
+    mocked_delete_job_True.assert_called_once_with(job_id="mocked_job_id")
     assert result is True
+
+    # Case return False
+    mocked_delete_job_False = mocker.patch.object(
+        JobSubmissionClient, "delete_job", return_value=False
+    )
+    result = ray_job_client.delete_job(job_id="mocked_job_id")
+
+    mocked_delete_job_False.assert_called_once_with(job_id="mocked_job_id")
+    assert result is False
+
+
+def test_rjc_stop_job(ray_job_client, mocker):
+    # Case return True
+    mocked_stop_job_True = mocker.patch.object(
+        JobSubmissionClient, "stop_job", return_value=True
+    )
+    result = ray_job_client.stop_job(job_id="mocked_job_id")
+
+    mocked_stop_job_True.assert_called_once_with(job_id="mocked_job_id")
+    assert result is True
+
+    # Case return False
+    mocked_stop_job_False = mocker.patch.object(
+        JobSubmissionClient, "stop_job", return_value=False
+    )
+    result = ray_job_client.stop_job(job_id="mocked_job_id")
+
+    mocked_stop_job_False.assert_called_once_with(job_id="mocked_job_id")
+    assert result is False
 
 
 def test_rjc_address(ray_job_client, mocker):
@@ -2926,6 +2956,47 @@ def test_rjc_get_job_info(ray_job_client, mocker):
 
     mocked_rjc_get_job_info.assert_called_once_with(job_id="mocked_job_id")
     assert job_details == job_details_example
+
+
+def test_rjc_get_job_status(ray_job_client, mocker):
+    job_status_example = "<JobStatus.PENDING: 'PENDING'>"
+    mocked_rjc_get_job_status = mocker.patch.object(
+        JobSubmissionClient, "get_job_status", return_value=job_status_example
+    )
+    job_status = ray_job_client.get_job_status(job_id="mocked_job_id")
+
+    mocked_rjc_get_job_status.assert_called_once_with(job_id="mocked_job_id")
+    assert job_status == job_status_example
+
+
+def test_rjc_tail_job_logs(ray_job_client, mocker):
+    logs_example = [
+        "Job started...",
+        "Processing input data...",
+        "Finalizing results...",
+        "Job completed successfully.",
+    ]
+    mocked_rjc_tail_job_logs = mocker.patch.object(
+        JobSubmissionClient, "tail_job_logs", return_value=logs_example
+    )
+    job_tail_job_logs = ray_job_client.tail_job_logs(job_id="mocked_job_id")
+
+    mocked_rjc_tail_job_logs.assert_called_once_with(job_id="mocked_job_id")
+    assert job_tail_job_logs == logs_example
+
+
+def test_rjc_list_jobs(ray_job_client, mocker):
+    jobs_list = [
+        "JobDetails(type=<JobType.SUBMISSION: 'SUBMISSION'>, job_id=None, submission_id='raysubmit_4k2NYS1YbRXYPZCM', driver_info=None, status=<JobStatus.SUCCEEDED: 'SUCCEEDED'>, entrypoint='python mnist.py', message='Job finished successfully.', error_type=None, start_time=1701352132585, end_time=1701352192002, metadata={}, runtime_env={'working_dir': 'gcs://_ray_pkg_6200b93a110e8033.zip', 'pip': {'packages': ['pytorch_lightning==1.5.10', 'ray_lightning', 'torchmetrics==0.9.1', 'torchvision==0.12.0'], 'pip_check': False}, '_ray_commit': 'b4bba4717f5ba04ee25580fe8f88eed63ef0c5dc'}, driver_agent_http_address='http://10.131.0.18:52365', driver_node_id='9fb515995f5fb13ad4db239ceea378333bebf0a2d45b6aa09d02e691')",
+        "JobDetails(type=<JobType.SUBMISSION: 'SUBMISSION'>, job_id=None, submission_id='raysubmit_iRuwU8vdkbUZZGvT', driver_info=None, status=<JobStatus.STOPPED: 'STOPPED'>, entrypoint='python mnist.py', message='Job was intentionally stopped.', error_type=None, start_time=1701353096163, end_time=1701353097733, metadata={}, runtime_env={'working_dir': 'gcs://_ray_pkg_6200b93a110e8033.zip', 'pip': {'packages': ['pytorch_lightning==1.5.10', 'ray_lightning', 'torchmetrics==0.9.1', 'torchvision==0.12.0'], 'pip_check': False}, '_ray_commit': 'b4bba4717f5ba04ee25580fe8f88eed63ef0c5dc'}, driver_agent_http_address='http://10.131.0.18:52365', driver_node_id='9fb515995f5fb13ad4db239ceea378333bebf0a2d45b6aa09d02e691')",
+    ]
+    mocked_rjc_list_jobs = mocker.patch.object(
+        JobSubmissionClient, "list_jobs", return_value=jobs_list
+    )
+    job_list_jobs = ray_job_client.list_jobs()
+
+    mocked_rjc_list_jobs.assert_called_once()
+    assert job_list_jobs == jobs_list
 
 
 # Make sure to always keep this function last
