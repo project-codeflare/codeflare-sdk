@@ -17,6 +17,31 @@ Full documentation can be found [here](https://project-codeflare.github.io/codef
 
 Can be installed via `pip`: `pip install codeflare-sdk`
 
+## CodeFlare SDK in a Kubernetes environment
+To create a Ray Cluster using the CodeFlare SDK in a Kubernetes environment an `ingress_domain` must be passed in the Cluster Configuration.
+This is used for the creation of the Ray Dashboard and Client ingresses.
+
+`ingress_options` can be passed to create a custom Ray Dashboard ingress, `ingress_domain` is still a required variable for the Client ingress.
+An example of `ingress_options` would look like this.
+
+```
+ingress_options = {
+  "ingresses": [
+    {
+      "ingressName": "<ingress_name>",
+      "port": <port_number>,
+      "pathType": "<path_type>",
+      "path": "<path>",
+      "host":"<host>",
+      "annotations": {
+        "foo": "bar",
+        "foo": "bar",
+      }
+    }
+  ]
+}
+```
+
 ## Development
 
 ### Prerequisites
