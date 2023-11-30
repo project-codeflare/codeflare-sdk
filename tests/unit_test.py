@@ -2890,36 +2890,39 @@ def test_rjc_delete_job(ray_job_client, mocker):
     result = ray_job_client.delete_job(job_id="mocked_job_id")
 
     mocked_delete_job_True.assert_called_once_with(job_id="mocked_job_id")
-    assert result is True
+    assert result == (True, "Successfully deleted Job mocked_job_id")
 
     # Case return False
     mocked_delete_job_False = mocker.patch.object(
-        JobSubmissionClient, "delete_job", return_value=False
+        JobSubmissionClient, "delete_job", return_value=(False)
     )
     result = ray_job_client.delete_job(job_id="mocked_job_id")
 
     mocked_delete_job_False.assert_called_once_with(job_id="mocked_job_id")
-    assert result is False
+    assert result == (False, "Failed to delete Job mocked_job_id")
 
 
 def test_rjc_stop_job(ray_job_client, mocker):
     # Case return True
     mocked_stop_job_True = mocker.patch.object(
-        JobSubmissionClient, "stop_job", return_value=True
+        JobSubmissionClient, "stop_job", return_value=(True)
     )
     result = ray_job_client.stop_job(job_id="mocked_job_id")
 
     mocked_stop_job_True.assert_called_once_with(job_id="mocked_job_id")
-    assert result is True
+    assert result == (True, "Successfully stopped Job mocked_job_id")
 
     # Case return False
     mocked_stop_job_False = mocker.patch.object(
-        JobSubmissionClient, "stop_job", return_value=False
+        JobSubmissionClient, "stop_job", return_value=(False)
     )
     result = ray_job_client.stop_job(job_id="mocked_job_id")
 
     mocked_stop_job_False.assert_called_once_with(job_id="mocked_job_id")
-    assert result is False
+    assert result == (
+        False,
+        "Failed to stop Job, mocked_job_id could have already completed.",
+    )
 
 
 def test_rjc_address(ray_job_client, mocker):

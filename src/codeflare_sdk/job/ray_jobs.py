@@ -68,18 +68,18 @@ class RayJobClient:
             entrypoint_resources=entrypoint_resources,
         )
 
-    def delete_job(self, job_id: str) -> bool:
+    def delete_job(self, job_id: str) -> (bool, str):
         """
         Method for deleting jobs with the job id being a mandatory field.
         """
         deletion_status = self.rayJobClient.delete_job(job_id=job_id)
 
         if deletion_status:
-            print(f"Successfully deleted Job {job_id}")
-            return deletion_status
+            message = f"Successfully deleted Job {job_id}"
         else:
-            print(f"Failed to delete Job {job_id}")
-            return deletion_status
+            message = f"Failed to delete Job {job_id}"
+
+        return deletion_status, message
 
     def get_address(self) -> str:
         """
@@ -95,7 +95,7 @@ class RayJobClient:
 
     def get_job_logs(self, job_id: str) -> str:
         """
-        Method for getting the job info with the job id being a mandatory field.
+        Method for getting the job logs with the job id being a mandatory field.
         """
         return self.rayJobClient.get_job_logs(job_id=job_id)
 
@@ -111,16 +111,16 @@ class RayJobClient:
         """
         return self.rayJobClient.list_jobs()
 
-    def stop_job(self, job_id: str) -> bool:
+    def stop_job(self, job_id: str) -> (bool, str):
         """
         Method for stopping a job with the job id being a mandatory field.
         """
         stop_job_status = self.rayJobClient.stop_job(job_id=job_id)
         if stop_job_status:
-            print(f"Successfully stopped Job {job_id}")
+            message = f"Successfully stopped Job {job_id}"
         else:
-            print(f"Failed to stop Job, {job_id} could have already completed.")
-        return stop_job_status
+            message = f"Failed to stop Job, {job_id} could have already completed."
+        return stop_job_status, message
 
     def tail_job_logs(self, job_id: str) -> Iterator[str]:
         """
