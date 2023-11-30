@@ -72,7 +72,14 @@ class RayJobClient:
         """
         Method for deleting jobs with the job id being a mandatory field.
         """
-        return self.rayJobClient.delete_job(job_id=job_id)
+        deletion_status = self.rayJobClient.delete_job(job_id=job_id)
+
+        if deletion_status:
+            print(f"Successfully deleted Job {job_id}")
+            return deletion_status
+        else:
+            print(f"Failed to delete Job {job_id}")
+            return deletion_status
 
     def get_address(self) -> str:
         """
@@ -108,7 +115,12 @@ class RayJobClient:
         """
         Method for stopping a job with the job id being a mandatory field.
         """
-        return self.rayJobClient.stop_job(job_id=job_id)
+        stop_job_status = self.rayJobClient.stop_job(job_id=job_id)
+        if stop_job_status:
+            print(f"Successfully stopped Job {job_id}")
+        else:
+            print(f"Failed to stop Job, {job_id} could have already completed.")
+        return stop_job_status
 
     def tail_job_logs(self, job_id: str) -> Iterator[str]:
         """
