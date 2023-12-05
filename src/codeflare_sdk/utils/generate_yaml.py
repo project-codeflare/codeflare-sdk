@@ -478,22 +478,9 @@ def disable_raycluster_tls(resources):
             "containers"
         ][0]["volumeMounts"]
 
-    for i in range(
-        len(
-            generic_template_spec["workerGroupSpecs"][0]["template"]["spec"][
-                "initContainers"
-            ]
-        )
-    ):
-        if (
-            generic_template_spec["workerGroupSpecs"][0]["template"]["spec"][
-                "initContainers"
-            ][i]["name"]
-            == "create-cert"
-        ):
-            del generic_template_spec["workerGroupSpecs"][0]["template"]["spec"][
-                "initContainers"
-            ]
+    del generic_template_spec["workerGroupSpecs"][0]["template"]["spec"][
+        "initContainers"
+    ]
 
     updated_items = []
     for i in resources["GenericItems"][:]:
