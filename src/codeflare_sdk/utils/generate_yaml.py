@@ -21,6 +21,7 @@ import yaml
 import sys
 import os
 import argparse
+from pathlib import Path
 import uuid
 from kubernetes import client, config
 from .kube_api_helpers import _kube_api_error_handling
@@ -689,3 +690,38 @@ def generate_appwrapper(
     else:
         write_user_appwrapper(user_yaml, outfile)
     return outfile
+
+
+def update_pip_requirements(self):
+    pip_trusted_host = self.env.get("PIP_TRUSTED_HOST")
+    pip_index_url = self.env.get("PIP_INDEX_URL")
+    requirements_path = Path("requirements.txt")
+
+    if requirements_path.exists():
+        with requirements_path.open("r") as file:
+            requirements = file.readlines()
+
+        # Check and replace or add --trusted-host and --index-url
+        trusted_host = f"--trusted-host {pip_trusted_host}\n"
+        index_url = f"--index-url {pip_index_url}\n"
+        modified_requirements = []
+
+        for line in requirements:
+            if line.startswith("--trusted-host"):
+                modified_requirements.append(trusted_host)
+                trusted_host = None
+            elif line.startswith("--index-url"):
+                modified_requirements.append(index_url)
+                index_url = None
+            else:
+                modified_requirements.append(line)
+
+        # Append the lines if they were not replaced
+        if trusted_host:
+            modified_requirements.insert(0, trusted_host)
+        if index_url:
+            modified_requirements.insert(0, index_url)
+
+        # Write back the modified requirements
+        with requirements_path.open("w") as file:
+            file.writelines(modified_requirements)

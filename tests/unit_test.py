@@ -2091,7 +2091,11 @@ def test_DDPJobDefinition_creation():
     assert ddp.memMB == 1024
     assert ddp.h == None
     assert ddp.j == "2x1"
-    assert ddp.env == {"test": "test"}
+    assert ddp.env == {
+        "PIP_TRUSTED_HOST": "pypi.org",
+        "PIP_INDEX_URL": "https://pypi.org/simple",
+        "test": "test",
+    }
     assert ddp.max_retries == 0
     assert ddp.mounts == []
     assert ddp.rdzv_port == 29500

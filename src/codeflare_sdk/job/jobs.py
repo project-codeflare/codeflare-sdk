@@ -22,6 +22,8 @@ from torchx.runner import get_runner, Runner
 from torchx.schedulers.ray_scheduler import RayScheduler
 from torchx.specs import AppHandle, parse_app_handle, AppDryRunInfo
 
+from ..utils.generate_yaml import update_pip_requirements
+
 
 if TYPE_CHECKING:
     from ..cluster.cluster import Cluster
@@ -90,6 +92,12 @@ class DDPJobDefinition(JobDefinition):
         )
         self.image = image
         self.workspace = workspace
+        if "PIP_TRUSTED_HOST" in self.env or "PIP_INDEX_URL" in self.env:
+            update_pip_requirements(self)
+        else:
+            self.env.setdefault("PIP_TRUSTED_HOST", "pypi.org")
+            self.env.setdefault("PIP_INDEX_URL", "https://pypi.org/simple")
+            update_pip_requirements(self)
 
     def _dry_run(self, cluster: "Cluster"):
         j = f"{cluster.config.num_workers}x{max(cluster.config.num_gpus, 1)}"  # # of proc. = # of gpus
