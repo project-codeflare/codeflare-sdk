@@ -493,7 +493,7 @@ def disable_raycluster_tls(resources):
         ):
             del generic_template_spec["workerGroupSpecs"][0]["template"]["spec"][
                 "initContainers"
-            ][i]
+            ]
 
     updated_items = []
     for i in resources["GenericItems"][:]:
