@@ -166,14 +166,6 @@ spec:
                       memory: 8G
                       nvidia.com/gpu: 1
                 imagePullSecrets: []
-                initContainers:
-                - command:
-                  - sh
-                  - -c
-                  - until nslookup $RAY_IP.$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace).svc.cluster.local;
-                    do echo waiting for myservice; sleep 2; done
-                  image: quay.io/project-codeflare/busybox:latest
-                  name: init-myservice
       replicas: 1
     - generictemplate:
         apiVersion: route.openshift.io/v1

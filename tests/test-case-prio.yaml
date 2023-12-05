@@ -169,14 +169,6 @@ spec:
                       nvidia.com/gpu: 7
                 imagePullSecrets:
                 - name: unit-test-pull-secret
-                initContainers:
-                - command:
-                  - sh
-                  - -c
-                  - until nslookup $RAY_IP.$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace).svc.cluster.local;
-                    do echo waiting for myservice; sleep 2; done
-                  image: quay.io/project-codeflare/busybox:latest
-                  name: init-myservice
                 priorityClassName: default
       replicas: 1
     - generictemplate:
