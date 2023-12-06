@@ -17,12 +17,22 @@ The ray_jobs sub-module contains methods needed to submit jobs and connect to Ra
 The SDK acts as a wrapper for the Ray Job Submission Client.
 """
 from ray.job_submission import JobSubmissionClient
-from typing import Iterator, Optional, Dict, Any, Union
+from ray.dashboard.modules.job.pydantic_models import JobDetails
+from typing import Iterator, Optional, Dict, Any, Union, List
 
 
 class RayJobClient:
     """
-    An object for that acts as the Ray Job Submission Client.
+    A class that functions as a wrapper for the Ray Job Submission Client.
+
+    parameters:
+    address -- Either (1) the address of the Ray cluster, or (2) the HTTP address of the dashboard server on the head node, e.g. “http://<head-node-ip>:8265”. In case (1) it must be specified as an address that can be passed to ray.init(),
+    e.g. a Ray Client address (ray://<head_node_host>:10001), or “auto”, or “localhost:<port>”. If unspecified, will try to connect to a running local Ray cluster. This argument is always overridden by the RAY_ADDRESS environment variable.
+    create_cluster_if_needed -- Indicates whether the cluster at the specified address needs to already be running. Ray doesn't start a cluster before interacting with jobs, but third-party job managers may do so.
+    cookies -- Cookies to use when sending requests to the HTTP job server.
+    metadata -- Arbitrary metadata to store along with all jobs. New metadata specified per job will be merged with the global metadata provided here via a simple dict update.
+    headers -- Headers to use when sending requests to the HTTP job server, used for cases like authentication to a remote cluster.
+    verify -- Boolean indication to verify the server's TLS certificate or a path to a file or directory of trusted certificates. Default: True.
     """
 
     def __init__(
@@ -56,6 +66,16 @@ class RayJobClient:
     ) -> str:
         """
         Method for submitting jobs to a Ray Cluster and returning the job id with entrypoint being a mandatory field.
+
+        Parameters:
+        entrypoint -- The shell command to run for this job.
+        submission_id -- A unique ID for this job.
+        runtime_env -- The runtime environment to install and run this job in.
+        metadata -- Arbitrary data to store along with this job.
+        job_id -- DEPRECATED. This has been renamed to submission_id
+        entrypoint_num_cpus -- The quantity of CPU cores to reserve for the execution of the entrypoint command, separately from any tasks or actors launched by it. Defaults to 0.
+        entrypoint_num_gpus -- The quantity of GPUs to reserve for the execution of the entrypoint command, separately from any tasks or actors launched by it. Defaults to 0.
+        entrypoint_resources -- The quantity of custom resources to reserve for the execution of the entrypoint command, separately from any tasks or actors launched by it.
         """
         return self.rayJobClient.submit_job(
             entrypoint=entrypoint,
@@ -105,7 +125,7 @@ class RayJobClient:
         """
         return self.rayJobClient.get_job_status(job_id=job_id)
 
-    def list_jobs(self):
+    def list_jobs(self) -> List[JobDetails]:
         """
         Method for getting a list of current jobs in the Ray Cluster.
         """
