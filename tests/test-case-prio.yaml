@@ -175,6 +175,8 @@ spec:
         apiVersion: networking.k8s.io/v1
         kind: Ingress
         metadata:
+          labels:
+            ingress-owner: prio-test-cluster
           name: ray-dashboard-prio-test-cluster
           namespace: ns
         spec:

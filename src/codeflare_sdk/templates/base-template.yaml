@@ -293,6 +293,8 @@ spec:
           namespace: default
           annotations:
             annotations-example:annotations-example
+          labels:
+            ingress-owner: appwrapper-name
         spec:
           ingressClassName: nginx
           rules:

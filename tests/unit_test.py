@@ -397,7 +397,7 @@ def arg_check_apply_effect(group, version, namespace, plural, body, *args):
         with open(f"{aw_dir}unit-test-cluster-ray.yaml") as f:
             yamls = yaml.load_all(f, Loader=yaml.FullLoader)
             for resource in yamls:
-                if resource["kind"] == "Route":
+                if resource["kind"] == "Ingress":
                     assert body == resource
     else:
         assert 1 == 0
@@ -414,8 +414,8 @@ def arg_check_del_effect(group, version, namespace, plural, name, *args):
         assert group == "ray.io"
         assert version == "v1alpha1"
         assert name == "unit-test-cluster-ray"
-    elif plural == "routes":
-        assert group == "route.openshift.io"
+    elif plural == "ingresses":
+        assert group == "networking.k8s.io"
         assert version == "v1"
         assert name == "ray-dashboard-unit-test-cluster-ray"
 
@@ -623,7 +623,13 @@ def ingress_retrieval(port, annotations=None):
         serviceName = "dashboard"
     mock_ingress = client.V1Ingress(
         metadata=client.V1ObjectMeta(
-            name=f"ray-{serviceName}-unit-test-cluster", annotations=annotations
+            name=f"ray-{serviceName}-unit-test-cluster",
+            annotations=annotations,
+            owner_references=[
+                client.V1OwnerReference(
+                    api_version="v1", kind="Ingress", name="quicktest", uid="unique-id"
+                )
+            ],
         ),
         spec=client.V1IngressSpec(
             rules=[
@@ -1148,6 +1154,11 @@ def get_ray_obj(group, version, namespace, plural, cls=None):
     return api_obj
 
 
+def get_named_aw(group, version, namespace, plural, name):
+    aws = get_aw_obj("workload.codeflare.dev", "v1beta1", "ns", "appwrappers")
+    return aws["items"][0]
+
+
 def get_aw_obj(group, version, namespace, plural):
     api_obj1 = {
         "items": [
@@ -1403,21 +1414,34 @@ def get_aw_obj(group, version, namespace, plural):
                             {
                                 "allocated": 0,
                                 "generictemplate": {
-                                    "apiVersion": "route.openshift.io/v1",
-                                    "kind": "Route",
+                                    "apiVersion": "networking.k8s.io/v1",
+                                    "kind": "Ingress",
                                     "metadata": {
-                                        "labels": {
-                                            "odh-ray-cluster-service": "quicktest-head-svc"
-                                        },
+                                        "labels": {"ingress-owner": "appwrapper-name"},
                                         "name": "ray-dashboard-quicktest",
                                         "namespace": "default",
                                     },
                                     "spec": {
-                                        "port": {"targetPort": "dashboard"},
-                                        "to": {
-                                            "kind": "Service",
-                                            "name": "quicktest-head-svc",
-                                        },
+                                        "ingressClassName": "nginx",
+                                        "rules": [
+                                            {
+                                                "http": {
+                                                    "paths": {
+                                                        "backend": {
+                                                            "service": {
+                                                                "name": "quicktest-head-svc",
+                                                                "port": {
+                                                                    "number": 8265
+                                                                },
+                                                            },
+                                                        },
+                                                        "pathType": "Prefix",
+                                                        "path": "/",
+                                                    },
+                                                },
+                                                "host": "quicktest.awsroute.com",
+                                            }
+                                        ],
                                     },
                                 },
                                 "metadata": {},
@@ -1788,10 +1812,14 @@ def test_get_cluster(mocker):
         side_effect=get_ray_obj,
     )
     mocker.patch(
-        "codeflare_sdk.utils.generate_yaml.is_openshift_cluster",
-        return_value=True,
+        "kubernetes.client.CustomObjectsApi.get_namespaced_custom_object",
+        side_effect=get_named_aw,
     )
-    cluster = get_cluster(cluster_name="quicktest")
+    mocker.patch(
+        "kubernetes.client.NetworkingV1Api.list_namespaced_ingress",
+        return_value=ingress_retrieval(port=8265),
+    )
+    cluster = get_cluster("quicktest")
     cluster_config = cluster.config
     assert cluster_config.name == "quicktest" and cluster_config.namespace == "ns"
     assert (

@@ -129,9 +129,10 @@ def update_dashboard_ingress(
                 raise ValueError(
                     f"Error: 'port' is not of type int for ingress item at index {index}"
                 )
-            if ingress_option["port"] == 8265:
+            if ingress_option is not None:
                 metadata["name"] = ingress_option["ingressName"]
                 metadata["namespace"] = namespace
+                metadata["labels"]["ingress-owner"] = cluster_name
                 if "annotations" not in ingress_option.keys():
                     del metadata["annotations"]
                 else:
@@ -161,6 +162,7 @@ def update_dashboard_ingress(
     else:
         spec["ingressClassName"] = "nginx"
         metadata["name"] = gen_dashboard_ingress_name(cluster_name)
+        metadata["labels"]["ingress-owner"] = cluster_name
         metadata["namespace"] = namespace
         spec["rules"][0]["http"]["paths"][0]["backend"]["service"][
             "name"
