@@ -492,7 +492,7 @@ class Cluster:
             to_return["requirements"] = requirements
         return to_return
 
-    def from_k8_cluster_object(rc, mcad=True):
+    def from_k8_cluster_object(rc, mcad=True, ingress_domain=None):
         machine_types = (
             rc["metadata"]["labels"]["orderedinstance"].split("_")
             if "orderedinstance" in rc["metadata"]["labels"]
@@ -532,6 +532,7 @@ class Cluster:
             ]["image"],
             local_interactive=local_interactive,
             mcad=mcad,
+            ingress_domain=ingress_domain,
         )
         return Cluster(cluster_config)
 
@@ -685,7 +686,29 @@ def get_cluster(cluster_name: str, namespace: str = "default"):
     for rc in rcs["items"]:
         if rc["metadata"]["name"] == cluster_name:
             mcad = _check_aw_exists(cluster_name, namespace)
-            return Cluster.from_k8_cluster_object(rc, mcad=mcad)
+
+            try:
+                config_check()
+                api_instance = client.NetworkingV1Api(api_config_handler())
+                ingresses = api_instance.list_namespaced_ingress(namespace)
+                if mcad == True:
+                    for ingress in ingresses.items:
+                        # Search for ingress with AppWrapper name as the owner
+                        if cluster_name == ingress.metadata.owner_references[0].name:
+                            ingress_host = ingress.spec.rules[0].host
+                else:
+                    for ingress in ingresses.items:
+                        # Search for the ingress with the ingress-owner label
+                        if ingress.metadata.labels["ingress-owner"] == cluster_name:
+                            ingress_host = ingress.spec.rules[0].host
+            except Exception as e:
+                return _kube_api_error_handling(e)
+
+            # We gather the ingress domain from the host
+            ingress_domain = ingress_host.split(".", 1)[1]
+            return Cluster.from_k8_cluster_object(
+                rc, mcad=mcad, ingress_domain=ingress_domain
+            )
     raise FileNotFoundError(
         f"Cluster {cluster_name} is not found in {namespace} namespace"
     )
