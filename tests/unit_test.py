@@ -1787,9 +1787,11 @@ def test_get_cluster(mocker):
         "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
         side_effect=get_ray_obj,
     )
-    cluster = get_cluster(
-        cluster_name="quicktest", ingress_domain="apps.cluster.awsroute.org"
+    mocker.patch(
+        "codeflare_sdk.utils.generate_yaml.is_openshift_cluster",
+        return_value=True,
     )
+    cluster = get_cluster(cluster_name="quicktest")
     cluster_config = cluster.config
     assert cluster_config.name == "quicktest" and cluster_config.namespace == "ns"
     assert (
@@ -1800,7 +1802,6 @@ def test_get_cluster(mocker):
     assert cluster_config.min_memory == 2 and cluster_config.max_memory == 2
     assert cluster_config.num_gpus == 0
     assert cluster_config.instascale
-    assert cluster_config.ingress_domain == "apps.cluster.awsroute.org"
     assert (
         cluster_config.image
         == "ghcr.io/foundation-model-stack/base:ray2.1.0-py38-gpu-pytorch1.12.0cu116-20221213-193103"
