@@ -492,7 +492,7 @@ class Cluster:
             to_return["requirements"] = requirements
         return to_return
 
-    def from_k8_cluster_object(rc, mcad=True, ingress_domain=None):
+    def from_k8_cluster_object(rc, mcad=True):
         machine_types = (
             rc["metadata"]["labels"]["orderedinstance"].split("_")
             if "orderedinstance" in rc["metadata"]["labels"]
@@ -532,7 +532,6 @@ class Cluster:
             ]["image"],
             local_interactive=local_interactive,
             mcad=mcad,
-            ingress_domain=ingress_domain,
         )
         return Cluster(cluster_config)
 
@@ -670,7 +669,7 @@ def get_current_namespace():  # pragma: no cover
             return None
 
 
-def get_cluster(cluster_name: str, namespace: str = "default", ingress_domain=None):
+def get_cluster(cluster_name: str, namespace: str = "default"):
     try:
         config_check()
         api_instance = client.CustomObjectsApi(api_config_handler())
@@ -686,9 +685,7 @@ def get_cluster(cluster_name: str, namespace: str = "default", ingress_domain=No
     for rc in rcs["items"]:
         if rc["metadata"]["name"] == cluster_name:
             mcad = _check_aw_exists(cluster_name, namespace)
-            return Cluster.from_k8_cluster_object(
-                rc, mcad=mcad, ingress_domain=ingress_domain
-            )
+            return Cluster.from_k8_cluster_object(rc, mcad=mcad)
     raise FileNotFoundError(
         f"Cluster {cluster_name} is not found in {namespace} namespace"
     )
