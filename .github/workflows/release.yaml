@@ -53,7 +53,7 @@ jobs:
             - name: Run poetry build
               run: poetry build
             - name: Create new documentation
-              run: poetry run pdoc --html -o docs src/codeflare_sdk && pushd docs && rm -rf cluster job utils && mv codeflare_sdk/* . && rm -rf codeflare_sdk && popd && find docs -type f -name "*.html" -exec bash -c "echo '' >> {}" \;
+              run: poetry run pdoc --html -o docs/detailed-documentation src/codeflare_sdk && pushd docs/detailed-documentation && rm -rf cluster job utils && mv codeflare_sdk/* . && rm -rf codeflare_sdk && popd && find docs/detailed-documentation -type f -name "*.html" -exec bash -c "echo '' >> {}" \;
 
             - name: Commit changes in docs
               uses: stefanzweifel/git-auto-commit-action@v4
