@@ -64,6 +64,7 @@ from ..utils.generate_yaml import (
     generate_appwrapper,
 )
 from ..utils.kube_api_helpers import _kube_api_error_handling
+from ..utils.generate_yaml import is_openshift_cluster
 from ..utils.openshift_oauth import (
     create_openshift_oauth_objects,
     delete_openshift_oauth_objects,
@@ -123,14 +124,11 @@ class Cluster:
 
     @property
     def job_client(self):
+        k8client = api_config_handler() or client.ApiClient()
         if self._job_submission_client:
             return self._job_submission_client
         if self.config.openshift_oauth:
-            print(
-                api_config_handler().configuration.get_api_key_with_prefix(
-                    &#34;authorization&#34;
-                )
-            )
+            print(k8client.configuration.get_api_key_with_prefix(&#34;authorization&#34;))
             self._job_submission_client = JobSubmissionClient(
                 self.cluster_dashboard_uri(),
                 headers=self._client_headers,
@@ -450,25 +448,48 @@ class Cluster:
         &#34;&#34;&#34;
         Returns a string containing the cluster&#39;s dashboard URI.
         &#34;&#34;&#34;
-        try:
-            config_check()
-            api_instance = client.NetworkingV1Api(api_config_handler())
-            ingresses = api_instance.list_namespaced_ingress(self.config.namespace)
-        except Exception as e:  # pragma no cover
-            return _kube_api_error_handling(e)
+        config_check()
+        if is_openshift_cluster():
+            try:
+                api_instance = client.CustomObjectsApi(api_config_handler())
+                routes = api_instance.list_namespaced_custom_object(
+                    group=&#34;route.openshift.io&#34;,
+                    version=&#34;v1&#34;,
+                    namespace=self.config.namespace,
+                    plural=&#34;routes&#34;,
+                )
+            except Exception as e:  # pragma: no cover
+                return _kube_api_error_handling(e)
 
-        for ingress in ingresses.items:
-            annotations = ingress.metadata.annotations
-            protocol = &#34;http&#34;
-            if (
-                ingress.metadata.name == f&#34;ray-dashboard-{self.config.name}&#34;
-                or ingress.metadata.name.startswith(f&#34;{self.config.name}-ingress&#34;)
-            ):
-                if annotations == None:
-                    protocol = &#34;http&#34;
-                elif &#34;route.openshift.io/termination&#34; in annotations:
-                    protocol = &#34;https&#34;
-            return f&#34;{protocol}://{ingress.spec.rules[0].host}&#34;
+            for route in routes[&#34;items&#34;]:
+                if route[&#34;metadata&#34;][
+                    &#34;name&#34;
+                ] == f&#34;ray-dashboard-{self.config.name}&#34; or route[&#34;metadata&#34;][
+                    &#34;name&#34;
+                ].startswith(
+                    f&#34;{self.config.name}-ingress&#34;
+                ):
+                    protocol = &#34;https&#34; if route[&#34;spec&#34;].get(&#34;tls&#34;) else &#34;http&#34;
+                    return f&#34;{protocol}://{route[&#39;spec&#39;][&#39;host&#39;]}&#34;
+        else:
+            try:
+                api_instance = client.NetworkingV1Api(api_config_handler())
+                ingresses = api_instance.list_namespaced_ingress(self.config.namespace)
+            except Exception as e:  # pragma no cover
+                return _kube_api_error_handling(e)
+
+            for ingress in ingresses.items:
+                annotations = ingress.metadata.annotations
+                protocol = &#34;http&#34;
+                if (
+                    ingress.metadata.name == f&#34;ray-dashboard-{self.config.name}&#34;
+                    or ingress.metadata.name.startswith(f&#34;{self.config.name}-ingress&#34;)
+                ):
+                    if annotations == None:
+                        protocol = &#34;http&#34;
+                    elif &#34;route.openshift.io/termination&#34; in annotations:
+                        protocol = &#34;https&#34;
+                return f&#34;{protocol}://{ingress.spec.rules[0].host}&#34;
         return &#34;Dashboard ingress not available yet, have you run cluster.up()?&#34;
 
     def list_jobs(self) -&gt; List:
@@ -567,6 +588,14 @@ class Cluster:
                         plural=&#34;rayclusters&#34;,
                         body=resource,
                     )
+                elif resource[&#34;kind&#34;] == &#34;Ingress&#34;:
+                    api_instance.create_namespaced_custom_object(
+                        group=&#34;networking.k8s.io&#34;,
+                        version=&#34;v1&#34;,
+                        namespace=namespace,
+                        plural=&#34;ingresses&#34;,
+                        body=resource,
+                    )
                 elif resource[&#34;kind&#34;] == &#34;Route&#34;:
                     api_instance.create_namespaced_custom_object(
                         group=&#34;route.openshift.io&#34;,
@@ -595,6 +624,15 @@ class Cluster:
                         namespace=namespace,
                         plural=&#34;rayclusters&#34;,
                         name=self.app_wrapper_name,
+                    )
+                elif resource[&#34;kind&#34;] == &#34;Ingress&#34;:
+                    name = resource[&#34;metadata&#34;][&#34;name&#34;]
+                    api_instance.delete_namespaced_custom_object(
+                        group=&#34;networking.k8s.io&#34;,
+                        version=&#34;v1&#34;,
+                        namespace=namespace,
+                        plural=&#34;ingresses&#34;,
+                        name=name,
                     )
                 elif resource[&#34;kind&#34;] == &#34;Route&#34;:
                     name = resource[&#34;metadata&#34;][&#34;name&#34;]
@@ -698,29 +736,48 @@ def _check_aw_exists(name: str, namespace: str) -&gt; bool:
         )
     except Exception as e:  # pragma: no cover
         return _kube_api_error_handling(e, print_error=False)
-
     for aw in aws[&#34;items&#34;]:
         if aw[&#34;metadata&#34;][&#34;name&#34;] == name:
             return True
     return False
 
 
-# Cant test this until get_current_namespace is fixed
+# Cant test this until get_current_namespace is fixed and placed in this function over using `self`
 def _get_ingress_domain(self):  # pragma: no cover
-    try:
-        config_check()
-        api_client = client.NetworkingV1Api(api_config_handler())
-        if self.config.namespace != None:
-            namespace = self.config.namespace
-        else:
-            namespace = get_current_namespace()
-        ingresses = api_client.list_namespaced_ingress(namespace)
-    except Exception as e:  # pragma: no cover
-        return _kube_api_error_handling(e)
+    config_check()
+
+    if self.config.namespace != None:
+        namespace = self.config.namespace
+    else:
+        namespace = get_current_namespace()
     domain = None
-    for ingress in ingresses.items:
-        if ingress.spec.rules[0].http.paths[0].backend.service.port.number == 10001:
-            domain = ingress.spec.rules[0].host
+
+    if is_openshift_cluster():
+        try:
+            api_instance = client.CustomObjectsApi(api_config_handler())
+
+            routes = api_instance.list_namespaced_custom_object(
+                group=&#34;route.openshift.io&#34;,
+                version=&#34;v1&#34;,
+                namespace=namespace,
+                plural=&#34;routes&#34;,
+            )
+        except Exception as e:  # pragma: no cover
+            return _kube_api_error_handling(e)
+
+        for route in routes[&#34;items&#34;]:
+            if route[&#34;spec&#34;][&#34;port&#34;][&#34;targetPort&#34;] == &#34;client&#34;:
+                domain = route[&#34;spec&#34;][&#34;host&#34;]
+    else:
+        try:
+            api_client = client.NetworkingV1Api(api_config_handler())
+            ingresses = api_client.list_namespaced_ingress(namespace)
+        except Exception as e:  # pragma: no cover
+            return _kube_api_error_handling(e)
+
+        for ingress in ingresses.items:
+            if ingress.spec.rules[0].http.paths[0].backend.service.port.number == 10001:
+                domain = ingress.spec.rules[0].host
     return domain
 
 
@@ -1073,14 +1130,11 @@ request.</p></div>
 
     @property
     def job_client(self):
+        k8client = api_config_handler() or client.ApiClient()
         if self._job_submission_client:
             return self._job_submission_client
         if self.config.openshift_oauth:
-            print(
-                api_config_handler().configuration.get_api_key_with_prefix(
-                    &#34;authorization&#34;
-                )
-            )
+            print(k8client.configuration.get_api_key_with_prefix(&#34;authorization&#34;))
             self._job_submission_client = JobSubmissionClient(
                 self.cluster_dashboard_uri(),
                 headers=self._client_headers,
@@ -1400,25 +1454,48 @@ request.</p></div>
         &#34;&#34;&#34;
         Returns a string containing the cluster&#39;s dashboard URI.
         &#34;&#34;&#34;
-        try:
-            config_check()
-            api_instance = client.NetworkingV1Api(api_config_handler())
-            ingresses = api_instance.list_namespaced_ingress(self.config.namespace)
-        except Exception as e:  # pragma no cover
-            return _kube_api_error_handling(e)
+        config_check()
+        if is_openshift_cluster():
+            try:
+                api_instance = client.CustomObjectsApi(api_config_handler())
+                routes = api_instance.list_namespaced_custom_object(
+                    group=&#34;route.openshift.io&#34;,
+                    version=&#34;v1&#34;,
+                    namespace=self.config.namespace,
+                    plural=&#34;routes&#34;,
+                )
+            except Exception as e:  # pragma: no cover
+                return _kube_api_error_handling(e)
 
-        for ingress in ingresses.items:
-            annotations = ingress.metadata.annotations
-            protocol = &#34;http&#34;
-            if (
-                ingress.metadata.name == f&#34;ray-dashboard-{self.config.name}&#34;
-                or ingress.metadata.name.startswith(f&#34;{self.config.name}-ingress&#34;)
-            ):
-                if annotations == None:
-                    protocol = &#34;http&#34;
-                elif &#34;route.openshift.io/termination&#34; in annotations:
-                    protocol = &#34;https&#34;
-            return f&#34;{protocol}://{ingress.spec.rules[0].host}&#34;
+            for route in routes[&#34;items&#34;]:
+                if route[&#34;metadata&#34;][
+                    &#34;name&#34;
+                ] == f&#34;ray-dashboard-{self.config.name}&#34; or route[&#34;metadata&#34;][
+                    &#34;name&#34;
+                ].startswith(
+                    f&#34;{self.config.name}-ingress&#34;
+                ):
+                    protocol = &#34;https&#34; if route[&#34;spec&#34;].get(&#34;tls&#34;) else &#34;http&#34;
+                    return f&#34;{protocol}://{route[&#39;spec&#39;][&#39;host&#39;]}&#34;
+        else:
+            try:
+                api_instance = client.NetworkingV1Api(api_config_handler())
+                ingresses = api_instance.list_namespaced_ingress(self.config.namespace)
+            except Exception as e:  # pragma no cover
+                return _kube_api_error_handling(e)
+
+            for ingress in ingresses.items:
+                annotations = ingress.metadata.annotations
+                protocol = &#34;http&#34;
+                if (
+                    ingress.metadata.name == f&#34;ray-dashboard-{self.config.name}&#34;
+                    or ingress.metadata.name.startswith(f&#34;{self.config.name}-ingress&#34;)
+                ):
+                    if annotations == None:
+                        protocol = &#34;http&#34;
+                    elif &#34;route.openshift.io/termination&#34; in annotations:
+                        protocol = &#34;https&#34;
+                return f&#34;{protocol}://{ingress.spec.rules[0].host}&#34;
         return &#34;Dashboard ingress not available yet, have you run cluster.up()?&#34;
 
     def list_jobs(self) -&gt; List:
@@ -1517,6 +1594,14 @@ request.</p></div>
                         plural=&#34;rayclusters&#34;,
                         body=resource,
                     )
+                elif resource[&#34;kind&#34;] == &#34;Ingress&#34;:
+                    api_instance.create_namespaced_custom_object(
+                        group=&#34;networking.k8s.io&#34;,
+                        version=&#34;v1&#34;,
+                        namespace=namespace,
+                        plural=&#34;ingresses&#34;,
+                        body=resource,
+                    )
                 elif resource[&#34;kind&#34;] == &#34;Route&#34;:
                     api_instance.create_namespaced_custom_object(
                         group=&#34;route.openshift.io&#34;,
@@ -1545,6 +1630,15 @@ request.</p></div>
                         namespace=namespace,
                         plural=&#34;rayclusters&#34;,
                         name=self.app_wrapper_name,
+                    )
+                elif resource[&#34;kind&#34;] == &#34;Ingress&#34;:
+                    name = resource[&#34;metadata&#34;][&#34;name&#34;]
+                    api_instance.delete_namespaced_custom_object(
+                        group=&#34;networking.k8s.io&#34;,
+                        version=&#34;v1&#34;,
+                        namespace=namespace,
+                        plural=&#34;ingresses&#34;,
+                        name=name,
                     )
                 elif resource[&#34;kind&#34;] == &#34;Route&#34;:
                     name = resource[&#34;metadata&#34;][&#34;name&#34;]
@@ -1581,14 +1675,11 @@ request.</p></div>
 </summary>
 <pre><code class="python">@property
 def job_client(self):
+    k8client = api_config_handler() or client.ApiClient()
     if self._job_submission_client:
         return self._job_submission_client
     if self.config.openshift_oauth:
-        print(
-            api_config_handler().configuration.get_api_key_with_prefix(
-                &#34;authorization&#34;
-            )
-        )
+        print(k8client.configuration.get_api_key_with_prefix(&#34;authorization&#34;))
         self._job_submission_client = JobSubmissionClient(
             self.cluster_dashboard_uri(),
             headers=self._client_headers,
@@ -1617,25 +1708,48 @@ def job_client(self):
     &#34;&#34;&#34;
     Returns a string containing the cluster&#39;s dashboard URI.
     &#34;&#34;&#34;
-    try:
-        config_check()
-        api_instance = client.NetworkingV1Api(api_config_handler())
-        ingresses = api_instance.list_namespaced_ingress(self.config.namespace)
-    except Exception as e:  # pragma no cover
-        return _kube_api_error_handling(e)
+    config_check()
+    if is_openshift_cluster():
+        try:
+            api_instance = client.CustomObjectsApi(api_config_handler())
+            routes = api_instance.list_namespaced_custom_object(
+                group=&#34;route.openshift.io&#34;,
+                version=&#34;v1&#34;,
+                namespace=self.config.namespace,
+                plural=&#34;routes&#34;,
+            )
+        except Exception as e:  # pragma: no cover
+            return _kube_api_error_handling(e)
 
-    for ingress in ingresses.items:
-        annotations = ingress.metadata.annotations
-        protocol = &#34;http&#34;
-        if (
-            ingress.metadata.name == f&#34;ray-dashboard-{self.config.name}&#34;
-            or ingress.metadata.name.startswith(f&#34;{self.config.name}-ingress&#34;)
-        ):
-            if annotations == None:
-                protocol = &#34;http&#34;
-            elif &#34;route.openshift.io/termination&#34; in annotations:
-                protocol = &#34;https&#34;
-        return f&#34;{protocol}://{ingress.spec.rules[0].host}&#34;
+        for route in routes[&#34;items&#34;]:
+            if route[&#34;metadata&#34;][
+                &#34;name&#34;
+            ] == f&#34;ray-dashboard-{self.config.name}&#34; or route[&#34;metadata&#34;][
+                &#34;name&#34;
+            ].startswith(
+                f&#34;{self.config.name}-ingress&#34;
+            ):
+                protocol = &#34;https&#34; if route[&#34;spec&#34;].get(&#34;tls&#34;) else &#34;http&#34;
+                return f&#34;{protocol}://{route[&#39;spec&#39;][&#39;host&#39;]}&#34;
+    else:
+        try:
+            api_instance = client.NetworkingV1Api(api_config_handler())
+            ingresses = api_instance.list_namespaced_ingress(self.config.namespace)
+        except Exception as e:  # pragma no cover
+            return _kube_api_error_handling(e)
+
+        for ingress in ingresses.items:
+            annotations = ingress.metadata.annotations
+            protocol = &#34;http&#34;
+            if (
+                ingress.metadata.name == f&#34;ray-dashboard-{self.config.name}&#34;
+                or ingress.metadata.name.startswith(f&#34;{self.config.name}-ingress&#34;)
+            ):
+                if annotations == None:
+                    protocol = &#34;http&#34;
+                elif &#34;route.openshift.io/termination&#34; in annotations:
+                    protocol = &#34;https&#34;
+            return f&#34;{protocol}://{ingress.spec.rules[0].host}&#34;
     return &#34;Dashboard ingress not available yet, have you run cluster.up()?&#34;</code></pre>
 </details>
 </dd>
@@ -1943,7 +2057,7 @@ associated with the cluster.</p></div>
 </details>
 </dd>
 <dt id="codeflare_sdk.cluster.cluster.Cluster.list_jobs"><code class="name flex">
-<span>def <span class="ident">list_jobs</span></span>(<span>self) ‑> List[~T]</span>
+<span>def <span class="ident">list_jobs</span></span>(<span>self) ‑> List</span>
 </code></dt>
 <dd>
 <div class="desc"><p>This method accesses the head ray node in your cluster and lists the running jobs.</p></div>

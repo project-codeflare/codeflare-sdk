@@ -100,7 +100,7 @@ class ClusterConfiguration:
 <dl>
 <dt id="codeflare_sdk.cluster.config.ClusterConfiguration"><code class="flex name class">
 <span>class <span class="ident">ClusterConfiguration</span></span>
-<span>(</span><span>name: str, namespace: str = None, head_info: list = &lt;factory&gt;, head_cpus: int = 2, head_memory: int = 8, head_gpus: int = 0, machine_types: list = &lt;factory&gt;, min_cpus: int = 1, max_cpus: int = 1, num_workers: int = 1, min_memory: int = 2, max_memory: int = 2, num_gpus: int = 0, template: str = '/home/runner/work/codeflare-sdk/codeflare-sdk/src/codeflare_sdk/templates/base-template.yaml', instascale: bool = False, mcad: bool = True, envs: dict = &lt;factory&gt;, image: str = '', local_interactive: bool = False, image_pull_secrets: list = &lt;factory&gt;, dispatch_priority: str = None, openshift_oauth: bool = False, ingress_options: dict = &lt;factory&gt;, ingress_domain: str = None)</span>
+<span>(</span><span>name: str, namespace: str = None, head_info: list = &lt;factory&gt;, head_cpus: int = 2, head_memory: int = 8, head_gpus: int = 0, machine_types: list = &lt;factory&gt;, min_cpus: int = 1, max_cpus: int = 1, num_workers: int = 1, min_memory: int = 2, max_memory: int = 2, num_gpus: int = 0, template: str = '/home/mark/distributed-workloads-repos/codeflare-sdk/src/codeflare_sdk/templates/base-template.yaml', instascale: bool = False, mcad: bool = True, envs: dict = &lt;factory&gt;, image: str = '', local_interactive: bool = False, image_pull_secrets: list = &lt;factory&gt;, dispatch_priority: str = None, openshift_oauth: bool = False, ingress_options: dict = &lt;factory&gt;, ingress_domain: str = None)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>This dataclass is used to specify resource requirements and other details, and
@@ -109,7 +109,8 @@ is passed in as an argument when creating a Cluster object.</p></div>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class ClusterConfiguration:
+<pre><code class="python">@dataclass
+class ClusterConfiguration:
     &#34;&#34;&#34;
     This dataclass is used to specify resource requirements and other details, and
     is passed in as an argument when creating a Cluster object.
