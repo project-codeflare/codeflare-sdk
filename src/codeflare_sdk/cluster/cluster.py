@@ -691,6 +691,7 @@ def get_cluster(cluster_name: str, namespace: str = "default"):
                 config_check()
                 api_instance = client.NetworkingV1Api(api_config_handler())
                 ingresses = api_instance.list_namespaced_ingress(namespace)
+                ingress_host = None
                 if mcad == True:
                     for ingress in ingresses.items:
                         # Search for ingress with AppWrapper name as the owner
@@ -705,7 +706,11 @@ def get_cluster(cluster_name: str, namespace: str = "default"):
                 return _kube_api_error_handling(e)
 
             # We gather the ingress domain from the host
-            ingress_domain = ingress_host.split(".", 1)[1]
+            if ingress_host is not None:
+                ingress_domain = ingress_host.split(".", 1)[1]
+            else:
+                ingress_domain = None
+
             return Cluster.from_k8_cluster_object(
                 rc, mcad=mcad, ingress_domain=ingress_domain
             )
