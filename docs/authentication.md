@@ -11,7 +11,7 @@ auth = TokenAuthentication(
     token = "XXXXX",
     server = "XXXXX",
     skip_tls=False,
-    # ca_cert_path="/path/to/cert
+    # ca_cert_path="/path/to/cert"
 )
 auth.login()
 # log out with auth.logout()
