@@ -1,6 +1,6 @@
 module github.com/project-codeflare/codeflare-sdk
 
-go 1.19
+go 1.20
 
 require (
 	github.com/onsi/gomega v1.27.10
