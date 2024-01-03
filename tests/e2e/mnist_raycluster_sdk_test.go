@@ -17,9 +17,9 @@ limitations under the License.
 package e2e
 
 import (
-	"bytes"
-	"os/exec"
+	"strings"
 	"testing"
+	"time"
 
 	. "github.com/onsi/gomega"
 	. "github.com/project-codeflare/codeflare-common/support"
@@ -81,22 +81,9 @@ func TestMNISTRayClusterSDK(t *testing.T) {
 		},
 	}
 
-	// Create cluster wide RBAC, required for SDK OpenShift check
-	// TODO reevaluate once SDK change OpenShift detection logic
-	clusterPolicyRules := []rbacv1.PolicyRule{
-		{
-			Verbs:         []string{"get", "list"},
-			APIGroups:     []string{"config.openshift.io"},
-			Resources:     []string{"ingresses"},
-			ResourceNames: []string{"cluster"},
-		},
-	}
-
 	sa := CreateServiceAccount(test, namespace.Name)
 	role := CreateRole(test, namespace.Name, policyRules)
 	CreateRoleBinding(test, namespace.Name, sa, role)
-	clusterRole := CreateClusterRole(test, clusterPolicyRules)
-	CreateClusterRoleBinding(test, sa, clusterRole)
 
 	job := &batchv1.Job{
 		TypeMeta: metav1.TypeMeta{
@@ -208,20 +195,39 @@ func TestMNISTRayClusterSDK(t *testing.T) {
 	test.T().Logf("Created Job %s/%s successfully", job.Namespace, job.Name)
 
 	go func() {
-        scriptName := "./sdk-to-pod.sh"
-        cmd := exec.Command(scriptName, namespace.Name)
+		// Checking if pod is found and running
+		podName := ""
+		foundPod := false
+		for !foundPod {
+			pods, _ := test.Client().Core().CoreV1().Pods(namespace.Name).List(test.Ctx(), metav1.ListOptions{
+				LabelSelector: "job-name=sdk",
+			})
+			for _, pod := range pods.Items {
+				if strings.HasPrefix(pod.Name, "sdk-") && pod.Status.Phase == corev1.PodRunning {
+					podName = pod.Name
+					foundPod = true
+					test.T().Logf("Pod is running!")
+					break
+				}
+			}
+			if !foundPod {
+				test.T().Logf("Waiting for pod to start...")
+				time.Sleep(5 * time.Second)
+			}
+		}
 
-		var stdoutBuf, stderrBuf bytes.Buffer
-		cmd.Stdout = &stdoutBuf
-		cmd.Stderr = &stderrBuf
+		// Get rest config
+		restConfig, err := GetRestConfig(test); if err != nil {
+			test.T().Errorf("Error getting rest config: %v", err)
+		}
 
-        // Run the script to copy the SDK to the pod
-        if err := cmd.Run(); err != nil {
-			t.Logf("STDOUT: %s", stdoutBuf.String())
-        	t.Logf("STDERR: %s", stderrBuf.String())
-            t.Logf("Failed to run the script: %v", err)
-        }
-    }()
+		// Copy codeflare-sdk to the pod
+		srcDir := "../.././"
+		dstDir := "/codeflare-sdk"
+		if err := CopyToPod(test, namespace.Name, podName, restConfig, srcDir, dstDir); err != nil {
+			test.T().Errorf("Error copying codeflare-sdk to pod: %v", err)
+		}
+	}()
 
 	test.T().Logf("Waiting for Job %s/%s to complete", job.Namespace, job.Name)
 	test.Eventually(Job(test, job.Namespace, job.Name), TestTimeoutLong).Should(
