@@ -117,6 +117,12 @@ jobs:
           echo "Printing KubeRay operator logs"
           kubectl logs -n ray-system --tail -1 -l app.kubernetes.io/name=kuberay | tee ${CODEFLARE_TEST_OUTPUT_DIR}/kuberay.log
 
+      - name: Export all KinD pod logs
+        uses: ./common/github-actions/kind-export-logs
+        if: always() && steps.deploy.outcome == 'success'
+        with:
+          output-directory: ${CODEFLARE_TEST_OUTPUT_DIR}
+
       - name: Upload logs
         uses: actions/upload-artifact@v3
         if: always() && steps.deploy.outcome == 'success'
