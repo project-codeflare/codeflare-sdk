@@ -27,7 +27,7 @@ parent = Path(__file__).resolve().parents[1]
 aw_dir = os.path.expanduser("~/.codeflare/appwrapper/")
 sys.path.append(str(parent) + "/src")
 
-from kubernetes import client, config
+from kubernetes import client, config, dynamic
 from codeflare_sdk.cluster.awload import AWManager
 from codeflare_sdk.cluster.cluster import (
     Cluster,
@@ -90,6 +90,7 @@ from codeflare_sdk.utils.generate_yaml import (
     read_template,
     enable_local_interactive,
 )
+import codeflare_sdk.utils.openshift_oauth as sdk_oauth
 
 import openshift
 from openshift.selector import Selector
@@ -107,6 +108,24 @@ from codeflare_sdk.job.ray_jobs import RayJobClient
 
 # For mocking openshift client results
 fake_res = openshift.Result("fake")
+
+
+def mock_routes_api(mocker):
+    mocker.patch.object(
+        sdk_oauth,
+        "_route_api_getter",
+        return_value=MagicMock(
+            resources=MagicMock(
+                get=MagicMock(
+                    return_value=MagicMock(
+                        create=MagicMock(),
+                        replace=MagicMock(),
+                        delete=MagicMock(),
+                    )
+                )
+            )
+        ),
+    )
 
 
 def arg_side_effect(*args):
@@ -535,16 +554,13 @@ def test_delete_openshift_oauth_objects(mocker):
     mocker.patch.object(client.CoreV1Api, "delete_namespaced_service")
     mocker.patch.object(client.NetworkingV1Api, "delete_namespaced_ingress")
     mocker.patch.object(client.RbacAuthorizationV1Api, "delete_cluster_role_binding")
+    mock_routes_api(mocker)
     delete_openshift_oauth_objects("test-cluster", "test-namespace")
-
     client.CoreV1Api.delete_namespaced_service_account.assert_called_with(
         name="test-cluster-oauth-proxy", namespace="test-namespace"
     )
     client.CoreV1Api.delete_namespaced_service.assert_called_with(
         name="test-cluster-oauth", namespace="test-namespace"
-    )
-    client.NetworkingV1Api.delete_namespaced_ingress.assert_called_with(
-        name="test-cluster-ingress", namespace="test-namespace"
     )
     client.RbacAuthorizationV1Api.delete_cluster_role_binding.assert_called_with(
         name="test-cluster-rb"
@@ -2675,7 +2691,6 @@ def test_create_openshift_oauth(mocker: MockerFixture):
     create_namespaced_service_account = MagicMock()
     create_cluster_role_binding = MagicMock()
     create_namespaced_service = MagicMock()
-    create_namespaced_ingress = MagicMock()
     mocker.patch.object(
         client.CoreV1Api,
         "create_namespaced_service_account",
@@ -2689,35 +2704,17 @@ def test_create_openshift_oauth(mocker: MockerFixture):
     mocker.patch.object(
         client.CoreV1Api, "create_namespaced_service", create_namespaced_service
     )
-    mocker.patch.object(
-        client.NetworkingV1Api, "create_namespaced_ingress", create_namespaced_ingress
-    )
-    mocker.patch(
-        "codeflare_sdk.utils.openshift_oauth._get_api_host", return_value="foo.com"
-    )
+    mock_routes_api(mocker)
     create_openshift_oauth_objects("foo", "bar")
     create_ns_sa_args = create_namespaced_service_account.call_args
     create_crb_args = create_cluster_role_binding.call_args
     create_ns_serv_args = create_namespaced_service.call_args
-    create_ns_ingress_args = create_namespaced_ingress.call_args
     assert (
         create_ns_sa_args.kwargs["namespace"] == create_ns_serv_args.kwargs["namespace"]
-    )
-    assert (
-        create_ns_serv_args.kwargs["namespace"]
-        == create_ns_ingress_args.kwargs["namespace"]
     )
     assert isinstance(create_ns_sa_args.kwargs["body"], client.V1ServiceAccount)
     assert isinstance(create_crb_args.kwargs["body"], client.V1ClusterRoleBinding)
     assert isinstance(create_ns_serv_args.kwargs["body"], client.V1Service)
-    assert isinstance(create_ns_ingress_args.kwargs["body"], client.V1Ingress)
-    assert (
-        create_ns_serv_args.kwargs["body"].spec.ports[0].name
-        == create_ns_ingress_args.kwargs["body"]
-        .spec.rules[0]
-        .http.paths[0]
-        .backend.service.port.name
-    )
 
 
 def test_replace_openshift_oauth(mocker: MockerFixture):
@@ -2731,9 +2728,6 @@ def test_replace_openshift_oauth(mocker: MockerFixture):
     create_namespaced_service = MagicMock(
         side_effect=client.ApiException(reason="Conflict")
     )
-    create_namespaced_ingress = MagicMock(
-        side_effect=client.ApiException(reason="Conflict")
-    )
     mocker.patch.object(
         client.CoreV1Api,
         "create_namespaced_service_account",
@@ -2747,16 +2741,10 @@ def test_replace_openshift_oauth(mocker: MockerFixture):
     mocker.patch.object(
         client.CoreV1Api, "create_namespaced_service", create_namespaced_service
     )
-    mocker.patch.object(
-        client.NetworkingV1Api, "create_namespaced_ingress", create_namespaced_ingress
-    )
-    mocker.patch(
-        "codeflare_sdk.utils.openshift_oauth._get_api_host", return_value="foo.com"
-    )
+    mocker.patch.object(dynamic.ResourceList, "get", return_value=True)
     replace_namespaced_service_account = MagicMock()
     replace_cluster_role_binding = MagicMock()
     replace_namespaced_service = MagicMock()
-    replace_namespaced_ingress = MagicMock()
     mocker.patch.object(
         client.CoreV1Api,
         "replace_namespaced_service_account",
@@ -2770,21 +2758,15 @@ def test_replace_openshift_oauth(mocker: MockerFixture):
     mocker.patch.object(
         client.CoreV1Api, "replace_namespaced_service", replace_namespaced_service
     )
-    mocker.patch.object(
-        client.NetworkingV1Api, "replace_namespaced_ingress", replace_namespaced_ingress
-    )
+    mock_routes_api(mocker)
     create_openshift_oauth_objects("foo", "bar")
     replace_namespaced_service_account.assert_called_once()
     replace_cluster_role_binding.assert_called_once()
     replace_namespaced_service.assert_called_once()
-    replace_namespaced_ingress.assert_called_once()
 
 
 def test_gen_app_wrapper_with_oauth(mocker: MockerFixture):
     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
-    mocker.patch(
-        "codeflare_sdk.utils.generate_yaml._get_api_host", return_value="foo.com"
-    )
     mocker.patch(
         "codeflare_sdk.cluster.cluster.get_current_namespace",
         return_value="opendatahub",

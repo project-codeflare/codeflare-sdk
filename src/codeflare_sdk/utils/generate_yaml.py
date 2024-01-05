@@ -29,8 +29,6 @@ from os import urandom
 from base64 import b64encode
 from urllib3.util import parse_url
 
-from .kube_api_helpers import _get_api_host
-
 
 def read_template(template):
     with open(template, "r") as stream:
@@ -539,10 +537,6 @@ def enable_openshift_oauth(user_yaml, cluster_name, namespace):
     tls_secret_name = f"{cluster_name}-proxy-tls-secret"
     tls_volume_name = "proxy-tls-secret"
     port_name = "oauth-proxy"
-    host = _get_api_host(k8_client)
-    host = host.replace(
-        "api.", f"{gen_dashboard_ingress_name(cluster_name)}-{namespace}.apps."
-    )
     oauth_sidecar = _create_oauth_sidecar_object(
         namespace,
         tls_mount_location,
