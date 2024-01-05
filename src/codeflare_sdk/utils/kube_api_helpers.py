@@ -47,7 +47,3 @@ def _kube_api_error_handling(
         elif e.reason == "Conflict":
             raise FileExistsError(exists_msg)
     raise e
-
-
-def _get_api_host(api_client: client.ApiClient):  # pragma: no cover
-    return parse_url(api_client.configuration.host).host
