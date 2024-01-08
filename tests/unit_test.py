@@ -39,6 +39,7 @@ from codeflare_sdk.cluster.cluster import (
     _app_wrapper_status,
     _ray_cluster_status,
     _get_ingress_domain,
+    get_ingress_domain_from_client,
 )
 from codeflare_sdk.cluster.auth import (
     TokenAuthentication,
@@ -616,25 +617,27 @@ def ray_addr(self, *args):
     return self._address
 
 
-def ingress_retrieval(port, annotations=None):
+def ingress_retrieval(port, annotations=None, cluster_name="unit-test-cluster"):
+    labels = {"ingress-owner": cluster_name, "ingress-options": "false"}
     if port == 10001:
         serviceName = "client"
     else:
         serviceName = "dashboard"
     mock_ingress = client.V1Ingress(
         metadata=client.V1ObjectMeta(
-            name=f"ray-{serviceName}-unit-test-cluster",
+            name=f"ray-{serviceName}-{cluster_name}",
             annotations=annotations,
+            labels=labels,
             owner_references=[
                 client.V1OwnerReference(
-                    api_version="v1", kind="Ingress", name="quicktest", uid="unique-id"
+                    api_version="v1", kind="Ingress", name=cluster_name, uid="unique-id"
                 )
             ],
         ),
         spec=client.V1IngressSpec(
             rules=[
                 client.V1IngressRule(
-                    host=f"ray-{serviceName}-unit-test-cluster-ns.apps.cluster.awsroute.org",
+                    host=f"ray-{serviceName}-{cluster_name}-ns.apps.cluster.awsroute.org",
                     http=client.V1HTTPIngressRuleValue(
                         paths=[
                             client.V1HTTPIngressPath(
@@ -1417,7 +1420,10 @@ def get_aw_obj(group, version, namespace, plural):
                                     "apiVersion": "networking.k8s.io/v1",
                                     "kind": "Ingress",
                                     "metadata": {
-                                        "labels": {"ingress-owner": "appwrapper-name"},
+                                        "labels": {
+                                            "ingress-owner": "appwrapper-name",
+                                            "ingress-options": "false",
+                                        },
                                         "name": "ray-dashboard-quicktest",
                                         "namespace": "default",
                                     },
@@ -1817,7 +1823,7 @@ def test_get_cluster(mocker):
     )
     mocker.patch(
         "kubernetes.client.NetworkingV1Api.list_namespaced_ingress",
-        return_value=ingress_retrieval(port=8265),
+        return_value=ingress_retrieval(port=8265, cluster_name="quicktest"),
     )
     cluster = get_cluster("quicktest")
     cluster_config = cluster.config
@@ -1835,6 +1841,48 @@ def test_get_cluster(mocker):
         == "ghcr.io/foundation-model-stack/base:ray2.1.0-py38-gpu-pytorch1.12.0cu116-20221213-193103"
     )
     assert cluster_config.num_workers == 1
+
+
+def test_get_ingress_domain_from_client(mocker):
+    mocker.patch("kubernetes.config.load_kube_config")
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch(
+        "kubernetes.client.NetworkingV1Api.read_namespaced_ingress",
+        return_value=ingress_retrieval(
+            port=8265, cluster_name="unit-test-cluster"
+        ).items[0],
+    )
+
+    ingress_domain = get_ingress_domain_from_client("unit-test-cluster", "ns")
+    assert ingress_domain == "apps.cluster.awsroute.org"
+
+    mocker.patch(
+        "codeflare_sdk.utils.generate_yaml.is_openshift_cluster", return_value=True
+    )
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.get_namespaced_custom_object",
+        side_effect=route_retrieval,
+    )
+    ingress_domain = get_ingress_domain_from_client("unit-test-cluster", "ns")
+    assert ingress_domain == "apps.cluster.awsroute.org"
+
+
+def route_retrieval(group, version, namespace, plural, name):
+    assert group == "route.openshift.io"
+    assert version == "v1"
+    assert namespace == "ns"
+    assert plural == "routes"
+    assert name == "ray-dashboard-unit-test-cluster"
+    return {
+        "items": [
+            {
+                "metadata": {"name": "ray-dashboard-unit-test-cluster"},
+                "spec": {
+                    "host": "ray-dashboard-unit-test-cluster-ns.apps.cluster.awsroute.org"
+                },
+            }
+        ]
+    }
 
 
 def test_list_clusters(mocker, capsys):

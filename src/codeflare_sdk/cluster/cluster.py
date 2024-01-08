@@ -492,7 +492,7 @@ class Cluster:
             to_return["requirements"] = requirements
         return to_return
 
-    def from_k8_cluster_object(rc, mcad=True, ingress_domain=None):
+    def from_k8_cluster_object(rc, mcad=True, ingress_domain=None, ingress_options={}):
         machine_types = (
             rc["metadata"]["labels"]["orderedinstance"].split("_")
             if "orderedinstance" in rc["metadata"]["labels"]
@@ -502,6 +502,10 @@ class Cluster:
             "volumeMounts"
             in rc["spec"]["workerGroupSpecs"][0]["template"]["spec"]["containers"][0]
         )
+        if local_interactive:
+            ingress_domain = get_ingress_domain_from_client(
+                rc["metadata"]["name"], rc["metadata"]["namespace"]
+            )
         cluster_config = ClusterConfiguration(
             name=rc["metadata"]["name"],
             namespace=rc["metadata"]["namespace"],
@@ -533,6 +537,7 @@ class Cluster:
             local_interactive=local_interactive,
             mcad=mcad,
             ingress_domain=ingress_domain,
+            ingress_options=ingress_options,
         )
         return Cluster(cluster_config)
 
@@ -692,27 +697,55 @@ def get_cluster(cluster_name: str, namespace: str = "default"):
                 api_instance = client.NetworkingV1Api(api_config_handler())
                 ingresses = api_instance.list_namespaced_ingress(namespace)
                 ingress_host = None
-                if mcad == True:
-                    for ingress in ingresses.items:
-                        # Search for ingress with AppWrapper name as the owner
-                        if cluster_name == ingress.metadata.owner_references[0].name:
-                            ingress_host = ingress.spec.rules[0].host
-                else:
-                    for ingress in ingresses.items:
-                        # Search for the ingress with the ingress-owner label
-                        if ingress.metadata.labels["ingress-owner"] == cluster_name:
-                            ingress_host = ingress.spec.rules[0].host
+                ingress_options = {}
+                for ingress in ingresses.items:
+                    # Search for ingress with AppWrapper name as the owner
+                    if (
+                        "ingress-owner" in ingress.metadata.labels
+                        and ingress.metadata.labels["ingress-owner"] == cluster_name
+                    ):
+                        ingress_host = ingress.spec.rules[0].host
+                        if (
+                            "ingress-options" in ingress.metadata.labels
+                            and ingress.metadata.labels["ingress-options"] == "true"
+                        ):
+                            ingress_name = ingress.metadata.name
+                            port = (
+                                ingress.spec.rules[0]
+                                .http.paths[0]
+                                .backend.service.port.number
+                            )
+                            annotations = ingress.metadata.annotations
+                            path = ingress.spec.rules[0].http.paths[0].path
+                            ingress_class_name = ingress.spec.ingress_class_name
+                            path_type = ingress.spec.rules[0].http.paths[0].path_type
+
+                            ingress_options = {
+                                "ingresses": [
+                                    {
+                                        "ingressName": ingress_name,
+                                        "port": port,
+                                        "annotations": annotations,
+                                        "ingressClassName": ingress_class_name,
+                                        "pathType": path_type,
+                                        "path": path,
+                                        "host": ingress_host,
+                                    }
+                                ]
+                            }
             except Exception as e:
                 return _kube_api_error_handling(e)
-
             # We gather the ingress domain from the host
-            if ingress_host is not None:
+            if ingress_host is not None and ingress_options == {}:
                 ingress_domain = ingress_host.split(".", 1)[1]
             else:
                 ingress_domain = None
 
             return Cluster.from_k8_cluster_object(
-                rc, mcad=mcad, ingress_domain=ingress_domain
+                rc,
+                mcad=mcad,
+                ingress_domain=ingress_domain,
+                ingress_options=ingress_options,
             )
     raise FileNotFoundError(
         f"Cluster {cluster_name} is not found in {namespace} namespace"
@@ -762,7 +795,10 @@ def _get_ingress_domain(self):  # pragma: no cover
             return _kube_api_error_handling(e)
 
         for route in routes["items"]:
-            if route["spec"]["port"]["targetPort"] == "client":
+            if (
+                route["spec"]["port"]["targetPort"] == "client"
+                or route["spec"]["port"]["targetPort"] == 10001
+            ):
                 domain = route["spec"]["host"]
     else:
         try:
@@ -949,3 +985,30 @@ def _copy_to_ray(cluster: Cluster) -> RayCluster:
     if ray.status == CodeFlareClusterStatus.READY:
         ray.status = RayClusterStatus.READY
     return ray
+
+
+def get_ingress_domain_from_client(cluster_name: str, namespace: str = "default"):
+    if is_openshift_cluster():
+        try:
+            config_check()
+            api_instance = client.CustomObjectsApi(api_config_handler())
+            route = api_instance.get_namespaced_custom_object(
+                group="route.openshift.io",
+                version="v1",
+                namespace=namespace,
+                plural="routes",
+                name=f"rayclient-{cluster_name}",
+            )
+            return route["spec"]["host"].split(".", 1)[1]
+        except Exception as e:  # pragma no cover
+            return _kube_api_error_handling(e)
+    else:
+        try:
+            config_check()
+            api_instance = client.NetworkingV1Api(api_config_handler())
+            ingress = api_instance.read_namespaced_ingress(
+                f"rayclient-{cluster_name}", namespace
+            )
+            return ingress.spec.rules[0].host.split(".", 1)[1]
+        except Exception as e:  # pragma no cover
+            return _kube_api_error_handling(e)
