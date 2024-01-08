@@ -173,6 +173,7 @@ spec:
         kind: Ingress
         metadata:
           labels:
+            ingress-options: 'false'
             ingress-owner: unit-test-cluster
           name: ray-dashboard-unit-test-cluster
           namespace: ns

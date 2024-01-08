@@ -294,6 +294,7 @@ spec:
           annotations:
             annotations-example:annotations-example
           labels:
+            ingress-options: "false"
             ingress-owner: appwrapper-name
         spec:
           ingressClassName: nginx

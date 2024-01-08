@@ -133,25 +133,41 @@ def update_dashboard_ingress(
                 metadata["name"] = ingress_option["ingressName"]
                 metadata["namespace"] = namespace
                 metadata["labels"]["ingress-owner"] = cluster_name
-                if "annotations" not in ingress_option.keys():
+                metadata["labels"]["ingress-options"] = "true"
+                if (
+                    "annotations" not in ingress_option.keys()
+                    or ingress_option["annotations"] is None
+                ):
                     del metadata["annotations"]
                 else:
                     metadata["annotations"] = ingress_option["annotations"]
-                if "path" not in ingress_option.keys():
+                if (
+                    "path" not in ingress_option.keys()
+                    or ingress_option["path"] is None
+                ):
                     del spec["rules"][0]["http"]["paths"][0]["path"]
                 else:
                     spec["rules"][0]["http"]["paths"][0]["path"] = ingress_option[
                         "path"
                     ]
-                if "pathType" not in ingress_option.keys():
+                if (
+                    "pathType" not in ingress_option.keys()
+                    or ingress_option["pathType"] is None
+                ):
                     spec["rules"][0]["http"]["paths"][0][
                         "pathType"
                     ] = "ImplementationSpecific"
-                if "host" not in ingress_option.keys():
+                if (
+                    "host" not in ingress_option.keys()
+                    or ingress_option["host"] is None
+                ):
                     del spec["rules"][0]["host"]
                 else:
                     spec["rules"][0]["host"] = ingress_option["host"]
-                if "ingressClassName" not in ingress_option.keys():
+                if (
+                    "ingressClassName" not in ingress_option.keys()
+                    or ingress_option["ingressClassName"] is None
+                ):
                     del spec["ingressClassName"]
                 else:
                     spec["ingressClassName"] = ingress_option["ingressClassName"]

@@ -176,6 +176,7 @@ spec:
         kind: Ingress
         metadata:
           labels:
+            ingress-options: 'false'
             ingress-owner: prio-test-cluster
           name: ray-dashboard-prio-test-cluster
           namespace: ns
