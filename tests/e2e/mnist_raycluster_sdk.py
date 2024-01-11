@@ -11,7 +11,7 @@ from codeflare_sdk.cluster.cluster import Cluster, ClusterConfiguration
 from codeflare_sdk.job.jobs import DDPJobDefinition
 
 namespace = sys.argv[1]
-ray_image = os.getenv("RAY_IMAGE")
+ray_image = "quay.io/project-codeflare/ray:latest-py39-cu118"
 host = os.getenv("CLUSTER_HOSTNAME")
 
 ingress_options = {}
@@ -46,7 +46,6 @@ cluster = Cluster(
     )
 )
 
-
 cluster.up()
 
 cluster.status()
@@ -62,6 +61,14 @@ jobdef = DDPJobDefinition(
     script="mnist.py",
     scheduler_args={"requirements": "requirements.txt"},
 )
+
+# THIS DOESN'T WORK: (CURRENT STATUS: CONNECTION REFUSED)
+host_alias = {
+    "ip": "172.18.0.2",  # Replace with the actual node IP
+    "hostnames": ["kind"],  # Replace with the actual hostname
+}
+jobdef["spec"]["template"]["spec"]["hostAliases"] = [host_alias]
+
 job = jobdef.submit(cluster)
 
 done = False

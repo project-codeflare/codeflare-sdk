@@ -253,7 +253,7 @@ def test_config_creation():
     assert config.min_memory == 5 and config.max_memory == 6
     assert config.num_gpus == 7
     assert config.image == "quay.io/project-codeflare/ray:latest-py39-cu118"
-    assert config.template == f"{parent}/src/codeflare_sdk/templates/base-template.yaml"
+    assert config.template == f"{parent}/codeflare_sdk/templates/base-template.yaml"
     assert config.instascale
     assert config.machine_types == ["cpu.small", "gpu.large"]
     assert config.image_pull_secrets == ["unit-test-pull-secret"]
@@ -2623,7 +2623,7 @@ def test_export_env():
 
 
 def test_enable_local_interactive(mocker):
-    template = f"{parent}/src/codeflare_sdk/templates/base-template.yaml"
+    template = f"{parent}/codeflare_sdk/templates/base-template.yaml"
     user_yaml = read_template(template)
     aw_spec = user_yaml.get("spec", None)
     cluster_name = "test-enable-local"
