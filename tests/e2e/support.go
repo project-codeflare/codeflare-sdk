@@ -20,9 +20,14 @@ import (
 	"embed"
 	"os"
 	"path/filepath"
+	"strings"
+	"time"
 
 	"github.com/onsi/gomega"
+	"github.com/project-codeflare/codeflare-common/support"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
@@ -33,8 +38,6 @@ import (
 	"k8s.io/kubectl/pkg/cmd/cp"
 	"k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/scheme"
-
-	"github.com/project-codeflare/codeflare-common/support"
 )
 
 //go:embed *.py *.txt *.sh
@@ -108,4 +111,47 @@ func (r restClientGetter) ToDiscoveryClient() (discovery.CachedDiscoveryInterfac
 
 func (r restClientGetter) ToRESTMapper() (meta.RESTMapper, error) {
 	return nil, nil
+}
+
+func SetupCodeflareSDKInsidePod(test support.Test, namespace *corev1.Namespace, labelName string) {
+
+	// Get pod name
+	podName := GetPodName(test, namespace, labelName)
+
+	// Get rest config
+	restConfig, err := GetRestConfig(test)
+	if err != nil {
+		test.T().Errorf("Error getting rest config: %v", err)
+	}
+
+	// Copy codeflare-sdk to the pod
+	srcDir := "../.././"
+	dstDir := "/codeflare-sdk"
+	if err := CopyToPod(test, namespace.Name, podName, restConfig, srcDir, dstDir); err != nil {
+		test.T().Errorf("Error copying codeflare-sdk to pod: %v", err)
+	}
+}
+
+func GetPodName(test support.Test, namespace *corev1.Namespace, labelName string) string {
+	podName := ""
+	foundPod := false
+	for !foundPod {
+		pods, _ := test.Client().Core().CoreV1().Pods(namespace.Name).List(test.Ctx(), metav1.ListOptions{
+			LabelSelector: "job-name=" + labelName,
+		})
+		for _, pod := range pods.Items {
+
+			if strings.HasPrefix(pod.Name, labelName+"-") && pod.Status.Phase == corev1.PodRunning {
+				podName = pod.Name
+				foundPod = true
+				test.T().Logf("Pod is running!")
+				break
+			}
+		}
+		if !foundPod {
+			test.T().Logf("Waiting for pod to start...")
+			time.Sleep(5 * time.Second)
+		}
+	}
+	return podName
 }

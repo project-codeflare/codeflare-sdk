@@ -17,9 +17,7 @@ limitations under the License.
 package e2e
 
 import (
-	"strings"
 	"testing"
-	"time"
 
 	. "github.com/onsi/gomega"
 	. "github.com/project-codeflare/codeflare-common/support"
@@ -137,7 +135,7 @@ func TestMNISTRayClusterSDK(t *testing.T) {
 							Command: []string{
 								"/bin/sh", "-c",
 								"while [ ! -f /codeflare-sdk/pyproject.toml ]; do sleep 1; done; " +
-								"cp /test/* . && chmod +x install-codeflare-sdk.sh && ./install-codeflare-sdk.sh && python mnist_raycluster_sdk.py " + namespace.Name,
+									"cp /test/* . && chmod +x install-codeflare-sdk.sh && ./install-codeflare-sdk.sh && python mnist_raycluster_sdk.py " + namespace.Name,
 							},
 							VolumeMounts: []corev1.VolumeMount{
 								{
@@ -194,40 +192,8 @@ func TestMNISTRayClusterSDK(t *testing.T) {
 	test.Expect(err).NotTo(HaveOccurred())
 	test.T().Logf("Created Job %s/%s successfully", job.Namespace, job.Name)
 
-	go func() {
-		// Checking if pod is found and running
-		podName := ""
-		foundPod := false
-		for !foundPod {
-			pods, _ := test.Client().Core().CoreV1().Pods(namespace.Name).List(test.Ctx(), metav1.ListOptions{
-				LabelSelector: "job-name=sdk",
-			})
-			for _, pod := range pods.Items {
-				if strings.HasPrefix(pod.Name, "sdk-") && pod.Status.Phase == corev1.PodRunning {
-					podName = pod.Name
-					foundPod = true
-					test.T().Logf("Pod is running!")
-					break
-				}
-			}
-			if !foundPod {
-				test.T().Logf("Waiting for pod to start...")
-				time.Sleep(5 * time.Second)
-			}
-		}
-
-		// Get rest config
-		restConfig, err := GetRestConfig(test); if err != nil {
-			test.T().Errorf("Error getting rest config: %v", err)
-		}
-
-		// Copy codeflare-sdk to the pod
-		srcDir := "../.././"
-		dstDir := "/codeflare-sdk"
-		if err := CopyToPod(test, namespace.Name, podName, restConfig, srcDir, dstDir); err != nil {
-			test.T().Errorf("Error copying codeflare-sdk to pod: %v", err)
-		}
-	}()
+	// Setup the codeflare-sdk inside the pod associated to the created job
+	SetupCodeflareSDKInsidePod(test, namespace, job.Name)
 
 	test.T().Logf("Waiting for Job %s/%s to complete", job.Namespace, job.Name)
 	test.Eventually(Job(test, job.Namespace, job.Name), TestTimeoutLong).Should(

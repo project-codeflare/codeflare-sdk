@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	github.com/onsi/gomega v1.27.10
-	github.com/project-codeflare/codeflare-common v0.0.0-20231110155354-042fb171fcdb
+	github.com/project-codeflare/codeflare-common v0.0.0-20231129165224-988ba1da9069
 	github.com/project-codeflare/multi-cluster-app-dispatcher v1.37.0
 	github.com/ray-project/kuberay/ray-operator v1.0.0
 	k8s.io/api v0.26.3
