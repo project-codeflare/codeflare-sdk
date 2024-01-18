@@ -12,6 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""
+The jobs sub-module contains methods needed to submit Distributed Data Parallel(DDP) jobs to Ray Clusters created by the CodeFlare SDK.
+"""
 
 import abc
 from typing import TYPE_CHECKING, Optional, Dict, List
