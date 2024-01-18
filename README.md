@@ -11,7 +11,7 @@ For guided demos and basics walkthroughs, check out the following links:
 - Note that these notebooks will work with the latest `codeflare-sdk` PyPI release. For testing and experimentation with `main` branch, please use the [preview notebooks](https://github.com/project-codeflare/codeflare-sdk/tree/main/demo-notebooks/guided-demos/preview_nbs)
 - Additionally, we have a [video walkthrough](https://www.youtube.com/watch?v=U76iIfd9EmE) of these basic demos from June, 2023
 
-Full documentation can be found [here](https://project-codeflare.github.io/codeflare-sdk/)
+Full documentation can be found [here](https://project-codeflare.github.io/codeflare-sdk/detailed-documentation)
 
 ## Installation
 
