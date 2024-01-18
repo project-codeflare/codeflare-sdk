@@ -62,9 +62,8 @@ def is_openshift_cluster():
                     return True
         else:
             return False
-    except client.ApiException as e:  # pragma: no cover
-        print(f"Error detecting cluster type defaulting to Kubernetes: {e}")
-        return False
+    except Exception as e:  # pragma: no cover
+        return _kube_api_error_handling(e)
 
 
 def update_dashboard_route(route_item, cluster_name, namespace):
