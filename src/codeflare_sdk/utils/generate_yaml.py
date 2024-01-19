@@ -619,6 +619,11 @@ def _create_oauth_sidecar_object(
 
 
 def write_components(user_yaml: dict, output_file_name: str):
+    # Create the directory if it doesn't exist
+    directory_path = os.path.dirname(output_file_name)
+    if not os.path.exists(directory_path):
+        os.makedirs(directory_path)
+
     components = user_yaml.get("spec", "resources")["resources"].get("GenericItems")
     open(output_file_name, "w").close()
     with open(output_file_name, "a") as outfile:
