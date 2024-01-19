@@ -27,41 +27,42 @@
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">from urllib3.util import parse_url
-from .generate_yaml import gen_dashboard_ingress_name
-from .kube_api_helpers import _get_api_host
-from base64 import b64decode
+import yaml
 
 from ..cluster.auth import config_check, api_config_handler
 
 from kubernetes import client
+from kubernetes import dynamic
+
+
+def _route_api_getter():
+    return dynamic.DynamicClient(
+        api_config_handler() or client.ApiClient()
+    ).resources.get(api_version=&#34;route.openshift.io/v1&#34;, kind=&#34;Route&#34;)
 
 
 def create_openshift_oauth_objects(cluster_name, namespace):
     config_check()
-    api_client = api_config_handler() or client.ApiClient()
     oauth_port = 8443
     oauth_sa_name = f&#34;{cluster_name}-oauth-proxy&#34;
     tls_secret_name = _gen_tls_secret_name(cluster_name)
     service_name = f&#34;{cluster_name}-oauth&#34;
     port_name = &#34;oauth-proxy&#34;
-    host = _get_api_host(api_client)
 
-    # replace &#34;^api&#34; with the expected host
-    host = f&#34;{gen_dashboard_ingress_name(cluster_name)}-{namespace}.apps&#34; + host.lstrip(
-        &#34;api&#34;
-    )
-
-    _create_or_replace_oauth_sa(namespace, oauth_sa_name, host)
+    _create_or_replace_oauth_sa(namespace, oauth_sa_name, cluster_name)
     _create_or_replace_oauth_service_obj(
         cluster_name, namespace, oauth_port, tls_secret_name, service_name, port_name
     )
-    _create_or_replace_oauth_ingress_object(
-        cluster_name, namespace, service_name, port_name, host
+    _create_or_replace_oauth_route_object(
+        cluster_name,
+        namespace,
+        service_name,
+        port_name,
     )
     _create_or_replace_oauth_rb(cluster_name, namespace, oauth_sa_name)
 
 
-def _create_or_replace_oauth_sa(namespace, oauth_sa_name, host):
+def _create_or_replace_oauth_sa(namespace, oauth_sa_name, cluster_name):
     oauth_sa = client.V1ServiceAccount(
         api_version=&#34;v1&#34;,
         kind=&#34;ServiceAccount&#34;,
@@ -69,7 +70,10 @@ def _create_or_replace_oauth_sa(namespace, oauth_sa_name, host):
             name=oauth_sa_name,
             namespace=namespace,
             annotations={
-                &#34;serviceaccounts.openshift.io/oauth-redirecturi.first&#34;: f&#34;https://{host}&#34;
+                &#34;serviceaccounts.openshift.io/oauth-redirectreference.first&#34;: &#39;{&#34;kind&#34;:&#34;OAuthRedirectReference&#34;,&#34;apiVersion&#34;:&#34;v1&#34;,&#34;reference&#34;:{&#34;kind&#34;:&#34;Route&#34;,&#34;name&#34;:&#34;&#39;
+                + &#34;ray-dashboard-&#34;
+                + cluster_name
+                + &#39;&#34;}}&#39;
             },
         ),
     )
@@ -126,15 +130,14 @@ def delete_openshift_oauth_objects(cluster_name, namespace):
     # for an existing cluster before calling this =&gt; the objects should never be deleted twice
     oauth_sa_name = f&#34;{cluster_name}-oauth-proxy&#34;
     service_name = f&#34;{cluster_name}-oauth&#34;
+    v1_routes = _route_api_getter()
     client.CoreV1Api(api_config_handler()).delete_namespaced_service_account(
         name=oauth_sa_name, namespace=namespace
     )
     client.CoreV1Api(api_config_handler()).delete_namespaced_service(
         name=service_name, namespace=namespace
     )
-    client.NetworkingV1Api(api_config_handler()).delete_namespaced_ingress(
-        name=f&#34;{cluster_name}-ingress&#34;, namespace=namespace
-    )
+    v1_routes.delete(name=f&#34;ray-dashboard-{cluster_name}&#34;, namespace=namespace)
     client.RbacAuthorizationV1Api(api_config_handler()).delete_cluster_role_binding(
         name=f&#34;{cluster_name}-rb&#34;
     )
@@ -189,55 +192,39 @@ def _create_or_replace_oauth_service_obj(
             raise e
 
 
-def _create_or_replace_oauth_ingress_object(
+def _create_or_replace_oauth_route_object(
     cluster_name: str,
     namespace: str,
     service_name: str,
     port_name: str,
-    host: str,
-) -&gt; client.V1Ingress:
-    ingress = client.V1Ingress(
-        api_version=&#34;networking.k8s.io/v1&#34;,
-        kind=&#34;Ingress&#34;,
-        metadata=client.V1ObjectMeta(
-            annotations={&#34;route.openshift.io/termination&#34;: &#34;passthrough&#34;},
-            name=f&#34;{cluster_name}-ingress&#34;,
-            namespace=namespace,
-        ),
-        spec=client.V1IngressSpec(
-            rules=[
-                client.V1IngressRule(
-                    host=host,
-                    http=client.V1HTTPIngressRuleValue(
-                        paths=[
-                            client.V1HTTPIngressPath(
-                                backend=client.V1IngressBackend(
-                                    service=client.V1IngressServiceBackend(
-                                        name=service_name,
-                                        port=client.V1ServiceBackendPort(
-                                            name=port_name
-                                        ),
-                                    )
-                                ),
-                                path_type=&#34;ImplementationSpecific&#34;,
-                            )
-                        ]
-                    ),
-                )
-            ]
-        ),
-    )
+):
+    route = f&#34;&#34;&#34;
+        apiVersion: route.openshift.io/v1
+        kind: Route
+        metadata:
+            name: ray-dashboard-{cluster_name}
+            namespace: {namespace}
+        spec:
+            port:
+                targetPort: {port_name}
+            tls:
+                termination: passthrough
+            to:
+                kind: Service
+                name: {service_name}
+    &#34;&#34;&#34;
+    route_data = yaml.safe_load(route)
+    v1_routes = _route_api_getter()
     try:
-        client.NetworkingV1Api(api_config_handler()).create_namespaced_ingress(
-            namespace=namespace, body=ingress
+        existing_route = v1_routes.get(
+            name=f&#34;ray-dashboard-{cluster_name}&#34;, namespace=namespace
         )
-    except client.ApiException as e:
-        if e.reason == &#34;Conflict&#34;:
-            client.NetworkingV1Api(api_config_handler()).replace_namespaced_ingress(
-                namespace=namespace, body=ingress, name=f&#34;{cluster_name}-ingress&#34;
-            )
-        else:
-            raise e</code></pre>
+        route_data[&#34;metadata&#34;][&#34;resourceVersion&#34;] = existing_route[&#34;metadata&#34;][
+            &#34;resourceVersion&#34;
+        ]
+        v1_routes.replace(body=route_data)
+    except dynamic.client.ApiException:
+        v1_routes.create(body=route_data)</code></pre>
 </details>
 </section>
 <section>
@@ -258,25 +245,21 @@ def _create_or_replace_oauth_ingress_object(
 </summary>
 <pre><code class="python">def create_openshift_oauth_objects(cluster_name, namespace):
     config_check()
-    api_client = api_config_handler() or client.ApiClient()
     oauth_port = 8443
     oauth_sa_name = f&#34;{cluster_name}-oauth-proxy&#34;
     tls_secret_name = _gen_tls_secret_name(cluster_name)
     service_name = f&#34;{cluster_name}-oauth&#34;
     port_name = &#34;oauth-proxy&#34;
-    host = _get_api_host(api_client)
 
-    # replace &#34;^api&#34; with the expected host
-    host = f&#34;{gen_dashboard_ingress_name(cluster_name)}-{namespace}.apps&#34; + host.lstrip(
-        &#34;api&#34;
-    )
-
-    _create_or_replace_oauth_sa(namespace, oauth_sa_name, host)
+    _create_or_replace_oauth_sa(namespace, oauth_sa_name, cluster_name)
     _create_or_replace_oauth_service_obj(
         cluster_name, namespace, oauth_port, tls_secret_name, service_name, port_name
     )
-    _create_or_replace_oauth_ingress_object(
-        cluster_name, namespace, service_name, port_name, host
+    _create_or_replace_oauth_route_object(
+        cluster_name,
+        namespace,
+        service_name,
+        port_name,
     )
     _create_or_replace_oauth_rb(cluster_name, namespace, oauth_sa_name)</code></pre>
 </details>
@@ -295,15 +278,14 @@ def _create_or_replace_oauth_ingress_object(
     # for an existing cluster before calling this =&gt; the objects should never be deleted twice
     oauth_sa_name = f&#34;{cluster_name}-oauth-proxy&#34;
     service_name = f&#34;{cluster_name}-oauth&#34;
+    v1_routes = _route_api_getter()
     client.CoreV1Api(api_config_handler()).delete_namespaced_service_account(
         name=oauth_sa_name, namespace=namespace
     )
     client.CoreV1Api(api_config_handler()).delete_namespaced_service(
         name=service_name, namespace=namespace
     )
-    client.NetworkingV1Api(api_config_handler()).delete_namespaced_ingress(
-        name=f&#34;{cluster_name}-ingress&#34;, namespace=namespace
-    )
+    v1_routes.delete(name=f&#34;ray-dashboard-{cluster_name}&#34;, namespace=namespace)
     client.RbacAuthorizationV1Api(api_config_handler()).delete_cluster_role_binding(
         name=f&#34;{cluster_name}-rb&#34;
     )</code></pre>
