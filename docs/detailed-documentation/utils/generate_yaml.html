@@ -60,8 +60,6 @@ from os import urandom
 from base64 import b64encode
 from urllib3.util import parse_url
 
-from .kube_api_helpers import _get_api_host
-
 
 def read_template(template):
     with open(template, &#34;r&#34;) as stream:
@@ -95,9 +93,8 @@ def is_openshift_cluster():
                     return True
         else:
             return False
-    except client.ApiException as e:  # pragma: no cover
-        print(f&#34;Error detecting cluster type defaulting to Kubernetes: {e}&#34;)
-        return False
+    except Exception as e:  # pragma: no cover
+        return _kube_api_error_handling(e)
 
 
 def update_dashboard_route(route_item, cluster_name, namespace):
@@ -160,28 +157,45 @@ def update_dashboard_ingress(
                 raise ValueError(
                     f&#34;Error: &#39;port&#39; is not of type int for ingress item at index {index}&#34;
                 )
-            if ingress_option[&#34;port&#34;] == 8265:
+            if ingress_option is not None:
                 metadata[&#34;name&#34;] = ingress_option[&#34;ingressName&#34;]
                 metadata[&#34;namespace&#34;] = namespace
-                if &#34;annotations&#34; not in ingress_option.keys():
+                metadata[&#34;labels&#34;][&#34;ingress-owner&#34;] = cluster_name
+                metadata[&#34;labels&#34;][&#34;ingress-options&#34;] = &#34;true&#34;
+                if (
+                    &#34;annotations&#34; not in ingress_option.keys()
+                    or ingress_option[&#34;annotations&#34;] is None
+                ):
                     del metadata[&#34;annotations&#34;]
                 else:
                     metadata[&#34;annotations&#34;] = ingress_option[&#34;annotations&#34;]
-                if &#34;path&#34; not in ingress_option.keys():
+                if (
+                    &#34;path&#34; not in ingress_option.keys()
+                    or ingress_option[&#34;path&#34;] is None
+                ):
                     del spec[&#34;rules&#34;][0][&#34;http&#34;][&#34;paths&#34;][0][&#34;path&#34;]
                 else:
                     spec[&#34;rules&#34;][0][&#34;http&#34;][&#34;paths&#34;][0][&#34;path&#34;] = ingress_option[
                         &#34;path&#34;
                     ]
-                if &#34;pathType&#34; not in ingress_option.keys():
+                if (
+                    &#34;pathType&#34; not in ingress_option.keys()
+                    or ingress_option[&#34;pathType&#34;] is None
+                ):
                     spec[&#34;rules&#34;][0][&#34;http&#34;][&#34;paths&#34;][0][
                         &#34;pathType&#34;
                     ] = &#34;ImplementationSpecific&#34;
-                if &#34;host&#34; not in ingress_option.keys():
+                if (
+                    &#34;host&#34; not in ingress_option.keys()
+                    or ingress_option[&#34;host&#34;] is None
+                ):
                     del spec[&#34;rules&#34;][0][&#34;host&#34;]
                 else:
                     spec[&#34;rules&#34;][0][&#34;host&#34;] = ingress_option[&#34;host&#34;]
-                if &#34;ingressClassName&#34; not in ingress_option.keys():
+                if (
+                    &#34;ingressClassName&#34; not in ingress_option.keys()
+                    or ingress_option[&#34;ingressClassName&#34;] is None
+                ):
                     del spec[&#34;ingressClassName&#34;]
                 else:
                     spec[&#34;ingressClassName&#34;] = ingress_option[&#34;ingressClassName&#34;]
@@ -192,6 +206,7 @@ def update_dashboard_ingress(
     else:
         spec[&#34;ingressClassName&#34;] = &#34;nginx&#34;
         metadata[&#34;name&#34;] = gen_dashboard_ingress_name(cluster_name)
+        metadata[&#34;labels&#34;][&#34;ingress-owner&#34;] = cluster_name
         metadata[&#34;namespace&#34;] = namespace
         spec[&#34;rules&#34;][0][&#34;http&#34;][&#34;paths&#34;][0][&#34;backend&#34;][&#34;service&#34;][
             &#34;name&#34;
@@ -570,10 +585,6 @@ def enable_openshift_oauth(user_yaml, cluster_name, namespace):
     tls_secret_name = f&#34;{cluster_name}-proxy-tls-secret&#34;
     tls_volume_name = &#34;proxy-tls-secret&#34;
     port_name = &#34;oauth-proxy&#34;
-    host = _get_api_host(k8_client)
-    host = host.replace(
-        &#34;api.&#34;, f&#34;{gen_dashboard_ingress_name(cluster_name)}-{namespace}.apps.&#34;
-    )
     oauth_sidecar = _create_oauth_sidecar_object(
         namespace,
         tls_mount_location,
@@ -909,10 +920,6 @@ def generate_appwrapper(
     tls_secret_name = f&#34;{cluster_name}-proxy-tls-secret&#34;
     tls_volume_name = &#34;proxy-tls-secret&#34;
     port_name = &#34;oauth-proxy&#34;
-    host = _get_api_host(k8_client)
-    host = host.replace(
-        &#34;api.&#34;, f&#34;{gen_dashboard_ingress_name(cluster_name)}-{namespace}.apps.&#34;
-    )
     oauth_sidecar = _create_oauth_sidecar_object(
         namespace,
         tls_mount_location,
@@ -1096,9 +1103,8 @@ def generate_appwrapper(
                     return True
         else:
             return False
-    except client.ApiException as e:  # pragma: no cover
-        print(f&#34;Error detecting cluster type defaulting to Kubernetes: {e}&#34;)
-        return False</code></pre>
+    except Exception as e:  # pragma: no cover
+        return _kube_api_error_handling(e)</code></pre>
 </details>
 </dd>
 <dt id="codeflare_sdk.utils.generate_yaml.read_template"><code class="name flex">
@@ -1268,28 +1274,45 @@ def generate_appwrapper(
                 raise ValueError(
                     f&#34;Error: &#39;port&#39; is not of type int for ingress item at index {index}&#34;
                 )
-            if ingress_option[&#34;port&#34;] == 8265:
+            if ingress_option is not None:
                 metadata[&#34;name&#34;] = ingress_option[&#34;ingressName&#34;]
                 metadata[&#34;namespace&#34;] = namespace
-                if &#34;annotations&#34; not in ingress_option.keys():
+                metadata[&#34;labels&#34;][&#34;ingress-owner&#34;] = cluster_name
+                metadata[&#34;labels&#34;][&#34;ingress-options&#34;] = &#34;true&#34;
+                if (
+                    &#34;annotations&#34; not in ingress_option.keys()
+                    or ingress_option[&#34;annotations&#34;] is None
+                ):
                     del metadata[&#34;annotations&#34;]
                 else:
                     metadata[&#34;annotations&#34;] = ingress_option[&#34;annotations&#34;]
-                if &#34;path&#34; not in ingress_option.keys():
+                if (
+                    &#34;path&#34; not in ingress_option.keys()
+                    or ingress_option[&#34;path&#34;] is None
+                ):
                     del spec[&#34;rules&#34;][0][&#34;http&#34;][&#34;paths&#34;][0][&#34;path&#34;]
                 else:
                     spec[&#34;rules&#34;][0][&#34;http&#34;][&#34;paths&#34;][0][&#34;path&#34;] = ingress_option[
                         &#34;path&#34;
                     ]
-                if &#34;pathType&#34; not in ingress_option.keys():
+                if (
+                    &#34;pathType&#34; not in ingress_option.keys()
+                    or ingress_option[&#34;pathType&#34;] is None
+                ):
                     spec[&#34;rules&#34;][0][&#34;http&#34;][&#34;paths&#34;][0][
                         &#34;pathType&#34;
                     ] = &#34;ImplementationSpecific&#34;
-                if &#34;host&#34; not in ingress_option.keys():
+                if (
+                    &#34;host&#34; not in ingress_option.keys()
+                    or ingress_option[&#34;host&#34;] is None
+                ):
                     del spec[&#34;rules&#34;][0][&#34;host&#34;]
                 else:
                     spec[&#34;rules&#34;][0][&#34;host&#34;] = ingress_option[&#34;host&#34;]
-                if &#34;ingressClassName&#34; not in ingress_option.keys():
+                if (
+                    &#34;ingressClassName&#34; not in ingress_option.keys()
+                    or ingress_option[&#34;ingressClassName&#34;] is None
+                ):
                     del spec[&#34;ingressClassName&#34;]
                 else:
                     spec[&#34;ingressClassName&#34;] = ingress_option[&#34;ingressClassName&#34;]
@@ -1300,6 +1323,7 @@ def generate_appwrapper(
     else:
         spec[&#34;ingressClassName&#34;] = &#34;nginx&#34;
         metadata[&#34;name&#34;] = gen_dashboard_ingress_name(cluster_name)
+        metadata[&#34;labels&#34;][&#34;ingress-owner&#34;] = cluster_name
         metadata[&#34;namespace&#34;] = namespace
         spec[&#34;rules&#34;][0][&#34;http&#34;][&#34;paths&#34;][0][&#34;backend&#34;][&#34;service&#34;][
             &#34;name&#34;
