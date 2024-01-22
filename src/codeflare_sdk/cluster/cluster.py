@@ -557,7 +557,7 @@ class Cluster:
                 if resource["kind"] == "RayCluster":
                     api_instance.create_namespaced_custom_object(
                         group="ray.io",
-                        version="v1alpha1",
+                        version="v1",
                         namespace=namespace,
                         plural="rayclusters",
                         body=resource,
@@ -594,7 +594,7 @@ class Cluster:
                 if resource["kind"] == "RayCluster":
                     api_instance.delete_namespaced_custom_object(
                         group="ray.io",
-                        version="v1alpha1",
+                        version="v1",
                         namespace=namespace,
                         plural="rayclusters",
                         name=self.app_wrapper_name,
@@ -681,7 +681,7 @@ def get_cluster(cluster_name: str, namespace: str = "default"):
         api_instance = client.CustomObjectsApi(api_config_handler())
         rcs = api_instance.list_namespaced_custom_object(
             group="ray.io",
-            version="v1alpha1",
+            version="v1",
             namespace=namespace,
             plural="rayclusters",
         )
@@ -838,7 +838,7 @@ def _ray_cluster_status(name, namespace="default") -> Optional[RayCluster]:
         api_instance = client.CustomObjectsApi(api_config_handler())
         rcs = api_instance.list_namespaced_custom_object(
             group="ray.io",
-            version="v1alpha1",
+            version="v1",
             namespace=namespace,
             plural="rayclusters",
         )
@@ -858,7 +858,7 @@ def _get_ray_clusters(namespace="default") -> List[RayCluster]:
         api_instance = client.CustomObjectsApi(api_config_handler())
         rcs = api_instance.list_namespaced_custom_object(
             group="ray.io",
-            version="v1alpha1",
+            version="v1",
             namespace=namespace,
             plural="rayclusters",
         )
