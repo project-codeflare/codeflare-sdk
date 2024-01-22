@@ -29,7 +29,7 @@ spec:
           memory: 8G
           nvidia.com/gpu: 1
       generictemplate:
-        apiVersion: ray.io/v1alpha1
+        apiVersion: ray.io/v1
         kind: RayCluster
         metadata:
           labels:

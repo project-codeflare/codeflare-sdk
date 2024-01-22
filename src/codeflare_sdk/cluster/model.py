@@ -27,7 +27,7 @@ class RayClusterStatus(Enum):
     Defines the possible reportable states of a Ray cluster.
     """
 
-    # https://github.com/ray-project/kuberay/blob/master/ray-operator/apis/ray/v1alpha1/raycluster_types.go#L95
+    # https://github.com/ray-project/kuberay/blob/master/ray-operator/apis/ray/v1/raycluster_types.go#L112-L117
     READY = "ready"
     UNHEALTHY = "unhealthy"
     FAILED = "failed"

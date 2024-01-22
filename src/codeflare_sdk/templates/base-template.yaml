@@ -37,7 +37,7 @@ spec:
         # The resource requests and limits in this config are too small for production!
         # For an example with more realistic resource configuration, see
         # ray-cluster.autoscaler.large.yaml.
-        apiVersion: ray.io/v1alpha1
+        apiVersion: ray.io/v1
         kind: RayCluster
         metadata:
           labels:
