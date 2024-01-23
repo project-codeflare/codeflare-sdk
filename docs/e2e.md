@@ -10,7 +10,6 @@ Pre-requisite for KinD clusters: please add in your local `/etc/hosts` file `127
   ```
   make kind-e2e
   export CLUSTER_HOSTNAME=kind
-  export CODEFLARE_TEST_TIMEOUT_LONG=20m
   make deploy -e IMG=quay.io/project-codeflare/codeflare-operator:v1.1.0
   make setup-e2e
   ```
@@ -76,4 +75,12 @@ Pre-requisite for KinD clusters: please add in your local `/etc/hosts` file `127
   ```
   poetry install --with test,docs
   poetry run pytest -v -s ./tests/e2e/mnist_raycluster_sdk_test.py
+  ```
+  - To run the multiple tests based on the cluster environment, we can run the e2e tests by marking -m with cluster environment (kind or openshift)
+  ```
+  poetry run pytest -v -s ./tests/e2e -m openshift
+  ```
+  - By default tests configured with timeout of `15 minutes`. If necessary, we can override the timeout using `--timeout` option
+  ```
+  poetry run pytest -v -s ./tests/e2e -m openshift --timeout=1200
   ```

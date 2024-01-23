@@ -1,11 +1,6 @@
-from kubernetes import client, config
-import kubernetes.client
-
-import os
+import requests
 
 from time import sleep
-
-import ray
 
 from torchx.specs.api import AppState, is_terminal
 
@@ -16,44 +11,24 @@ import pytest
 
 from support import *
 
-# Creates a Ray cluster, and trains the MNIST dataset using the CodeFlare SDK.
-# Asserts creation of AppWrapper, RayCluster, and successful completion of the training job.
-# Covers successfull installation of CodeFlare-SDK
+# This test Creates a Ray cluster with openshift_oauth enable and covers the Ray Job submission with authentication and without authentication functionality
 
 
-@pytest.mark.kind
 @pytest.mark.openshift
-class TestMNISTRayClusterSDK:
+class TestRayClusterSDKOauth:
     def setup_method(self):
         initialize_kubernetes_client(self)
 
     def teardown_method(self):
         delete_namespace(self)
 
-    def test_mnist_ray_cluster_sdk(self):
+    def test_mnist_ray_cluster_sdk_auth(self):
+        self.setup_method()
         create_namespace(self)
-        self.run_mnist_raycluster_sdk()
+        self.run_mnist_raycluster_sdk_oauth()
 
-    def run_mnist_raycluster_sdk(self):
+    def run_mnist_raycluster_sdk_oauth(self):
         ray_image = get_ray_image()
-        host = os.getenv("CLUSTER_HOSTNAME")
-
-        ingress_options = {}
-        if host is not None:
-            ingress_options = {
-                "ingresses": [
-                    {
-                        "ingressName": "ray-dashboard",
-                        "port": 8265,
-                        "pathType": "Prefix",
-                        "path": "/",
-                        "host": host,
-                        "annotations": {
-                            "nginx.ingress.kubernetes.io/proxy-body-size": "100M",
-                        },
-                    },
-                ]
-            }
 
         cluster = Cluster(
             ClusterConfiguration(
@@ -69,7 +44,7 @@ class TestMNISTRayClusterSDK:
                 num_gpus=0,
                 instascale=False,
                 image=ray_image,
-                ingress_options=ingress_options,
+                openshift_oauth=True,
             )
         )
 
@@ -79,12 +54,42 @@ class TestMNISTRayClusterSDK:
         cluster.status()
 
         cluster.wait_ready()
-        self.assert_raycluster_exists()
 
         cluster.status()
 
         cluster.details()
 
+        self.assert_jobsubmit_withoutLogin(cluster)
+
+        self.assert_jobsubmit_withlogin(cluster)
+
+    # Assertions
+
+    def assert_jobsubmit_withoutLogin(self, cluster):
+        dashboard_url = cluster.cluster_dashboard_uri()
+        jobdata = {
+            "entrypoint": "python mnist.py",
+            "runtime_env": {
+                "working_dir": "./tests/e2e/",
+                "pip": "mnist_pip_requirements.txt",
+            },
+        }
+        try:
+            response = requests.post(
+                dashboard_url + "/api/jobs/", verify=False, json=jobdata
+            )
+            if response.status_code == 403:
+                assert True
+            else:
+                response.raise_for_status()
+                assert False
+
+        except Exception as e:
+            print(f"An unexpected error occurred. Error: {e}")
+            assert False
+
+    def assert_jobsubmit_withlogin(self, cluster):
+        self.assert_appwrapper_exists()
         jobdef = DDPJobDefinition(
             name="mnist",
             script="./tests/e2e/mnist.py",
@@ -113,7 +118,6 @@ class TestMNISTRayClusterSDK:
 
         cluster.down()
 
-    # Assertions
     def assert_appwrapper_exists(self):
         try:
             self.custom_api.get_namespaced_custom_object(
@@ -129,19 +133,6 @@ class TestMNISTRayClusterSDK:
             assert True
         except Exception as e:
             print(f"AppWrapper 'mnist' has not been created. Error: {e}")
-            assert False
-
-    def assert_raycluster_exists(self):
-        try:
-            self.custom_api.get_namespaced_custom_object(
-                "ray.io", "v1", self.namespace, "rayclusters", "mnist"
-            )
-            print(
-                f"RayCluster 'mnist' created successfully in the namespace: '{self.namespace}'"
-            )
-            assert True
-        except Exception as e:
-            print(f"RayCluster 'mnist' has not been created. Error: {e}")
             assert False
 
     def assert_job_completion(self, status):
