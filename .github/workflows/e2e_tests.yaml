@@ -112,10 +112,6 @@ jobs:
 
       - name: Run e2e tests
         run: |
-          export CODEFLARE_TEST_TIMEOUT_SHORT=1m
-          export CODEFLARE_TEST_TIMEOUT_MEDIUM=5m
-          export CODEFLARE_TEST_TIMEOUT_LONG=15m
-
           export CODEFLARE_TEST_OUTPUT_DIR=${{ env.TEMP_DIR }}
           echo "CODEFLARE_TEST_OUTPUT_DIR=${CODEFLARE_TEST_OUTPUT_DIR}" >> $GITHUB_ENV
 
@@ -123,7 +119,7 @@ jobs:
           pip install poetry
           poetry install --with test,docs
           echo "Running e2e tests..."
-          poetry run pytest -v -s ./tests/e2e/mnist_raycluster_sdk_test.py > ${CODEFLARE_TEST_OUTPUT_DIR}/pytest_output.log 2>&1
+          poetry run pytest -v -s ./tests/e2e -m kind > ${CODEFLARE_TEST_OUTPUT_DIR}/pytest_output.log 2>&1
 
       - name: Print CodeFlare operator logs
         if: always() && steps.deploy.outcome == 'success'
