@@ -22,7 +22,7 @@ cluster = Cluster(ClusterConfiguration(
     image="quay.io/project-codeflare/ray:latest-py39-cu118", # Mandatory Field
     instascale=False, # Default False
     machine_types=["m5.xlarge", "g4dn.xlarge"],
-    ingress_domain="example.com" # Default None, Mandatory for Kubernetes Clusters
+    ingress_domain="example.com" # Default None, Mandatory for Vanilla Kubernetes Clusters - ingress_domain is ignored on OpenShift Clusters as a route is created.
 ))
 ```
 
@@ -32,8 +32,8 @@ From there a user can call `cluster.up()` and `cluster.down()` to create and rem
 In cases where `mcad=False` a yaml file will be created with the individual Ray Cluster, Route/Ingress and Secret included.<br>
 The Ray Cluster and service will be created by KubeRay directly and the other components will be individually created.
 
-## Ray Cluster Configuration in a Kubernetes environment
-To create a Ray Cluster using the CodeFlare SDK in a Kubernetes environment an `ingress_domain` must be passed in the Cluster Configuration.
+## Ray Cluster Configuration in a Vanilla Kubernetes environment (Non-OpenShift)
+To create a Ray Cluster using the CodeFlare SDK in a Vanilla Kubernetes environment an `ingress_domain` must be passed in the Cluster Configuration.
 This is used for the creation of the Ray Dashboard and Client ingresses.
 
 `ingress_options` can be passed to create a custom Ray Dashboard ingress, `ingress_domain` is still a required variable for the Client ingress.
