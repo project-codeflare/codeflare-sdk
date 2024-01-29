@@ -11,7 +11,7 @@ from codeflare_sdk.cluster.cluster import Cluster, ClusterConfiguration
 from codeflare_sdk.job.jobs import DDPJobDefinition
 
 namespace = sys.argv[1]
-ray_image = os.getenv("RAY_IMAGE")
+ray_image = "quay.io/project-codeflare/ray:latest-py39-cu118"
 host = os.getenv("CLUSTER_HOSTNAME")
 
 ingress_options = {}
@@ -24,6 +24,9 @@ if host is not None:
                 "pathType": "Prefix",
                 "path": "/",
                 "host": host,
+                "annotations": {
+                    "nginx.ingress.kubernetes.io/proxy-body-size": "100M",
+                }
             },
         ]
     }
@@ -59,8 +62,8 @@ cluster.details()
 
 jobdef = DDPJobDefinition(
     name="mnist",
-    script="mnist.py",
-    scheduler_args={"requirements": "requirements.txt"},
+    script="./tests/e2e/mnist.py",
+    scheduler_args={"requirements": "./tests/e2e/requirements.txt"},
 )
 job = jobdef.submit(cluster)
 
