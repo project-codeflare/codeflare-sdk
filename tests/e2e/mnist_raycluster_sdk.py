@@ -25,7 +25,7 @@ if host is not None:
                 "path": "/",
                 "host": host,
                 "annotations": {
-                    "nginx.ingress.kubernetes.io/proxy-body-size": "100M",
+                    "nginx.ingress.kubernetes.io/proxy-body-size": "10M",
                 }
             },
         ]
@@ -63,7 +63,7 @@ cluster.details()
 jobdef = DDPJobDefinition(
     name="mnist",
     script="./tests/e2e/mnist.py",
-    scheduler_args={"requirements": "./tests/e2e/requirements.txt"},
+    scheduler_args={"requirements": "./tests/e2e/mnist_pip_requirements.txt"},
 )
 job = jobdef.submit(cluster)
 
