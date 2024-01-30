@@ -60,7 +60,7 @@ class TestMNISTRayClusterSDK:
                         "path": "/",
                         "host": host,
                         "annotations": {
-                            "nginx.ingress.kubernetes.io/proxy-body-size": "10M",
+                            "nginx.ingress.kubernetes.io/proxy-body-size": "100M",
                         }
                     },
                 ]
