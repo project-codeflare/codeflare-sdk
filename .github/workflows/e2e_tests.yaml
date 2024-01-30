@@ -103,7 +103,11 @@ jobs:
           echo "CODEFLARE_TEST_OUTPUT_DIR=${CODEFLARE_TEST_OUTPUT_DIR}" >> $GITHUB_ENV
 
           set -euo pipefail
-          go test -timeout 30m -v ./tests/e2e -json 2>&1 | tee ${CODEFLARE_TEST_OUTPUT_DIR}/gotest.log | gotestfmt
+          pip install poetry
+          poetry config virtualenvs.create false
+          poetry lock --no-update
+          poetry install --with test,docs
+          poetry run pytest -v -s ./tests/e2e/mnist_raycluster_sdk_test.py --json-report --json-report-file=${CODEFLARE_TEST_OUTPUT_DIR}/pytest_report.json 2>&1 | tee ${CODEFLARE_TEST_OUTPUT_DIR}/pytest.log
 
       - name: Print CodeFlare operator logs
         if: always() && steps.deploy.outcome == 'success'
