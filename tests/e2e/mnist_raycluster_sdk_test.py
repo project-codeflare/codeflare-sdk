@@ -1,8 +1,6 @@
 from kubernetes import client, config
 import kubernetes.client
-import subprocess
 
-import sys
 import os
 
 from time import sleep
@@ -86,7 +84,6 @@ class TestMNISTRayClusterSDK:
             )
         )
 
-
         cluster.up()
         self.assert_appwrapper_exists()
 
@@ -127,18 +124,7 @@ class TestMNISTRayClusterSDK:
 
         cluster.down()
 
-
-        # if not status.state == AppState.SUCCEEDED:
-
-        # script_path = './tests/e2e/mnist_raycluster_sdk.py'
-        # result = subprocess.run(['python', script_path, self.namespace])
-        # output = result.stdout
-        # errors = result.stderr
-        # if result.returncode != 0:
-        #     raise subprocess.CalledProcessError(result.returncode, 'python', output=output, stderr=errors)
-        # return output
-
-
+    # Assertions
     def assert_appwrapper_exists(self):
         try:
             self.custom_api.get_namespaced_custom_object("workload.codeflare.dev", "v1beta1", self.namespace, "appwrappers", "mnist")
