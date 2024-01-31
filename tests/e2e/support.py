@@ -1,14 +1,13 @@
+import os
 import random
 import string
 
-def read_file(file_name):
-    try:
-        with open(file_name, 'rb') as file:
-            return file.read()
-    except IOError as e:
-        raise e
+
+def get_ray_image():
+    default_ray_image = "quay.io/project-codeflare/ray:latest-py39-cu118"
+    return os.getenv("RAY_IMAGE", default_ray_image)
 
 
-alphabet = string.ascii_lowercase + string.digits
 def random_choice():
-    return ''.join(random.choices(alphabet, k=5))
+    alphabet = string.ascii_lowercase + string.digits
+    return "".join(random.choices(alphabet, k=5))

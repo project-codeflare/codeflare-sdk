@@ -104,7 +104,6 @@ jobs:
 
           set -euo pipefail
           pip install poetry
-          poetry config virtualenvs.create false
           poetry lock --no-update
           poetry install --with test,docs
           poetry run pytest -v -s ./tests/e2e/mnist_raycluster_sdk_test.py --json-report --json-report-file=${CODEFLARE_TEST_OUTPUT_DIR}/pytest_report.json 2>&1 | tee ${CODEFLARE_TEST_OUTPUT_DIR}/pytest.log
