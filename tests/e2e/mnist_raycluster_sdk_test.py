@@ -35,10 +35,6 @@ class TestMNISTRayClusterSDK:
     def teardown_method(self):
         if hasattr(self, "namespace"):
             self.api_instance.delete_namespace(self.namespace)
-        if hasattr(self, "configmap"):
-            self.api_instance.delete_namespaced_config_map(
-                self.configmap.metadata.name, self.namespace
-            )
 
     def test_mnist_ray_cluster_sdk(self):
         self.create_test_namespace()
