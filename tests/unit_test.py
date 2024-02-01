@@ -1903,6 +1903,7 @@ def route_retrieval(group, version, namespace, plural, name):
 
 def test_list_clusters(mocker, capsys):
     mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch(
         "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
         side_effect=get_obj_none,
