@@ -32,6 +32,7 @@ from codeflare_sdk.cluster.awload import AWManager
 from codeflare_sdk.cluster.cluster import (
     Cluster,
     ClusterConfiguration,
+    _map_to_ray_cluster,
     list_all_clusters,
     list_all_queued,
     _copy_to_ray,
@@ -1899,6 +1900,53 @@ def route_retrieval(group, version, namespace, plural, name):
             }
         ]
     }
+
+
+def test_map_to_ray_cluster(mocker):
+    mocker.patch("kubernetes.config.load_kube_config")
+
+    mocker.patch(
+        "codeflare_sdk.cluster.cluster.is_openshift_cluster", return_value=True
+    )
+
+    mock_api_client = mocker.MagicMock(spec=client.ApiClient)
+    mocker.patch(
+        "codeflare_sdk.cluster.auth.api_config_handler", return_value=mock_api_client
+    )
+
+    mock_routes = {
+        "items": [
+            {
+                "apiVersion": "route.openshift.io/v1",
+                "kind": "Route",
+                "metadata": {
+                    "name": "ray-dashboard-quicktest",
+                    "namespace": "ns",
+                },
+                "spec": {"host": "ray-dashboard-quicktest"},
+            },
+        ]
+    }
+
+    def custom_side_effect(group, version, namespace, plural, **kwargs):
+        if plural == "routes":
+            return mock_routes
+        elif plural == "rayclusters":
+            return get_ray_obj("ray.io", "v1", "ns", "rayclusters")
+
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
+        side_effect=custom_side_effect,
+    )
+
+    rc = get_ray_obj("ray.io", "v1", "ns", "rayclusters")["items"][0]
+    rc_name = rc["metadata"]["name"]
+    rc_dashboard = f"http://ray-dashboard-{rc_name}"
+
+    result = _map_to_ray_cluster(rc)
+
+    assert result is not None
+    assert result.dashboard == rc_dashboard
 
 
 def test_list_clusters(mocker, capsys):
