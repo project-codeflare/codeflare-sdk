@@ -1,4 +1,5 @@
 approvers:
+  - astefanutti
   - Bobbins228
   - dimakis
   - Fiona-Waters
@@ -7,6 +8,7 @@ approvers:
   - MichaelClifford
 reviewers:
   - anishasthana
+  - astefanutti
   - Bobbins228
   - ChristianZaccaria
   - dimakis
