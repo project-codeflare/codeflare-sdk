@@ -14,6 +14,47 @@ Pre-requisite for KinD clusters: please add in your local `/etc/hosts` file `127
   make deploy -e IMG=quay.io/project-codeflare/codeflare-operator:v1.1.0
   make setup-e2e
   ```
+
+  - **(Optional)** - Create and add `sdk-user` with limited permissions to the cluster to run through the e2e tests:
+  ```
+    # Get KinD certificates
+    docker cp kind-control-plane:/etc/kubernetes/pki/ca.crt .
+    docker cp kind-control-plane:/etc/kubernetes/pki/ca.key .
+
+    # Generate certificates for new user
+    openssl genrsa -out user.key 2048
+    openssl req -new -key user.key -out user.csr -subj '/CN=sdk-user/O=tenant'
+    openssl x509 -req -in user.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out user.crt -days 360
+
+    # Add generated certificated to KinD context
+    user_crt=$(base64 --wrap=0 user.crt)
+    user_key=$(base64 --wrap=0 user.key)
+    yq eval -i ".contexts += {\"context\": {\"cluster\": \"kind-kind\", \"user\": \"sdk-user\"}, \"name\": \"sdk-user\"}" $HOME/.kube/config
+    yq eval -i ".users += {\"name\": \"sdk-user\", \"user\": {\"client-certificate-data\": \"$user_crt\", \"client-key-data\": \"$user_key\"}}" $HOME/.kube/config
+    cat $HOME/.kube/config
+
+    # Cleanup
+    rm ca.crt
+    rm ca.srl
+    rm ca.key
+    rm user.crt
+    rm user.key
+    rm user.csr
+
+    # Add RBAC permissions to sdk-user
+    kubectl create clusterrole list-ingresses --verb=get,list --resource=ingresses
+    kubectl create clusterrolebinding sdk-user-list-ingresses --clusterrole=list-ingresses --user=sdk-user
+    kubectl create clusterrole appwrapper-creator --verb=get,list,create,delete,patch --resource=appwrappers
+    kubectl create clusterrolebinding sdk-user-appwrapper-creator --clusterrole=appwrapper-creator --user=sdk-user
+    kubectl create clusterrole namespace-creator --verb=get,list,create,delete,patch --resource=namespaces
+    kubectl create clusterrolebinding sdk-user-namespace-creator --clusterrole=namespace-creator --user=sdk-user
+    kubectl create clusterrole list-rayclusters --verb=get,list --resource=rayclusters
+    kubectl create clusterrolebinding sdk-user-list-rayclusters --clusterrole=list-rayclusters --user=sdk-user
+    kubectl config use-context sdk-user
+
+  ```
+
+
 - Test Phase:
    - Once we have the codeflare-operator and kuberay-operator running and ready, we can run the e2e test on the codeflare-sdk repository:
   ```
