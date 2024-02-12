@@ -119,9 +119,8 @@ class TokenAuthentication(Authentication):
             client.AuthenticationApi(api_client).get_api_group()
             config_path = None
             return "Logged into %s" % self.server
-        except client.ApiException:  # pragma: no cover
-            api_client = None
-            print("Authentication Error please provide the correct token + server")
+        except client.ApiException as e:
+            _kube_api_error_handling(e)
 
     def logout(self) -> str:
         """
