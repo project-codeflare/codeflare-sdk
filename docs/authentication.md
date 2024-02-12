@@ -5,7 +5,7 @@ Authenticating with your cluster allows you to perform actions such as creating 
 ## Method 1 Token Authentication
 This is how a typical user would authenticate to their cluster using `TokenAuthentication`.
 ```
-from codeflare_sdk.cluster.auth import TokenAuthentication
+from codeflare_sdk import TokenAuthentication
 
 auth = TokenAuthentication(
     token = "XXXXX",
@@ -27,7 +27,7 @@ If the user has not specifically authenticated through the SDK by other means su
 A user can specify a config file via a different authentication class `KubeConfigFileAuthentication` for authenticating with the SDK.<br>
 This is what loading a custom config file would typically look like.
 ```
-from codeflare_sdk.cluster.auth import KubeConfigFileAuthentication
+from codeflare_sdk import KubeConfigFileAuthentication
 
 auth = KubeConfigFileAuthentication(
     kube_config_path="/path/to/config",

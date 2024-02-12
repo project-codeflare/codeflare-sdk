@@ -4,7 +4,7 @@ To create Ray Clusters using the CodeFlare SDK a cluster configuration needs to 
 This is what a typical cluster configuration would look like; Note: The values for CPU and Memory are at the minimum requirements for creating the Ray Cluster.
 
 ```
-from codeflare_sdk.cluster.cluster import Cluster, ClusterConfiguration
+from codeflare_sdk import Cluster, ClusterConfiguration
 
 cluster = Cluster(ClusterConfiguration(
     name='ray-example', # Mandatory Field
