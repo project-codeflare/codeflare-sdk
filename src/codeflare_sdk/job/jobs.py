@@ -69,6 +69,7 @@ class DDPJobDefinition(JobDefinition):
         scheduler_args: Optional[Dict[str, str]] = None,
         image: Optional[str] = None,
         workspace: Optional[str] = f"file://{Path.cwd()}",
+        mcad: Optional[str] = False,
     ):
         if bool(script) == bool(m):  # logical XOR
             raise ValueError(
@@ -93,6 +94,7 @@ class DDPJobDefinition(JobDefinition):
         )
         self.image = image
         self.workspace = workspace
+        self.mcad = mcad
 
     def _dry_run(self, cluster: "Cluster"):
         j = f"{cluster.config.num_workers}x{max(cluster.config.num_gpus, 1)}"  # # of proc. = # of gpus
@@ -136,6 +138,9 @@ class DDPJobDefinition(JobDefinition):
         if self.scheduler_args is not None:
             if self.scheduler_args.get("namespace") is None:
                 self.scheduler_args["namespace"] = get_current_namespace()
+        scheduler = "kueue_job"
+        if self.mcad == True:
+            scheduler = "kubernetes_mcad"
         runner = get_runner()
         return (
             runner.dryrun(
@@ -172,7 +177,7 @@ class DDPJobDefinition(JobDefinition):
                     if self.image is not None
                     else self._missing_spec("image"),
                 ),
-                scheduler="kubernetes_mcad",
+                scheduler=scheduler,
                 cfg=self.scheduler_args,
                 workspace="",
             ),
