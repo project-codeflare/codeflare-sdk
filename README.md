@@ -58,7 +58,7 @@ To build the codeflare-sdk pre-commit image run `podman build -f .github/build/C
 - To run the unit tests, run `pytest -v tests/unit_test.py`
 
 #### Local e2e Testing
-- Please follow the [e2e documentation](https://https://github.com/project-codeflare/codeflare-sdk/blob/main/docs/e2e.md)
+- Please follow the [e2e documentation](https://github.com/project-codeflare/codeflare-sdk/blob/main/docs/e2e.md)
 
 #### Code Coverage
 
