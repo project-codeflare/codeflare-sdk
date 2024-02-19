@@ -157,6 +157,18 @@ spec:
                   - name: server-cert
                     mountPath: "/home/ray/workspace/tls"
                     readOnly: true
+                  - mountPath: /etc/pki/tls/certs
+                    name: odh-trusted-ca-cert
+                    subPath: odh-trusted-ca-bundle.crt
+                  - mountPath: /etc/ssl/certs
+                    name: odh-trusted-ca-cert
+                    subPath: odh-trusted-ca-bundle.crt
+                  - mountPath: /etc/pki/tls/certs
+                    name: odh-ca-cert
+                    subPath: odh-ca-bundle.crt
+                  - mountPath: /etc/ssl/certs
+                    name: odh-ca-cert
+                    subPath: odh-ca-bundle.crt
                 initContainers:
                 - command:
                   - sh
@@ -181,6 +193,20 @@ spec:
                   optional: false
                 - name: server-cert
                   emptyDir: {}
+                - name: odh-trusted-ca-cert
+                  configMap:
+                    name: odh-trusted-ca-bundle
+                    items:
+                    - key: ca-bundle.crt
+                      path: odh-custom-ca-bundle.crt
+                    optional: true
+                - name: odh-ca-cert
+                  configMap:
+                    name: odh-trusted-ca-bundle
+                    items:
+                    - key: odh-ca-bundle.crt
+                      path: odh-ca-bundle.crt
+                    optional: true
           workerGroupSpecs:
           # the pod replicas in this group typed worker
           - replicas: 3
@@ -277,6 +303,18 @@ spec:
                   - name: server-cert
                     mountPath: "/home/ray/workspace/tls"
                     readOnly: true
+                  - mountPath: /etc/pki/tls/certs
+                    name: odh-trusted-ca-cert
+                    subPath: odh-trusted-ca-bundle.crt
+                  - mountPath: /etc/ssl/certs
+                    name: odh-trusted-ca-cert
+                    subPath: odh-trusted-ca-bundle.crt
+                  - mountPath: /etc/pki/tls/certs
+                    name: odh-ca-cert
+                    subPath: odh-ca-bundle.crt
+                  - mountPath: /etc/ssl/certs
+                    name: odh-ca-cert
+                    subPath: odh-ca-bundle.crt
                 volumes:
                 - name: ca-vol
                   secret:
@@ -284,6 +322,20 @@ spec:
                   optional: false
                 - name: server-cert
                   emptyDir: {}
+                - name: odh-trusted-ca-cert
+                  configMap:
+                    name: odh-trusted-ca-bundle
+                    items:
+                    - key: ca-bundle.crt
+                      path: odh-custom-ca-bundle.crt
+                    optional: true
+                - name: odh-ca-cert
+                  configMap:
+                    name: odh-trusted-ca-bundle
+                    items:
+                    - key: odh-ca-bundle.crt
+                      path: odh-ca-bundle.crt
+                    optional: true
     - replicas: 1
       generictemplate:
         apiVersion: networking.k8s.io/v1
