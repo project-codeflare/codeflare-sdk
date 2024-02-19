@@ -17,6 +17,7 @@ This sub-module exists primarily to be used internally by the Cluster object
 (in the cluster sub-module) for AppWrapper generation.
 """
 
+import typing
 import yaml
 import sys
 import os
@@ -466,35 +467,34 @@ def enable_local_interactive(resources, cluster_name, namespace, ingress_domain)
     ][0].get("command")[2] = command
 
 
+def del_from_list_by_name(l: list, target: typing.List[str]):
+    for item in l:
+        if item["name"] in ["ca-vol", "server-cert"]:
+            l.remove(item)
+
+
 def disable_raycluster_tls(resources):
     generic_template_spec = resources["GenericItems"][0]["generictemplate"]["spec"]
 
-    if "volumes" in generic_template_spec["headGroupSpec"]["template"]["spec"]:
-        del generic_template_spec["headGroupSpec"]["template"]["spec"]["volumes"]
+    del_from_list_by_name(
+        generic_template_spec["headGroupSpec"]["template"]["spec"].get("volumes", []),
+        ["ca-vol", "server-cert"],
+    )
 
-    if (
-        "volumeMounts"
-        in generic_template_spec["headGroupSpec"]["template"]["spec"]["containers"][0]
-    ):
-        del generic_template_spec["headGroupSpec"]["template"]["spec"]["containers"][0][
-            "volumeMounts"
-        ]
+    c: dict
+    for c in generic_template_spec["headGroupSpec"]["template"]["spec"]["containers"]:
+        del_from_list_by_name(c.get("volumeMounts", []), ["ca-vol", "server-cert"])
 
     if "initContainers" in generic_template_spec["headGroupSpec"]["template"]["spec"]:
         del generic_template_spec["headGroupSpec"]["template"]["spec"]["initContainers"]
 
-    if "volumes" in generic_template_spec["workerGroupSpecs"][0]["template"]["spec"]:
-        del generic_template_spec["workerGroupSpecs"][0]["template"]["spec"]["volumes"]
-
-    if (
-        "volumeMounts"
-        in generic_template_spec["workerGroupSpecs"][0]["template"]["spec"][
-            "containers"
-        ][0]
-    ):
-        del generic_template_spec["workerGroupSpecs"][0]["template"]["spec"][
-            "containers"
-        ][0]["volumeMounts"]
+    for workerGroup in generic_template_spec.get("workerGroupSpecs"):
+        del_from_list_by_name(
+            workerGroup["template"]["spec"].get("volumes", []),
+            ["ca-vol", "server-cert"],
+        )
+        for c in workerGroup["template"]["spec"].get("containers", []):
+            del_from_list_by_name(c.get("volumeMounts", []), ["ca-vol", "server-cert"])
 
     del generic_template_spec["workerGroupSpecs"][0]["template"]["spec"][
         "initContainers"
