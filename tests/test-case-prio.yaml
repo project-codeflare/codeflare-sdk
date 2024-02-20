@@ -111,16 +111,16 @@ spec:
                   - mountPath: /home/ray/workspace/tls
                     name: server-cert
                     readOnly: true
-                  - mountPath: /etc/pki/tls/certs
+                  - mountPath: /etc/pki/tls/certs/odh-trusted-ca-bundle.crt
                     name: odh-trusted-ca-cert
                     subPath: odh-trusted-ca-bundle.crt
-                  - mountPath: /etc/ssl/certs
+                  - mountPath: /etc/ssl/certs/odh-trusted-ca-bundle.crt
                     name: odh-trusted-ca-cert
                     subPath: odh-trusted-ca-bundle.crt
-                  - mountPath: /etc/pki/tls/certs
+                  - mountPath: /etc/pki/tls/certs/odh-ca-bundle.crt
                     name: odh-ca-cert
                     subPath: odh-ca-bundle.crt
-                  - mountPath: /etc/ssl/certs
+                  - mountPath: /etc/ssl/certs/odh-ca-bundle.crt
                     name: odh-ca-cert
                     subPath: odh-ca-bundle.crt
                 imagePullSecrets:
@@ -204,16 +204,16 @@ spec:
                   - mountPath: /home/ray/workspace/tls
                     name: server-cert
                     readOnly: true
-                  - mountPath: /etc/pki/tls/certs
+                  - mountPath: /etc/pki/tls/certs/odh-trusted-ca-bundle.crt
                     name: odh-trusted-ca-cert
                     subPath: odh-trusted-ca-bundle.crt
-                  - mountPath: /etc/ssl/certs
+                  - mountPath: /etc/ssl/certs/odh-trusted-ca-bundle.crt
                     name: odh-trusted-ca-cert
                     subPath: odh-trusted-ca-bundle.crt
-                  - mountPath: /etc/pki/tls/certs
+                  - mountPath: /etc/pki/tls/certs/odh-ca-bundle.crt
                     name: odh-ca-cert
                     subPath: odh-ca-bundle.crt
-                  - mountPath: /etc/ssl/certs
+                  - mountPath: /etc/ssl/certs/odh-ca-bundle.crt
                     name: odh-ca-cert
                     subPath: odh-ca-bundle.crt
                 imagePullSecrets:

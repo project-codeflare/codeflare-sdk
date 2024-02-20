@@ -157,16 +157,16 @@ spec:
                   - name: server-cert
                     mountPath: "/home/ray/workspace/tls"
                     readOnly: true
-                  - mountPath: /etc/pki/tls/certs
+                  - mountPath: /etc/pki/tls/certs/odh-trusted-ca-bundle.crt
                     name: odh-trusted-ca-cert
                     subPath: odh-trusted-ca-bundle.crt
-                  - mountPath: /etc/ssl/certs
+                  - mountPath: /etc/ssl/certs/odh-trusted-ca-bundle.crt
                     name: odh-trusted-ca-cert
                     subPath: odh-trusted-ca-bundle.crt
-                  - mountPath: /etc/pki/tls/certs
+                  - mountPath: /etc/pki/tls/certs/odh-ca-bundle.crt
                     name: odh-ca-cert
                     subPath: odh-ca-bundle.crt
-                  - mountPath: /etc/ssl/certs
+                  - mountPath: /etc/ssl/certs/odh-ca-bundle.crt
                     name: odh-ca-cert
                     subPath: odh-ca-bundle.crt
                 initContainers:
@@ -303,16 +303,16 @@ spec:
                   - name: server-cert
                     mountPath: "/home/ray/workspace/tls"
                     readOnly: true
-                  - mountPath: /etc/pki/tls/certs
+                  - mountPath: /etc/pki/tls/certs/odh-trusted-ca-bundle.crt
                     name: odh-trusted-ca-cert
                     subPath: odh-trusted-ca-bundle.crt
-                  - mountPath: /etc/ssl/certs
+                  - mountPath: /etc/ssl/certs/odh-trusted-ca-bundle.crt
                     name: odh-trusted-ca-cert
                     subPath: odh-trusted-ca-bundle.crt
-                  - mountPath: /etc/pki/tls/certs
+                  - mountPath: /etc/pki/tls/certs/odh-ca-bundle.crt
                     name: odh-ca-cert
                     subPath: odh-ca-bundle.crt
-                  - mountPath: /etc/ssl/certs
+                  - mountPath: /etc/ssl/certs/odh-ca-bundle.crt
                     name: odh-ca-cert
                     subPath: odh-ca-bundle.crt
                 volumes:
