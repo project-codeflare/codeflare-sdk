@@ -48,25 +48,25 @@ jobs:
           df -h
 
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           submodules: recursive
 
       - name: Checkout common repo code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: 'project-codeflare/codeflare-common'
           ref: 'main'
           path: 'common'
 
       - name: Checkout CodeFlare operator repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: project-codeflare/codeflare-operator
           path: codeflare-operator
 
       - name: Set Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
           go-version: v1.20
 
@@ -140,7 +140,7 @@ jobs:
           output-directory: ${CODEFLARE_TEST_OUTPUT_DIR}
 
       - name: Upload logs
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always() && steps.deploy.outcome == 'success'
         with:
           name: logs
