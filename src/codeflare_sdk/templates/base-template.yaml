@@ -325,6 +325,8 @@ spec:
             name: deployment-name-head-svc
           port:
             targetPort: dashboard
+          tls:
+            termination: edge
     - replicas: 1
       generictemplate:
         apiVersion: networking.k8s.io/v1
