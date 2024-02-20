@@ -14,7 +14,7 @@ jobs:
     container:
       image: quay.io/project-codeflare/codeflare-sdk-precommit:v0.0.1
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Run pre-commit checks
         run: pre-commit run --all-files

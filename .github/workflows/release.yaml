@@ -37,9 +37,9 @@ jobs:
             PR_BRANCH_NAME: adjustments-release-${{ github.event.inputs.release-version }}
         steps:
             - name: Checkout the repository
-              uses: actions/checkout@v3
+              uses: actions/checkout@v4
             - name: Install Python
-              uses: actions/setup-python@v4
+              uses: actions/setup-python@v5
               with:
                 python-version: ${{ github.event.inputs.python_version }}
             - name: Install Poetry
