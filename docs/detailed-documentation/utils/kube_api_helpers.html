@@ -74,7 +74,9 @@ def _kube_api_error_handling(
                 print(nf_msg)
             return
         elif e.reason == &#34;Unauthorized&#34; or e.reason == &#34;Forbidden&#34;:
-            raise PermissionError(perm_msg)
+            if print_error:
+                print(perm_msg)
+            return
         elif e.reason == &#34;Conflict&#34;:
             raise FileExistsError(exists_msg)
     raise e</code></pre>
