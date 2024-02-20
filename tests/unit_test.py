@@ -2709,10 +2709,26 @@ def test_enable_local_interactive(mocker):
     volumes = [
         {
             "name": "ca-vol",
-            "secret": {"secretName": f"ca-secret-{cluster_name}"},
+            "secret": {"secretName": "ca-secret-test-enable-local"},
             "optional": False,
         },
         {"name": "server-cert", "emptyDir": {}},
+        {
+            "name": "odh-trusted-ca-cert",
+            "configMap": {
+                "name": "odh-trusted-ca-bundle",
+                "items": [{"key": "ca-bundle.crt", "path": "odh-custom-ca-bundle.crt"}],
+                "optional": True,
+            },
+        },
+        {
+            "name": "odh-ca-cert",
+            "configMap": {
+                "name": "odh-trusted-ca-bundle",
+                "items": [{"key": "odh-ca-bundle.crt", "path": "odh-ca-bundle.crt"}],
+                "optional": True,
+            },
+        },
     ]
     tls_env = [
         {"name": "RAY_USE_TLS", "value": "1"},
@@ -2740,6 +2756,9 @@ def test_enable_local_interactive(mocker):
         head_group_spec["template"]["spec"]["initContainers"][0]["volumeMounts"]
         == volume_mounts
     )
+    print(head_group_spec["template"]["spec"]["volumes"])
+    print("----------------")
+    print(volumes)
     assert head_group_spec["template"]["spec"]["volumes"] == volumes
 
     # 2. workerGroupSpec has the initContainers command to generated TLS cert from the mounted CA cert.
