@@ -589,7 +589,7 @@ class Cluster:
                 if resource[&#34;kind&#34;] == &#34;RayCluster&#34;:
                     api_instance.create_namespaced_custom_object(
                         group=&#34;ray.io&#34;,
-                        version=&#34;v1alpha1&#34;,
+                        version=&#34;v1&#34;,
                         namespace=namespace,
                         plural=&#34;rayclusters&#34;,
                         body=resource,
@@ -626,7 +626,7 @@ class Cluster:
                 if resource[&#34;kind&#34;] == &#34;RayCluster&#34;:
                     api_instance.delete_namespaced_custom_object(
                         group=&#34;ray.io&#34;,
-                        version=&#34;v1alpha1&#34;,
+                        version=&#34;v1&#34;,
                         namespace=namespace,
                         plural=&#34;rayclusters&#34;,
                         name=self.app_wrapper_name,
@@ -713,7 +713,7 @@ def get_cluster(cluster_name: str, namespace: str = &#34;default&#34;):
         api_instance = client.CustomObjectsApi(api_config_handler())
         rcs = api_instance.list_namespaced_custom_object(
             group=&#34;ray.io&#34;,
-            version=&#34;v1alpha1&#34;,
+            version=&#34;v1&#34;,
             namespace=namespace,
             plural=&#34;rayclusters&#34;,
         )
@@ -870,7 +870,7 @@ def _ray_cluster_status(name, namespace=&#34;default&#34;) -&gt; Optional[RayClu
         api_instance = client.CustomObjectsApi(api_config_handler())
         rcs = api_instance.list_namespaced_custom_object(
             group=&#34;ray.io&#34;,
-            version=&#34;v1alpha1&#34;,
+            version=&#34;v1&#34;,
             namespace=namespace,
             plural=&#34;rayclusters&#34;,
         )
@@ -890,7 +890,7 @@ def _get_ray_clusters(namespace=&#34;default&#34;) -&gt; List[RayCluster]:
         api_instance = client.CustomObjectsApi(api_config_handler())
         rcs = api_instance.list_namespaced_custom_object(
             group=&#34;ray.io&#34;,
-            version=&#34;v1alpha1&#34;,
+            version=&#34;v1&#34;,
             namespace=namespace,
             plural=&#34;rayclusters&#34;,
         )
@@ -934,25 +934,47 @@ def _map_to_ray_cluster(rc) -&gt; Optional[RayCluster]:
         status = RayClusterStatus(rc[&#34;status&#34;][&#34;state&#34;].lower())
     else:
         status = RayClusterStatus.UNKNOWN
-    try:
-        config_check()
-        api_instance = client.NetworkingV1Api(api_config_handler())
-        ingresses = api_instance.list_namespaced_ingress(rc[&#34;metadata&#34;][&#34;namespace&#34;])
-    except Exception as e:  # pragma no cover
-        return _kube_api_error_handling(e)
-    ray_ingress = None
-    for ingress in ingresses.items:
-        annotations = ingress.metadata.annotations
-        protocol = &#34;http&#34;
-        if (
-            ingress.metadata.name == f&#34;ray-dashboard-{rc[&#39;metadata&#39;][&#39;name&#39;]}&#34;
-            or ingress.metadata.name.startswith(f&#34;{rc[&#39;metadata&#39;][&#39;name&#39;]}-ingress&#34;)
-        ):
-            if annotations == None:
-                protocol = &#34;http&#34;
-            elif &#34;route.openshift.io/termination&#34; in annotations:
-                protocol = &#34;https&#34;
-        ray_ingress = f&#34;{protocol}://{ingress.spec.rules[0].host}&#34;
+    config_check()
+    dashboard_url = None
+    if is_openshift_cluster():
+        try:
+            api_instance = client.CustomObjectsApi(api_config_handler())
+            routes = api_instance.list_namespaced_custom_object(
+                group=&#34;route.openshift.io&#34;,
+                version=&#34;v1&#34;,
+                namespace=rc[&#34;metadata&#34;][&#34;namespace&#34;],
+                plural=&#34;routes&#34;,
+            )
+        except Exception as e:  # pragma: no cover
+            return _kube_api_error_handling(e)
+
+        for route in routes[&#34;items&#34;]:
+            rc_name = rc[&#34;metadata&#34;][&#34;name&#34;]
+            if route[&#34;metadata&#34;][&#34;name&#34;] == f&#34;ray-dashboard-{rc_name}&#34; or route[
+                &#34;metadata&#34;
+            ][&#34;name&#34;].startswith(f&#34;{rc_name}-ingress&#34;):
+                protocol = &#34;https&#34; if route[&#34;spec&#34;].get(&#34;tls&#34;) else &#34;http&#34;
+                dashboard_url = f&#34;{protocol}://{route[&#39;spec&#39;][&#39;host&#39;]}&#34;
+    else:
+        try:
+            api_instance = client.NetworkingV1Api(api_config_handler())
+            ingresses = api_instance.list_namespaced_ingress(
+                rc[&#34;metadata&#34;][&#34;namespace&#34;]
+            )
+        except Exception as e:  # pragma no cover
+            return _kube_api_error_handling(e)
+        for ingress in ingresses.items:
+            annotations = ingress.metadata.annotations
+            protocol = &#34;http&#34;
+            if (
+                ingress.metadata.name == f&#34;ray-dashboard-{rc[&#39;metadata&#39;][&#39;name&#39;]}&#34;
+                or ingress.metadata.name.startswith(f&#34;{rc[&#39;metadata&#39;][&#39;name&#39;]}-ingress&#34;)
+            ):
+                if annotations == None:
+                    protocol = &#34;http&#34;
+                elif &#34;route.openshift.io/termination&#34; in annotations:
+                    protocol = &#34;https&#34;
+            dashboard_url = f&#34;{protocol}://{ingress.spec.rules[0].host}&#34;
 
     return RayCluster(
         name=rc[&#34;metadata&#34;][&#34;name&#34;],
@@ -979,7 +1001,7 @@ def _map_to_ray_cluster(rc) -&gt; Optional[RayCluster]:
         head_gpu=rc[&#34;spec&#34;][&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;][&#34;containers&#34;][0][
             &#34;resources&#34;
         ][&#34;limits&#34;][&#34;nvidia.com/gpu&#34;],
-        dashboard=ray_ingress,
+        dashboard=dashboard_url,
     )
 
 
@@ -1068,7 +1090,7 @@ def get_ingress_domain_from_client(cluster_name: str, namespace: str = &#34;defa
         api_instance = client.CustomObjectsApi(api_config_handler())
         rcs = api_instance.list_namespaced_custom_object(
             group=&#34;ray.io&#34;,
-            version=&#34;v1alpha1&#34;,
+            version=&#34;v1&#34;,
             namespace=namespace,
             plural=&#34;rayclusters&#34;,
         )
@@ -1777,7 +1799,7 @@ request.</p></div>
                 if resource[&#34;kind&#34;] == &#34;RayCluster&#34;:
                     api_instance.create_namespaced_custom_object(
                         group=&#34;ray.io&#34;,
-                        version=&#34;v1alpha1&#34;,
+                        version=&#34;v1&#34;,
                         namespace=namespace,
                         plural=&#34;rayclusters&#34;,
                         body=resource,
@@ -1814,7 +1836,7 @@ request.</p></div>
                 if resource[&#34;kind&#34;] == &#34;RayCluster&#34;:
                     api_instance.delete_namespaced_custom_object(
                         group=&#34;ray.io&#34;,
-                        version=&#34;v1alpha1&#34;,
+                        version=&#34;v1&#34;,
                         namespace=namespace,
                         plural=&#34;rayclusters&#34;,
                         name=self.app_wrapper_name,
