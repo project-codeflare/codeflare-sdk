@@ -180,7 +180,7 @@ def _create_or_replace_oauth_route_object(
             port:
                 targetPort: {port_name}
             tls:
-                termination: passthrough
+                termination: reencrypt
             to:
                 kind: Service
                 name: {service_name}
