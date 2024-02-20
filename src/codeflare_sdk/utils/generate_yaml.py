@@ -467,34 +467,38 @@ def enable_local_interactive(resources, cluster_name, namespace, ingress_domain)
     ][0].get("command")[2] = command
 
 
-def del_from_list_by_name(l: list, target: typing.List[str]):
-    for item in l:
-        if item["name"] in ["ca-vol", "server-cert"]:
-            l.remove(item)
+def del_from_list_by_name(l: list, target: typing.List[str]) -> list:
+    return [x for x in l if x["name"] not in target]
 
 
 def disable_raycluster_tls(resources):
     generic_template_spec = resources["GenericItems"][0]["generictemplate"]["spec"]
 
-    del_from_list_by_name(
-        generic_template_spec["headGroupSpec"]["template"]["spec"].get("volumes", []),
+    headGroupTemplateSpec = generic_template_spec["headGroupSpec"]["template"]["spec"]
+    headGroupTemplateSpec["volumes"] = del_from_list_by_name(
+        headGroupTemplateSpec.get("volumes", []),
         ["ca-vol", "server-cert"],
     )
 
     c: dict
     for c in generic_template_spec["headGroupSpec"]["template"]["spec"]["containers"]:
-        del_from_list_by_name(c.get("volumeMounts", []), ["ca-vol", "server-cert"])
+        c["volumeMounts"] = del_from_list_by_name(
+            c.get("volumeMounts", []), ["ca-vol", "server-cert"]
+        )
 
     if "initContainers" in generic_template_spec["headGroupSpec"]["template"]["spec"]:
         del generic_template_spec["headGroupSpec"]["template"]["spec"]["initContainers"]
 
-    for workerGroup in generic_template_spec.get("workerGroupSpecs"):
-        del_from_list_by_name(
-            workerGroup["template"]["spec"].get("volumes", []),
+    for workerGroup in generic_template_spec.get("workerGroupSpecs", []):
+        workerGroupSpec = workerGroup["template"]["spec"]
+        workerGroupSpec["volumes"] = del_from_list_by_name(
+            workerGroupSpec.get("volumes", []),
             ["ca-vol", "server-cert"],
         )
         for c in workerGroup["template"]["spec"].get("containers", []):
-            del_from_list_by_name(c.get("volumeMounts", []), ["ca-vol", "server-cert"])
+            c["volumeMounts"] = del_from_list_by_name(
+                c.get("volumeMounts", []), ["ca-vol", "server-cert"]
+            )
 
     del generic_template_spec["workerGroupSpecs"][0]["template"]["spec"][
         "initContainers"

@@ -2756,9 +2756,6 @@ def test_enable_local_interactive(mocker):
         head_group_spec["template"]["spec"]["initContainers"][0]["volumeMounts"]
         == volume_mounts
     )
-    print(head_group_spec["template"]["spec"]["volumes"])
-    print("----------------")
-    print(volumes)
     assert head_group_spec["template"]["spec"]["volumes"] == volumes
 
     # 2. workerGroupSpec has the initContainers command to generated TLS cert from the mounted CA cert.

@@ -108,9 +108,6 @@ spec:
                       memory: 8G
                       nvidia.com/gpu: 0
                   volumeMounts:
-                  - mountPath: /home/ray/workspace/tls
-                    name: server-cert
-                    readOnly: true
                   - mountPath: /etc/pki/tls/certs/odh-trusted-ca-bundle.crt
                     name: odh-trusted-ca-cert
                     subPath: odh-trusted-ca-bundle.crt
@@ -127,8 +124,6 @@ spec:
                 - name: unit-test-pull-secret
                 priorityClassName: default
                 volumes:
-                - emptyDir: {}
-                  name: server-cert
                 - configMap:
                     items:
                     - key: ca-bundle.crt
@@ -201,9 +196,6 @@ spec:
                       memory: 5G
                       nvidia.com/gpu: 7
                   volumeMounts:
-                  - mountPath: /home/ray/workspace/tls
-                    name: server-cert
-                    readOnly: true
                   - mountPath: /etc/pki/tls/certs/odh-trusted-ca-bundle.crt
                     name: odh-trusted-ca-cert
                     subPath: odh-trusted-ca-bundle.crt
@@ -220,8 +212,6 @@ spec:
                 - name: unit-test-pull-secret
                 priorityClassName: default
                 volumes:
-                - emptyDir: {}
-                  name: server-cert
                 - configMap:
                     items:
                     - key: ca-bundle.crt
