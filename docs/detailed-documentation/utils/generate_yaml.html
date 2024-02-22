@@ -48,6 +48,7 @@ This sub-module exists primarily to be used internally by the Cluster object
 (in the cluster sub-module) for AppWrapper generation.
 &#34;&#34;&#34;
 
+import typing
 import yaml
 import sys
 import os
@@ -497,35 +498,38 @@ def enable_local_interactive(resources, cluster_name, namespace, ingress_domain)
     ][0].get(&#34;command&#34;)[2] = command
 
 
+def del_from_list_by_name(l: list, target: typing.List[str]) -&gt; list:
+    return [x for x in l if x[&#34;name&#34;] not in target]
+
+
 def disable_raycluster_tls(resources):
     generic_template_spec = resources[&#34;GenericItems&#34;][0][&#34;generictemplate&#34;][&#34;spec&#34;]
 
-    if &#34;volumes&#34; in generic_template_spec[&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;]:
-        del generic_template_spec[&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;][&#34;volumes&#34;]
+    headGroupTemplateSpec = generic_template_spec[&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;]
+    headGroupTemplateSpec[&#34;volumes&#34;] = del_from_list_by_name(
+        headGroupTemplateSpec.get(&#34;volumes&#34;, []),
+        [&#34;ca-vol&#34;, &#34;server-cert&#34;],
+    )
 
-    if (
-        &#34;volumeMounts&#34;
-        in generic_template_spec[&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;][&#34;containers&#34;][0]
-    ):
-        del generic_template_spec[&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;][&#34;containers&#34;][0][
-            &#34;volumeMounts&#34;
-        ]
+    c: dict
+    for c in generic_template_spec[&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;][&#34;containers&#34;]:
+        c[&#34;volumeMounts&#34;] = del_from_list_by_name(
+            c.get(&#34;volumeMounts&#34;, []), [&#34;ca-vol&#34;, &#34;server-cert&#34;]
+        )
 
     if &#34;initContainers&#34; in generic_template_spec[&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;]:
         del generic_template_spec[&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;][&#34;initContainers&#34;]
 
-    if &#34;volumes&#34; in generic_template_spec[&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;]:
-        del generic_template_spec[&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][&#34;volumes&#34;]
-
-    if (
-        &#34;volumeMounts&#34;
-        in generic_template_spec[&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][
-            &#34;containers&#34;
-        ][0]
-    ):
-        del generic_template_spec[&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][
-            &#34;containers&#34;
-        ][0][&#34;volumeMounts&#34;]
+    for workerGroup in generic_template_spec.get(&#34;workerGroupSpecs&#34;, []):
+        workerGroupSpec = workerGroup[&#34;template&#34;][&#34;spec&#34;]
+        workerGroupSpec[&#34;volumes&#34;] = del_from_list_by_name(
+            workerGroupSpec.get(&#34;volumes&#34;, []),
+            [&#34;ca-vol&#34;, &#34;server-cert&#34;],
+        )
+        for c in workerGroup[&#34;template&#34;][&#34;spec&#34;].get(&#34;containers&#34;, []):
+            c[&#34;volumeMounts&#34;] = del_from_list_by_name(
+                c.get(&#34;volumeMounts&#34;, []), [&#34;ca-vol&#34;, &#34;server-cert&#34;]
+            )
 
     del generic_template_spec[&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][
         &#34;initContainers&#34;
@@ -765,6 +769,19 @@ def generate_appwrapper(
 <section>
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
+<dt id="codeflare_sdk.utils.generate_yaml.del_from_list_by_name"><code class="name flex">
+<span>def <span class="ident">del_from_list_by_name</span></span>(<span>l: list, target: List[str]) ‑> list</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def del_from_list_by_name(l: list, target: typing.List[str]) -&gt; list:
+    return [x for x in l if x[&#34;name&#34;] not in target]</code></pre>
+</details>
+</dd>
 <dt id="codeflare_sdk.utils.generate_yaml.delete_route_or_ingress"><code class="name flex">
 <span>def <span class="ident">delete_route_or_ingress</span></span>(<span>resources)</span>
 </code></dt>
@@ -806,32 +823,31 @@ def generate_appwrapper(
 <pre><code class="python">def disable_raycluster_tls(resources):
     generic_template_spec = resources[&#34;GenericItems&#34;][0][&#34;generictemplate&#34;][&#34;spec&#34;]
 
-    if &#34;volumes&#34; in generic_template_spec[&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;]:
-        del generic_template_spec[&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;][&#34;volumes&#34;]
+    headGroupTemplateSpec = generic_template_spec[&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;]
+    headGroupTemplateSpec[&#34;volumes&#34;] = del_from_list_by_name(
+        headGroupTemplateSpec.get(&#34;volumes&#34;, []),
+        [&#34;ca-vol&#34;, &#34;server-cert&#34;],
+    )
 
-    if (
-        &#34;volumeMounts&#34;
-        in generic_template_spec[&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;][&#34;containers&#34;][0]
-    ):
-        del generic_template_spec[&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;][&#34;containers&#34;][0][
-            &#34;volumeMounts&#34;
-        ]
+    c: dict
+    for c in generic_template_spec[&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;][&#34;containers&#34;]:
+        c[&#34;volumeMounts&#34;] = del_from_list_by_name(
+            c.get(&#34;volumeMounts&#34;, []), [&#34;ca-vol&#34;, &#34;server-cert&#34;]
+        )
 
     if &#34;initContainers&#34; in generic_template_spec[&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;]:
         del generic_template_spec[&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;][&#34;initContainers&#34;]
 
-    if &#34;volumes&#34; in generic_template_spec[&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;]:
-        del generic_template_spec[&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][&#34;volumes&#34;]
-
-    if (
-        &#34;volumeMounts&#34;
-        in generic_template_spec[&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][
-            &#34;containers&#34;
-        ][0]
-    ):
-        del generic_template_spec[&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][
-            &#34;containers&#34;
-        ][0][&#34;volumeMounts&#34;]
+    for workerGroup in generic_template_spec.get(&#34;workerGroupSpecs&#34;, []):
+        workerGroupSpec = workerGroup[&#34;template&#34;][&#34;spec&#34;]
+        workerGroupSpec[&#34;volumes&#34;] = del_from_list_by_name(
+            workerGroupSpec.get(&#34;volumes&#34;, []),
+            [&#34;ca-vol&#34;, &#34;server-cert&#34;],
+        )
+        for c in workerGroup[&#34;template&#34;][&#34;spec&#34;].get(&#34;containers&#34;, []):
+            c[&#34;volumeMounts&#34;] = del_from_list_by_name(
+                c.get(&#34;volumeMounts&#34;, []), [&#34;ca-vol&#34;, &#34;server-cert&#34;]
+            )
 
     del generic_template_spec[&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][
         &#34;initContainers&#34;
@@ -1699,6 +1715,7 @@ def generate_appwrapper(
 </li>
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
+<li><code><a title="codeflare_sdk.utils.generate_yaml.del_from_list_by_name" href="#codeflare_sdk.utils.generate_yaml.del_from_list_by_name">del_from_list_by_name</a></code></li>
 <li><code><a title="codeflare_sdk.utils.generate_yaml.delete_route_or_ingress" href="#codeflare_sdk.utils.generate_yaml.delete_route_or_ingress">delete_route_or_ingress</a></code></li>
 <li><code><a title="codeflare_sdk.utils.generate_yaml.disable_raycluster_tls" href="#codeflare_sdk.utils.generate_yaml.disable_raycluster_tls">disable_raycluster_tls</a></code></li>
 <li><code><a title="codeflare_sdk.utils.generate_yaml.enable_local_interactive" href="#codeflare_sdk.utils.generate_yaml.enable_local_interactive">enable_local_interactive</a></code></li>
