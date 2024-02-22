@@ -2717,7 +2717,9 @@ def test_enable_local_interactive(mocker):
             "name": "odh-trusted-ca-cert",
             "configMap": {
                 "name": "odh-trusted-ca-bundle",
-                "items": [{"key": "ca-bundle.crt", "path": "odh-custom-ca-bundle.crt"}],
+                "items": [
+                    {"key": "ca-bundle.crt", "path": "odh-trusted-ca-bundle.crt"}
+                ],
                 "optional": True,
             },
         },

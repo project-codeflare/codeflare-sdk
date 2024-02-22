@@ -96,7 +96,7 @@ spec:
         - configMap:
             items:
             - key: ca-bundle.crt
-              path: odh-custom-ca-bundle.crt
+              path: odh-trusted-ca-bundle.crt
             name: odh-trusted-ca-bundle
             optional: true
           name: odh-trusted-ca-cert
@@ -183,7 +183,7 @@ spec:
         - configMap:
             items:
             - key: ca-bundle.crt
-              path: odh-custom-ca-bundle.crt
+              path: odh-trusted-ca-bundle.crt
             name: odh-trusted-ca-bundle
             optional: true
           name: odh-trusted-ca-cert
