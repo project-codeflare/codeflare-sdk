@@ -46,7 +46,7 @@ class ClusterConfiguration:
     num_gpus: int = 0
     template: str = f"{dir}/templates/base-template.yaml"
     instascale: bool = False
-    mcad: bool = True
+    mcad: bool = False
     envs: dict = field(default_factory=dict)
     image: str = ""
     local_interactive: bool = False
@@ -56,3 +56,4 @@ class ClusterConfiguration:
     ingress_options: dict = field(default_factory=dict)
     ingress_domain: str = None
     write_to_file: bool = False
+    local_queue: str = None

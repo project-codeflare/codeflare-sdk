@@ -544,6 +544,9 @@ def write_user_appwrapper(user_yaml, output_file_name):
         os.makedirs(directory_path)
 
     with open(output_file_name, "w") as outfile:
+        del user_yaml["spec"]["resources"]["GenericItems"][0]["generictemplate"][
+            "metadata"
+        ]["labels"]["kueue.x-k8s.io/queue-name"]
         yaml.dump(user_yaml, outfile, default_flow_style=False)
 
     print(f"Written to: {output_file_name}")
@@ -622,7 +625,39 @@ def _create_oauth_sidecar_object(
     )
 
 
-def write_components(user_yaml: dict, output_file_name: str):
+def update_local_kueue_label(local_queue: str, namespace: str):
+    if local_queue is not None:
+        return local_queue
+    else:
+        try:
+            config_check()
+            api_instance = client.CustomObjectsApi(api_config_handler())
+            local_queues = api_instance.list_namespaced_custom_object(
+                group="kueue.x-k8s.io",
+                version="v1beta1",
+                namespace=namespace,
+                plural="localqueues",
+            )
+        except Exception as e:  # pragma: no cover
+            return _kube_api_error_handling(e)
+        for lq in local_queues["items"]:
+            if (
+                "annotations" in lq["metadata"]
+                and "kueue.x-k8s.io/default-queue" in lq["metadata"]["annotations"]
+                and lq["metadata"]["annotations"][
+                    "kueue.x-k8s.io/default-queue"
+                ].lower()
+                == "true"
+            ):
+                return lq["metadata"]["name"]
+        raise ValueError(
+            "Default Local Queue with kueue.x-k8s.io/default-queue: true annotation not found please create a default Local Queue or provide the local_queue name in Cluster Configuration"
+        )
+
+
+def write_components(
+    user_yaml: dict, output_file_name: str, namespace: str, local_queue: str
+):
     # Create the directory if it doesn't exist
     directory_path = os.path.dirname(output_file_name)
     if not os.path.exists(directory_path):
@@ -633,6 +668,16 @@ def write_components(user_yaml: dict, output_file_name: str):
     with open(output_file_name, "a") as outfile:
         for component in components:
             if "generictemplate" in component:
+                if (
+                    "workload.codeflare.dev/appwrapper"
+                    in component["generictemplate"]["metadata"]["labels"]
+                ):
+                    del component["generictemplate"]["metadata"]["labels"][
+                        "workload.codeflare.dev/appwrapper"
+                    ]
+                    component["generictemplate"]["metadata"]["labels"][
+                        "kueue.x-k8s.io/queue-name"
+                    ] = update_local_kueue_label(local_queue, namespace)
                 outfile.write("---\n")
                 yaml.dump(
                     component["generictemplate"], outfile, default_flow_style=False
@@ -687,6 +732,7 @@ def generate_appwrapper(
     ingress_domain: str,
     ingress_options: dict,
     write_to_file: bool,
+    local_queue: str,
 ):
     user_yaml = read_template(template)
     appwrapper_name, cluster_name = gen_names(name)
@@ -751,7 +797,7 @@ def generate_appwrapper(
         if mcad:
             write_user_appwrapper(user_yaml, outfile)
         else:
-            write_components(user_yaml, outfile)
+            write_components(user_yaml, outfile, local_queue)
         return outfile
     else:
         if mcad:

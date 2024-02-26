@@ -4,7 +4,7 @@ kind: RayCluster
 metadata:
   labels:
     controller-tools.k8s.io: '1.0'
-    workload.codeflare.dev/appwrapper: unit-test-cluster-ray
+    kueue.x-k8s.io/queue-name: local-queue-default
   name: unit-test-cluster-ray
   namespace: ns
 spec:

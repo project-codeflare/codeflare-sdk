@@ -191,6 +191,7 @@ class Cluster:
         ingress_domain = self.config.ingress_domain
         ingress_options = self.config.ingress_options
         write_to_file = self.config.write_to_file
+        local_queue = self.config.local_queue
         return generate_appwrapper(
             name=name,
             namespace=namespace,
@@ -217,6 +218,7 @@ class Cluster:
             ingress_domain=ingress_domain,
             ingress_options=ingress_options,
             write_to_file=write_to_file,
+            local_queue=local_queue,
         )
 
     # creates a new cluster with the provided or default spec

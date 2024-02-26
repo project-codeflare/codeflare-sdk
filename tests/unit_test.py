@@ -307,8 +307,59 @@ def test_create_app_wrapper_raises_error_with_no_image():
         ), "Error message did not match expected output."
 
 
+def get_local_queue(group, version, namespace, plural):
+    assert group == "kueue.x-k8s.io"
+    assert version == "v1beta1"
+    assert namespace == "ns"
+    assert plural == "localqueues"
+    local_queues = {
+        "apiVersion": "kueue.x-k8s.io/v1beta1",
+        "items": [
+            {
+                "apiVersion": "kueue.x-k8s.io/v1beta1",
+                "kind": "LocalQueue",
+                "metadata": {
+                    "annotations": {"kueue.x-k8s.io/default-queue": "true"},
+                    "name": "local-queue-default",
+                    "namespace": "ns",
+                },
+                "spec": {"clusterQueue": "cluster-queue"},
+            }
+        ],
+        "kind": "LocalQueueList",
+        "metadata": {"continue": "", "resourceVersion": "2266811"},
+    }
+    return local_queues
+
+
 def test_cluster_creation_no_mcad(mocker):
     # With written resources
+    # Create Ray Cluster with no local queue specified
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.get_cluster_custom_object",
+        return_value={"spec": {"domain": "apps.cluster.awsroute.org"}},
+    )
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
+        return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
+    )
+    config = createClusterConfig()
+    config.name = "unit-test-cluster-ray"
+    config.write_to_file = True
+    config.mcad = False
+    cluster = Cluster(config)
+    assert cluster.app_wrapper_yaml == f"{aw_dir}unit-test-cluster-ray.yaml"
+    assert cluster.app_wrapper_name == "unit-test-cluster-ray"
+    assert filecmp.cmp(
+        f"{aw_dir}unit-test-cluster-ray.yaml",
+        f"{parent}/tests/test-case-no-mcad.yamls",
+        shallow=True,
+    )
+
+
+def test_cluster_creation_no_mcad_local_queue(mocker):
+    # Create Ray Cluster with local queue specified
     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch(
         "kubernetes.client.CustomObjectsApi.get_cluster_custom_object",
@@ -318,6 +369,7 @@ def test_cluster_creation_no_mcad(mocker):
     config.name = "unit-test-cluster-ray"
     config.mcad = False
     config.write_to_file = True
+    config.local_queue = "local-queue-default"
     cluster = Cluster(config)
     assert cluster.app_wrapper_yaml == f"{aw_dir}unit-test-cluster-ray.yaml"
     assert cluster.app_wrapper_name == "unit-test-cluster-ray"
@@ -393,6 +445,7 @@ def test_default_cluster_creation(mocker):
         name="unit-test-default-cluster",
         image="quay.io/project-codeflare/ray:latest-py39-cu118",
         ingress_domain="apps.cluster.awsroute.org",
+        mcad=True,
     )
     cluster = Cluster(default_config)
     test_aw = yaml.safe_load(cluster.app_wrapper_yaml)
@@ -504,6 +557,10 @@ def test_cluster_up_down(mocker):
 
 
 def test_cluster_up_down_no_mcad(mocker):
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
+        return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
+    )
     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
     mocker.patch(
@@ -844,6 +901,7 @@ def test_ray_details(mocker, capsys):
             image="quay.io/project-codeflare/ray:latest-py39-cu118",
             ingress_domain="apps.cluster.awsroute.org",
             write_to_file=True,
+            mcad=True,
         )
     )
     captured = capsys.readouterr()
@@ -2098,6 +2156,7 @@ def test_cluster_status(mocker):
             image="quay.io/project-codeflare/ray:latest-py39-cu118",
             ingress_domain="apps.cluster.awsroute.org",
             write_to_file=True,
+            mcad=True,
         )
     )
     mocker.patch("codeflare_sdk.cluster.cluster._app_wrapper_status", return_value=None)
@@ -2193,6 +2252,7 @@ def test_wait_ready(mocker, capsys):
             image="quay.io/project-codeflare/ray:latest-py39-cu118",
             ingress_domain="apps.cluster.awsroute.org",
             write_to_file=True,
+            mcad=True,
         )
     )
     try:
@@ -2969,6 +3029,7 @@ def test_gen_app_wrapper_with_oauth(mocker: MockerFixture):
             image="quay.io/project-codeflare/ray:latest-py39-cu118",
             ingress_domain="apps.cluster.awsroute.org",
             write_to_file=True,
+            mcad=True,
         )
     )
     user_yaml = write_user_appwrapper.call_args.args[0]

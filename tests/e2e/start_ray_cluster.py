@@ -38,6 +38,7 @@ cluster = Cluster(
         instascale=False,
         image=ray_image,
         ingress_options=ingress_options,
+        mcad=True,
     )
 )
 
