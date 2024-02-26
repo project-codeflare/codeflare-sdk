@@ -790,7 +790,7 @@ def generate_appwrapper(
     if openshift_oauth:
         enable_openshift_oauth(user_yaml, cluster_name, namespace)
 
-    directory_path = os.path.expanduser("~/.codeflare/appwrapper/")
+    directory_path = os.path.expanduser("~/.codeflare/resources/")
     outfile = os.path.join(directory_path, appwrapper_name + ".yaml")
 
     if write_to_file:
