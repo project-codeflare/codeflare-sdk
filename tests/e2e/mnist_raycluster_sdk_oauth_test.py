@@ -52,6 +52,7 @@ class TestRayClusterSDKOauth:
                 instascale=False,
                 image=ray_image,
                 write_to_file=True,
+                mcad=True,
             )
         )
 
