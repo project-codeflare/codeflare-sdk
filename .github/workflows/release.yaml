@@ -100,3 +100,15 @@ jobs:
               env:
                 GITHUB_TOKEN: ${{ secrets.CODEFLARE_MACHINE_ACCOUNT_TOKEN }}
               shell: bash
+
+            - name: Sync ODH Notebooks
+              run: |
+                gh workflow run odh-notebooks-sync.yml \
+                  --repo ${{ github.event.inputs.codeflare-repository-organization }}/codeflare-sdk \
+                  --ref ${{ github.ref }} \
+                  --field upstream-repository-organization=opendatahub-io
+                  --field codeflare-repository-organization=${{ github.event.inputs.codeflare-repository-organization }} \
+                  --field codeflare_sdk_release_version=${{ github.event.inputs.release-version }}
+              env:
+                GITHUB_TOKEN: ${{ secrets.CODEFLARE_MACHINE_ACCOUNT_TOKEN }}
+              shell: bash
