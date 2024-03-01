@@ -119,10 +119,8 @@ jobs:
             --head $REPO_OWNER:$UPDATER_BRANCH \
             --base $BRANCH_NAME
         env:
-          pr_title: "[Digest Updater Action] Update notebook's pipfile to sync with Codeflare-SDK release"
+          pr_title: "[Codeflare Action] Update notebook's pipfile to sync with Codeflare-SDK release ${{ env.CODEFLARE_RELEASE_VERSION }}"
           pr_body: |
             :rocket: This is an automated Pull Request.
 
             This PR updates the `Pipfile` to sync with latest Codeflare-SDK release.
-
-            :exclamation: **IMPORTANT NOTE**: Remember to delete the ` ${{ env.UPDATER_BRANCH }}` branch after merging the changes
