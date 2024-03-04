@@ -334,6 +334,9 @@ class Cluster:
         # check the ray cluster status
         cluster = _ray_cluster_status(self.config.name, self.config.namespace)
         if cluster:
+            if cluster.status == RayClusterStatus.SUSPENDED:
+                ready = False
+                status = CodeFlareClusterStatus.SUSPENDED
             if cluster.status == RayClusterStatus.UNKNOWN:
                 ready = False
                 status = CodeFlareClusterStatus.STARTING

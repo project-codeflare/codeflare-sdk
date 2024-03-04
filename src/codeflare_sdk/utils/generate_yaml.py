@@ -544,9 +544,6 @@ def write_user_appwrapper(user_yaml, output_file_name):
         os.makedirs(directory_path)
 
     with open(output_file_name, "w") as outfile:
-        del user_yaml["spec"]["resources"]["GenericItems"][0]["generictemplate"][
-            "metadata"
-        ]["labels"]["kueue.x-k8s.io/queue-name"]
         yaml.dump(user_yaml, outfile, default_flow_style=False)
 
     print(f"Written to: {output_file_name}")
@@ -625,7 +622,8 @@ def _create_oauth_sidecar_object(
     )
 
 
-def update_local_kueue_label(local_queue: str, namespace: str):
+def get_default_kueue_name(local_queue: str, namespace: str):
+    # If the local queue is set, use it. Otherwise, try to use the default queue.
     if local_queue is not None:
         return local_queue
     else:
@@ -675,9 +673,14 @@ def write_components(
                     del component["generictemplate"]["metadata"]["labels"][
                         "workload.codeflare.dev/appwrapper"
                     ]
-                    component["generictemplate"]["metadata"]["labels"][
-                        "kueue.x-k8s.io/queue-name"
-                    ] = update_local_kueue_label(local_queue, namespace)
+                    labels = component["generictemplate"]["metadata"]["labels"]
+                    labels.update(
+                        {
+                            "kueue.x-k8s.io/queue-name": get_default_kueue_name(
+                                local_queue, namespace
+                            )
+                        }
+                    )
                 outfile.write("---\n")
                 yaml.dump(
                     component["generictemplate"], outfile, default_flow_style=False
