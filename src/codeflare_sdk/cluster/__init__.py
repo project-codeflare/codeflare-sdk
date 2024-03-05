@@ -13,6 +13,6 @@ from .model import (
     AppWrapper,
 )
 
-from .cluster import Cluster, ClusterConfiguration
+from .cluster import Cluster, ClusterConfiguration, get_cluster
 
 from .awload import AWManager

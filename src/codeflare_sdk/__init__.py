@@ -11,6 +11,7 @@ from .cluster import (
     CodeFlareClusterStatus,
     RayCluster,
     AppWrapper,
+    get_cluster,
 )
 
 from .job import JobDefinition, Job, DDPJobDefinition, DDPJob, RayJobClient

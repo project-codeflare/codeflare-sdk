@@ -959,12 +959,13 @@ def get_ray_obj(group, version, namespace, plural, cls=None):
                 "apiVersion": "ray.io/v1",
                 "kind": "RayCluster",
                 "metadata": {
-                    "creationTimestamp": "2023-02-22T16:26:07Z",
+                    "creationTimestamp": "2024-03-05T09:55:37Z",
                     "generation": 1,
                     "labels": {
-                        "workload.codeflare.dev/appwrapper": "quicktest",
+                        "appwrapper.mcad.ibm.com": "quicktest",
                         "controller-tools.k8s.io": "1.0",
                         "resourceName": "quicktest",
+                        "workload.codeflare.dev/appwrapper": "quicktest",
                         "orderedinstance": "m4.xlarge_g4dn.xlarge",
                     },
                     "managedFields": [
@@ -975,13 +976,14 @@ def get_ray_obj(group, version, namespace, plural, cls=None):
                                 "f:metadata": {
                                     "f:labels": {
                                         ".": {},
-                                        "f:workload.codeflare.dev/appwrapper": {},
+                                        "f:appwrapper.mcad.ibm.com": {},
                                         "f:controller-tools.k8s.io": {},
                                         "f:resourceName": {},
+                                        "f:workload.codeflare.dev/appwrapper": {},
                                     },
                                     "f:ownerReferences": {
                                         ".": {},
-                                        'k:{"uid":"6334fc1b-471e-4876-8e7b-0b2277679235"}': {},
+                                        'k:{"uid":"a29b1a7a-0992-4860-a8d5-a689a751a3e8"}': {},
                                     },
                                 },
                                 "f:spec": {
@@ -1017,41 +1019,53 @@ def get_ray_obj(group, version, namespace, plural, cls=None):
                                         "f:serviceType": {},
                                         "f:template": {
                                             ".": {},
-                                            "f:spec": {".": {}, "f:containers": {}},
+                                            "f:spec": {
+                                                ".": {},
+                                                "f:affinity": {
+                                                    ".": {},
+                                                    "f:nodeAffinity": {
+                                                        ".": {},
+                                                        "f:requiredDuringSchedulingIgnoredDuringExecution": {},
+                                                    },
+                                                },
+                                                "f:imagePullSecrets": {},
+                                                "f:volumes": {},
+                                            },
                                         },
                                     },
                                     "f:rayVersion": {},
                                     "f:workerGroupSpecs": {},
                                 },
                             },
-                            "manager": "mcad-controller",
+                            "manager": "codeflare-operator",
                             "operation": "Update",
-                            "time": "2023-02-22T16:26:07Z",
+                            "time": "2024-03-05T09:55:37Z",
                         },
                         {
-                            "apiVersion": "ray.io/v1",
+                            "apiVersion": "ray.io/v1alpha1",
                             "fieldsType": "FieldsV1",
                             "fieldsV1": {
                                 "f:status": {
                                     ".": {},
-                                    "f:availableWorkerReplicas": {},
                                     "f:desiredWorkerReplicas": {},
                                     "f:endpoints": {
                                         ".": {},
                                         "f:client": {},
                                         "f:dashboard": {},
                                         "f:gcs": {},
+                                        "f:metrics": {},
                                     },
+                                    "f:head": {".": {}, "f:serviceIP": {}},
                                     "f:lastUpdateTime": {},
                                     "f:maxWorkerReplicas": {},
                                     "f:minWorkerReplicas": {},
-                                    "f:state": {},
+                                    "f:observedGeneration": {},
                                 }
                             },
                             "manager": "manager",
                             "operation": "Update",
                             "subresource": "status",
-                            "time": "2023-02-22T16:26:16Z",
+                            "time": "2024-03-05T09:55:37Z",
                         },
                     ],
                     "name": "quicktest",
@@ -1063,11 +1077,11 @@ def get_ray_obj(group, version, namespace, plural, cls=None):
                             "controller": True,
                             "kind": "AppWrapper",
                             "name": "quicktest",
-                            "uid": "6334fc1b-471e-4876-8e7b-0b2277679235",
+                            "uid": "a29b1a7a-0992-4860-a8d5-a689a751a3e8",
                         }
                     ],
-                    "resourceVersion": "9482407",
-                    "uid": "44d45d1f-26c8-43e7-841f-831dbd8c1285",
+                    "resourceVersion": "5305674",
+                    "uid": "820d065d-bf0c-4675-b951-d32ea496020e",
                 },
                 "spec": {
                     "autoscalerOptions": {
@@ -1088,9 +1102,50 @@ def get_ray_obj(group, version, namespace, plural, cls=None):
                         },
                         "serviceType": "ClusterIP",
                         "template": {
+                            "metadata": {},
                             "spec": {
+                                "affinity": {
+                                    "nodeAffinity": {
+                                        "requiredDuringSchedulingIgnoredDuringExecution": {
+                                            "nodeSelectorTerms": [
+                                                {
+                                                    "matchExpressions": [
+                                                        {
+                                                            "key": "quicktest",
+                                                            "operator": "In",
+                                                            "values": ["quicktest"],
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    }
+                                },
                                 "containers": [
                                     {
+                                        "env": [
+                                            {
+                                                "name": "MY_POD_IP",
+                                                "valueFrom": {
+                                                    "fieldRef": {
+                                                        "fieldPath": "status.podIP"
+                                                    }
+                                                },
+                                            },
+                                            {"name": "RAY_USE_TLS", "value": "0"},
+                                            {
+                                                "name": "RAY_TLS_SERVER_CERT",
+                                                "value": "/home/ray/workspace/tls/server.crt",
+                                            },
+                                            {
+                                                "name": "RAY_TLS_SERVER_KEY",
+                                                "value": "/home/ray/workspace/tls/server.key",
+                                            },
+                                            {
+                                                "name": "RAY_TLS_CA_CERT",
+                                                "value": "/home/ray/workspace/tls/ca.crt",
+                                            },
+                                        ],
                                         "image": "ghcr.io/foundation-model-stack/base:ray2.1.0-py38-gpu-pytorch1.12.0cu116-20221213-193103",
                                         "imagePullPolicy": "Always",
                                         "lifecycle": {
@@ -1134,12 +1189,62 @@ def get_ray_obj(group, version, namespace, plural, cls=None):
                                                 "nvidia.com/gpu": 0,
                                             },
                                         },
+                                        "volumeMounts": [
+                                            {
+                                                "mountPath": "/etc/pki/tls/certs/odh-trusted-ca-bundle.crt",
+                                                "name": "odh-trusted-ca-cert",
+                                                "subPath": "odh-trusted-ca-bundle.crt",
+                                            },
+                                            {
+                                                "mountPath": "/etc/ssl/certs/odh-trusted-ca-bundle.crt",
+                                                "name": "odh-trusted-ca-cert",
+                                                "subPath": "odh-trusted-ca-bundle.crt",
+                                            },
+                                            {
+                                                "mountPath": "/etc/pki/tls/certs/odh-ca-bundle.crt",
+                                                "name": "odh-ca-cert",
+                                                "subPath": "odh-ca-bundle.crt",
+                                            },
+                                            {
+                                                "mountPath": "/etc/ssl/certs/odh-ca-bundle.crt",
+                                                "name": "odh-ca-cert",
+                                                "subPath": "odh-ca-bundle.crt",
+                                            },
+                                        ],
                                     }
-                                ]
-                            }
+                                ],
+                                "volumes": [
+                                    {
+                                        "configMap": {
+                                            "items": [
+                                                {
+                                                    "key": "ca-bundle.crt",
+                                                    "path": "odh-trusted-ca-bundle.crt",
+                                                }
+                                            ],
+                                            "name": "odh-trusted-ca-bundle",
+                                            "optional": True,
+                                        },
+                                        "name": "odh-trusted-ca-cert",
+                                    },
+                                    {
+                                        "configMap": {
+                                            "items": [
+                                                {
+                                                    "key": "odh-ca-bundle.crt",
+                                                    "path": "odh-ca-bundle.crt",
+                                                }
+                                            ],
+                                            "name": "odh-trusted-ca-bundle",
+                                            "optional": True,
+                                        },
+                                        "name": "odh-ca-cert",
+                                    },
+                                ],
+                            },
                         },
                     },
-                    "rayVersion": "1.12.0",
+                    "rayVersion": "2.7.0",
                     "workerGroupSpecs": [
                         {
                             "groupName": "small-group-quicktest",
@@ -1147,12 +1252,30 @@ def get_ray_obj(group, version, namespace, plural, cls=None):
                             "minReplicas": 1,
                             "rayStartParams": {"block": "true", "num-gpus": "0"},
                             "replicas": 1,
+                            "scaleStrategy": {},
                             "template": {
                                 "metadata": {
                                     "annotations": {"key": "value"},
                                     "labels": {"key": "value"},
                                 },
                                 "spec": {
+                                    "affinity": {
+                                        "nodeAffinity": {
+                                            "requiredDuringSchedulingIgnoredDuringExecution": {
+                                                "nodeSelectorTerms": [
+                                                    {
+                                                        "matchExpressions": [
+                                                            {
+                                                                "key": "quicktest",
+                                                                "operator": "In",
+                                                                "values": ["quicktest"],
+                                                            }
+                                                        ]
+                                                    }
+                                                ]
+                                            }
+                                        }
+                                    },
                                     "containers": [
                                         {
                                             "env": [
@@ -1163,7 +1286,20 @@ def get_ray_obj(group, version, namespace, plural, cls=None):
                                                             "fieldPath": "status.podIP"
                                                         }
                                                     },
-                                                }
+                                                },
+                                                {"name": "RAY_USE_TLS", "value": "0"},
+                                                {
+                                                    "name": "RAY_TLS_SERVER_CERT",
+                                                    "value": "/home/ray/workspace/tls/server.crt",
+                                                },
+                                                {
+                                                    "name": "RAY_TLS_SERVER_KEY",
+                                                    "value": "/home/ray/workspace/tls/server.key",
+                                                },
+                                                {
+                                                    "name": "RAY_TLS_CA_CERT",
+                                                    "value": "/home/ray/workspace/tls/ca.crt",
+                                                },
                                             ],
                                             "image": "ghcr.io/foundation-model-stack/base:ray2.1.0-py38-gpu-pytorch1.12.0cu116-20221213-193103",
                                             "lifecycle": {
@@ -1190,7 +1326,57 @@ def get_ray_obj(group, version, namespace, plural, cls=None):
                                                     "nvidia.com/gpu": 0,
                                                 },
                                             },
+                                            "volumeMounts": [
+                                                {
+                                                    "mountPath": "/etc/pki/tls/certs/odh-trusted-ca-bundle.crt",
+                                                    "name": "odh-trusted-ca-cert",
+                                                    "subPath": "odh-trusted-ca-bundle.crt",
+                                                },
+                                                {
+                                                    "mountPath": "/etc/ssl/certs/odh-trusted-ca-bundle.crt",
+                                                    "name": "odh-trusted-ca-cert",
+                                                    "subPath": "odh-trusted-ca-bundle.crt",
+                                                },
+                                                {
+                                                    "mountPath": "/etc/pki/tls/certs/odh-ca-bundle.crt",
+                                                    "name": "odh-ca-cert",
+                                                    "subPath": "odh-ca-bundle.crt",
+                                                },
+                                                {
+                                                    "mountPath": "/etc/ssl/certs/odh-ca-bundle.crt",
+                                                    "name": "odh-ca-cert",
+                                                    "subPath": "odh-ca-bundle.crt",
+                                                },
+                                            ],
                                         }
+                                    ],
+                                    "volumes": [
+                                        {
+                                            "configMap": {
+                                                "items": [
+                                                    {
+                                                        "key": "ca-bundle.crt",
+                                                        "path": "odh-trusted-ca-bundle.crt",
+                                                    }
+                                                ],
+                                                "name": "odh-trusted-ca-bundle",
+                                                "optional": True,
+                                            },
+                                            "name": "odh-trusted-ca-cert",
+                                        },
+                                        {
+                                            "configMap": {
+                                                "items": [
+                                                    {
+                                                        "key": "odh-ca-bundle.crt",
+                                                        "path": "odh-ca-bundle.crt",
+                                                    }
+                                                ],
+                                                "name": "odh-trusted-ca-bundle",
+                                                "optional": True,
+                                            },
+                                            "name": "odh-ca-cert",
+                                        },
                                     ],
                                 },
                             },
@@ -1198,16 +1384,18 @@ def get_ray_obj(group, version, namespace, plural, cls=None):
                     ],
                 },
                 "status": {
-                    "availableWorkerReplicas": 2,
                     "desiredWorkerReplicas": 1,
                     "endpoints": {
                         "client": "10001",
                         "dashboard": "8265",
                         "gcs": "6379",
+                        "metrics": "8080",
                     },
-                    "lastUpdateTime": "2023-02-22T16:26:16Z",
+                    "head": {"serviceIP": "172.30.179.88"},
+                    "lastUpdateTime": "2024-03-05T09:55:37Z",
                     "maxWorkerReplicas": 1,
                     "minWorkerReplicas": 1,
+                    "observedGeneration": 1,
                     "state": "ready",
                 },
             }
