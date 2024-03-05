@@ -29,6 +29,9 @@ from ..cluster.auth import api_config_handler, config_check
 from os import urandom
 from base64 import b64encode
 from urllib3.util import parse_url
+import json
+
+from codeflare_sdk.cluster.config import DEFAULT_CUSTOM_RESOURCE_MAPPING
 
 
 def read_template(template):
@@ -264,50 +267,36 @@ def update_priority(yaml, item, dispatch_priority, priority_val):
 
 def update_custompodresources(
     item,
-    min_cpu,
-    max_cpu,
-    min_memory,
-    max_memory,
-    gpu,
+    min_cpu: int,
+    max_cpu: int,
+    min_memory: int,
+    max_memory: int,
+    worker_custom_resources: typing.Dict[str, int],
     workers,
-    head_cpus,
-    head_memory,
-    head_gpus,
+    head_cpus: int,
+    head_memory: int,
+    head_custom_resources: typing.Dict[str, int],
 ):
     if "custompodresources" in item.keys():
         custompodresources = item.get("custompodresources")
-        for i in range(len(custompodresources)):
-            resource = custompodresources[i]
-            if i == 0:
-                # Leave head node resources as template default
-                resource["requests"]["cpu"] = head_cpus
-                resource["limits"]["cpu"] = head_cpus
-                resource["requests"]["memory"] = str(head_memory) + "G"
-                resource["limits"]["memory"] = str(head_memory) + "G"
-                resource["requests"]["nvidia.com/gpu"] = head_gpus
-                resource["limits"]["nvidia.com/gpu"] = head_gpus
+        head_resources = custompodresources[0]
+        head_resources["requests"]["cpu"] = head_cpus
+        head_resources["limits"]["cpu"] = head_cpus
+        head_resources["requests"]["memory"] = str(head_memory) + "G"
+        head_resources["limits"]["memory"] = str(head_memory) + "G"
+        for r, val in head_custom_resources.items():
+            head_resources["requests"][r] = val
+            head_resources["limits"][r] = val
 
-            else:
-                for k, v in resource.items():
-                    if k == "replicas" and i == 1:
-                        resource[k] = workers
-                    if k == "requests" or k == "limits":
-                        for spec, _ in v.items():
-                            if spec == "cpu":
-                                if k == "limits":
-                                    resource[k][spec] = max_cpu
-                                else:
-                                    resource[k][spec] = min_cpu
-                            if spec == "memory":
-                                if k == "limits":
-                                    resource[k][spec] = str(max_memory) + "G"
-                                else:
-                                    resource[k][spec] = str(min_memory) + "G"
-                            if spec == "nvidia.com/gpu":
-                                if i == 0:
-                                    resource[k][spec] = 0
-                                else:
-                                    resource[k][spec] = gpu
+        worker_resources = custompodresources[1]
+        worker_resources["replicas"] = workers
+        worker_resources["requests"]["cpu"] = min_cpu
+        worker_resources["limits"]["cpu"] = max_cpu
+        worker_resources["requests"]["memory"] = f"{min_memory}G"
+        worker_resources["limits"]["memory"] = f"{max_memory}G"
+        for r, value in worker_custom_resources.items():
+            worker_resources["requests"][r] = value
+            worker_resources["limits"][r] = value
     else:
         sys.exit("Error: malformed template")
 
@@ -349,19 +338,60 @@ def update_env(spec, env):
                 container["env"] = env
 
 
-def update_resources(spec, min_cpu, max_cpu, min_memory, max_memory, gpu):
+def update_resources(
+    spec: dict,
+    min_cpu: int,
+    max_cpu: int,
+    min_memory: int,
+    max_memory: int,
+    worker_custom_resources: typing.Dict[str, int],
+):
     container = spec.get("containers")
     for resource in container:
         requests = resource.get("resources").get("requests")
         if requests is not None:
             requests["cpu"] = min_cpu
             requests["memory"] = str(min_memory) + "G"
-            requests["nvidia.com/gpu"] = gpu
+            for r, value in worker_custom_resources.items():
+                requests[r] = value
         limits = resource.get("resources").get("limits")
         if limits is not None:
             limits["cpu"] = max_cpu
             limits["memory"] = str(max_memory) + "G"
-            limits["nvidia.com/gpu"] = gpu
+            for r, value in worker_custom_resources.items():
+                limits[r] = value
+
+
+def _get_resource_mapping(
+    resource: str, custom_mapping: typing.Optional[typing.Dict[str, str]]
+):
+    # throws value error if no mapping exists
+    mapping = custom_mapping or {}
+    return mapping.get(resource, None) or DEFAULT_CUSTOM_RESOURCE_MAPPING[resource]
+
+
+def _get_ray_start_params_from_resources(
+    start_params: typing.Dict,
+    resources: typing.Dict[str, int],
+    custom_mapping: typing.Optional[typing.Dict[str, str]],
+):
+    ray_resources = {}
+    for r, value in resources.items():
+        ray_resource = _get_resource_mapping(r, custom_mapping)
+        if ray_resource == "GPU":
+            start_params["num-gpus"] = start_params.get("num-gpus", 0) + value
+        else:
+            ray_resources[ray_resource] = ray_resources.get(ray_resource, 0) + value
+
+    # this looks ugly, but it's to get the string into the same form as it appeears here
+    # https://docs.ray.io/en/latest/cluster/kubernetes/user-guides/config.html#id1
+    if ray_resources:
+        start_params["resources"] = (
+            '"' + json.dumps(ray_resources).replace('"', '\\"') + '"'
+        )
+    if start_params.get("num-gpus") is not None:
+        start_params["num-gpus"] = str(start_params["num-gpus"])
+    return start_params
 
 
 def update_nodes(
@@ -371,7 +401,7 @@ def update_nodes(
     max_cpu,
     min_memory,
     max_memory,
-    gpu,
+    worker_custom_resources: typing.Dict[str, int],
     workers,
     image,
     instascale,
@@ -379,11 +409,16 @@ def update_nodes(
     image_pull_secrets,
     head_cpus,
     head_memory,
-    head_gpus,
+    head_custom_resources: typing.Dict[str, int],
+    custom_resource_mapping: typing.Optional[typing.Dict[str, str]] = None,
 ):
     if "generictemplate" in item.keys():
         head = item.get("generictemplate").get("spec").get("headGroupSpec")
-        head["rayStartParams"]["num-gpus"] = str(int(head_gpus))
+
+        # TODO: should get custom resources too
+        head["rayStartParams"] = _get_ray_start_params_from_resources(
+            head["rayStartParams"], head_custom_resources, custom_resource_mapping
+        )
 
         worker = item.get("generictemplate").get("spec").get("workerGroupSpecs")[0]
         # Head counts as first worker
@@ -391,7 +426,11 @@ def update_nodes(
         worker["minReplicas"] = workers
         worker["maxReplicas"] = workers
         worker["groupName"] = "small-group-" + appwrapper_name
-        worker["rayStartParams"]["num-gpus"] = str(int(gpu))
+
+        # TODO: should get custom resources too
+        worker["rayStartParams"] = _get_ray_start_params_from_resources(
+            worker["rayStartParams"], worker_custom_resources, custom_resource_mapping
+        )
 
         for comp in [head, worker]:
             spec = comp.get("template").get("spec")
@@ -402,10 +441,22 @@ def update_nodes(
             if comp == head:
                 # TODO: Eventually add head node configuration outside of template
                 update_resources(
-                    spec, head_cpus, head_cpus, head_memory, head_memory, head_gpus
+                    spec,
+                    head_cpus,
+                    head_cpus,
+                    head_memory,
+                    head_memory,
+                    head_custom_resources,
                 )
             else:
-                update_resources(spec, min_cpu, max_cpu, min_memory, max_memory, gpu)
+                update_resources(
+                    spec,
+                    min_cpu,
+                    max_cpu,
+                    min_memory,
+                    max_memory,
+                    worker_custom_resources,
+                )
 
 
 def update_ca_secret(ca_secret_item, cluster_name, namespace):
@@ -645,12 +696,12 @@ def generate_appwrapper(
     namespace: str,
     head_cpus: int,
     head_memory: int,
-    head_gpus: int,
+    head_custom_resources: typing.Dict[str, int],
     min_cpu: int,
     max_cpu: int,
     min_memory: int,
     max_memory: int,
-    gpu: int,
+    worker_custom_resources: typing.Dict[str, int],
     workers: int,
     template: str,
     image: str,
@@ -665,6 +716,7 @@ def generate_appwrapper(
     openshift_oauth: bool,
     ingress_domain: str,
     ingress_options: dict,
+    custom_resource_mapping: typing.Dict[str, str],
 ):
     user_yaml = read_template(template)
     appwrapper_name, cluster_name = gen_names(name)
@@ -681,11 +733,11 @@ def generate_appwrapper(
         max_cpu,
         min_memory,
         max_memory,
-        gpu,
+        worker_custom_resources,
         workers,
         head_cpus,
         head_memory,
-        head_gpus,
+        head_custom_resources,
     )
     update_nodes(
         item,
@@ -694,7 +746,7 @@ def generate_appwrapper(
         max_cpu,
         min_memory,
         max_memory,
-        gpu,
+        worker_custom_resources,
         workers,
         image,
         instascale,
@@ -702,7 +754,8 @@ def generate_appwrapper(
         image_pull_secrets,
         head_cpus,
         head_memory,
-        head_gpus,
+        head_custom_resources,
+        custom_resource_mapping=custom_resource_mapping,
     )
     update_dashboard_exposure(
         ingress_item,

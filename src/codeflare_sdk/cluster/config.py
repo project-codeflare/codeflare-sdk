@@ -20,8 +20,17 @@ Cluster object.
 
 from dataclasses import dataclass, field
 import pathlib
+import warnings
 
 dir = pathlib.Path(__file__).parent.parent.resolve()
+
+# NOTE: this isn't an enum because the values for ray custom resources can be arbitrary strings
+DEFAULT_CUSTOM_RESOURCE_MAPPING = {
+    "nvidia.com/gpu": "GPU",
+    "gpu.intel.com/i915": "GPU",
+    "habana.ai/gaudi": "HPU",
+    "google.com/tpu": "TPU",
+}
 
 
 @dataclass
@@ -55,3 +64,32 @@ class ClusterConfiguration:
     openshift_oauth: bool = False  # NOTE: to use the user must have permission to create a RoleBinding for system:auth-delegator
     ingress_options: dict = field(default_factory=dict)
     ingress_domain: str = None
+    head_custom_resources: dict = field(default_factory=dict)
+    worker_custom_resources: dict = field(default_factory=dict)
+    custom_resource_mapping: dict = field(
+        default_factory=dict
+    )  # for custom resources not in the default mapping
+
+    def __post_init__(self):
+        if (
+            self.head_gpus
+            and self.head_custom_resources
+            or self.num_gpus
+            and self.worker_custom_resources
+        ):
+            raise ValueError(
+                "Cannot set both head_gpus and head_custom_resources or num_gpus and worker_custom_resources"
+            )
+        if self.head_gpus != 0:
+            warnings.warn(
+                "head_gpus being deprecated, use gpu_custom_resources with resource 'nvidia.com/gpu'",
+                PendingDeprecationWarning,
+            )
+            self.head_custom_resources["nvidia.com/gpu"] = self.head_gpus
+        if self.num_gpus != 0:
+            warnings.warn(
+                "num_gpus being deprecated use worker_custom_resources with resource 'nvidia.com/gpu'",
+                PendingDeprecationWarning,
+            )
+            self.worker_custom_resources["nvidia.com/gpu"] = self.num_gpus
+            pass

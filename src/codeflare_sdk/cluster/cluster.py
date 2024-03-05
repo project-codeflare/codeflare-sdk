@@ -197,12 +197,12 @@ class Cluster:
             namespace=namespace,
             head_cpus=head_cpus,
             head_memory=head_memory,
-            head_gpus=head_gpus,
+            head_custom_resources=self.config.head_custom_resources,
             min_cpu=min_cpu,
             max_cpu=max_cpu,
             min_memory=min_memory,
             max_memory=max_memory,
-            gpu=gpu,
+            worker_custom_resources=self.config.worker_custom_resources,
             workers=workers,
             template=template,
             image=image,
@@ -217,6 +217,7 @@ class Cluster:
             openshift_oauth=self.config.openshift_oauth,
             ingress_domain=ingress_domain,
             ingress_options=ingress_options,
+            custom_resource_mapping=self.config.custom_resource_mapping,
         )
 
     # creates a new cluster with the provided or default spec
