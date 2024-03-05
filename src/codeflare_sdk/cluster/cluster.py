@@ -510,10 +510,12 @@ class Cluster:
             if "orderedinstance" in rc["metadata"]["labels"]
             else []
         )
-        local_interactive = (
-            "volumeMounts"
-            in rc["spec"]["workerGroupSpecs"][0]["template"]["spec"]["containers"][0]
-        )
+        for volume in rc["spec"]["workerGroupSpecs"][0]["template"]["spec"]["volumes"]:
+            if volume["name"] == "ca-vol":
+                local_interactive = True
+                break
+            else:
+                local_interactive = False
         if local_interactive:
             ingress_domain = get_ingress_domain_from_client(
                 rc["metadata"]["name"], rc["metadata"]["namespace"]
