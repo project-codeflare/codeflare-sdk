@@ -53,6 +53,24 @@ import requests
 from kubernetes import config
 
 
+AW_STATUS_TO_READINESS = {
+    AppWrapperStatus.RUNNING: (False, CodeFlareClusterStatus.STARTING),
+    AppWrapperStatus.COMPLETED: (False, CodeFlareClusterStatus.STARTING),
+    AppWrapperStatus.RUNNING_HOLD_COMPLETION: (False, CodeFlareClusterStatus.STARTING),
+    AppWrapperStatus.FAILED: (False, CodeFlareClusterStatus.FAILED),
+    AppWrapperStatus.DELETED: (False, CodeFlareClusterStatus.FAILED),
+    AppWrapperStatus.PENDING: (False, CodeFlareClusterStatus.QUEUED),
+    AppWrapperStatus.QUEUEING: (False, CodeFlareClusterStatus.QUEUEING),
+}
+
+CLUSTER_STATUS_TO_READINESS = {
+    RayClusterStatus.UNKNOWN: (False, CodeFlareClusterStatus.STARTING),
+    RayClusterStatus.READY: (True, CodeFlareClusterStatus.READY),
+    RayClusterStatus.UNHEALTHY: (False, CodeFlareClusterStatus.FAILED),
+    RayClusterStatus.FAILED: (False, CodeFlareClusterStatus.FAILED),
+}
+
+
 class Cluster:
     """
     An object for requesting, bringing up, and taking down resources.
@@ -289,52 +307,23 @@ class Cluster:
             # check the app wrapper status
             appwrapper = _app_wrapper_status(self.config.name, self.config.namespace)
             if appwrapper:
-                if appwrapper.status in [
-                    AppWrapperStatus.RUNNING,
-                    AppWrapperStatus.COMPLETED,
-                    AppWrapperStatus.RUNNING_HOLD_COMPLETION,
-                ]:
-                    ready = False
-                    status = CodeFlareClusterStatus.STARTING
-                elif appwrapper.status in [
-                    AppWrapperStatus.FAILED,
-                    AppWrapperStatus.DELETED,
-                ]:
-                    ready = False
-                    status = CodeFlareClusterStatus.FAILED  # should deleted be separate
-                    return status, ready  # exit early, no need to check ray status
-                elif appwrapper.status in [
-                    AppWrapperStatus.PENDING,
-                    AppWrapperStatus.QUEUEING,
-                ]:
-                    ready = False
-                    if appwrapper.status == AppWrapperStatus.PENDING:
-                        status = CodeFlareClusterStatus.QUEUED
-                    else:
-                        status = CodeFlareClusterStatus.QUEUEING
-                    if print_to_console:
-                        pretty_print.print_app_wrappers_status([appwrapper])
-                    return (
-                        status,
-                        ready,
-                    )  # no need to check the ray status since still in queue
+                if print_to_console:
+                    pretty_print.print_app_wrappers_status([appwrapper])
+                ready, status = AW_STATUS_TO_READINESS.get(
+                    appwrapper.status, (ready, status)
+                )
+                if (
+                    status != CodeFlareClusterStatus.UNKNOWN
+                    and status != CodeFlareClusterStatus.STARTING
+                ):
+                    return status, ready
 
         # check the ray cluster status
         cluster = _ray_cluster_status(self.config.name, self.config.namespace)
         if cluster:
-            if cluster.status == RayClusterStatus.UNKNOWN:
-                ready = False
-                status = CodeFlareClusterStatus.STARTING
-            if cluster.status == RayClusterStatus.READY:
-                ready = True
-                status = CodeFlareClusterStatus.READY
-            elif cluster.status in [
-                RayClusterStatus.UNHEALTHY,
-                RayClusterStatus.FAILED,
-            ]:
-                ready = False
-                status = CodeFlareClusterStatus.FAILED
-
+            ready, status = CLUSTER_STATUS_TO_READINESS.get(
+                cluster.status, (ready, status)
+            )
             if print_to_console:
                 # overriding the number of gpus with requested
                 cluster.worker_gpu = self.config.num_gpus
