@@ -618,7 +618,8 @@ def test_cluster_uris(mocker):
     mocker.patch(
         "kubernetes.client.NetworkingV1Api.list_namespaced_ingress",
         return_value=ingress_retrieval(
-            port=8265, annotations={"route.openshift.io/termination": "passthrough"}
+            cluster_name="unit-test-cluster",
+            annotations={"route.openshift.io/termination": "passthrough"},
         ),
     )
     assert (
@@ -627,7 +628,7 @@ def test_cluster_uris(mocker):
     )
     mocker.patch(
         "kubernetes.client.NetworkingV1Api.list_namespaced_ingress",
-        return_value=ingress_retrieval(port=8265),
+        return_value=ingress_retrieval(),
     )
     assert cluster.cluster_uri() == "ray://unit-test-cluster-head-svc.ns.svc:10001"
     assert (
@@ -640,7 +641,7 @@ def test_cluster_uris(mocker):
     )
     assert (
         cluster.cluster_dashboard_uri()
-        == "Dashboard ingress not available yet, have you run cluster.up()?"
+        == "Dashboard not available yet, have you run cluster.up()?"
     )
 
 
@@ -675,15 +676,15 @@ def ray_addr(self, *args):
     return self._address
 
 
-def ingress_retrieval(port, annotations=None, cluster_name="unit-test-cluster"):
+def mocked_ingress(port, cluster_name="unit-test-cluster", annotations: dict = None):
     labels = {"ingress-owner": cluster_name, "ingress-options": "false"}
     if port == 10001:
-        serviceName = "client"
+        name = f"rayclient-{cluster_name}"
     else:
-        serviceName = "dashboard"
+        name = f"ray-dashboard-{cluster_name}"
     mock_ingress = client.V1Ingress(
         metadata=client.V1ObjectMeta(
-            name=f"ray-{serviceName}-{cluster_name}",
+            name=name,
             annotations=annotations,
             labels=labels,
             owner_references=[
@@ -695,7 +696,7 @@ def ingress_retrieval(port, annotations=None, cluster_name="unit-test-cluster"):
         spec=client.V1IngressSpec(
             rules=[
                 client.V1IngressRule(
-                    host=f"ray-{serviceName}-{cluster_name}-ns.apps.cluster.awsroute.org",
+                    host=f"{name}-ns.apps.cluster.awsroute.org",
                     http=client.V1HTTPIngressRuleValue(
                         paths=[
                             client.V1HTTPIngressPath(
@@ -714,7 +715,23 @@ def ingress_retrieval(port, annotations=None, cluster_name="unit-test-cluster"):
             ],
         ),
     )
-    mock_ingress_list = client.V1IngressList(items=[mock_ingress])
+    return mock_ingress
+
+
+def ingress_retrieval(
+    cluster_name="unit-test-cluster", client_ing: bool = False, annotations: dict = None
+):
+    dashboard_ingress = mocked_ingress(8265, cluster_name, annotations)
+    if client_ing:
+        client_ingress = mocked_ingress(
+            10001, cluster_name=cluster_name, annotations=annotations
+        )
+        mock_ingress_list = client.V1IngressList(
+            items=[client_ingress, dashboard_ingress]
+        )
+    else:
+        mock_ingress_list = client.V1IngressList(items=[dashboard_ingress])
+
     return mock_ingress_list
 
 
@@ -736,7 +753,7 @@ def test_ray_job_wrapping(mocker):
     )
     mocker.patch(
         "kubernetes.client.NetworkingV1Api.list_namespaced_ingress",
-        return_value=ingress_retrieval(8265),
+        return_value=ingress_retrieval(),
     )
     assert cluster.list_jobs() == cluster.cluster_dashboard_uri()
 
@@ -2057,6 +2074,108 @@ def get_aw_obj(group, version, namespace, plural):
     return api_obj1
 
 
+def route_list_retrieval(group, version, namespace, plural):
+    assert group == "route.openshift.io"
+    assert version == "v1"
+    assert namespace == "ns"
+    assert plural == "routes"
+    return {
+        "kind": "RouteList",
+        "apiVersion": "route.openshift.io/v1",
+        "metadata": {"resourceVersion": "6072398"},
+        "items": [
+            {
+                "metadata": {
+                    "name": "ray-dashboard-quicktest",
+                    "namespace": "ns",
+                },
+                "spec": {
+                    "host": "ray-dashboard-quicktest-opendatahub.apps.cluster.awsroute.org",
+                    "to": {
+                        "kind": "Service",
+                        "name": "quicktest-head-svc",
+                        "weight": 100,
+                    },
+                    "port": {"targetPort": "dashboard"},
+                    "tls": {"termination": "edge"},
+                },
+            },
+            {
+                "metadata": {
+                    "name": "rayclient-quicktest",
+                    "namespace": "ns",
+                },
+                "spec": {
+                    "host": "rayclient-quicktest-opendatahub.apps.cluster.awsroute.org",
+                    "to": {
+                        "kind": "Service",
+                        "name": "quicktest-head-svc",
+                        "weight": 100,
+                    },
+                    "port": {"targetPort": "client"},
+                    "tls": {"termination": "passthrough"},
+                },
+            },
+        ],
+    }
+
+
+def test_get_cluster_openshift(mocker):
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+    # Mock the client.ApisApi function to return a mock object
+    mock_api = MagicMock()
+    mock_api.get_api_versions.return_value.groups = [
+        MagicMock(versions=[MagicMock(group_version="route.openshift.io/v1")])
+    ]
+    mocker.patch("kubernetes.client.ApisApi", return_value=mock_api)
+
+    assert is_openshift_cluster() == True
+
+    def custom_side_effect(group, version, namespace, plural, **kwargs):
+        if plural == "routes":
+            return route_list_retrieval("route.openshift.io", "v1", "ns", "routes")
+        elif plural == "rayclusters":
+            return get_ray_obj("ray.io", "v1", "ns", "rayclusters")
+        elif plural == "appwrappers":
+            return get_aw_obj("workload.codeflare.dev", "v1beta1", "ns", "appwrappers")
+
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object", get_aw_obj
+    )
+
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
+        side_effect=custom_side_effect,
+    )
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.get_namespaced_custom_object",
+        return_value=get_named_aw,
+    )
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.get_namespaced_custom_object",
+        side_effect=route_list_retrieval("route.openshift.io", "v1", "ns", "routes")[
+            "items"
+        ],
+    )
+
+    cluster = get_cluster("quicktest")
+    cluster_config = cluster.config
+    assert cluster_config.name == "quicktest" and cluster_config.namespace == "ns"
+    assert (
+        "m4.xlarge" in cluster_config.machine_types
+        and "g4dn.xlarge" in cluster_config.machine_types
+    )
+    assert cluster_config.min_cpus == 1 and cluster_config.max_cpus == 1
+    assert cluster_config.min_memory == 2 and cluster_config.max_memory == 2
+    assert cluster_config.num_gpus == 0
+    assert cluster_config.local_interactive == True
+    assert (
+        cluster_config.image
+        == "ghcr.io/foundation-model-stack/base:ray2.1.0-py38-gpu-pytorch1.12.0cu116-20221213-193103"
+    )
+    assert cluster_config.num_workers == 1
+
+
 def test_get_cluster(mocker):
     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
@@ -2070,7 +2189,7 @@ def test_get_cluster(mocker):
     )
     mocker.patch(
         "kubernetes.client.NetworkingV1Api.list_namespaced_ingress",
-        return_value=ingress_retrieval(port=8265, cluster_name="quicktest"),
+        return_value=ingress_retrieval(cluster_name="quicktest", client_ing=True),
     )
     cluster = get_cluster("quicktest")
     cluster_config = cluster.config
@@ -2083,6 +2202,7 @@ def test_get_cluster(mocker):
     assert cluster_config.min_memory == 2 and cluster_config.max_memory == 2
     assert cluster_config.num_gpus == 0
     assert cluster_config.instascale
+    assert cluster_config.local_interactive
     assert (
         cluster_config.image
         == "ghcr.io/foundation-model-stack/base:ray2.1.0-py38-gpu-pytorch1.12.0cu116-20221213-193103"
@@ -2095,9 +2215,7 @@ def test_get_ingress_domain_from_client(mocker):
     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch(
         "kubernetes.client.NetworkingV1Api.read_namespaced_ingress",
-        return_value=ingress_retrieval(
-            port=8265, cluster_name="unit-test-cluster"
-        ).items[0],
+        return_value=ingress_retrieval(cluster_name="unit-test-cluster").items[0],
     )
 
     ingress_domain = get_ingress_domain_from_client("unit-test-cluster", "ns")
@@ -2354,7 +2472,7 @@ def test_wait_ready(mocker, capsys):
     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch(
         "kubernetes.client.NetworkingV1Api.list_namespaced_ingress",
-        return_value=ingress_retrieval(8265),
+        return_value=ingress_retrieval(),
     )
     mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
     mocker.patch("codeflare_sdk.cluster.cluster._app_wrapper_status", return_value=None)
