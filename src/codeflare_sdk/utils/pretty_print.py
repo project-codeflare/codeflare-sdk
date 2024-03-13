@@ -70,15 +70,11 @@ def print_cluster_status(cluster: RayCluster):
     )
     name = cluster.name
     dashboard = cluster.dashboard
-    # owned = bool(cluster["userOwned"])
-    owned = True
 
     #'table0' to display the cluster name, status, url, and dashboard link
     table0 = Table(box=None, show_header=False)
-    if owned:
-        table0.add_row("[white on green][bold]Name")
-    else:
-        table0.add_row("")
+
+    table0.add_row("[white on green][bold]Name")
     table0.add_row("[bold underline]" + name, status)
     table0.add_row()
     # fixme harcded to default for now
@@ -119,15 +115,11 @@ def print_clusters(clusters: List[RayCluster]):
         memory = str(cluster.worker_mem_min) + "~" + str(cluster.worker_mem_max)
         cpu = str(cluster.worker_cpu)
         gpu = str(cluster.worker_gpu)
-        # owned = bool(cluster["userOwned"])
-        owned = True
 
         #'table0' to display the cluster name, status, url, and dashboard link
         table0 = Table(box=None, show_header=False)
-        if owned:
-            table0.add_row("[white on green][bold]Name")
-        else:
-            table0.add_row("")
+
+        table0.add_row("[white on green][bold]Name")
         table0.add_row("[bold underline]" + name, status)
         table0.add_row()
         # fixme harcded to default for now

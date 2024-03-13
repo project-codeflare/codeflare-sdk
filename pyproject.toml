@@ -54,4 +54,3 @@ markers = [
     "kind",
     "openshift"
 ]
-timeout = 900
