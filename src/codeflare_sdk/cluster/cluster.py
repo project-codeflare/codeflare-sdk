@@ -600,17 +600,24 @@ def list_all_clusters(namespace: str, print_to_console: bool = True):
     return clusters
 
 
-def list_all_queued(namespace: str, print_to_console: bool = True):
+def list_all_queued(namespace: str, print_to_console: bool = True, mcad: bool = False):
     """
-    Returns (and prints by default) a list of all currently queued-up AppWrappers
+    Returns (and prints by default) a list of all currently queued-up Ray Clusters or AppWrappers
     in a given namespace.
     """
-    app_wrappers = _get_app_wrappers(
-        namespace, filter=[AppWrapperStatus.RUNNING, AppWrapperStatus.PENDING]
-    )
-    if print_to_console:
-        pretty_print.print_app_wrappers_status(app_wrappers)
-    return app_wrappers
+    if mcad:
+        resources = _get_app_wrappers(
+            namespace, filter=[AppWrapperStatus.RUNNING, AppWrapperStatus.PENDING]
+        )
+        if print_to_console:
+            pretty_print.print_app_wrappers_status(resources)
+    else:
+        resources = _get_ray_clusters(
+            namespace, filter=[RayClusterStatus.READY, RayClusterStatus.SUSPENDED]
+        )
+        if print_to_console:
+            pretty_print.print_ray_clusters_status(resources)
+    return resources
 
 
 def get_current_namespace():  # pragma: no cover
@@ -892,7 +899,9 @@ def _ray_cluster_status(name, namespace="default") -> Optional[RayCluster]:
     return None
 
 
-def _get_ray_clusters(namespace="default") -> List[RayCluster]:
+def _get_ray_clusters(
+    namespace="default", filter: Optional[List[RayClusterStatus]] = None
+) -> List[RayCluster]:
     list_of_clusters = []
     try:
         config_check()
@@ -906,8 +915,15 @@ def _get_ray_clusters(namespace="default") -> List[RayCluster]:
     except Exception as e:  # pragma: no cover
         return _kube_api_error_handling(e)
 
-    for rc in rcs["items"]:
-        list_of_clusters.append(_map_to_ray_cluster(rc))
+    # Get a list of RCs with the filter if it is passed to the function
+    if filter is not None:
+        for rc in rcs["items"]:
+            ray_cluster = _map_to_ray_cluster(rc)
+            if filter and ray_cluster.status in filter:
+                list_of_clusters.append(ray_cluster)
+    else:
+        for rc in rcs["items"]:
+            list_of_clusters.append(_map_to_ray_cluster(rc))
     return list_of_clusters
 
 
