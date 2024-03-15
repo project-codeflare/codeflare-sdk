@@ -226,7 +226,6 @@ spec:
             # the following params are used to complete the ray start: ray start --block ...
             rayStartParams:
               block: 'true'
-              num-gpus: 1
             #pod template
             template:
               metadata:
