@@ -308,6 +308,7 @@ def test_create_app_wrapper_raises_error_with_no_image():
 
 
 def test_cluster_creation_no_mcad(mocker):
+    # With written resources
     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch(
         "kubernetes.client.CustomObjectsApi.get_cluster_custom_object",
@@ -316,6 +317,7 @@ def test_cluster_creation_no_mcad(mocker):
     config = createClusterConfig()
     config.name = "unit-test-cluster-ray"
     config.mcad = False
+    config.write_to_file = True
     cluster = Cluster(config)
     assert cluster.app_wrapper_yaml == f"{aw_dir}unit-test-cluster-ray.yaml"
     assert cluster.app_wrapper_name == "unit-test-cluster-ray"
@@ -324,6 +326,37 @@ def test_cluster_creation_no_mcad(mocker):
         f"{parent}/tests/test-case-no-mcad.yamls",
         shallow=True,
     )
+    # With resources loaded in memory
+    config = ClusterConfiguration(
+        name="unit-test-cluster-ray",
+        namespace="ns",
+        num_workers=2,
+        min_cpus=3,
+        max_cpus=4,
+        min_memory=5,
+        max_memory=6,
+        num_gpus=7,
+        instascale=True,
+        machine_types=["cpu.small", "gpu.large"],
+        image_pull_secrets=["unit-test-pull-secret"],
+        ingress_domain="apps.cluster.awsroute.org",
+        image="quay.io/project-codeflare/ray:latest-py39-cu118",
+        write_to_file=False,
+        mcad=False,
+    )
+    cluster = Cluster(config)
+    test_resources = []
+    expected_resources = []
+    test_aw = yaml.load_all(cluster.app_wrapper_yaml, Loader=yaml.FullLoader)
+    for resource in test_aw:
+        test_resources.append(resource)
+    with open(
+        f"{parent}/tests/test-case-no-mcad.yamls",
+    ) as f:
+        default_aw = yaml.load_all(f, Loader=yaml.FullLoader)
+        for resource in default_aw:
+            expected_resources.append(resource)
+    assert test_resources == expected_resources
 
 
 def test_cluster_creation_priority(mocker):
@@ -362,8 +395,13 @@ def test_default_cluster_creation(mocker):
         ingress_domain="apps.cluster.awsroute.org",
     )
     cluster = Cluster(default_config)
+    test_aw = yaml.safe_load(cluster.app_wrapper_yaml)
+    with open(
+        f"{parent}/tests/test-default-appwrapper.yaml",
+    ) as f:
+        default_aw = yaml.load(f, Loader=yaml.FullLoader)
+        assert test_aw == default_aw
 
-    assert cluster.app_wrapper_yaml == f"{aw_dir}unit-test-default-cluster.yaml"
     assert cluster.app_wrapper_name == "unit-test-default-cluster"
     assert cluster.config.namespace == "opendatahub"
 
@@ -621,7 +659,10 @@ def test_local_client_url(mocker):
     )
 
     cluster_config = ClusterConfiguration(
-        name="unit-test-cluster-localinter", namespace="ns", local_interactive=True
+        name="unit-test-cluster-localinter",
+        namespace="ns",
+        local_interactive=True,
+        write_to_file=True,
     )
     cluster = Cluster(cluster_config)
     assert (
@@ -802,6 +843,7 @@ def test_ray_details(mocker, capsys):
             namespace="ns",
             image="quay.io/project-codeflare/ray:latest-py39-cu118",
             ingress_domain="apps.cluster.awsroute.org",
+            write_to_file=True,
         )
     )
     captured = capsys.readouterr()
@@ -2055,6 +2097,7 @@ def test_cluster_status(mocker):
             namespace="ns",
             image="quay.io/project-codeflare/ray:latest-py39-cu118",
             ingress_domain="apps.cluster.awsroute.org",
+            write_to_file=True,
         )
     )
     mocker.patch("codeflare_sdk.cluster.cluster._app_wrapper_status", return_value=None)
@@ -2149,6 +2192,7 @@ def test_wait_ready(mocker, capsys):
             namespace="ns",
             image="quay.io/project-codeflare/ray:latest-py39-cu118",
             ingress_domain="apps.cluster.awsroute.org",
+            write_to_file=True,
         )
     )
     try:
@@ -2924,6 +2968,7 @@ def test_gen_app_wrapper_with_oauth(mocker: MockerFixture):
             openshift_oauth=True,
             image="quay.io/project-codeflare/ray:latest-py39-cu118",
             ingress_domain="apps.cluster.awsroute.org",
+            write_to_file=True,
         )
     )
     user_yaml = write_user_appwrapper.call_args.args[0]
@@ -3094,10 +3139,8 @@ def test_rjc_list_jobs(ray_job_client, mocker):
 def test_cleanup():
     os.remove(f"{aw_dir}unit-test-cluster.yaml")
     os.remove(f"{aw_dir}prio-test-cluster.yaml")
-    os.remove(f"{aw_dir}unit-test-default-cluster.yaml")
     os.remove(f"{aw_dir}test.yaml")
     os.remove(f"{aw_dir}raytest2.yaml")
-    os.remove(f"{aw_dir}quicktest.yaml")
     os.remove("tls-cluster-namespace/ca.crt")
     os.remove("tls-cluster-namespace/tls.crt")
     os.remove("tls-cluster-namespace/tls.key")

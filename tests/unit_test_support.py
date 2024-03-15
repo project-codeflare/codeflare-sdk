@@ -48,6 +48,7 @@ def createClusterConfig():
         image_pull_secrets=["unit-test-pull-secret"],
         ingress_domain="apps.cluster.awsroute.org",
         image="quay.io/project-codeflare/ray:latest-py39-cu118",
+        write_to_file=True,
     )
     return config
 

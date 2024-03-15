@@ -70,6 +70,7 @@ class TestMNISTRayClusterSDK:
                 instascale=False,
                 image=ray_image,
                 ingress_options=ingress_options,
+                write_to_file=True,
             )
         )
 
