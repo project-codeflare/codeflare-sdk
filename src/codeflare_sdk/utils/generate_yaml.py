@@ -640,6 +640,27 @@ def write_components(user_yaml: dict, output_file_name: str):
     print(f"Written to: {output_file_name}")
 
 
+def load_components(user_yaml: dict, name: str):
+    component_list = []
+    components = user_yaml.get("spec", "resources")["resources"].get("GenericItems")
+    for component in components:
+        if "generictemplate" in component:
+            component_list.append(component["generictemplate"])
+
+    resources = "---\n" + "---\n".join(
+        [yaml.dump(component) for component in component_list]
+    )
+    user_yaml = resources
+    print(f"Yaml resources loaded for {name}")
+    return user_yaml
+
+
+def load_appwrapper(user_yaml: dict, name: str):
+    user_yaml = yaml.dump(user_yaml)
+    print(f"Yaml resources loaded for {name}")
+    return user_yaml
+
+
 def generate_appwrapper(
     name: str,
     namespace: str,
@@ -665,6 +686,7 @@ def generate_appwrapper(
     openshift_oauth: bool,
     ingress_domain: str,
     ingress_options: dict,
+    write_to_file: bool,
 ):
     user_yaml = read_template(template)
     appwrapper_name, cluster_name = gen_names(name)
@@ -724,8 +746,16 @@ def generate_appwrapper(
 
     directory_path = os.path.expanduser("~/.codeflare/appwrapper/")
     outfile = os.path.join(directory_path, appwrapper_name + ".yaml")
-    if not mcad:
-        write_components(user_yaml, outfile)
+
+    if write_to_file:
+        if mcad:
+            write_user_appwrapper(user_yaml, outfile)
+        else:
+            write_components(user_yaml, outfile)
+        return outfile
     else:
-        write_user_appwrapper(user_yaml, outfile)
-    return outfile
+        if mcad:
+            user_yaml = load_appwrapper(user_yaml, name)
+        else:
+            user_yaml = load_components(user_yaml, name)
+        return user_yaml

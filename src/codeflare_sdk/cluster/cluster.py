@@ -73,9 +73,7 @@ class Cluster:
         self.config = config
         self.app_wrapper_yaml = self.create_app_wrapper()
         self._job_submission_client = None
-        self.app_wrapper_name = self.app_wrapper_yaml.replace(".yaml", "").split("/")[
-            -1
-        ]
+        self.app_wrapper_name = self.config.name
 
     @property
     def _client_headers(self):
@@ -192,6 +190,7 @@ class Cluster:
         dispatch_priority = self.config.dispatch_priority
         ingress_domain = self.config.ingress_domain
         ingress_options = self.config.ingress_options
+        write_to_file = self.config.write_to_file
         return generate_appwrapper(
             name=name,
             namespace=namespace,
@@ -217,6 +216,7 @@ class Cluster:
             openshift_oauth=self.config.openshift_oauth,
             ingress_domain=ingress_domain,
             ingress_options=ingress_options,
+            write_to_file=write_to_file,
         )
 
     # creates a new cluster with the provided or default spec
@@ -235,15 +235,25 @@ class Cluster:
             config_check()
             api_instance = client.CustomObjectsApi(api_config_handler())
             if self.config.mcad:
-                with open(self.app_wrapper_yaml) as f:
-                    aw = yaml.load(f, Loader=yaml.FullLoader)
-                api_instance.create_namespaced_custom_object(
-                    group="workload.codeflare.dev",
-                    version="v1beta1",
-                    namespace=namespace,
-                    plural="appwrappers",
-                    body=aw,
-                )
+                if self.config.write_to_file:
+                    with open(self.app_wrapper_yaml) as f:
+                        aw = yaml.load(f, Loader=yaml.FullLoader)
+                        api_instance.create_namespaced_custom_object(
+                            group="workload.codeflare.dev",
+                            version="v1beta1",
+                            namespace=namespace,
+                            plural="appwrappers",
+                            body=aw,
+                        )
+                else:
+                    aw = yaml.safe_load(self.app_wrapper_yaml)
+                    api_instance.create_namespaced_custom_object(
+                        group="workload.codeflare.dev",
+                        version="v1beta1",
+                        namespace=namespace,
+                        plural="appwrappers",
+                        body=aw,
+                    )
             else:
                 self._component_resources_up(namespace, api_instance)
         except Exception as e:  # pragma: no cover
@@ -492,7 +502,9 @@ class Cluster:
             to_return["requirements"] = requirements
         return to_return
 
-    def from_k8_cluster_object(rc, mcad=True, ingress_domain=None, ingress_options={}):
+    def from_k8_cluster_object(
+        rc, mcad=True, ingress_domain=None, ingress_options={}, write_to_file=False
+    ):
         machine_types = (
             rc["metadata"]["labels"]["orderedinstance"].split("_")
             if "orderedinstance" in rc["metadata"]["labels"]
@@ -538,6 +550,7 @@ class Cluster:
             mcad=mcad,
             ingress_domain=ingress_domain,
             ingress_options=ingress_options,
+            write_to_file=write_to_file,
         )
         return Cluster(cluster_config)
 
@@ -551,79 +564,25 @@ class Cluster:
     def _component_resources_up(
         self, namespace: str, api_instance: client.CustomObjectsApi
     ):
-        with open(self.app_wrapper_yaml) as f:
-            yamls = yaml.load_all(f, Loader=yaml.FullLoader)
-            for resource in yamls:
-                if resource["kind"] == "RayCluster":
-                    api_instance.create_namespaced_custom_object(
-                        group="ray.io",
-                        version="v1",
-                        namespace=namespace,
-                        plural="rayclusters",
-                        body=resource,
-                    )
-                elif resource["kind"] == "Ingress":
-                    api_instance.create_namespaced_custom_object(
-                        group="networking.k8s.io",
-                        version="v1",
-                        namespace=namespace,
-                        plural="ingresses",
-                        body=resource,
-                    )
-                elif resource["kind"] == "Route":
-                    api_instance.create_namespaced_custom_object(
-                        group="route.openshift.io",
-                        version="v1",
-                        namespace=namespace,
-                        plural="routes",
-                        body=resource,
-                    )
-                elif resource["kind"] == "Secret":
-                    secret_instance = client.CoreV1Api(api_config_handler())
-                    secret_instance.create_namespaced_secret(
-                        namespace=namespace,
-                        body=resource,
-                    )
+        if self.config.write_to_file:
+            with open(self.app_wrapper_yaml) as f:
+                yamls = yaml.load_all(f, Loader=yaml.FullLoader)
+                _create_resources(yamls, namespace, api_instance)
+        else:
+            yamls = yaml.load_all(self.app_wrapper_yaml, Loader=yaml.FullLoader)
+            _create_resources(yamls, namespace, api_instance)
 
     def _component_resources_down(
         self, namespace: str, api_instance: client.CustomObjectsApi
     ):
-        with open(self.app_wrapper_yaml) as f:
-            yamls = yaml.load_all(f, Loader=yaml.FullLoader)
-            for resource in yamls:
-                if resource["kind"] == "RayCluster":
-                    api_instance.delete_namespaced_custom_object(
-                        group="ray.io",
-                        version="v1",
-                        namespace=namespace,
-                        plural="rayclusters",
-                        name=self.app_wrapper_name,
-                    )
-                elif resource["kind"] == "Ingress":
-                    name = resource["metadata"]["name"]
-                    api_instance.delete_namespaced_custom_object(
-                        group="networking.k8s.io",
-                        version="v1",
-                        namespace=namespace,
-                        plural="ingresses",
-                        name=name,
-                    )
-                elif resource["kind"] == "Route":
-                    name = resource["metadata"]["name"]
-                    api_instance.delete_namespaced_custom_object(
-                        group="route.openshift.io",
-                        version="v1",
-                        namespace=namespace,
-                        plural="routes",
-                        name=name,
-                    )
-                elif resource["kind"] == "Secret":
-                    name = resource["metadata"]["name"]
-                    secret_instance = client.CoreV1Api(api_config_handler())
-                    secret_instance.delete_namespaced_secret(
-                        namespace=namespace,
-                        name=name,
-                    )
+        cluster_name = self.config.name
+        if self.config.write_to_file:
+            with open(self.app_wrapper_yaml) as f:
+                yamls = yaml.load_all(f, Loader=yaml.FullLoader)
+                _delete_resources(yamls, namespace, api_instance, cluster_name)
+        else:
+            yamls = yaml.safe_load_all(self.app_wrapper_yaml)
+            _delete_resources(yamls, namespace, api_instance, cluster_name)
 
 
 def list_all_clusters(namespace: str, print_to_console: bool = True):
@@ -675,7 +634,9 @@ def get_current_namespace():  # pragma: no cover
             return None
 
 
-def get_cluster(cluster_name: str, namespace: str = "default"):
+def get_cluster(
+    cluster_name: str, namespace: str = "default", write_to_file: bool = False
+):
     try:
         config_check()
         api_instance = client.CustomObjectsApi(api_config_handler())
@@ -746,6 +707,7 @@ def get_cluster(cluster_name: str, namespace: str = "default"):
                 mcad=mcad,
                 ingress_domain=ingress_domain,
                 ingress_options=ingress_options,
+                write_to_file=write_to_file,
             )
     raise FileNotFoundError(
         f"Cluster {cluster_name} is not found in {namespace} namespace"
@@ -753,6 +715,80 @@ def get_cluster(cluster_name: str, namespace: str = "default"):
 
 
 # private methods
+def _delete_resources(
+    yamls, namespace: str, api_instance: client.CustomObjectsApi, cluster_name: str
+):
+    for resource in yamls:
+        if resource["kind"] == "RayCluster":
+            name = resource["metadata"]["name"]
+            api_instance.delete_namespaced_custom_object(
+                group="ray.io",
+                version="v1",
+                namespace=namespace,
+                plural="rayclusters",
+                name=name,
+            )
+        elif resource["kind"] == "Ingress":
+            name = resource["metadata"]["name"]
+            api_instance.delete_namespaced_custom_object(
+                group="networking.k8s.io",
+                version="v1",
+                namespace=namespace,
+                plural="ingresses",
+                name=name,
+            )
+        elif resource["kind"] == "Route":
+            name = resource["metadata"]["name"]
+            api_instance.delete_namespaced_custom_object(
+                group="route.openshift.io",
+                version="v1",
+                namespace=namespace,
+                plural="routes",
+                name=name,
+            )
+        elif resource["kind"] == "Secret":
+            name = resource["metadata"]["name"]
+            secret_instance = client.CoreV1Api(api_config_handler())
+            secret_instance.delete_namespaced_secret(
+                namespace=namespace,
+                name=name,
+            )
+
+
+def _create_resources(yamls, namespace: str, api_instance: client.CustomObjectsApi):
+    for resource in yamls:
+        if resource["kind"] == "RayCluster":
+            api_instance.create_namespaced_custom_object(
+                group="ray.io",
+                version="v1",
+                namespace=namespace,
+                plural="rayclusters",
+                body=resource,
+            )
+        elif resource["kind"] == "Ingress":
+            api_instance.create_namespaced_custom_object(
+                group="networking.k8s.io",
+                version="v1",
+                namespace=namespace,
+                plural="ingresses",
+                body=resource,
+            )
+        elif resource["kind"] == "Route":
+            api_instance.create_namespaced_custom_object(
+                group="route.openshift.io",
+                version="v1",
+                namespace=namespace,
+                plural="routes",
+                body=resource,
+            )
+        elif resource["kind"] == "Secret":
+            secret_instance = client.CoreV1Api(api_config_handler())
+            secret_instance.create_namespaced_secret(
+                namespace=namespace,
+                body=resource,
+            )
+
+
 def _check_aw_exists(name: str, namespace: str) -> bool:
     try:
         config_check()
