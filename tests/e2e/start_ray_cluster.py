@@ -35,7 +35,6 @@ cluster = Cluster(
         min_memory=1,
         max_memory=2,
         num_gpus=0,
-        instascale=False,
         image=ray_image,
         ingress_options=ingress_options,
     )

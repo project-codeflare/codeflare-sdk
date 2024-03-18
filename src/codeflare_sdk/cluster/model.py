@@ -36,16 +36,16 @@ class RayClusterStatus(Enum):
 
 class AppWrapperStatus(Enum):
     """
-    Defines the possible reportable states of an AppWrapper.
+    Defines the possible reportable phases of an AppWrapper.
     """
 
-    QUEUEING = "queueing"
-    PENDING = "pending"
+    SUSPENDED = "suspended"
+    RESUMING = "resuming"
     RUNNING = "running"
+    SUSPENDING = "suspending"
+    SUCCEEDED = "succeeded"
     FAILED = "failed"
-    DELETED = "deleted"
-    COMPLETED = "completed"
-    RUNNING_HOLD_COMPLETION = "runningholdcompletion"
+    TERMINATING = "terminating"
 
 
 class CodeFlareClusterStatus(Enum):
@@ -89,5 +89,3 @@ class AppWrapper:
 
     name: str
     status: AppWrapperStatus
-    can_run: bool
-    job_state: str

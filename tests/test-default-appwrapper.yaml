@@ -1,31 +1,16 @@
-apiVersion: workload.codeflare.dev/v1beta1
+apiVersion: workload.codeflare.dev/v1beta2
 kind: AppWrapper
 metadata:
   name: unit-test-default-cluster
   namespace: opendatahub
 spec:
-  resources:
-    GenericItems:
-    - custompodresources:
-      - limits:
-          cpu: 2
-          memory: 8G
-          nvidia.com/gpu: 0
+  components:
+  - podSets:
+    - path: template.spec.headGroupSpec.template
         replicas: 1
-        requests:
-          cpu: 2
-          memory: 8G
-          nvidia.com/gpu: 0
-      - limits:
-          cpu: 1
-          memory: 2G
-          nvidia.com/gpu: 0
+    - path: template.spec.workerGroupSpecs[0].template
         replicas: 1
-        requests:
-          cpu: 1
-          memory: 2G
-          nvidia.com/gpu: 0
-      generictemplate:
+    template:
         apiVersion: ray.io/v1
         kind: RayCluster
         metadata:
@@ -34,7 +19,6 @@ spec:
             sdk.codeflare.dev/local_interactive: 'False'
           labels:
             controller-tools.k8s.io: '1.0'
-            workload.codeflare.dev/appwrapper: unit-test-default-cluster
           name: unit-test-default-cluster
           namespace: opendatahub
         spec:
@@ -204,8 +188,7 @@ spec:
                     name: odh-trusted-ca-bundle
                     optional: true
                   name: odh-ca-cert
-      replicas: 1
-    - generictemplate:
+  - template:
         apiVersion: networking.k8s.io/v1
         kind: Ingress
         metadata:
@@ -227,5 +210,3 @@ spec:
                       number: 8265
                 path: /
                 pathType: Prefix
-      replicas: 1
-    Items: []

@@ -67,7 +67,6 @@ class TestMNISTRayClusterSDK:
                 min_memory=1,
                 max_memory=2,
                 num_gpus=0,
-                instascale=False,
                 image=ray_image,
                 ingress_options=ingress_options,
                 write_to_file=True,
@@ -119,7 +118,7 @@ class TestMNISTRayClusterSDK:
         try:
             self.custom_api.get_namespaced_custom_object(
                 "workload.codeflare.dev",
-                "v1beta1",
+                "v1beta2",
                 self.namespace,
                 "appwrappers",
                 "mnist",

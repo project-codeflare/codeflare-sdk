@@ -1,33 +1,16 @@
-apiVersion: workload.codeflare.dev/v1beta1
+apiVersion: workload.codeflare.dev/v1beta2
 kind: AppWrapper
 metadata:
-  labels:
-    orderedinstance: cpu.small_gpu.large
   name: unit-test-cluster
   namespace: ns
 spec:
-  resources:
-    GenericItems:
-    - custompodresources:
-      - limits:
-          cpu: 2
-          memory: 8G
-          nvidia.com/gpu: 0
+  components:
+  - podSets:
+    - path: template.spec.headGroupSpec.template
         replicas: 1
-        requests:
-          cpu: 2
-          memory: 8G
-          nvidia.com/gpu: 0
-      - limits:
-          cpu: 4
-          memory: 6G
-          nvidia.com/gpu: 7
+    - path: template.spec.workerGroupSpecs[0].template
         replicas: 2
-        requests:
-          cpu: 3
-          memory: 5G
-          nvidia.com/gpu: 7
-      generictemplate:
+    template:
         apiVersion: ray.io/v1
         kind: RayCluster
         metadata:
@@ -36,7 +19,6 @@ spec:
             sdk.codeflare.dev/local_interactive: 'False'
           labels:
             controller-tools.k8s.io: '1.0'
-            workload.codeflare.dev/appwrapper: unit-test-cluster
           name: unit-test-cluster
           namespace: ns
         spec:
@@ -60,15 +42,6 @@ spec:
             serviceType: ClusterIP
             template:
               spec:
-                affinity:
-                  nodeAffinity:
-                    requiredDuringSchedulingIgnoredDuringExecution:
-                      nodeSelectorTerms:
-                      - matchExpressions:
-                        - key: unit-test-cluster
-                          operator: In
-                          values:
-                          - unit-test-cluster
                 containers:
                 - env:
                   - name: MY_POD_IP
@@ -155,15 +128,6 @@ spec:
                 labels:
                   key: value
               spec:
-                affinity:
-                  nodeAffinity:
-                    requiredDuringSchedulingIgnoredDuringExecution:
-                      nodeSelectorTerms:
-                      - matchExpressions:
-                        - key: unit-test-cluster
-                          operator: In
-                          values:
-                          - unit-test-cluster
                 containers:
                 - env:
                   - name: MY_POD_IP
@@ -226,8 +190,7 @@ spec:
                     name: odh-trusted-ca-bundle
                     optional: true
                   name: odh-ca-cert
-      replicas: 1
-    - generictemplate:
+  - template:
         apiVersion: networking.k8s.io/v1
         kind: Ingress
         metadata:
@@ -249,5 +212,3 @@ spec:
                       number: 8265
                 path: /
                 pathType: Prefix
-      replicas: 1
-    Items: []

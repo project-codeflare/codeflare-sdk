@@ -1,38 +1,16 @@
-apiVersion: workload.codeflare.dev/v1beta1
+apiVersion: workload.codeflare.dev/v1beta2
 kind: AppWrapper
 metadata:
   name: aw-kuberay
   namespace: default
-  #new addition
-  labels:
-    orderedinstance: "m4.xlarge_g4dn.xlarge"
 spec:
-  priority: 9
-  resources:
-    Items: []
-    GenericItems:
+  components:
+  - podSets:
     - replicas: 1
-      #new addition
-      custompodresources:
-      - replicas: 1
-        requests:
-          cpu: 2
-          memory: 8G
-          nvidia.com/gpu: 0
-        limits:
-          cpu: 2
-          memory: 8G
-          nvidia.com/gpu: 0
+      path: template.spec.headGroupSpec.template
       - replicas: 3
-        requests:
-          cpu: 2
-          memory: 12G
-          nvidia.com/gpu: 1
-        limits:
-          cpu: 2
-          memory: 12G
-          nvidia.com/gpu: 1
-      generictemplate:
+      path: template.spec.workerGroupSpecs[0].template
+    template:
         # This config demonstrates KubeRay's Ray autoscaler integration.
         # The resource requests and limits in this config are too small for production!
         # For an example with more realistic resource configuration, see
@@ -43,7 +21,6 @@ spec:
           annotations:
             sdk.codeflare.dev/local_interactive: "False"
           labels:
-            workload.codeflare.dev/appwrapper: "aw-kuberay"
             controller-tools.k8s.io: "1.0"
             # A unique identifier for the head node and workers of this cluster.
           name: kuberay-cluster
@@ -104,16 +81,6 @@ spec:
             #pod template
             template:
               spec:
-                #new addition
-                affinity:
-                  nodeAffinity:
-                    requiredDuringSchedulingIgnoredDuringExecution:
-                      nodeSelectorTerms:
-                      - matchExpressions:
-                        - key: aw-kuberay
-                          operator: In
-                          values:
-                          - "aw-kuberay"
                 containers:
                 # The Ray head pod
                 - env:
@@ -240,15 +207,6 @@ spec:
                 # finalizers:
                 # - kubernetes
               spec:
-                affinity:
-                  nodeAffinity:
-                    requiredDuringSchedulingIgnoredDuringExecution:
-                      nodeSelectorTerms:
-                      - matchExpressions:
-                        - key: aw-kuberay
-                          operator: In
-                          values:
-                          - "aw-kuberay"
                 initContainers:
                 # the env var $RAY_IP is set by the operator if missing, with the value of the head service name
                 - name: create-cert
@@ -338,8 +296,7 @@ spec:
                     - key: odh-ca-bundle.crt
                       path: odh-ca-bundle.crt
                     optional: true
-    - replicas: 1
-      generictemplate:
+  - template:
         apiVersion: networking.k8s.io/v1
         kind: Ingress
         metadata:
@@ -363,8 +320,7 @@ spec:
                     pathType: Prefix
                     path: /
               host: ray-dashboard-raytest.<ingress-domain>
-    - replicas: 1
-      generictemplate:
+  - template:
         kind: Route
         apiVersion: route.openshift.io/v1
         metadata:
@@ -381,8 +337,7 @@ spec:
             targetPort: dashboard
           tls:
             termination: edge
-    - replicas: 1
-      generictemplate:
+  - template:
         apiVersion: networking.k8s.io/v1
         kind: Ingress
         metadata:
@@ -405,8 +360,7 @@ spec:
                   path: ''
                   pathType: ImplementationSpecific
               host: rayclient-raytest.<ingress-domain>
-    - replicas: 1
-      generictemplate:
+  - template:
         apiVersion: route.openshift.io/v1
         kind: Route
         metadata:
@@ -423,8 +377,7 @@ spec:
           to:
             kind: Service
             name: deployment-name-head-svc
-    - replicas: 1
-      generictemplate:
+  - template:
         apiVersion: v1
         data:
           ca.crt: generated_crt

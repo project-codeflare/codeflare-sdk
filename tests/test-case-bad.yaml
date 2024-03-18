@@ -1,4 +1,4 @@
-apiVersion: workload.codeflare.dev/v1beta1
+apiVersion: workload.codeflare.dev/v1beta2
 kind: AppsWrapper
 metadata:
   labels:
@@ -6,29 +6,13 @@ metadata:
   nam: unit-test-cluster
   namspace: ns
 spec:
-  priority: 9
-  resources:
-    GenericItems:
-    - custompodresources:
-      - limits:
-          cpu: 2
-          memory: 8G
-          nvidia.com/gpu: 0
-        replicas: 1
-        requests:
-          cpu: 2
-          memory: 8G
-          nvidia.com/gpu: 0
-      - limits:
-          cpu: 4
-          memory: 6G
-          nvidia.com/gpu: 7
-        replicas: 2
-        requests:
-          cpu: 3
-          memory: 5G
-          nvidia.com/gpu: 7
-      generictemplate:
+  components:
+  - podSets:
+    - replicas: 1
+      path: template.spec.headGroupSpec.template
+    - replicas: 2
+      path: template.spec.workerGroupSpecs[0].template
+    template:
         apiVersion: ray.io/v1
         kind: RayCluster
         metadata:
@@ -150,8 +134,7 @@ spec:
                       cpu: 3
                       memory: 5G
                       nvidia.com/gpu: 7
-      replicas: 1
-    - generictemplate:
+  - template:
         apiVersion: route.openshift.io/v1
         kind: Route
         metadata:
@@ -165,5 +148,3 @@ spec:
           to:
             kind: Service
             name: unit-test-cluster-head-svc
-      replicas: 1
-    Items: []

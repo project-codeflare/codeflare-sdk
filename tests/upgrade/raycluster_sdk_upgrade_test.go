@@ -21,8 +21,8 @@ import (
 	"testing"
 
 	. "github.com/onsi/gomega"
+	mcadv1beta2 "github.com/project-codeflare/appwrapper/api/v1beta2"
 	. "github.com/project-codeflare/codeflare-common/support"
-	mcadv1beta1 "github.com/project-codeflare/multi-cluster-app-dispatcher/pkg/apis/controller/v1beta1"
 	rayv1 "github.com/ray-project/kuberay/ray-operator/apis/ray/v1"
 
 	batchv1 "k8s.io/api/batch/v1"
@@ -67,7 +67,7 @@ func TestMNISTRayClusterUp(t *testing.T) {
 	policyRules := []rbacv1.PolicyRule{
 		{
 			Verbs:     []string{"get", "create", "delete", "list", "patch", "update"},
-			APIGroups: []string{mcadv1beta1.GroupName},
+			APIGroups: []string{mcadv1beta2.GroupVersion.Group},
 			Resources: []string{"appwrappers"},
 		},
 		{
@@ -244,7 +244,7 @@ func TestMnistJobSubmit(t *testing.T) {
 	policyRules := []rbacv1.PolicyRule{
 		{
 			Verbs:     []string{"get", "create", "delete", "list", "patch", "update"},
-			APIGroups: []string{mcadv1beta1.GroupName},
+			APIGroups: []string{mcadv1beta2.GroupVersion.Group},
 			Resources: []string{"appwrappers"},
 		},
 		{

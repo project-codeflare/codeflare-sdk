@@ -273,10 +273,7 @@ def test_config_creation():
     assert config.num_gpus == 7
     assert config.image == "quay.io/project-codeflare/ray:latest-py39-cu118"
     assert config.template == f"{parent}/src/codeflare_sdk/templates/base-template.yaml"
-    assert config.instascale
-    assert config.machine_types == ["cpu.small", "gpu.large"]
     assert config.image_pull_secrets == ["unit-test-pull-secret"]
-    assert config.dispatch_priority == None
     assert config.mcad == True
     assert config.local_interactive == False
 
@@ -335,8 +332,6 @@ def test_cluster_creation_no_mcad(mocker):
         min_memory=5,
         max_memory=6,
         num_gpus=7,
-        instascale=True,
-        machine_types=["cpu.small", "gpu.large"],
         image_pull_secrets=["unit-test-pull-secret"],
         ingress_domain="apps.cluster.awsroute.org",
         image="quay.io/project-codeflare/ray:latest-py39-cu118",
@@ -356,30 +351,6 @@ def test_cluster_creation_no_mcad(mocker):
         for resource in default_aw:
             expected_resources.append(resource)
     assert test_resources == expected_resources
-
-
-def test_cluster_creation_priority(mocker):
-    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
-    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
-    mocker.patch(
-        "kubernetes.client.CustomObjectsApi.list_cluster_custom_object",
-        return_value={"items": [{"metadata": {"name": "default"}, "value": 10}]},
-    )
-    config = createClusterConfig()
-    config.name = "prio-test-cluster"
-    config.dispatch_priority = "default"
-    mocker.patch(
-        "kubernetes.client.CustomObjectsApi.get_cluster_custom_object",
-        return_value={"spec": {"domain": "apps.cluster.awsroute.org"}},
-    )
-    cluster = Cluster(config)
-    assert cluster.app_wrapper_yaml == f"{aw_dir}prio-test-cluster.yaml"
-    assert cluster.app_wrapper_name == "prio-test-cluster"
-    assert filecmp.cmp(
-        f"{aw_dir}prio-test-cluster.yaml",
-        f"{parent}/tests/test-case-prio.yaml",
-        shallow=True,
-    )
 
 
 def test_default_cluster_creation(mocker):
@@ -429,7 +400,7 @@ def arg_check_apply_effect(group, version, namespace, plural, body, *args):
     assert args == tuple()
     if plural == "appwrappers":
         assert group == "workload.codeflare.dev"
-        assert version == "v1beta1"
+        assert version == "v1beta2"
         with open(f"{aw_dir}unit-test-cluster.yaml") as f:
             aw = yaml.load(f, Loader=yaml.FullLoader)
         assert body == aw
@@ -466,7 +437,7 @@ def arg_check_del_effect(group, version, namespace, plural, name, *args):
     assert args == tuple()
     if plural == "appwrappers":
         assert group == "workload.codeflare.dev"
-        assert version == "v1beta1"
+        assert version == "v1beta2"
         assert name == "unit-test-cluster"
     elif plural == "rayclusters":
         assert group == "ray.io"
@@ -552,7 +523,7 @@ def test_get_ingress_domain(mocker):
 
 def aw_status_fields(group, version, namespace, plural, *args):
     assert group == "workload.codeflare.dev"
-    assert version == "v1beta1"
+    assert version == "v1beta2"
     assert namespace == "test-ns"
     assert plural == "appwrappers"
     assert args == tuple()
@@ -798,15 +769,11 @@ def test_print_no_cluster(capsys):
 def test_print_appwrappers(capsys):
     aw1 = AppWrapper(
         name="awtest1",
-        status=AppWrapperStatus.PENDING,
-        can_run=False,
-        job_state="queue-state",
+        status=AppWrapperStatus.SUSPENDED,
     )
     aw2 = AppWrapper(
         name="awtest2",
         status=AppWrapperStatus.RUNNING,
-        can_run=False,
-        job_state="queue-state",
     )
     try:
         print_app_wrappers_status([aw1, aw2])
@@ -814,18 +781,18 @@ def test_print_appwrappers(capsys):
         assert 1 == 0
     captured = capsys.readouterr()
     assert captured.out == (
-        "╭───────────────────────╮\n"
+        "╭─────────────────────────╮\n"
         "│    🚀 Cluster Queue   │\n"
         "│       Status 🚀       │\n"
-        "│ +---------+---------+ │\n"
+        "│ +---------+-----------+ │\n"
         "│ | Name    | Status  | │\n"
-        "│ +=========+=========+ │\n"
-        "│ | awtest1 | pending | │\n"
+        "│ +=========+===========+ │\n"
+        "│ | awtest1 | suspended | │\n"
         "│ |         |         | │\n"
         "│ | awtest2 | running | │\n"
         "│ |         |         | │\n"
-        "│ +---------+---------+ │\n"
-        "╰───────────────────────╯\n"
+        "│ +---------+-----------+ │\n"
+        "╰─────────────────────────╯\n"
     )
 
 
@@ -1092,7 +1059,7 @@ def get_ray_obj(group, version, namespace, plural, cls=None):
                     "namespace": "ns",
                     "ownerReferences": [
                         {
-                            "apiVersion": "workload.codeflare.dev/v1beta1",
+                            "apiVersion": "workload.codeflare.dev/v1beta2",
                             "blockOwnerDeletion": True,
                             "controller": True,
                             "kind": "AppWrapper",
@@ -1425,7 +1392,7 @@ def get_ray_obj(group, version, namespace, plural, cls=None):
 
 
 def get_named_aw(group, version, namespace, plural, name):
-    aws = get_aw_obj("workload.codeflare.dev", "v1beta1", "ns", "appwrappers")
+    aws = get_aw_obj("workload.codeflare.dev", "v1beta2", "ns", "appwrappers")
     return aws["items"][0]
 
 
@@ -1433,37 +1400,27 @@ def get_aw_obj(group, version, namespace, plural):
     api_obj1 = {
         "items": [
             {
-                "apiVersion": "workload.codeflare.dev/v1beta1",
+                "apiVersion": "workload.codeflare.dev/v1beta2",
                 "kind": "AppWrapper",
                 "metadata": {
                     "annotations": {
-                        "kubectl.kubernetes.io/last-applied-configuration": '{"apiVersion":"codeflare.dev/v1beta1","kind":"AppWrapper","metadata":{"annotations":{},"name":"quicktest1","namespace":"ns"},"spec":{"priority":9,"resources":{"GenericItems":[{"custompodresources":[{"limits":{"cpu":2,"memory":"8G","nvidia.com/gpu":0},"replicas":1,"requests":{"cpu":2,"memory":"8G","nvidia.com/gpu":0}},{"limits":{"cpu":1,"memory":"2G","nvidia.com/gpu":0},"replicas":1,"requests":{"cpu":1,"memory":"2G","nvidia.com/gpu":0}}],"generictemplate":{"apiVersion":"ray.io/v1","kind":"RayCluster","metadata":{"labels":{"appwrapper.codeflare.dev":"quicktest1","controller-tools.k8s.io":"1.0"},"name":"quicktest1","namespace":"ns"},"spec":{"autoscalerOptions":{"idleTimeoutSeconds":60,"imagePullPolicy":"Always","resources":{"limits":{"cpu":"500m","memory":"512Mi"},"requests":{"cpu":"500m","memory":"512Mi"}},"upscalingMode":"Default"},"enableInTreeAutoscaling":false,"headGroupSpec":{"rayStartParams":{"block":"true","dashboard-host":"0.0.0.0","num-gpus":"0"},"serviceType":"ClusterIP","template":{"spec":{"containers":[{"image":"ghcr.io/foundation-model-stack/base:ray2.1.0-py38-gpu-pytorch1.12.0cu116-20221213-193103","imagePullPolicy":"Always","lifecycle":{"preStop":{"exec":{"command":["/bin/sh","-c","ray stop"]}}},"name":"ray-head","ports":[{"containerPort":6379,"name":"gcs"},{"containerPort":8265,"name":"dashboard"},{"containerPort":10001,"name":"client"}],"resources":{"limits":{"cpu":2,"memory":"8G","nvidia.com/gpu":0},"requests":{"cpu":2,"memory":"8G","nvidia.com/gpu":0}}}]}}},"rayVersion":"1.12.0","workerGroupSpecs":[{"groupName":"small-group-quicktest","maxReplicas":1,"minReplicas":1,"rayStartParams":{"block":"true","num-gpus":"0"},"replicas":1,"template":{"metadata":{"annotations":{"key":"value"},"labels":{"key":"value"}},"spec":{"containers":[{"env":[{"name":"MY_POD_IP","valueFrom":{"fieldRef":{"fieldPath":"status.podIP"}}}],"image":"ghcr.io/foundation-model-stack/base:ray2.1.0-py38-gpu-pytorch1.12.0cu116-20221213-193103","lifecycle":{"preStop":{"exec":{"command":["/bin/sh","-c","ray stop"]}}},"name":"machine-learning","resources":{"limits":{"cpu":1,"memory":"2G","nvidia.com/gpu":0},"requests":{"cpu":1,"memory":"2G","nvidia.com/gpu":0}}}],}}}]}},"replicas":1},{"generictemplate":{"apiVersion":"route.openshift.io/v1","kind":"Route","metadata":{"labels":{"odh-ray-cluster-service":"quicktest-head-svc"},"name":"ray-dashboard-quicktest","namespace":"default"},"spec":{"port":{"targetPort":"dashboard"},"to":{"kind":"Service","name":"quicktest-head-svc"}}},"replica":1}],"Items":[]}}}\n'
+                        "kubectl.kubernetes.io/last-applied-configuration": '{"apiVersion":"codeflare.dev/v1beta2","kind":"AppWrapper","metadata":{"annotations":{},"name":"quicktest1","namespace":"ns"},"spec":{"components":["template":{"apiVersion":"ray.io/v1","kind":"RayCluster","metadata":{"labels":{"appwrapper.codeflare.dev":"quicktest1","controller-tools.k8s.io":"1.0"},"name":"quicktest1","namespace":"ns"},"spec":{"autoscalerOptions":{"idleTimeoutSeconds":60,"imagePullPolicy":"Always","resources":{"limits":{"cpu":"500m","memory":"512Mi"},"requests":{"cpu":"500m","memory":"512Mi"}},"upscalingMode":"Default"},"enableInTreeAutoscaling":false,"headGroupSpec":{"rayStartParams":{"block":"true","dashboard-host":"0.0.0.0","num-gpus":"0"},"serviceType":"ClusterIP","template":{"spec":{"containers":[{"image":"ghcr.io/foundation-model-stack/base:ray2.1.0-py38-gpu-pytorch1.12.0cu116-20221213-193103","imagePullPolicy":"Always","lifecycle":{"preStop":{"exec":{"command":["/bin/sh","-c","ray stop"]}}},"name":"ray-head","ports":[{"containerPort":6379,"name":"gcs"},{"containerPort":8265,"name":"dashboard"},{"containerPort":10001,"name":"client"}],"resources":{"limits":{"cpu":2,"memory":"8G","nvidia.com/gpu":0},"requests":{"cpu":2,"memory":"8G","nvidia.com/gpu":0}}}]}}},"rayVersion":"1.12.0","workerGroupSpecs":[{"groupName":"small-group-quicktest","maxReplicas":1,"minReplicas":1,"rayStartParams":{"block":"true","num-gpus":"0"},"replicas":1,"template":{"metadata":{"annotations":{"key":"value"},"labels":{"key":"value"}},"spec":{"containers":[{"env":[{"name":"MY_POD_IP","valueFrom":{"fieldRef":{"fieldPath":"status.podIP"}}}],"image":"ghcr.io/foundation-model-stack/base:ray2.1.0-py38-gpu-pytorch1.12.0cu116-20221213-193103","lifecycle":{"preStop":{"exec":{"command":["/bin/sh","-c","ray stop"]}}},"name":"machine-learning","resources":{"limits":{"cpu":1,"memory":"2G","nvidia.com/gpu":0},"requests":{"cpu":1,"memory":"2G","nvidia.com/gpu":0}}}],}}}]}},"replicas":1},{"template":{"apiVersion":"route.openshift.io/v1","kind":"Route","metadata":{"labels":{"odh-ray-cluster-service":"quicktest-head-svc"},"name":"ray-dashboard-quicktest","namespace":"default"},"spec":{"port":{"targetPort":"dashboard"},"to":{"kind":"Service","name":"quicktest-head-svc"}}}}]}\n'
                     },
                     "creationTimestamp": "2023-02-22T16:26:07Z",
                     "generation": 4,
                     "managedFields": [
                         {
-                            "apiVersion": "workload.codeflare.dev/v1beta1",
+                            "apiVersion": "workload.codeflare.dev/v1beta2",
                             "fieldsType": "FieldsV1",
                             "fieldsV1": {
                                 "f:spec": {
-                                    "f:resources": {
-                                        "f:GenericItems": {},
-                                        "f:metadata": {},
-                                    },
-                                    "f:schedulingSpec": {},
-                                    "f:service": {".": {}, "f:spec": {}},
+                                    "f:components": {},
+                                    "f:suspend": {},
                                 },
                                 "f:status": {
                                     ".": {},
-                                    "f:canrun": {},
                                     "f:conditions": {},
-                                    "f:controllerfirsttimestamp": {},
-                                    "f:filterignore": {},
-                                    "f:queuejobstate": {},
-                                    "f:sender": {},
-                                    "f:state": {},
-                                    "f:systempriority": {},
+                                    "f:phase": {},
                                 },
                             },
                             "manager": "Go-http-client",
@@ -1471,7 +1428,7 @@ def get_aw_obj(group, version, namespace, plural):
                             "time": "2023-02-22T16:26:07Z",
                         },
                         {
-                            "apiVersion": "workload.codeflare.dev/v1beta1",
+                            "apiVersion": "workload.codeflare.dev/v1beta2",
                             "fieldsType": "FieldsV1",
                             "fieldsV1": {
                                 "f:metadata": {
@@ -1479,11 +1436,6 @@ def get_aw_obj(group, version, namespace, plural):
                                         ".": {},
                                         "f:kubectl.kubernetes.io/last-applied-configuration": {},
                                     }
-                                },
-                                "f:spec": {
-                                    ".": {},
-                                    "f:priority": {},
-                                    "f:resources": {".": {}, "f:Items": {}},
                                 },
                             },
                             "manager": "kubectl-client-side-apply",
@@ -1497,40 +1449,19 @@ def get_aw_obj(group, version, namespace, plural):
                     "uid": "6334fc1b-471e-4876-8e7b-0b2277679235",
                 },
                 "spec": {
-                    "priority": 9,
-                    "resources": {
-                        "GenericItems": [
+                    "components": [
                             {
-                                "allocated": 0,
-                                "custompodresources": [
+                            "podspecs": [
                                     {
-                                        "limits": {
-                                            "cpu": "2",
-                                            "memory": "8G",
-                                            "nvidia.com/gpu": "0",
-                                        },
                                         "replicas": 1,
-                                        "requests": {
-                                            "cpu": "2",
-                                            "memory": "8G",
-                                            "nvidia.com/gpu": "0",
-                                        },
+                                    "path": "template.spec.headGroupSpec.template",
                                     },
                                     {
-                                        "limits": {
-                                            "cpu": "1",
-                                            "memory": "2G",
-                                            "nvidia.com/gpu": "0",
-                                        },
-                                        "replicas": 1,
-                                        "requests": {
-                                            "cpu": "1",
-                                            "memory": "2G",
-                                            "nvidia.com/gpu": "0",
-                                        },
+                                    "replicas": 3,
+                                    "path": "template.spec.workerGroupSpecs[0].template",
                                     },
                                 ],
-                                "generictemplate": {
+                            "template": {
                                     "apiVersion": "ray.io/v1",
                                     "kind": "RayCluster",
                                     "metadata": {
@@ -1679,14 +1610,9 @@ def get_aw_obj(group, version, namespace, plural):
                                         ],
                                     },
                                 },
-                                "metadata": {},
-                                "priority": 0,
-                                "priorityslope": 0,
-                                "replicas": 1,
                             },
                             {
-                                "allocated": 0,
-                                "generictemplate": {
+                            "template": {
                                     "apiVersion": "networking.k8s.io/v1",
                                     "kind": "Ingress",
                                     "metadata": {
@@ -1706,9 +1632,7 @@ def get_aw_obj(group, version, namespace, plural):
                                                         "backend": {
                                                             "service": {
                                                                 "name": "quicktest-head-svc",
-                                                                "port": {
-                                                                    "number": 8265
-                                                                },
+                                                            "port": {"number": 8265},
                                                             },
                                                         },
                                                         "pathType": "Prefix",
@@ -1721,80 +1645,56 @@ def get_aw_obj(group, version, namespace, plural):
                                     },
                                 },
                                 "metadata": {},
-                                "priority": 0,
-                                "priorityslope": 0,
                             },
                         ],
-                        "Items": [],
                         "metadata": {},
                     },
-                    "schedulingSpec": {},
-                    "service": {"spec": {}},
-                },
                 "status": {
-                    "canrun": True,
                     "conditions": [
                         {
                             "lastTransitionMicroTime": "2023-02-22T16:26:07.559447Z",
                             "lastUpdateMicroTime": "2023-02-22T16:26:07.559447Z",
                             "status": "True",
-                            "type": "Init",
-                        },
-                        {
-                            "lastTransitionMicroTime": "2023-02-22T16:26:07.559551Z",
-                            "lastUpdateMicroTime": "2023-02-22T16:26:07.559551Z",
-                            "reason": "AwaitingHeadOfLine",
-                            "status": "True",
-                            "type": "Queueing",
+                            "type": "QuotaReserved",
                         },
                         {
                             "lastTransitionMicroTime": "2023-02-22T16:26:13.220564Z",
                             "lastUpdateMicroTime": "2023-02-22T16:26:13.220564Z",
-                            "reason": "AppWrapperRunnable",
                             "status": "True",
-                            "type": "Dispatched",
+                            "type": "ResourcesDeployed",
+                        },
+                        {
+                            "lastTransitionMicroTime": "2023-02-22T16:26:13.220564Z",
+                            "lastUpdateMicroTime": "2023-02-22T16:26:13.220564Z",
+                            "status": "True",
+                            "type": "PodsReady",
                         },
                     ],
-                    "controllerfirsttimestamp": "2023-02-22T16:26:07.559447Z",
-                    "filterignore": True,
-                    "queuejobstate": "Dispatched",
-                    "sender": "before manageQueueJob - afterEtcdDispatching",
-                    "state": "Running",
-                    "systempriority": 9,
+                    "phase": "Running",
                 },
             },
             {
-                "apiVersion": "workload.codeflare.dev/v1beta1",
+                "apiVersion": "workload.codeflare.dev/v1beta2",
                 "kind": "AppWrapper",
                 "metadata": {
                     "annotations": {
-                        "kubectl.kubernetes.io/last-applied-configuration": '{"apiVersion":"codeflare.dev/v1beta1","kind":"AppWrapper","metadata":{"annotations":{},"name":"quicktest2","namespace":"ns"},"spec":{"priority":9,"resources":{"GenericItems":[{"custompodresources":[{"limits":{"cpu":2,"memory":"8G","nvidia.com/gpu":0},"replicas":1,"requests":{"cpu":2,"memory":"8G","nvidia.com/gpu":0}},{"limits":{"cpu":1,"memory":"2G","nvidia.com/gpu":0},"replicas":1,"requests":{"cpu":1,"memory":"2G","nvidia.com/gpu":0}}],"generictemplate":{"apiVersion":"ray.io/v1","kind":"RayCluster","metadata":{"labels":{"appwrapper.codeflare.dev":"quicktest2","controller-tools.k8s.io":"1.0"},"name":"quicktest2","namespace":"ns"},"spec":{"autoscalerOptions":{"idleTimeoutSeconds":60,"imagePullPolicy":"Always","resources":{"limits":{"cpu":"500m","memory":"512Mi"},"requests":{"cpu":"500m","memory":"512Mi"}},"upscalingMode":"Default"},"enableInTreeAutoscaling":false,"headGroupSpec":{"rayStartParams":{"block":"true","dashboard-host":"0.0.0.0","num-gpus":"0"},"serviceType":"ClusterIP","template":{"spec":{"containers":[{"image":"ghcr.io/foundation-model-stack/base:ray2.1.0-py38-gpu-pytorch1.12.0cu116-20221213-193103","imagePullPolicy":"Always","lifecycle":{"preStop":{"exec":{"command":["/bin/sh","-c","ray stop"]}}},"name":"ray-head","ports":[{"containerPort":6379,"name":"gcs"},{"containerPort":8265,"name":"dashboard"},{"containerPort":10001,"name":"client"}],"resources":{"limits":{"cpu":2,"memory":"8G","nvidia.com/gpu":0},"requests":{"cpu":2,"memory":"8G","nvidia.com/gpu":0}}}]}}},"rayVersion":"1.12.0","workerGroupSpecs":[{"groupName":"small-group-quicktest","maxReplicas":1,"minReplicas":1,"rayStartParams":{"block":"true","num-gpus":"0"},"replicas":1,"template":{"metadata":{"annotations":{"key":"value"},"labels":{"key":"value"}},"spec":{"containers":[{"env":[{"name":"MY_POD_IP","valueFrom":{"fieldRef":{"fieldPath":"status.podIP"}}}],"image":"ghcr.io/foundation-model-stack/base:ray2.1.0-py38-gpu-pytorch1.12.0cu116-20221213-193103","lifecycle":{"preStop":{"exec":{"command":["/bin/sh","-c","ray stop"]}}},"name":"machine-learning","resources":{"limits":{"cpu":1,"memory":"2G","nvidia.com/gpu":0},"requests":{"cpu":1,"memory":"2G","nvidia.com/gpu":0}}}],}}}]}},"replicas":1},{"generictemplate":{"apiVersion":"route.openshift.io/v1","kind":"Route","metadata":{"labels":{"odh-ray-cluster-service":"quicktest-head-svc"},"name":"ray-dashboard-quicktest","namespace":"default"},"spec":{"port":{"targetPort":"dashboard"},"to":{"kind":"Service","name":"quicktest-head-svc"}}},"replica":1}],"Items":[]}}}\n'
+                        "kubectl.kubernetes.io/last-applied-configuration": '{"apiVersion":"codeflare.dev/v1beta2","kind":"AppWrapper","metadata":{"annotations":{},"name":"quicktest2","namespace":"ns"},"spec":{"components":[{"template":{"apiVersion":"ray.io/v1","kind":"RayCluster","metadata":{"labels":{"appwrapper.codeflare.dev":"quicktest2","controller-tools.k8s.io":"1.0"},"name":"quicktest2","namespace":"ns"},"spec":{"autoscalerOptions":{"idleTimeoutSeconds":60,"imagePullPolicy":"Always","resources":{"limits":{"cpu":"500m","memory":"512Mi"},"requests":{"cpu":"500m","memory":"512Mi"}},"upscalingMode":"Default"},"enableInTreeAutoscaling":false,"headGroupSpec":{"rayStartParams":{"block":"true","dashboard-host":"0.0.0.0","num-gpus":"0"},"serviceType":"ClusterIP","template":{"spec":{"containers":[{"image":"ghcr.io/foundation-model-stack/base:ray2.1.0-py38-gpu-pytorch1.12.0cu116-20221213-193103","imagePullPolicy":"Always","lifecycle":{"preStop":{"exec":{"command":["/bin/sh","-c","ray stop"]}}},"name":"ray-head","ports":[{"containerPort":6379,"name":"gcs"},{"containerPort":8265,"name":"dashboard"},{"containerPort":10001,"name":"client"}],"resources":{"limits":{"cpu":2,"memory":"8G","nvidia.com/gpu":0},"requests":{"cpu":2,"memory":"8G","nvidia.com/gpu":0}}}]}}},"rayVersion":"1.12.0","workerGroupSpecs":[{"groupName":"small-group-quicktest","maxReplicas":1,"minReplicas":1,"rayStartParams":{"block":"true","num-gpus":"0"},"replicas":1,"template":{"metadata":{"annotations":{"key":"value"},"labels":{"key":"value"}},"spec":{"containers":[{"env":[{"name":"MY_POD_IP","valueFrom":{"fieldRef":{"fieldPath":"status.podIP"}}}],"image":"ghcr.io/foundation-model-stack/base:ray2.1.0-py38-gpu-pytorch1.12.0cu116-20221213-193103","lifecycle":{"preStop":{"exec":{"command":["/bin/sh","-c","ray stop"]}}},"name":"machine-learning","resources":{"limits":{"cpu":1,"memory":"2G","nvidia.com/gpu":0},"requests":{"cpu":1,"memory":"2G","nvidia.com/gpu":0}}}],}}}]}},"replicas":1},{"generictemplate":{"apiVersion":"route.openshift.io/v1","kind":"Route","metadata":{"labels":{"odh-ray-cluster-service":"quicktest-head-svc"},"name":"ray-dashboard-quicktest","namespace":"default"},"spec":{"port":{"targetPort":"dashboard"},"to":{"kind":"Service","name":"quicktest-head-svc"}}},"replica":1}]}}\n'
                     },
                     "creationTimestamp": "2023-02-22T16:26:07Z",
                     "generation": 4,
                     "managedFields": [
                         {
-                            "apiVersion": "workload.codeflare.dev/v1beta1",
+                            "apiVersion": "workload.codeflare.dev/v1beta2",
                             "fieldsType": "FieldsV1",
                             "fieldsV1": {
                                 "f:spec": {
-                                    "f:resources": {
-                                        "f:GenericItems": {},
-                                        "f:metadata": {},
-                                    },
-                                    "f:schedulingSpec": {},
-                                    "f:service": {".": {}, "f:spec": {}},
+                                    "f:components": {},
+                                    "f:suspend": {},
                                 },
                                 "f:status": {
                                     ".": {},
-                                    "f:canrun": {},
                                     "f:conditions": {},
-                                    "f:controllerfirsttimestamp": {},
-                                    "f:filterignore": {},
-                                    "f:queuejobstate": {},
-                                    "f:sender": {},
-                                    "f:state": {},
-                                    "f:systempriority": {},
+                                    "f:phase": {},
                                 },
                             },
                             "manager": "Go-http-client",
@@ -1802,7 +1702,7 @@ def get_aw_obj(group, version, namespace, plural):
                             "time": "2023-02-22T16:26:07Z",
                         },
                         {
-                            "apiVersion": "workload.codeflare.dev/v1beta1",
+                            "apiVersion": "workload.codeflare.dev/v1beta2",
                             "fieldsType": "FieldsV1",
                             "fieldsV1": {
                                 "f:metadata": {
@@ -1810,11 +1710,6 @@ def get_aw_obj(group, version, namespace, plural):
                                         ".": {},
                                         "f:kubectl.kubernetes.io/last-applied-configuration": {},
                                     }
-                                },
-                                "f:spec": {
-                                    ".": {},
-                                    "f:priority": {},
-                                    "f:resources": {".": {}, "f:Items": {}},
                                 },
                             },
                             "manager": "kubectl-client-side-apply",
@@ -1828,40 +1723,9 @@ def get_aw_obj(group, version, namespace, plural):
                     "uid": "6334fc1b-471e-4876-8e7b-0b2277679235",
                 },
                 "spec": {
-                    "priority": 9,
-                    "resources": {
-                        "GenericItems": [
+                    "components": [
                             {
-                                "allocated": 0,
-                                "custompodresources": [
-                                    {
-                                        "limits": {
-                                            "cpu": "2",
-                                            "memory": "8G",
-                                            "nvidia.com/gpu": "0",
-                                        },
-                                        "replicas": 1,
-                                        "requests": {
-                                            "cpu": "2",
-                                            "memory": "8G",
-                                            "nvidia.com/gpu": "0",
-                                        },
-                                    },
-                                    {
-                                        "limits": {
-                                            "cpu": "1",
-                                            "memory": "2G",
-                                            "nvidia.com/gpu": "0",
-                                        },
-                                        "replicas": 1,
-                                        "requests": {
-                                            "cpu": "1",
-                                            "memory": "2G",
-                                            "nvidia.com/gpu": "0",
-                                        },
-                                    },
-                                ],
-                                "generictemplate": {
+                            "template": {
                                     "apiVersion": "ray.io/v1",
                                     "kind": "RayCluster",
                                     "metadata": {
@@ -2016,8 +1880,7 @@ def get_aw_obj(group, version, namespace, plural):
                                 "replicas": 1,
                             },
                             {
-                                "allocated": 0,
-                                "generictemplate": {
+                            "template": {
                                     "apiVersion": "route.openshift.io/v1",
                                     "kind": "Route",
                                     "metadata": {
@@ -2035,47 +1898,12 @@ def get_aw_obj(group, version, namespace, plural):
                                         },
                                     },
                                 },
-                                "metadata": {},
-                                "priority": 0,
-                                "priorityslope": 0,
                             },
                         ],
-                        "Items": [],
-                        "metadata": {},
-                    },
-                    "schedulingSpec": {},
-                    "service": {"spec": {}},
                 },
                 "status": {
-                    "canrun": True,
-                    "conditions": [
-                        {
-                            "lastTransitionMicroTime": "2023-02-22T16:26:07.559447Z",
-                            "lastUpdateMicroTime": "2023-02-22T16:26:07.559447Z",
-                            "status": "True",
-                            "type": "Init",
-                        },
-                        {
-                            "lastTransitionMicroTime": "2023-02-22T16:26:07.559551Z",
-                            "lastUpdateMicroTime": "2023-02-22T16:26:07.559551Z",
-                            "reason": "AwaitingHeadOfLine",
-                            "status": "True",
-                            "type": "Queueing",
-                        },
-                        {
-                            "lastTransitionMicroTime": "2023-02-22T16:26:13.220564Z",
-                            "lastUpdateMicroTime": "2023-02-22T16:26:13.220564Z",
-                            "reason": "AppWrapperRunnable",
-                            "status": "True",
-                            "type": "Dispatched",
-                        },
-                    ],
-                    "controllerfirsttimestamp": "2023-02-22T16:26:07.559447Z",
-                    "filterignore": True,
-                    "queuejobstate": "Dispatched",
-                    "sender": "before manageQueueJob - afterEtcdDispatching",
-                    "state": "Pending",
-                    "systempriority": 9,
+                    "conditions": [],
+                    "phase": "Suspended",
                 },
             },
         ]
@@ -2203,15 +2031,9 @@ def test_get_cluster(mocker):
     cluster = get_cluster("quicktest")
     cluster_config = cluster.config
     assert cluster_config.name == "quicktest" and cluster_config.namespace == "ns"
-    assert (
-        "m4.xlarge" in cluster_config.machine_types
-        and "g4dn.xlarge" in cluster_config.machine_types
-    )
     assert cluster_config.min_cpus == 1 and cluster_config.max_cpus == 1
     assert cluster_config.min_memory == 2 and cluster_config.max_memory == 2
     assert cluster_config.num_gpus == 0
-    assert cluster_config.instascale
-    assert cluster_config.local_interactive
     assert (
         cluster_config.image
         == "ghcr.io/foundation-model-stack/base:ray2.1.0-py38-gpu-pytorch1.12.0cu116-20221213-193103"
@@ -2349,18 +2171,16 @@ def test_list_queue(mocker, capsys):
     list_all_queued("ns")
     captured = capsys.readouterr()
     assert captured.out == (
-        "╭──────────────────────────╮\n"
+        "╭────────────────────────────╮\n"
         "│  🚀 Cluster Queue Status │\n"
         "│            🚀            │\n"
-        "│ +------------+---------+ │\n"
+        "│ +------------+-----------+ │\n"
         "│ | Name       | Status  | │\n"
-        "│ +============+=========+ │\n"
-        "│ | quicktest1 | running | │\n"
+        "│ +============+===========+ │\n"
+        "│ | quicktest2 | suspended | │\n"
         "│ |            |         | │\n"
-        "│ | quicktest2 | pending | │\n"
-        "│ |            |         | │\n"
-        "│ +------------+---------+ │\n"
-        "╰──────────────────────────╯\n"
+        "│ +------------+-----------+ │\n"
+        "╰────────────────────────────╯\n"
     )
 
 
@@ -2368,7 +2188,8 @@ def test_cluster_status(mocker):
     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
     fake_aw = AppWrapper(
-        "test", AppWrapperStatus.FAILED, can_run=True, job_state="unused"
+        "test",
+        AppWrapperStatus.FAILED,
     )
     fake_ray = RayCluster(
         name="test",
@@ -2406,22 +2227,22 @@ def test_cluster_status(mocker):
     assert status == CodeFlareClusterStatus.FAILED
     assert ready == False
 
-    fake_aw.status = AppWrapperStatus.DELETED
+    fake_aw.status = AppWrapperStatus.FAILED
     status, ready = cf.status()
     assert status == CodeFlareClusterStatus.FAILED
     assert ready == False
 
-    fake_aw.status = AppWrapperStatus.PENDING
+    fake_aw.status = AppWrapperStatus.SUSPENDED
     status, ready = cf.status()
     assert status == CodeFlareClusterStatus.QUEUED
     assert ready == False
 
-    fake_aw.status = AppWrapperStatus.COMPLETED
+    fake_aw.status = AppWrapperStatus.RUNNING
     status, ready = cf.status()
     assert status == CodeFlareClusterStatus.STARTING
     assert ready == False
 
-    fake_aw.status = AppWrapperStatus.RUNNING_HOLD_COMPLETION
+    fake_aw.status = AppWrapperStatus.RUNNING
     status, ready = cf.status()
     assert status == CodeFlareClusterStatus.STARTING
     assert ready == False
@@ -2613,6 +2434,7 @@ def test_DDPJobDefinition_dry_run_no_cluster(mocker):
     assert type(ddp_job._cfg) == type(dict())
     assert type(ddp_job._scheduler) == type(str())
 
+    # TODO: torchx still generates v1beta1 AppWrappers
     assert (
         ddp_job.request.resource["spec"]["resources"]["GenericItems"][0][
             "generictemplate"
@@ -2899,7 +2721,7 @@ def test_AWManager_creation(mocker):
 
 def arg_check_aw_apply_effect(group, version, namespace, plural, body, *args):
     assert group == "workload.codeflare.dev"
-    assert version == "v1beta1"
+    assert version == "v1beta2"
     assert namespace == "ns"
     assert plural == "appwrappers"
     with open(f"{aw_dir}test.yaml") as f:
@@ -2910,7 +2732,7 @@ def arg_check_aw_apply_effect(group, version, namespace, plural, body, *args):
 
 def arg_check_aw_del_effect(group, version, namespace, plural, name, *args):
     assert group == "workload.codeflare.dev"
-    assert version == "v1beta1"
+    assert version == "v1beta2"
     assert namespace == "ns"
     assert plural == "appwrappers"
     assert name == "test"
@@ -3076,14 +2898,12 @@ def test_enable_local_interactive(mocker):
         {"name": "RAY_TLS_CA_CERT", "value": "/home/ray/workspace/tls/ca.crt"},
     ]
     assert aw_spec != None
-    enable_local_interactive(aw_spec, cluster_name, namespace, ingress_domain)
-    head_group_spec = aw_spec["resources"]["GenericItems"][0]["generictemplate"][
-        "spec"
-    ]["headGroupSpec"]
-    worker_group_spec = aw_spec["resources"]["GenericItems"][0]["generictemplate"][
-        "spec"
-    ]["workerGroupSpecs"]
-    ca_secret = aw_spec["resources"]["GenericItems"][5]["generictemplate"]
+    enable_local_interactive(
+        aw_spec["components"], cluster_name, namespace, ingress_domain
+    )
+    head_group_spec = aw_spec["components"][0]["template"]["spec"]["headGroupSpec"]
+    worker_group_spec = aw_spec["components"][0]["template"]["spec"]["workerGroupSpecs"]
+    ca_secret = aw_spec["components"][5]["template"]
     # At a minimal, make sure the following items are presented in the appwrapper spec.resources.
     # 1. headgroup has the initContainers command to generated TLS cert from the mounted CA cert.
     #    Note: In this particular command, the DNS.5 in [alt_name] must match the exposed local_client_url: rayclient-{cluster_name}.{namespace}.{ingress_domain}
@@ -3139,7 +2959,7 @@ def test_enable_local_interactive(mocker):
     assert ca_secret["metadata"]["namespace"] == namespace
 
     # 5. Rayclient ingress - Kind
-    rayclient_ingress = aw_spec["resources"]["GenericItems"][3]["generictemplate"]
+    rayclient_ingress = aw_spec["components"][3]["template"]
     paths = [
         {
             "backend": {
@@ -3267,9 +3087,9 @@ def test_gen_app_wrapper_with_oauth(mocker: MockerFixture):
     user_yaml = write_user_appwrapper.call_args.args[0]
     assert any(
         container["name"] == "oauth-proxy"
-        for container in user_yaml["spec"]["resources"]["GenericItems"][0][
-            "generictemplate"
-        ]["spec"]["headGroupSpec"]["template"]["spec"]["containers"]
+        for container in user_yaml["spec"]["components"][0]["template"]["spec"][
+            "headGroupSpec"
+        ]["template"]["spec"]["containers"]
     )
 
 
@@ -3431,7 +3251,7 @@ def test_rjc_list_jobs(ray_job_client, mocker):
 # Make sure to always keep this function last
 def test_cleanup():
     os.remove(f"{aw_dir}unit-test-cluster.yaml")
-    os.remove(f"{aw_dir}prio-test-cluster.yaml")
+    os.remove(f"{aw_dir}unit-test-cluster-ray.yaml")
     os.remove(f"{aw_dir}test.yaml")
     os.remove(f"{aw_dir}raytest2.yaml")
     os.remove(f"{aw_dir}unit-test-cluster-ray.yaml")

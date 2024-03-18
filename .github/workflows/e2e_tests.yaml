@@ -64,11 +64,12 @@ jobs:
         with:
           repository: project-codeflare/codeflare-operator
           path: codeflare-operator
+          ref: mcadv1b2
 
       - name: Set Go
         uses: actions/setup-go@v5
         with:
-          go-version: v1.20
+          go-version: v1.21
 
       - name: Set up gotestfmt
         uses: gotesttools/gotestfmt-action@v2

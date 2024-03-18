@@ -68,21 +68,21 @@ def is_openshift_cluster():
 
 
 def update_dashboard_route(route_item, cluster_name, namespace):
-    metadata = route_item.get("generictemplate", {}).get("metadata")
+    metadata = route_item.get("template", {}).get("metadata")
     metadata["name"] = gen_dashboard_ingress_name(cluster_name)
     metadata["namespace"] = namespace
     metadata["labels"]["odh-ray-cluster-service"] = f"{cluster_name}-head-svc"
-    spec = route_item.get("generictemplate", {}).get("spec")
+    spec = route_item.get("template", {}).get("spec")
     spec["to"]["name"] = f"{cluster_name}-head-svc"
 
 
 # ToDo: refactor the update_x_route() functions
 def update_rayclient_route(route_item, cluster_name, namespace):
-    metadata = route_item.get("generictemplate", {}).get("metadata")
+    metadata = route_item.get("template", {}).get("metadata")
     metadata["name"] = f"rayclient-{cluster_name}"
     metadata["namespace"] = namespace
     metadata["labels"]["odh-ray-cluster-service"] = f"{cluster_name}-head-svc"
-    spec = route_item.get("generictemplate", {}).get("spec")
+    spec = route_item.get("template", {}).get("spec")
     spec["to"]["name"] = f"{cluster_name}-head-svc"
 
 
@@ -111,8 +111,8 @@ def update_rayclient_exposure(
 def update_dashboard_ingress(
     ingress_item, cluster_name, namespace, ingress_options, ingress_domain
 ):  # pragma: no cover
-    metadata = ingress_item.get("generictemplate", {}).get("metadata")
-    spec = ingress_item.get("generictemplate", {}).get("spec")
+    metadata = ingress_item.get("template", {}).get("metadata")
+    spec = ingress_item.get("template", {}).get("spec")
     if ingress_options != {}:
         for index, ingress_option in enumerate(ingress_options["ingresses"]):
             if "ingressName" not in ingress_option.keys():
@@ -194,8 +194,8 @@ def update_dashboard_ingress(
 def update_rayclient_ingress(
     ingress_item, cluster_name, namespace, ingress_domain
 ):  # pragma: no cover
-    metadata = ingress_item.get("generictemplate", {}).get("metadata")
-    spec = ingress_item.get("generictemplate", {}).get("spec")
+    metadata = ingress_item.get("template", {}).get("metadata")
+    spec = ingress_item.get("template", {}).get("spec")
     metadata["name"] = f"rayclient-{cluster_name}"
     metadata["namespace"] = namespace
     metadata["labels"]["odh-ray-cluster-service"] = f"{cluster_name}-head-svc"
@@ -223,107 +223,9 @@ def update_names(yaml, item, appwrapper_name, cluster_name, namespace):
     metadata = yaml.get("metadata")
     metadata["name"] = appwrapper_name
     metadata["namespace"] = namespace
-    lower_meta = item.get("generictemplate", {}).get("metadata")
-    lower_meta["labels"]["workload.codeflare.dev/appwrapper"] = appwrapper_name
+    lower_meta = item.get("template", {}).get("metadata")
     lower_meta["name"] = cluster_name
     lower_meta["namespace"] = namespace
-
-
-def update_labels(yaml, instascale, instance_types):
-    metadata = yaml.get("metadata")
-    if instascale:
-        if not len(instance_types) > 0:
-            sys.exit(
-                "If instascale is set to true, must provide at least one instance type"
-            )
-        type_str = ""
-        for type in instance_types:
-            type_str += type + "_"
-        type_str = type_str[:-1]
-        metadata["labels"]["orderedinstance"] = type_str
-    else:
-        metadata.pop("labels")
-
-
-def update_priority(yaml, item, dispatch_priority, priority_val):
-    spec = yaml.get("spec")
-    if dispatch_priority is not None:
-        if priority_val:
-            spec["priority"] = priority_val
-        else:
-            raise ValueError(
-                "AW generation error: Priority value is None, while dispatch_priority is defined"
-            )
-        head = item.get("generictemplate").get("spec").get("headGroupSpec")
-        worker = item.get("generictemplate").get("spec").get("workerGroupSpecs")[0]
-        head["template"]["spec"]["priorityClassName"] = dispatch_priority
-        worker["template"]["spec"]["priorityClassName"] = dispatch_priority
-    else:
-        spec.pop("priority")
-
-
-def update_custompodresources(
-    item,
-    min_cpu,
-    max_cpu,
-    min_memory,
-    max_memory,
-    gpu,
-    workers,
-    head_cpus,
-    head_memory,
-    head_gpus,
-):
-    if "custompodresources" in item.keys():
-        custompodresources = item.get("custompodresources")
-        for i in range(len(custompodresources)):
-            resource = custompodresources[i]
-            if i == 0:
-                # Leave head node resources as template default
-                resource["requests"]["cpu"] = head_cpus
-                resource["limits"]["cpu"] = head_cpus
-                resource["requests"]["memory"] = str(head_memory) + "G"
-                resource["limits"]["memory"] = str(head_memory) + "G"
-                resource["requests"]["nvidia.com/gpu"] = head_gpus
-                resource["limits"]["nvidia.com/gpu"] = head_gpus
-
-            else:
-                for k, v in resource.items():
-                    if k == "replicas" and i == 1:
-                        resource[k] = workers
-                    if k == "requests" or k == "limits":
-                        for spec, _ in v.items():
-                            if spec == "cpu":
-                                if k == "limits":
-                                    resource[k][spec] = max_cpu
-                                else:
-                                    resource[k][spec] = min_cpu
-                            if spec == "memory":
-                                if k == "limits":
-                                    resource[k][spec] = str(max_memory) + "G"
-                                else:
-                                    resource[k][spec] = str(min_memory) + "G"
-                            if spec == "nvidia.com/gpu":
-                                if i == 0:
-                                    resource[k][spec] = 0
-                                else:
-                                    resource[k][spec] = gpu
-    else:
-        sys.exit("Error: malformed template")
-
-
-def update_affinity(spec, appwrapper_name, instascale):
-    if instascale:
-        node_selector_terms = (
-            spec.get("affinity")
-            .get("nodeAffinity")
-            .get("requiredDuringSchedulingIgnoredDuringExecution")
-            .get("nodeSelectorTerms")
-        )
-        node_selector_terms[0]["matchExpressions"][0]["values"][0] = appwrapper_name
-        node_selector_terms[0]["matchExpressions"][0]["key"] = appwrapper_name
-    else:
-        spec.pop("affinity")
 
 
 def update_image(spec, image):
@@ -374,19 +276,18 @@ def update_nodes(
     gpu,
     workers,
     image,
-    instascale,
     env,
     image_pull_secrets,
     head_cpus,
     head_memory,
     head_gpus,
 ):
-    if "generictemplate" in item.keys():
-        head = item.get("generictemplate").get("spec").get("headGroupSpec")
+    if "template" in item.keys():
+        head = item.get("template").get("spec").get("headGroupSpec")
         head["rayStartParams"]["num-gpus"] = str(int(head_gpus))
 
-        worker = item.get("generictemplate").get("spec").get("workerGroupSpecs")[0]
-        # Head counts as first worker
+        item.get("podSets")[1]["replicas"] = workers
+        worker = item.get("template").get("spec").get("workerGroupSpecs")[0]
         worker["replicas"] = workers
         worker["minReplicas"] = workers
         worker["maxReplicas"] = workers
@@ -395,7 +296,6 @@ def update_nodes(
 
         for comp in [head, worker]:
             spec = comp.get("template").get("spec")
-            update_affinity(spec, appwrapper_name, instascale)
             update_image_pull_secrets(spec, image_pull_secrets)
             update_image(spec, image)
             update_env(spec, env)
@@ -411,36 +311,36 @@ def update_nodes(
 def update_ca_secret(ca_secret_item, cluster_name, namespace):
     from . import generate_cert
 
-    metadata = ca_secret_item.get("generictemplate", {}).get("metadata")
+    metadata = ca_secret_item.get("template", {}).get("metadata")
     metadata["name"] = f"ca-secret-{cluster_name}"
     metadata["namespace"] = namespace
     metadata["labels"]["odh-ray-cluster-service"] = f"{cluster_name}-head-svc"
-    data = ca_secret_item.get("generictemplate", {}).get("data")
+    data = ca_secret_item.get("template", {}).get("data")
     data["ca.key"], data["ca.crt"] = generate_cert.generate_ca_cert(365)
 
 
-def enable_local_interactive(resources, cluster_name, namespace, ingress_domain):
-    rayclient_ingress_item = resources["resources"].get("GenericItems")[3]
-    rayclient_route_item = resources["resources"].get("GenericItems")[4]
-    ca_secret_item = resources["resources"].get("GenericItems")[5]
-    item = resources["resources"].get("GenericItems")[0]
+def enable_local_interactive(components, cluster_name, namespace, ingress_domain):
+    rayclient_ingress_item = components[3]
+    rayclient_route_item = components[4]
+    ca_secret_item = components[5]
+    item = components[0]
     update_ca_secret(ca_secret_item, cluster_name, namespace)
     # update_ca_secret_volumes
-    item["generictemplate"]["spec"]["headGroupSpec"]["template"]["spec"]["volumes"][0][
+    item["template"]["spec"]["headGroupSpec"]["template"]["spec"]["volumes"][0][
         "secret"
     ]["secretName"] = f"ca-secret-{cluster_name}"
-    item["generictemplate"]["spec"]["workerGroupSpecs"][0]["template"]["spec"][
-        "volumes"
-    ][0]["secret"]["secretName"] = f"ca-secret-{cluster_name}"
+    item["template"]["spec"]["workerGroupSpecs"][0]["template"]["spec"]["volumes"][0][
+        "secret"
+    ]["secretName"] = f"ca-secret-{cluster_name}"
     # update_tls_env
-    item["generictemplate"]["spec"]["headGroupSpec"]["template"]["spec"]["containers"][
+    item["template"]["spec"]["headGroupSpec"]["template"]["spec"]["containers"][0][
+        "env"
+    ][1]["value"] = "1"
+    item["template"]["spec"]["workerGroupSpecs"][0]["template"]["spec"]["containers"][
         0
     ]["env"][1]["value"] = "1"
-    item["generictemplate"]["spec"]["workerGroupSpecs"][0]["template"]["spec"][
-        "containers"
-    ][0]["env"][1]["value"] = "1"
     # update_init_container
-    command = item["generictemplate"]["spec"]["headGroupSpec"]["template"]["spec"][
+    command = item["template"]["spec"]["headGroupSpec"]["template"]["spec"][
         "initContainers"
     ][0].get("command")[2]
 
@@ -468,9 +368,9 @@ def enable_local_interactive(resources, cluster_name, namespace, ingress_domain)
         "sdk.codeflare.dev/ingress_domain"
     ] = ingress_domain
 
-    item["generictemplate"]["spec"]["headGroupSpec"]["template"]["spec"][
-        "initContainers"
-    ][0].get("command")[2] = command
+    item["template"]["spec"]["headGroupSpec"]["template"]["spec"]["initContainers"][
+        0
+    ].get("command")[2] = command
 
 
 def apply_ingress_domain_annotation(resources, ingress_domain):
@@ -484,8 +384,8 @@ def del_from_list_by_name(l: list, target: typing.List[str]) -> list:
     return [x for x in l if x["name"] not in target]
 
 
-def disable_raycluster_tls(resources):
-    generic_template_spec = resources["GenericItems"][0]["generictemplate"]["spec"]
+def disable_raycluster_tls(components):
+    generic_template_spec = components[0]["template"]["spec"]
 
     headGroupTemplateSpec = generic_template_spec["headGroupSpec"]["template"]["spec"]
     headGroupTemplateSpec["volumes"] = del_from_list_by_name(
@@ -518,19 +418,20 @@ def disable_raycluster_tls(resources):
     ]
 
     updated_items = []
-    for i in resources["GenericItems"][:]:
-        if "rayclient-deployment-ingress" in i["generictemplate"]["metadata"]["name"]:
+    for i in components[:]:
+        if "rayclient-deployment-ingress" in i["template"]["metadata"]["name"]:
             continue
-        if "rayclient-deployment-route" in i["generictemplate"]["metadata"]["name"]:
+        if "rayclient-deployment-route" in i["template"]["metadata"]["name"]:
             continue
-        if "ca-secret-deployment-name" in i["generictemplate"]["metadata"]["name"]:
+        if "ca-secret-deployment-name" in i["template"]["metadata"]["name"]:
             continue
         updated_items.append(i)
 
-    resources["GenericItems"] = updated_items
+    components.clear()
+    components.extend(updated_items)
 
 
-def delete_route_or_ingress(resources):
+def delete_route_or_ingress(components):
     if is_openshift_cluster():
         client_to_remove_name = "rayclient-deployment-ingress"
         dashboard_to_remove_name = "ray-dashboard-deployment-ingress"
@@ -539,15 +440,16 @@ def delete_route_or_ingress(resources):
         dashboard_to_remove_name = "ray-dashboard-deployment-route"
 
     updated_items = []
-    for i in resources["GenericItems"][:]:
-        if dashboard_to_remove_name in i["generictemplate"]["metadata"]["name"]:
+    for i in components[:]:
+        if dashboard_to_remove_name in i["template"]["metadata"]["name"]:
             continue
-        elif client_to_remove_name in i["generictemplate"]["metadata"]["name"]:
+        elif client_to_remove_name in i["template"]["metadata"]["name"]:
             continue
 
         updated_items.append(i)
 
-    resources["GenericItems"] = updated_items
+    components.clear()
+    components.extend(updated_items)
 
 
 def write_user_appwrapper(user_yaml, output_file_name):
@@ -588,10 +490,10 @@ def enable_openshift_oauth(user_yaml, cluster_name, namespace):
     user_yaml["metadata"]["annotations"][
         "codeflare-sdk-use-oauth"
     ] = "true"  # if the user gets an
-    ray_headgroup_pod = user_yaml["spec"]["resources"]["GenericItems"][0][
-        "generictemplate"
-    ]["spec"]["headGroupSpec"]["template"]["spec"]
-    user_yaml["spec"]["resources"]["GenericItems"].pop(1)
+    ray_headgroup_pod = user_yaml["spec"]["components"][0]["template"]["spec"][
+        "headGroupSpec"
+    ]["template"]["spec"]
+    user_yaml["spec"]["components"].pop(1)
     ray_headgroup_pod["serviceAccount"] = oauth_sa_name
     ray_headgroup_pod["volumes"] = ray_headgroup_pod.get("volumes", [])
 
@@ -641,24 +543,22 @@ def write_components(user_yaml: dict, output_file_name: str):
     if not os.path.exists(directory_path):
         os.makedirs(directory_path)
 
-    components = user_yaml.get("spec", "resources")["resources"].get("GenericItems")
+    components = user_yaml.get("spec").get("components")
     open(output_file_name, "w").close()
     with open(output_file_name, "a") as outfile:
         for component in components:
-            if "generictemplate" in component:
+            if "template" in component:
                 outfile.write("---\n")
-                yaml.dump(
-                    component["generictemplate"], outfile, default_flow_style=False
-                )
+                yaml.dump(component["template"], outfile, default_flow_style=False)
     print(f"Written to: {output_file_name}")
 
 
 def load_components(user_yaml: dict, name: str):
     component_list = []
-    components = user_yaml.get("spec", "resources")["resources"].get("GenericItems")
+    components = user_yaml.get("spec").get("components")
     for component in components:
-        if "generictemplate" in component:
-            component_list.append(component["generictemplate"])
+        if "template" in component:
+            component_list.append(component["template"])
 
     resources = "---\n" + "---\n".join(
         [yaml.dump(component) for component in component_list]
@@ -688,14 +588,10 @@ def generate_appwrapper(
     workers: int,
     template: str,
     image: str,
-    instascale: bool,
     mcad: bool,
-    instance_types: list,
     env,
     local_interactive: bool,
     image_pull_secrets: list,
-    dispatch_priority: str,
-    priority_val: int,
     openshift_oauth: bool,
     ingress_domain: str,
     ingress_options: dict,
@@ -703,25 +599,11 @@ def generate_appwrapper(
 ):
     user_yaml = read_template(template)
     appwrapper_name, cluster_name = gen_names(name)
-    resources = user_yaml.get("spec", "resources")
-    item = resources["resources"].get("GenericItems")[0]
-    ingress_item = resources["resources"].get("GenericItems")[1]
-    route_item = resources["resources"].get("GenericItems")[2]
+    components = user_yaml.get("spec").get("components")
+    item = components[0]
+    ingress_item = components[1]
+    route_item = components[2]
     update_names(user_yaml, item, appwrapper_name, cluster_name, namespace)
-    update_labels(user_yaml, instascale, instance_types)
-    update_priority(user_yaml, item, dispatch_priority, priority_val)
-    update_custompodresources(
-        item,
-        min_cpu,
-        max_cpu,
-        min_memory,
-        max_memory,
-        gpu,
-        workers,
-        head_cpus,
-        head_memory,
-        head_gpus,
-    )
     update_nodes(
         item,
         appwrapper_name,
@@ -732,7 +614,6 @@ def generate_appwrapper(
         gpu,
         workers,
         image,
-        instascale,
         env,
         image_pull_secrets,
         head_cpus,
@@ -751,11 +632,11 @@ def generate_appwrapper(
         apply_ingress_domain_annotation(resources, ingress_domain)
 
     if local_interactive:
-        enable_local_interactive(resources, cluster_name, namespace, ingress_domain)
+        enable_local_interactive(components, cluster_name, namespace, ingress_domain)
     else:
-        disable_raycluster_tls(resources["resources"])
+        disable_raycluster_tls(components)
 
-    delete_route_or_ingress(resources["resources"])
+    delete_route_or_ingress(components)
 
     if openshift_oauth:
         enable_openshift_oauth(user_yaml, cluster_name, namespace)

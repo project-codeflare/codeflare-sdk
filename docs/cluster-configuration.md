@@ -20,8 +20,6 @@ cluster = Cluster(ClusterConfiguration(
     num_gpus=0, # Default 0
     mcad=True, # Default True
     image="quay.io/project-codeflare/ray:latest-py39-cu118", # Mandatory Field
-    instascale=False, # Default False
-    machine_types=["m5.xlarge", "g4dn.xlarge"],
     ingress_domain="example.com" # Default None, Mandatory for Vanilla Kubernetes Clusters - ingress_domain is ignored on OpenShift Clusters as a route is created.
     local_interactive=False, # Default False
 ))
