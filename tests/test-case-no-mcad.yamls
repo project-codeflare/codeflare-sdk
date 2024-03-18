@@ -4,7 +4,6 @@ kind: RayCluster
 metadata:
   labels:
     controller-tools.k8s.io: '1.0'
-    workload.codeflare.dev/appwrapper: unit-test-cluster-ray
   name: unit-test-cluster-ray
   namespace: ns
 spec:
@@ -28,15 +27,6 @@ spec:
     serviceType: ClusterIP
     template:
       spec:
-        affinity:
-          nodeAffinity:
-            requiredDuringSchedulingIgnoredDuringExecution:
-              nodeSelectorTerms:
-              - matchExpressions:
-                - key: unit-test-cluster-ray
-                  operator: In
-                  values:
-                  - unit-test-cluster-ray
         containers:
         - env:
           - name: MY_POD_IP
@@ -123,15 +113,6 @@ spec:
         labels:
           key: value
       spec:
-        affinity:
-          nodeAffinity:
-            requiredDuringSchedulingIgnoredDuringExecution:
-              nodeSelectorTerms:
-              - matchExpressions:
-                - key: unit-test-cluster-ray
-                  operator: In
-                  values:
-                  - unit-test-cluster-ray
         containers:
         - env:
           - name: MY_POD_IP

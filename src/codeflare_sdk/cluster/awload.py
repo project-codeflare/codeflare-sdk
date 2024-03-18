@@ -29,8 +29,7 @@ from .auth import config_check, api_config_handler
 
 class AWManager:
     """
-    An object for submitting and removing existing AppWrapper yamls
-    to be added to the MCAD queue.
+    An object for submitting and removing existing AppWrapper yamls.
     """
 
     def __init__(self, filename: str) -> None:
@@ -62,7 +61,7 @@ class AWManager:
             api_instance = client.CustomObjectsApi(api_config_handler())
             api_instance.create_namespaced_custom_object(
                 group="workload.codeflare.dev",
-                version="v1beta1",
+                version="v1beta2",
                 namespace=self.namespace,
                 plural="appwrappers",
                 body=self.awyaml,
@@ -87,7 +86,7 @@ class AWManager:
             api_instance = client.CustomObjectsApi(api_config_handler())
             api_instance.delete_namespaced_custom_object(
                 group="workload.codeflare.dev",
-                version="v1beta1",
+                version="v1beta2",
                 namespace=self.namespace,
                 plural="appwrappers",
                 name=self.name,
