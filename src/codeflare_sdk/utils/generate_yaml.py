@@ -461,6 +461,12 @@ def enable_local_interactive(resources, cluster_name, namespace, ingress_domain)
         namespace,
         ingress_domain,
     )
+    item["generictemplate"]["metadata"]["annotations"][
+        "sdk.codeflare.dev/local_interactive"
+    ] = "true"
+    item["generictemplate"]["metadata"]["annotations"][
+        "sdk.codeflare.dev/ingress_domain"
+    ] = ingress_domain
 
     item["generictemplate"]["spec"]["headGroupSpec"]["template"]["spec"][
         "initContainers"

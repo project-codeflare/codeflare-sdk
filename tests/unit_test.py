@@ -40,7 +40,6 @@ from codeflare_sdk.cluster.cluster import (
     _app_wrapper_status,
     _ray_cluster_status,
     _get_ingress_domain,
-    get_ingress_domain_from_client,
 )
 from codeflare_sdk.cluster.auth import (
     TokenAuthentication,
@@ -978,6 +977,10 @@ def get_ray_obj(group, version, namespace, plural, cls=None):
                 "metadata": {
                     "creationTimestamp": "2024-03-05T09:55:37Z",
                     "generation": 1,
+                    "annotations": {
+                        "sdk.codeflare.dev/local_interactive": "true",
+                        "sdk.codeflare.dev/ingress_domain": "apps.cluster.awsroute.org",
+                    },
                     "labels": {
                         "appwrapper.mcad.ibm.com": "quicktest",
                         "controller-tools.k8s.io": "1.0",
@@ -1531,6 +1534,9 @@ def get_aw_obj(group, version, namespace, plural):
                                     "apiVersion": "ray.io/v1",
                                     "kind": "RayCluster",
                                     "metadata": {
+                                        "annotations": {
+                                            "sdk.codeflare.dev/local_interactive": "false"
+                                        },
                                         "labels": {
                                             "workload.codeflare.dev/appwrapper": "quicktest1",
                                             "controller-tools.k8s.io": "1.0",
@@ -1859,6 +1865,9 @@ def get_aw_obj(group, version, namespace, plural):
                                     "apiVersion": "ray.io/v1",
                                     "kind": "RayCluster",
                                     "metadata": {
+                                        "annotations": {
+                                            "sdk.codeflare.dev/local_interactive": "false"
+                                        },
                                         "labels": {
                                             "workload.codeflare.dev/appwrapper": "quicktest2",
                                             "controller-tools.k8s.io": "1.0",
@@ -2208,28 +2217,6 @@ def test_get_cluster(mocker):
         == "ghcr.io/foundation-model-stack/base:ray2.1.0-py38-gpu-pytorch1.12.0cu116-20221213-193103"
     )
     assert cluster_config.num_workers == 1
-
-
-def test_get_ingress_domain_from_client(mocker):
-    mocker.patch("kubernetes.config.load_kube_config")
-    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
-    mocker.patch(
-        "kubernetes.client.NetworkingV1Api.read_namespaced_ingress",
-        return_value=ingress_retrieval(cluster_name="unit-test-cluster").items[0],
-    )
-
-    ingress_domain = get_ingress_domain_from_client("unit-test-cluster", "ns")
-    assert ingress_domain == "apps.cluster.awsroute.org"
-
-    mocker.patch(
-        "codeflare_sdk.utils.generate_yaml.is_openshift_cluster", return_value=True
-    )
-    mocker.patch(
-        "kubernetes.client.CustomObjectsApi.get_namespaced_custom_object",
-        side_effect=route_retrieval,
-    )
-    ingress_domain = get_ingress_domain_from_client("unit-test-cluster", "ns")
-    assert ingress_domain == "apps.cluster.awsroute.org"
 
 
 def route_retrieval(group, version, namespace, plural, name):
