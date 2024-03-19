@@ -504,45 +504,13 @@ class Cluster:
 
     def from_k8_cluster_object(rc, mcad=True, ingress_domain=None, ingress_options={}, write_to_file=False):
         config_check()
-        cluster_name = rc["metadata"]["name"]
-        if is_openshift_cluster():
-            try:
-                api_instance = client.CustomObjectsApi(api_config_handler())
-                routes = api_instance.list_namespaced_custom_object(
-                    group="route.openshift.io",
-                    version="v1",
-                    namespace=rc["metadata"]["namespace"],
-                    plural="routes",
-                )
-            except Exception as e:  # pragma no cover
-                return _kube_api_error_handling(e)
-            for route in routes["items"]:
-                if (
-                    route["metadata"]["name"] == f"rayclient-{cluster_name}"
-                    and route["spec"]["port"]["targetPort"] == "client"
-                ):
-                    local_interactive = True
-                    break
-                else:
-                    local_interactive = False
+        if (
+            rc["metadata"]["annotations"]["sdk.codeflare.dev/local_interactive"]
+            == "true"
+        ):
+            local_interactive = True
         else:
-            try:
-                api_instance = client.NetworkingV1Api(api_config_handler())
-                ingresses = api_instance.list_namespaced_ingress(
-                    rc["metadata"]["namespace"]
-                )
-            except Exception as e:  # pragma no cover
-                return _kube_api_error_handling(e)
-            for ingress in ingresses.items:
-                if (
-                    f"rayclient-{cluster_name}" == ingress.metadata.name
-                    and ingress.spec.rules[0].http.paths[0].backend.service.port.number
-                    == 10001
-                ):
-                    local_interactive = True
-                    break
-                else:
-                    local_interactive = False
+            local_interactive = False
 
         machine_types = (
             rc["metadata"]["labels"]["orderedinstance"].split("_")
@@ -551,9 +519,10 @@ class Cluster:
         )
 
         if local_interactive and ingress_domain == None:
-            ingress_domain = get_ingress_domain_from_client(
-                rc["metadata"]["name"], rc["metadata"]["namespace"]
-            )
+            ingress_domain = rc["metadata"]["annotations"][
+                "sdk.codeflare.dev/ingress_domain"
+            ]
+
         cluster_config = ClusterConfiguration(
             name=rc["metadata"]["name"],
             namespace=rc["metadata"]["namespace"],
@@ -1080,30 +1049,3 @@ def _copy_to_ray(cluster: Cluster) -> RayCluster:
     if ray.status == CodeFlareClusterStatus.READY:
         ray.status = RayClusterStatus.READY
     return ray
-
-
-def get_ingress_domain_from_client(cluster_name: str, namespace: str = "default"):
-    if is_openshift_cluster():
-        try:
-            config_check()
-            api_instance = client.CustomObjectsApi(api_config_handler())
-            route = api_instance.get_namespaced_custom_object(
-                group="route.openshift.io",
-                version="v1",
-                namespace=namespace,
-                plural="routes",
-                name=f"rayclient-{cluster_name}",
-            )
-            return route["spec"]["host"].split(".", 1)[1]
-        except Exception as e:  # pragma no cover
-            return _kube_api_error_handling(e)
-    else:
-        try:
-            config_check()
-            api_instance = client.NetworkingV1Api(api_config_handler())
-            ingress = api_instance.read_namespaced_ingress(
-                f"rayclient-{cluster_name}", namespace
-            )
-            return ingress.spec.rules[0].host.split(".", 1)[1]
-        except Exception as e:  # pragma no cover
-            return _kube_api_error_handling(e)

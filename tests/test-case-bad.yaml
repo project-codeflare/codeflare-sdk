@@ -32,6 +32,8 @@ spec:
         apiVersion: ray.io/v1
         kind: RayCluster
         metadata:
+          annotations:
+            sdk.codeflare.dev/local_interactive: 'false'
           labels:
             workload.codeflare.dev/appwrapper: unit-test-cluster
             controller-tools.k8s.io: '1.0'
