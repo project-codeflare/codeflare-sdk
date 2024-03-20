@@ -54,3 +54,4 @@ markers = [
     "kind",
     "openshift"
 ]
+addopts = "--timeout=900"
