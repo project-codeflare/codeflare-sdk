@@ -502,7 +502,9 @@ class Cluster:
             to_return["requirements"] = requirements
         return to_return
 
-    def from_k8_cluster_object(rc, mcad=True, ingress_domain=None, ingress_options={}, write_to_file=False):
+    def from_k8_cluster_object(
+        rc, mcad=True, ingress_domain=None, ingress_options={}, write_to_file=False
+    ):
         config_check()
         if (
             rc["metadata"]["annotations"]["sdk.codeflare.dev/local_interactive"]
