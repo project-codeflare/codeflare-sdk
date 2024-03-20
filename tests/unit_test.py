@@ -333,7 +333,6 @@ def get_local_queue(group, version, namespace, plural):
 
 
 def test_cluster_creation_no_mcad(mocker):
-    # With written resources
     # Create Ray Cluster with no local queue specified
     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch(
@@ -359,6 +358,7 @@ def test_cluster_creation_no_mcad(mocker):
 
 
 def test_cluster_creation_no_mcad_local_queue(mocker):
+    # With written resources
     # Create Ray Cluster with local queue specified
     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch(
@@ -395,6 +395,7 @@ def test_cluster_creation_no_mcad_local_queue(mocker):
         image="quay.io/project-codeflare/ray:latest-py39-cu118",
         write_to_file=False,
         mcad=False,
+        local_queue="local-queue-default",
     )
     cluster = Cluster(config)
     test_resources = []

@@ -678,11 +678,23 @@ def write_components(
     print(f"Written to: {output_file_name}")
 
 
-def load_components(user_yaml: dict, name: str):
+def load_components(
+    user_yaml: dict, name: str, namespace: str, local_queue: Optional[str]
+):
     component_list = []
     components = user_yaml.get("spec", "resources")["resources"].get("GenericItems")
+    lq_name = local_queue or get_default_kueue_name(namespace)
     for component in components:
         if "generictemplate" in component:
+            if (
+                "workload.codeflare.dev/appwrapper"
+                in component["generictemplate"]["metadata"]["labels"]
+            ):
+                del component["generictemplate"]["metadata"]["labels"][
+                    "workload.codeflare.dev/appwrapper"
+                ]
+                labels = component["generictemplate"]["metadata"]["labels"]
+                labels.update({"kueue.x-k8s.io/queue-name": lq_name})
             component_list.append(component["generictemplate"])
 
     resources = "---\n" + "---\n".join(
@@ -790,11 +802,11 @@ def generate_appwrapper(
         if mcad:
             write_user_appwrapper(user_yaml, outfile)
         else:
-            write_components(user_yaml, outfile, local_queue)
+            write_components(user_yaml, outfile, namespace, local_queue)
         return outfile
     else:
         if mcad:
             user_yaml = load_appwrapper(user_yaml, name)
         else:
-            user_yaml = load_components(user_yaml, name)
+            user_yaml = load_components(user_yaml, name, namespace, local_queue)
         return user_yaml
