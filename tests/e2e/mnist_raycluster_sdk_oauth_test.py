@@ -4,7 +4,7 @@ from time import sleep
 
 from torchx.specs.api import AppState, is_terminal
 
-from codeflare_sdk.cluster.cluster import Cluster, ClusterConfiguration
+from codeflare_sdk import Cluster, ClusterConfiguration, TokenAuthentication
 from codeflare_sdk.job.jobs import DDPJobDefinition
 
 import pytest
@@ -29,6 +29,13 @@ class TestRayClusterSDKOauth:
 
     def run_mnist_raycluster_sdk_oauth(self):
         ray_image = get_ray_image()
+
+        auth = TokenAuthentication(
+            token=run_oc_command(["whoami", "--show-token=true"]),
+            server=run_oc_command(["whoami", "--show-server=true"]),
+            skip_tls=True,
+        )
+        auth.login()
 
         cluster = Cluster(
             ClusterConfiguration(
