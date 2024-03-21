@@ -1,6 +1,7 @@
 import os
 import random
 import string
+import subprocess
 from kubernetes import client, config
 import kubernetes.client
 
@@ -33,3 +34,14 @@ def initialize_kubernetes_client(self):
     # Initialize Kubernetes client
     self.api_instance = client.CoreV1Api()
     self.custom_api = kubernetes.client.CustomObjectsApi(self.api_instance.api_client)
+
+
+def run_oc_command(args):
+    try:
+        result = subprocess.run(
+            ["oc"] + args, capture_output=True, text=True, check=True
+        )
+        return result.stdout.strip()
+    except subprocess.CalledProcessError as e:
+        print(f"Error executing 'oc {' '.join(args)}': {e}")
+        return None
