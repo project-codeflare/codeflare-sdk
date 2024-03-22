@@ -473,6 +473,13 @@ def enable_local_interactive(resources, cluster_name, namespace, ingress_domain)
     ][0].get("command")[2] = command
 
 
+def apply_ingress_domain_annotation(resources, ingress_domain):
+    item = resources["resources"].get("GenericItems")[0]
+    item["generictemplate"]["metadata"]["annotations"][
+        "sdk.codeflare.dev/ingress_domain"
+    ] = ingress_domain
+
+
 def del_from_list_by_name(l: list, target: typing.List[str]) -> list:
     return [x for x in l if x["name"] not in target]
 
@@ -740,6 +747,9 @@ def generate_appwrapper(
         ingress_options,
         ingress_domain,
     )
+    if ingress_domain is not None:
+        apply_ingress_domain_annotation(resources, ingress_domain)
+
     if local_interactive:
         enable_local_interactive(resources, cluster_name, namespace, ingress_domain)
     else:
