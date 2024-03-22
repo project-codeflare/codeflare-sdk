@@ -101,12 +101,16 @@ class TokenAuthentication(Authentication):
         """
         global config_path
         global api_client
+        odh_ca_path = "/etc/pki/tls/custom-certs/ca-bundle.crt"
         try:
             configuration = client.Configuration()
             configuration.api_key_prefix["authorization"] = "Bearer"
             configuration.host = self.server
             configuration.api_key["authorization"] = self.token
             if self.skip_tls == False and self.ca_cert_path == None:
+                if os.path.isfile(odh_ca_path):
+                    print(f"Authenticated with certificate located at {odh_ca_path}")
+                    configuration.ssl_ca_cert = odh_ca_path
                 configuration.verify_ssl = True
             elif self.skip_tls == False:
                 configuration.ssl_ca_cert = self.ca_cert_path
