@@ -3434,6 +3434,7 @@ def test_cleanup():
     os.remove(f"{aw_dir}prio-test-cluster.yaml")
     os.remove(f"{aw_dir}test.yaml")
     os.remove(f"{aw_dir}raytest2.yaml")
+    os.remove(f"{aw_dir}unit-test-cluster-ray.yaml")
     os.remove("tls-cluster-namespace/ca.crt")
     os.remove("tls-cluster-namespace/tls.crt")
     os.remove("tls-cluster-namespace/tls.key")
