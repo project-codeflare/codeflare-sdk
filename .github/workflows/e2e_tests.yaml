@@ -68,7 +68,7 @@ jobs:
       - name: Set Go
         uses: actions/setup-go@v5
         with:
-          go-version: v1.20
+          go-version: v1.22
 
       - name: Set up gotestfmt
         uses: gotesttools/gotestfmt-action@v2
