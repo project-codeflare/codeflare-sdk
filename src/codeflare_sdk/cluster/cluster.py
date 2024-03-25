@@ -509,7 +509,7 @@ class Cluster:
         openshift_oauth = False
         if (
             rc["metadata"]["annotations"]["sdk.codeflare.dev/local_interactive"]
-            == "true"
+            == "True"
         ):
             local_interactive = True
         else:
@@ -677,7 +677,7 @@ def get_cluster(
             mcad = _check_aw_exists(cluster_name, namespace)
             ingress_host = None
             ingress_options = {}
-            if is_openshift_cluster() == False:
+            if not is_openshift_cluster():
                 try:
                     config_check()
                     api_instance = client.NetworkingV1Api(api_config_handler())

@@ -978,7 +978,7 @@ def get_ray_obj(group, version, namespace, plural, cls=None):
                     "creationTimestamp": "2024-03-05T09:55:37Z",
                     "generation": 1,
                     "annotations": {
-                        "sdk.codeflare.dev/local_interactive": "true",
+                        "sdk.codeflare.dev/local_interactive": "True",
                         "sdk.codeflare.dev/ingress_domain": "apps.cluster.awsroute.org",
                     },
                     "labels": {
@@ -1535,7 +1535,7 @@ def get_aw_obj(group, version, namespace, plural):
                                     "kind": "RayCluster",
                                     "metadata": {
                                         "annotations": {
-                                            "sdk.codeflare.dev/local_interactive": "false"
+                                            "sdk.codeflare.dev/local_interactive": "False"
                                         },
                                         "labels": {
                                             "workload.codeflare.dev/appwrapper": "quicktest1",
@@ -1866,7 +1866,7 @@ def get_aw_obj(group, version, namespace, plural):
                                     "kind": "RayCluster",
                                     "metadata": {
                                         "annotations": {
-                                            "sdk.codeflare.dev/local_interactive": "false"
+                                            "sdk.codeflare.dev/local_interactive": "False"
                                         },
                                         "labels": {
                                             "workload.codeflare.dev/appwrapper": "quicktest2",
@@ -2138,7 +2138,7 @@ def test_get_cluster_openshift(mocker):
     ]
     mocker.patch("kubernetes.client.ApisApi", return_value=mock_api)
 
-    assert is_openshift_cluster() == True
+    assert is_openshift_cluster()
 
     def custom_side_effect(group, version, namespace, plural, **kwargs):
         if plural == "routes":

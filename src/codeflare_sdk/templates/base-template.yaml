@@ -41,7 +41,7 @@ spec:
         kind: RayCluster
         metadata:
           annotations:
-            sdk.codeflare.dev/local_interactive: "false"
+            sdk.codeflare.dev/local_interactive: "False"
           labels:
             workload.codeflare.dev/appwrapper: "aw-kuberay"
             controller-tools.k8s.io: "1.0"
