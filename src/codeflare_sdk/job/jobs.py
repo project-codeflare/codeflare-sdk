@@ -138,7 +138,7 @@ class DDPJobDefinition(JobDefinition):
         if self.scheduler_args is not None:
             if self.scheduler_args.get("namespace") is None:
                 self.scheduler_args["namespace"] = get_current_namespace()
-        scheduler = "kueue_job"
+        scheduler = "kueue"
         if self.mcad == True:
             scheduler = "kubernetes_mcad"
         runner = get_runner()
