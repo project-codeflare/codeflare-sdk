@@ -34,7 +34,7 @@ spec:
         metadata:
           annotations:
             sdk.codeflare.dev/ingress_domain: apps.cluster.awsroute.org
-            sdk.codeflare.dev/local_interactive: 'false'
+            sdk.codeflare.dev/local_interactive: 'False'
           labels:
             controller-tools.k8s.io: '1.0'
             workload.codeflare.dev/appwrapper: prio-test-cluster

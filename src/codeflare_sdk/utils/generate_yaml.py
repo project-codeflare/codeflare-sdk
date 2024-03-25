@@ -463,7 +463,7 @@ def enable_local_interactive(resources, cluster_name, namespace, ingress_domain)
     )
     item["generictemplate"]["metadata"]["annotations"][
         "sdk.codeflare.dev/local_interactive"
-    ] = "true"
+    ] = "True"
     item["generictemplate"]["metadata"]["annotations"][
         "sdk.codeflare.dev/ingress_domain"
     ] = ingress_domain
