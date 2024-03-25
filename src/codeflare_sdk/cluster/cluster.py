@@ -506,6 +506,7 @@ class Cluster:
         rc, mcad=True, ingress_domain=None, ingress_options={}, write_to_file=False
     ):
         config_check()
+        openshift_oauth = False
         if (
             rc["metadata"]["annotations"]["sdk.codeflare.dev/local_interactive"]
             == "true"
@@ -513,7 +514,15 @@ class Cluster:
             local_interactive = True
         else:
             local_interactive = False
-
+        if "codeflare.dev/oauth" in rc["metadata"]["annotations"]:
+            if rc["metadata"]["annotations"]["codeflare.dev/oauth"] == "True":
+                openshift_oauth = True
+        else:
+            for container in rc["spec"]["headGroupSpec"]["template"]["spec"][
+                "containers"
+            ]:
+                if "oauth-proxy" in container["name"]:
+                    openshift_oauth = True
         machine_types = (
             rc["metadata"]["labels"]["orderedinstance"].split("_")
             if "orderedinstance" in rc["metadata"]["labels"]
@@ -530,12 +539,16 @@ class Cluster:
             namespace=rc["metadata"]["namespace"],
             machine_types=machine_types,
             num_workers=rc["spec"]["workerGroupSpecs"][0]["minReplicas"],
-            min_cpus=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"][
-                "containers"
-            ][0]["resources"]["requests"]["cpu"],
-            max_cpus=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"][
-                "containers"
-            ][0]["resources"]["limits"]["cpu"],
+            min_cpus=int(
+                rc["spec"]["workerGroupSpecs"][0]["template"]["spec"]["containers"][0][
+                    "resources"
+                ]["requests"]["cpu"]
+            ),
+            max_cpus=int(
+                rc["spec"]["workerGroupSpecs"][0]["template"]["spec"]["containers"][0][
+                    "resources"
+                ]["limits"]["cpu"]
+            ),
             min_memory=int(
                 rc["spec"]["workerGroupSpecs"][0]["template"]["spec"]["containers"][0][
                     "resources"
@@ -546,9 +559,11 @@ class Cluster:
                     "resources"
                 ]["limits"]["memory"][:-1]
             ),
-            num_gpus=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"][
-                "containers"
-            ][0]["resources"]["limits"]["nvidia.com/gpu"],
+            num_gpus=int(
+                rc["spec"]["workerGroupSpecs"][0]["template"]["spec"]["containers"][0][
+                    "resources"
+                ]["limits"]["nvidia.com/gpu"]
+            ),
             instascale=True if machine_types else False,
             image=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"]["containers"][
                 0
@@ -558,6 +573,7 @@ class Cluster:
             ingress_domain=ingress_domain,
             ingress_options=ingress_options,
             write_to_file=write_to_file,
+            openshift_oauth=openshift_oauth,
         )
         return Cluster(cluster_config)
 
