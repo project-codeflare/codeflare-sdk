@@ -53,6 +53,7 @@ class TestRayClusterSDKOauth:
                 image=ray_image,
                 openshift_oauth=True,
                 write_to_file=True,
+                mcad=True,
             )
         )
 
