@@ -900,10 +900,7 @@ def _get_app_wrappers(
 
     for item in aws["items"]:
         app_wrapper = _map_to_app_wrapper(item)
-        if filter:
-            if app_wrapper.status in filter:
-            list_of_app_wrappers.append(app_wrapper)
-        else:
+        if not filter or app_wrapper.status in filter:
             list_of_app_wrappers.append(app_wrapper)
     return list_of_app_wrappers
 
@@ -988,11 +985,13 @@ def _map_to_app_wrapper(aw) -> AppWrapper:
     if "status" in aw:
         return AppWrapper(
             name=aw["metadata"]["name"],
-            status=AppWrapperStatus(aw["status"].get("phase", "suspended").lower()),
+            status=AppWrapperStatus(
+                aw["status"].get("phase", AppWrapperStatus.SUSPENDED.value).lower()
+            ),
         )
     return AppWrapper(
         name=aw["metadata"]["name"],
-        status=AppWrapperStatus("suspended"),
+        status=AppWrapperStatus.SUSPENDED,
     )
 
 
