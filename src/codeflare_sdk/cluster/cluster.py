@@ -515,14 +515,14 @@ class Cluster:
         else:
             local_interactive = False
         if "codeflare.dev/oauth" in rc["metadata"]["annotations"]:
-            if rc["metadata"]["annotations"]["codeflare.dev/oauth"] == "True":
-                openshift_oauth = True
+            openshift_oauth = (
+                rc["metadata"]["annotations"]["codeflare.dev/oauth"] == "True"
+            )
         else:
             for container in rc["spec"]["headGroupSpec"]["template"]["spec"][
                 "containers"
             ]:
-                if "oauth-proxy" in container["name"]:
-                    openshift_oauth = True
+                openshift_oauth = "oauth-proxy" in container["name"]
         machine_types = (
             rc["metadata"]["labels"]["orderedinstance"].split("_")
             if "orderedinstance" in rc["metadata"]["labels"]
