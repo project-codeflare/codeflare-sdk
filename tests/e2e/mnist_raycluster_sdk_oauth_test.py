@@ -49,7 +49,6 @@ class TestRayClusterSDKOauth:
                 min_memory=1,
                 max_memory=2,
                 num_gpus=0,
-                instascale=False,
                 image=ray_image,
                 openshift_oauth=True,
                 write_to_file=True,
@@ -130,7 +129,7 @@ class TestRayClusterSDKOauth:
         try:
             self.custom_api.get_namespaced_custom_object(
                 "workload.codeflare.dev",
-                "v1beta1",
+                "v1beta2",
                 self.namespace,
                 "appwrappers",
                 "mnist",

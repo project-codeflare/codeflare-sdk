@@ -43,8 +43,6 @@ def createClusterConfig():
         min_memory=5,
         max_memory=6,
         num_gpus=7,
-        instascale=True,
-        machine_types=["cpu.small", "gpu.large"],
         image_pull_secrets=["unit-test-pull-secret"],
         ingress_domain="apps.cluster.awsroute.org",
         image="quay.io/project-codeflare/ray:latest-py39-cu118",
