@@ -388,6 +388,8 @@ github.com/project-codeflare/appwrapper v0.6.4 h1:fFoEItJoetWsvK7qlMX0XPkSY0Eull
 github.com/project-codeflare/appwrapper v0.6.4/go.mod h1:1M0IXkdIa5uzyoqVfbubuIzZRtqIDLgzmJEcWBMPvdg=
 github.com/project-codeflare/codeflare-common v0.0.0-20240321160419-5fce7084f350 h1:yLv9HleCC2On9UhHlMwPNG91QIqzj7sN2aEzU7gIgrg=
 github.com/project-codeflare/codeflare-common v0.0.0-20240321160419-5fce7084f350/go.mod h1:k48kfd8LDWzku1bC4NMWLtN71MXKxuOmd8fWYx6bIZ0=
+github.com/project-codeflare/codeflare-common v0.0.0-20240328004251-117c22817715 h1:nz908of0ohu1PodLgQjwCsrmhAXkX9Ukj5oez+CGlg0=
+github.com/project-codeflare/codeflare-common v0.0.0-20240328004251-117c22817715/go.mod h1:k48kfd8LDWzku1bC4NMWLtN71MXKxuOmd8fWYx6bIZ0=
 github.com/prometheus/client_golang v0.9.1/go.mod h1:7SWBe2y4D6OKWSNQJUaRYU/AaXPKyh/dDVn+NZz0KFw=
 github.com/prometheus/client_golang v1.0.0/go.mod h1:db9x61etRT2tGnBNRi70OPL5FsnadC4Ky3P0J6CfImo=
 github.com/prometheus/client_golang v1.7.1/go.mod h1:PY5Wy2awLA44sXw4AOSfFBetzPP4j5+D6mVACh+pe2M=
