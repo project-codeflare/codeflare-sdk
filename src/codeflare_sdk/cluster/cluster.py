@@ -33,10 +33,7 @@ from ..utils.generate_yaml import (
 )
 from ..utils.kube_api_helpers import _kube_api_error_handling
 from ..utils.generate_yaml import is_openshift_cluster
-from ..utils.openshift_oauth import (
-    create_openshift_oauth_objects,
-    delete_openshift_oauth_objects,
-)
+
 from .config import ClusterConfiguration
 from .model import (
     AppWrapper,
@@ -226,10 +223,6 @@ class Cluster:
         the MCAD queue.
         """
         namespace = self.config.namespace
-        if self.config.openshift_oauth:
-            create_openshift_oauth_objects(
-                cluster_name=self.config.name, namespace=namespace
-            )
 
         try:
             config_check()
@@ -280,11 +273,6 @@ class Cluster:
                 self._component_resources_down(namespace, api_instance)
         except Exception as e:  # pragma: no cover
             return _kube_api_error_handling(e)
-
-        if self.config.openshift_oauth:
-            delete_openshift_oauth_objects(
-                cluster_name=self.config.name, namespace=namespace
-            )
 
     def status(
         self, print_to_console: bool = True
