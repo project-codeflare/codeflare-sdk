@@ -474,6 +474,7 @@ def arg_check_del_effect(group, version, namespace, plural, name, *args):
 def test_cluster_up_down(mocker):
     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+    mocker.patch("codeflare_sdk.cluster.cluster.Cluster._throw_for_no_raycluster")
     mocker.patch(
         "kubernetes.client.CustomObjectsApi.get_cluster_custom_object",
         return_value={"spec": {"domain": ""}},
@@ -496,6 +497,7 @@ def test_cluster_up_down(mocker):
 
 
 def test_cluster_up_down_no_mcad(mocker):
+    mocker.patch("codeflare_sdk.cluster.cluster.Cluster._throw_for_no_raycluster")
     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
     mocker.patch(
@@ -3170,6 +3172,28 @@ def test_gen_app_wrapper_with_oauth(mocker: MockerFixture):
             "generictemplate"
         ]["spec"]["headGroupSpec"]["template"]["spec"]["containers"]
     )
+
+
+def test_cluster_throw_for_no_raycluster(mocker: MockerFixture):
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch(
+        "codeflare_sdk.cluster.cluster.get_current_namespace",
+        return_value="opendatahub",
+    )
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
+        side_effect=client.ApiException(status=404),
+    )
+    cluster = Cluster(
+        ClusterConfiguration(
+            "test_cluster",
+            image="quay.io/project-codeflare/ray:latest-py39-cu118",
+            ingress_domain="apps.cluster.awsroute.org",
+            write_to_file=False,
+        )
+    )
+    with pytest.raises(RuntimeError):
+        cluster.up()
 
 
 """

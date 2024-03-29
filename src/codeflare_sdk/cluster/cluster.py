@@ -48,6 +48,7 @@ import os
 import requests
 
 from kubernetes import config
+from kubernetes.client.rest import ApiException
 
 
 class Cluster:
@@ -225,6 +226,10 @@ class Cluster:
         Applies the AppWrapper yaml, pushing the resource request onto
         the MCAD queue.
         """
+
+        # check if RayCluster CustomResourceDefinition exists if not throw RuntimeError
+        self._throw_for_no_raycluster()
+
         namespace = self.config.namespace
 
         try:
@@ -255,12 +260,32 @@ class Cluster:
         except Exception as e:  # pragma: no cover
             return _kube_api_error_handling(e)
 
+    def _throw_for_no_raycluster(self):
+        api_instance = client.CustomObjectsApi(api_config_handler())
+        try:
+            api_instance.list_namespaced_custom_object(
+                group="ray.io",
+                version="v1",
+                namespace=self.config.namespace,
+                plural="rayclusters",
+            )
+        except ApiException as e:
+            if e.status == 404:
+                raise RuntimeError(
+                    "RayCluster CustomResourceDefinition unavailable contact your administrator."
+                )
+            else:
+                raise RuntimeError(
+                    "Failed to get RayCluster CustomResourceDefinition: " + str(e)
+                )
+
     def down(self):
         """
         Deletes the AppWrapper yaml, scaling-down and deleting all resources
         associated with the cluster.
         """
         namespace = self.config.namespace
+        self._throw_for_no_raycluster()
         try:
             config_check()
             api_instance = client.CustomObjectsApi(api_config_handler())
