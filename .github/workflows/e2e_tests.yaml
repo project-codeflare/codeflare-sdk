@@ -79,10 +79,15 @@ jobs:
       - name: Setup and start KinD cluster
         uses: ./common/github-actions/kind
 
+      - name: Deploy Kueue
+        working-directory: codeflare-operator
+        run: |
+          make kueue-e2e
+
       - name: Deploy CodeFlare stack
         id: deploy
+        working-directory: codeflare-operator
         run: |
-          cd codeflare-operator
           echo Deploying CodeFlare operator
           IMG="${REGISTRY_ADDRESS}"/codeflare-operator
           make image-push -e IMG="${IMG}"
@@ -91,8 +96,6 @@ jobs:
 
           echo Setting up CodeFlare stack
           make setup-e2e
-
-          cd ..
 
       - name: Add user to KinD
         uses: ./common/github-actions/kind-add-user
@@ -130,6 +133,13 @@ jobs:
         run: |
           echo "Printing CodeFlare operator logs"
           kubectl logs -n openshift-operators --tail -1 -l app.kubernetes.io/name=codeflare-operator | tee ${CODEFLARE_TEST_OUTPUT_DIR}/codeflare-operator.log
+
+      - name: Print Kueue operator logs
+        if: always() && steps.deploy.outcome == 'success'
+        run: |
+          echo "Printing Kueue operator logs"
+          KUEUE_CONTROLLER_POD=$(kubectl get pods -n kueue-system | grep kueue-controller | awk '{print $1}')
+          kubectl logs -n kueue-system --tail -1 ${KUEUE_CONTROLLER_POD} | tee ${CODEFLARE_TEST_OUTPUT_DIR}/kueue.log
 
       - name: Print KubeRay operator logs
         if: always() && steps.deploy.outcome == 'success'

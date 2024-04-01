@@ -4,7 +4,7 @@ go 1.21
 
 require (
 	github.com/onsi/gomega v1.31.1
-	github.com/project-codeflare/appwrapper v0.7.0
+	github.com/project-codeflare/appwrapper v0.7.1
 	github.com/project-codeflare/codeflare-common v0.0.0-20240328182412-38df643db183
 	github.com/ray-project/kuberay/ray-operator v1.0.0
 	k8s.io/api v0.29.1
