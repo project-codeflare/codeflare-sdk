@@ -7,208 +7,208 @@ spec:
   components:
   - podSets:
     - path: template.spec.headGroupSpec.template
-        replicas: 1
+      replicas: 1
     - path: template.spec.workerGroupSpecs[0].template
-        replicas: 2
+      replicas: 2
     template:
-        apiVersion: ray.io/v1
-        kind: RayCluster
-        metadata:
-          annotations:
-            sdk.codeflare.dev/ingress_domain: apps.cluster.awsroute.org
-            sdk.codeflare.dev/local_interactive: 'False'
-          labels:
-            controller-tools.k8s.io: '1.0'
-          name: unit-test-cluster
-          namespace: ns
-        spec:
-          autoscalerOptions:
-            idleTimeoutSeconds: 60
-            imagePullPolicy: Always
-            resources:
-              limits:
-                cpu: 500m
-                memory: 512Mi
-              requests:
-                cpu: 500m
-                memory: 512Mi
-            upscalingMode: Default
-          enableInTreeAutoscaling: false
-          headGroupSpec:
-            rayStartParams:
-              block: 'true'
-              dashboard-host: 0.0.0.0
-              num-gpus: '0'
-            serviceType: ClusterIP
-            template:
-              spec:
-                containers:
-                - env:
-                  - name: MY_POD_IP
-                    valueFrom:
-                      fieldRef:
-                        fieldPath: status.podIP
-                  - name: RAY_USE_TLS
-                    value: '0'
-                  - name: RAY_TLS_SERVER_CERT
-                    value: /home/ray/workspace/tls/server.crt
-                  - name: RAY_TLS_SERVER_KEY
-                    value: /home/ray/workspace/tls/server.key
-                  - name: RAY_TLS_CA_CERT
-                    value: /home/ray/workspace/tls/ca.crt
-                  image: quay.io/project-codeflare/ray:latest-py39-cu118
-                  imagePullPolicy: Always
-                  lifecycle:
-                    preStop:
-                      exec:
-                        command:
-                        - /bin/sh
-                        - -c
-                        - ray stop
-                  name: ray-head
-                  ports:
-                  - containerPort: 6379
-                    name: gcs
-                  - containerPort: 8265
-                    name: dashboard
-                  - containerPort: 10001
-                    name: client
-                  resources:
-                    limits:
-                      cpu: 2
-                      memory: 8G
-                      nvidia.com/gpu: 0
-                    requests:
-                      cpu: 2
-                      memory: 8G
-                      nvidia.com/gpu: 0
-                  volumeMounts:
-                  - mountPath: /etc/pki/tls/certs/odh-trusted-ca-bundle.crt
-                    name: odh-trusted-ca-cert
-                    subPath: odh-trusted-ca-bundle.crt
-                  - mountPath: /etc/ssl/certs/odh-trusted-ca-bundle.crt
-                    name: odh-trusted-ca-cert
-                    subPath: odh-trusted-ca-bundle.crt
-                  - mountPath: /etc/pki/tls/certs/odh-ca-bundle.crt
-                    name: odh-ca-cert
-                    subPath: odh-ca-bundle.crt
-                  - mountPath: /etc/ssl/certs/odh-ca-bundle.crt
-                    name: odh-ca-cert
-                    subPath: odh-ca-bundle.crt
-                imagePullSecrets:
-                - name: unit-test-pull-secret
-                volumes:
-                - configMap:
-                    items:
-                    - key: ca-bundle.crt
-                      path: odh-trusted-ca-bundle.crt
-                    name: odh-trusted-ca-bundle
-                    optional: true
+      apiVersion: ray.io/v1
+      kind: RayCluster
+      metadata:
+        annotations:
+          sdk.codeflare.dev/ingress_domain: apps.cluster.awsroute.org
+          sdk.codeflare.dev/local_interactive: 'False'
+        labels:
+          controller-tools.k8s.io: '1.0'
+        name: unit-test-cluster
+        namespace: ns
+      spec:
+        autoscalerOptions:
+          idleTimeoutSeconds: 60
+          imagePullPolicy: Always
+          resources:
+            limits:
+              cpu: 500m
+              memory: 512Mi
+            requests:
+              cpu: 500m
+              memory: 512Mi
+          upscalingMode: Default
+        enableInTreeAutoscaling: false
+        headGroupSpec:
+          rayStartParams:
+            block: 'true'
+            dashboard-host: 0.0.0.0
+            num-gpus: '0'
+          serviceType: ClusterIP
+          template:
+            spec:
+              containers:
+              - env:
+                - name: MY_POD_IP
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: status.podIP
+                - name: RAY_USE_TLS
+                  value: '0'
+                - name: RAY_TLS_SERVER_CERT
+                  value: /home/ray/workspace/tls/server.crt
+                - name: RAY_TLS_SERVER_KEY
+                  value: /home/ray/workspace/tls/server.key
+                - name: RAY_TLS_CA_CERT
+                  value: /home/ray/workspace/tls/ca.crt
+                image: quay.io/project-codeflare/ray:latest-py39-cu118
+                imagePullPolicy: Always
+                lifecycle:
+                  preStop:
+                    exec:
+                      command:
+                      - /bin/sh
+                      - -c
+                      - ray stop
+                name: ray-head
+                ports:
+                - containerPort: 6379
+                  name: gcs
+                - containerPort: 8265
+                  name: dashboard
+                - containerPort: 10001
+                  name: client
+                resources:
+                  limits:
+                    cpu: 2
+                    memory: 8G
+                    nvidia.com/gpu: 0
+                  requests:
+                    cpu: 2
+                    memory: 8G
+                    nvidia.com/gpu: 0
+                volumeMounts:
+                - mountPath: /etc/pki/tls/certs/odh-trusted-ca-bundle.crt
                   name: odh-trusted-ca-cert
-                - configMap:
-                    items:
-                    - key: odh-ca-bundle.crt
-                      path: odh-ca-bundle.crt
-                    name: odh-trusted-ca-bundle
-                    optional: true
-                  name: odh-ca-cert
-          rayVersion: 2.7.0
-          workerGroupSpecs:
-          - groupName: small-group-unit-test-cluster
-            maxReplicas: 2
-            minReplicas: 2
-            rayStartParams:
-              block: 'true'
-              num-gpus: '7'
-            replicas: 2
-            template:
-              metadata:
-                annotations:
-                  key: value
-                labels:
-                  key: value
-              spec:
-                containers:
-                - env:
-                  - name: MY_POD_IP
-                    valueFrom:
-                      fieldRef:
-                        fieldPath: status.podIP
-                  - name: RAY_USE_TLS
-                    value: '0'
-                  - name: RAY_TLS_SERVER_CERT
-                    value: /home/ray/workspace/tls/server.crt
-                  - name: RAY_TLS_SERVER_KEY
-                    value: /home/ray/workspace/tls/server.key
-                  - name: RAY_TLS_CA_CERT
-                    value: /home/ray/workspace/tls/ca.crt
-                  image: quay.io/project-codeflare/ray:latest-py39-cu118
-                  lifecycle:
-                    preStop:
-                      exec:
-                        command:
-                        - /bin/sh
-                        - -c
-                        - ray stop
-                  name: machine-learning
-                  resources:
-                    limits:
-                      cpu: 4
-                      memory: 6G
-                      nvidia.com/gpu: 7
-                    requests:
-                      cpu: 3
-                      memory: 5G
-                      nvidia.com/gpu: 7
-                  volumeMounts:
-                  - mountPath: /etc/pki/tls/certs/odh-trusted-ca-bundle.crt
-                    name: odh-trusted-ca-cert
-                    subPath: odh-trusted-ca-bundle.crt
-                  - mountPath: /etc/ssl/certs/odh-trusted-ca-bundle.crt
-                    name: odh-trusted-ca-cert
-                    subPath: odh-trusted-ca-bundle.crt
-                  - mountPath: /etc/pki/tls/certs/odh-ca-bundle.crt
-                    name: odh-ca-cert
-                    subPath: odh-ca-bundle.crt
-                  - mountPath: /etc/ssl/certs/odh-ca-bundle.crt
-                    name: odh-ca-cert
-                    subPath: odh-ca-bundle.crt
-                imagePullSecrets:
-                - name: unit-test-pull-secret
-                volumes:
-                - configMap:
-                    items:
-                    - key: ca-bundle.crt
-                      path: odh-trusted-ca-bundle.crt
-                    name: odh-trusted-ca-bundle
-                    optional: true
+                  subPath: odh-trusted-ca-bundle.crt
+                - mountPath: /etc/ssl/certs/odh-trusted-ca-bundle.crt
                   name: odh-trusted-ca-cert
-                - configMap:
-                    items:
-                    - key: odh-ca-bundle.crt
-                      path: odh-ca-bundle.crt
-                    name: odh-trusted-ca-bundle
-                    optional: true
+                  subPath: odh-trusted-ca-bundle.crt
+                - mountPath: /etc/pki/tls/certs/odh-ca-bundle.crt
                   name: odh-ca-cert
+                  subPath: odh-ca-bundle.crt
+                - mountPath: /etc/ssl/certs/odh-ca-bundle.crt
+                  name: odh-ca-cert
+                  subPath: odh-ca-bundle.crt
+              imagePullSecrets:
+              - name: unit-test-pull-secret
+              volumes:
+              - configMap:
+                  items:
+                  - key: ca-bundle.crt
+                    path: odh-trusted-ca-bundle.crt
+                  name: odh-trusted-ca-bundle
+                  optional: true
+                name: odh-trusted-ca-cert
+              - configMap:
+                  items:
+                  - key: odh-ca-bundle.crt
+                    path: odh-ca-bundle.crt
+                  name: odh-trusted-ca-bundle
+                  optional: true
+                name: odh-ca-cert
+        rayVersion: 2.7.0
+        workerGroupSpecs:
+        - groupName: small-group-unit-test-cluster
+          maxReplicas: 2
+          minReplicas: 2
+          rayStartParams:
+            block: 'true'
+            num-gpus: '7'
+          replicas: 2
+          template:
+            metadata:
+              annotations:
+                key: value
+              labels:
+                key: value
+            spec:
+              containers:
+              - env:
+                - name: MY_POD_IP
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: status.podIP
+                - name: RAY_USE_TLS
+                  value: '0'
+                - name: RAY_TLS_SERVER_CERT
+                  value: /home/ray/workspace/tls/server.crt
+                - name: RAY_TLS_SERVER_KEY
+                  value: /home/ray/workspace/tls/server.key
+                - name: RAY_TLS_CA_CERT
+                  value: /home/ray/workspace/tls/ca.crt
+                image: quay.io/project-codeflare/ray:latest-py39-cu118
+                lifecycle:
+                  preStop:
+                    exec:
+                      command:
+                      - /bin/sh
+                      - -c
+                      - ray stop
+                name: machine-learning
+                resources:
+                  limits:
+                    cpu: 4
+                    memory: 6G
+                    nvidia.com/gpu: 7
+                  requests:
+                    cpu: 3
+                    memory: 5G
+                    nvidia.com/gpu: 7
+                volumeMounts:
+                - mountPath: /etc/pki/tls/certs/odh-trusted-ca-bundle.crt
+                  name: odh-trusted-ca-cert
+                  subPath: odh-trusted-ca-bundle.crt
+                - mountPath: /etc/ssl/certs/odh-trusted-ca-bundle.crt
+                  name: odh-trusted-ca-cert
+                  subPath: odh-trusted-ca-bundle.crt
+                - mountPath: /etc/pki/tls/certs/odh-ca-bundle.crt
+                  name: odh-ca-cert
+                  subPath: odh-ca-bundle.crt
+                - mountPath: /etc/ssl/certs/odh-ca-bundle.crt
+                  name: odh-ca-cert
+                  subPath: odh-ca-bundle.crt
+              imagePullSecrets:
+              - name: unit-test-pull-secret
+              volumes:
+              - configMap:
+                  items:
+                  - key: ca-bundle.crt
+                    path: odh-trusted-ca-bundle.crt
+                  name: odh-trusted-ca-bundle
+                  optional: true
+                name: odh-trusted-ca-cert
+              - configMap:
+                  items:
+                  - key: odh-ca-bundle.crt
+                    path: odh-ca-bundle.crt
+                  name: odh-trusted-ca-bundle
+                  optional: true
+                name: odh-ca-cert
   - template:
-        apiVersion: networking.k8s.io/v1
-        kind: Ingress
-        metadata:
-          labels:
-            ingress-options: 'false'
-            ingress-owner: unit-test-cluster
-          name: ray-dashboard-unit-test-cluster
-          namespace: ns
-        spec:
-          ingressClassName: nginx
-          rules:
-          - host: ray-dashboard-unit-test-cluster-ns.apps.cluster.awsroute.org
-            http:
-              paths:
-              - backend:
-                  service:
-                    name: unit-test-cluster-head-svc
-                    port:
-                      number: 8265
-                path: /
-                pathType: Prefix
+      apiVersion: networking.k8s.io/v1
+      kind: Ingress
+      metadata:
+        labels:
+          ingress-options: 'false'
+          ingress-owner: unit-test-cluster
+        name: ray-dashboard-unit-test-cluster
+        namespace: ns
+      spec:
+        ingressClassName: nginx
+        rules:
+        - host: ray-dashboard-unit-test-cluster-ns.apps.cluster.awsroute.org
+          http:
+            paths:
+            - backend:
+                service:
+                  name: unit-test-cluster-head-svc
+                  port:
+                    number: 8265
+              path: /
+              pathType: Prefix

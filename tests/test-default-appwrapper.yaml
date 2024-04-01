@@ -7,9 +7,9 @@ spec:
   components:
   - podSets:
     - path: template.spec.headGroupSpec.template
-        replicas: 1
+      replicas: 1
     - path: template.spec.workerGroupSpecs[0].template
-        replicas: 1
+      replicas: 1
     template:
         apiVersion: ray.io/v1
         kind: RayCluster

@@ -8,7 +8,7 @@ spec:
   - podSets:
     - replicas: 1
       path: template.spec.headGroupSpec.template
-      - replicas: 3
+    - replicas: 3
       path: template.spec.workerGroupSpecs[0].template
     template:
         # This config demonstrates KubeRay's Ray autoscaler integration.

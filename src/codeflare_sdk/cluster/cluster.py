@@ -478,11 +478,6 @@ class Cluster:
                 "containers"
             ]:
                 openshift_oauth = "oauth-proxy" in container["name"]
-        machine_types = (
-            rc["metadata"]["labels"]["orderedinstance"].split("_")
-            if "orderedinstance" in rc["metadata"]["labels"]
-            else []
-        )
 
         if local_interactive and ingress_domain == None:
             ingress_domain = rc["metadata"]["annotations"][

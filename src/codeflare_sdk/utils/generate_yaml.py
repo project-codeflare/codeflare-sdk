@@ -361,10 +361,10 @@ def enable_local_interactive(components, cluster_name, namespace, ingress_domain
         namespace,
         ingress_domain,
     )
-    item["generictemplate"]["metadata"]["annotations"][
+    item["template"]["metadata"]["annotations"][
         "sdk.codeflare.dev/local_interactive"
     ] = "True"
-    item["generictemplate"]["metadata"]["annotations"][
+    item["template"]["metadata"]["annotations"][
         "sdk.codeflare.dev/ingress_domain"
     ] = ingress_domain
 
@@ -373,9 +373,9 @@ def enable_local_interactive(components, cluster_name, namespace, ingress_domain
     ].get("command")[2] = command
 
 
-def apply_ingress_domain_annotation(resources, ingress_domain):
-    item = resources["resources"].get("GenericItems")[0]
-    item["generictemplate"]["metadata"]["annotations"][
+def apply_ingress_domain_annotation(components, ingress_domain):
+    item = components[0]
+    item["template"]["metadata"]["annotations"][
         "sdk.codeflare.dev/ingress_domain"
     ] = ingress_domain
 
@@ -629,7 +629,7 @@ def generate_appwrapper(
         ingress_domain,
     )
     if ingress_domain is not None:
-        apply_ingress_domain_annotation(resources, ingress_domain)
+        apply_ingress_domain_annotation(components, ingress_domain)
 
     if local_interactive:
         enable_local_interactive(components, cluster_name, namespace, ingress_domain)
