@@ -126,6 +126,7 @@ jobs:
           poetry run pytest -v -s ./tests/e2e -m kind > ${CODEFLARE_TEST_OUTPUT_DIR}/pytest_output.log 2>&1
 
       - name: Switch to kind-cluster context to print logs
+        if: always() && steps.deploy.outcome == 'success'
         run: kubectl config use-context kind-cluster
 
       - name: Print CodeFlare operator logs
