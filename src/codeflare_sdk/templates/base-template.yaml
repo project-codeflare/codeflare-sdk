@@ -338,91 +338,91 @@ spec:
                     - key: odh-ca-bundle.crt
                       path: odh-ca-bundle.crt
                     optional: true
-    - replicas: 1
-      generictemplate:
-        apiVersion: networking.k8s.io/v1
-        kind: Ingress
-        metadata:
-          name: ray-dashboard-deployment-ingress
-          namespace: default
-          annotations:
-            annotations-example:annotations-example
-          labels:
-            ingress-options: "false"
-            ingress-owner: appwrapper-name
-        spec:
-          ingressClassName: nginx
-          rules:
-            - http:
-                paths:
-                  - backend:
-                      service:
-                        name: raytest-head-svc
-                        port:
-                          number: 8265
-                    pathType: Prefix
-                    path: /
-              host: ray-dashboard-raytest.<ingress-domain>
-    - replicas: 1
-      generictemplate:
-        kind: Route
-        apiVersion: route.openshift.io/v1
-        metadata:
-          name: ray-dashboard-deployment-route
-          namespace: default
-          labels:
-            # allows me to return name of service that Ray operator creates
-            odh-ray-cluster-service: deployment-name-head-svc
-        spec:
-          to:
-            kind: Service
-            name: deployment-name-head-svc
-          port:
-            targetPort: dashboard
-          tls:
-            termination: edge
-    - replicas: 1
-      generictemplate:
-        apiVersion: networking.k8s.io/v1
-        kind: Ingress
-        metadata:
-          name: rayclient-deployment-ingress
-          namespace: default
-          annotations:
-            annotations-example:annotations-example
-          labels:
-            odh-ray-cluster-service: deployment-name-head-svc
-        spec:
-          ingressClassName: nginx
-          rules:
-            - http:
-                paths:
-                - backend:
-                    service:
-                      name: deployment-name-head-svc
-                      port:
-                        number: 10001
-                  path: ''
-                  pathType: ImplementationSpecific
-              host: rayclient-raytest.<ingress-domain>
-    - replicas: 1
-      generictemplate:
-        apiVersion: route.openshift.io/v1
-        kind: Route
-        metadata:
-          name: rayclient-deployment-route
-          namespace: default
-          labels:
-            # allows me to return name of service that Ray operator creates
-            odh-ray-cluster-service: deployment-name-head-svc
-        spec:
-          port:
-            targetPort: client
-          tls:
-            termination: passthrough
-          to:
-            kind: Service
-            name: deployment-name-head-svc
+    # - replicas: 1
+    #   generictemplate:
+    #     apiVersion: networking.k8s.io/v1
+    #     kind: Ingress
+    #     metadata:
+    #       name: ray-dashboard-deployment-ingress
+    #       namespace: default
+    #       annotations:
+    #         annotations-example:annotations-example
+    #       labels:
+    #         ingress-options: "false"
+    #         ingress-owner: appwrapper-name
+    #     spec:
+    #       ingressClassName: nginx
+    #       rules:
+    #         - http:
+    #             paths:
+    #               - backend:
+    #                   service:
+    #                     name: raytest-head-svc
+    #                     port:
+    #                       number: 8265
+    #                 pathType: Prefix
+    #                 path: /
+    #           host: ray-dashboard-raytest.<ingress-domain>
+    # - replicas: 1
+    #   generictemplate:
+    #     kind: Route
+    #     apiVersion: route.openshift.io/v1
+    #     metadata:
+    #       name: ray-dashboard-deployment-route
+    #       namespace: default
+    #       labels:
+    #         # allows me to return name of service that Ray operator creates
+    #         odh-ray-cluster-service: deployment-name-head-svc
+    #     spec:
+    #       to:
+    #         kind: Service
+    #         name: deployment-name-head-svc
+    #       port:
+    #         targetPort: dashboard
+    #       tls:
+    #         termination: edge
+    # - replicas: 1
+    #   generictemplate:
+    #     apiVersion: networking.k8s.io/v1
+    #     kind: Ingress
+    #     metadata:
+    #       name: rayclient-deployment-ingress
+    #       namespace: default
+    #       annotations:
+    #         annotations-example:annotations-example
+    #       labels:
+    #         odh-ray-cluster-service: deployment-name-head-svc
+    #     spec:
+    #       ingressClassName: nginx
+    #       rules:
+    #         - http:
+    #             paths:
+    #             - backend:
+    #                 service:
+    #                   name: deployment-name-head-svc
+    #                   port:
+    #                     number: 10001
+    #               path: ''
+    #               pathType: ImplementationSpecific
+    #           host: rayclient-raytest.<ingress-domain>
+    # - replicas: 1
+    #   generictemplate:
+    #     apiVersion: route.openshift.io/v1
+    #     kind: Route
+    #     metadata:
+    #       name: rayclient-deployment-route
+    #       namespace: default
+    #       labels:
+    #         # allows me to return name of service that Ray operator creates
+    #         odh-ray-cluster-service: deployment-name-head-svc
+    #     spec:
+    #       port:
+    #         targetPort: client
+    #       tls:
+    #         termination: passthrough
+    #       to:
+    #         kind: Service
+    #         name: deployment-name-head-svc
     - replicas: 1
       generictemplate:
         apiVersion: v1

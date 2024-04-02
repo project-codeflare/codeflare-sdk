@@ -188,7 +188,7 @@ class Cluster:
         image_pull_secrets = self.config.image_pull_secrets
         dispatch_priority = self.config.dispatch_priority
         ingress_domain = self.config.ingress_domain
-        ingress_options = self.config.ingress_options
+        # ingress_options = self.config.ingress_options
         write_to_file = self.config.write_to_file
         verify_tls = self.config.verify_tls
         return generate_appwrapper(
@@ -214,7 +214,7 @@ class Cluster:
             dispatch_priority=dispatch_priority,
             priority_val=priority_val,
             ingress_domain=ingress_domain,
-            ingress_options=ingress_options,
+            # ingress_options=ingress_options,
             write_to_file=write_to_file,
             verify_tls=verify_tls,
         )
@@ -739,24 +739,24 @@ def _delete_resources(
                 plural="rayclusters",
                 name=name,
             )
-        elif resource["kind"] == "Ingress":
-            name = resource["metadata"]["name"]
-            api_instance.delete_namespaced_custom_object(
-                group="networking.k8s.io",
-                version="v1",
-                namespace=namespace,
-                plural="ingresses",
-                name=name,
-            )
-        elif resource["kind"] == "Route":
-            name = resource["metadata"]["name"]
-            api_instance.delete_namespaced_custom_object(
-                group="route.openshift.io",
-                version="v1",
-                namespace=namespace,
-                plural="routes",
-                name=name,
-            )
+        # elif resource["kind"] == "Ingress":
+        #     name = resource["metadata"]["name"]
+        #     api_instance.delete_namespaced_custom_object(
+        #         group="networking.k8s.io",
+        #         version="v1",
+        #         namespace=namespace,
+        #         plural="ingresses",
+        #         name=name,
+        #     )
+        # elif resource["kind"] == "Route":
+        #     name = resource["metadata"]["name"]
+        #     api_instance.delete_namespaced_custom_object(
+        #         group="route.openshift.io",
+        #         version="v1",
+        #         namespace=namespace,
+        #         plural="routes",
+        #         name=name,
+        #     )
         elif resource["kind"] == "Secret":
             name = resource["metadata"]["name"]
             secret_instance = client.CoreV1Api(api_config_handler())
@@ -776,22 +776,22 @@ def _create_resources(yamls, namespace: str, api_instance: client.CustomObjectsA
                 plural="rayclusters",
                 body=resource,
             )
-        elif resource["kind"] == "Ingress":
-            api_instance.create_namespaced_custom_object(
-                group="networking.k8s.io",
-                version="v1",
-                namespace=namespace,
-                plural="ingresses",
-                body=resource,
-            )
-        elif resource["kind"] == "Route":
-            api_instance.create_namespaced_custom_object(
-                group="route.openshift.io",
-                version="v1",
-                namespace=namespace,
-                plural="routes",
-                body=resource,
-            )
+        # elif resource["kind"] == "Ingress":
+        #     api_instance.create_namespaced_custom_object(
+        #         group="networking.k8s.io",
+        #         version="v1",
+        #         namespace=namespace,
+        #         plural="ingresses",
+        #         body=resource,
+        #     )
+        # elif resource["kind"] == "Route":
+        #     api_instance.create_namespaced_custom_object(
+        #         group="route.openshift.io",
+        #         version="v1",
+        #         namespace=namespace,
+        #         plural="routes",
+        #         body=resource,
+        #     )
         elif resource["kind"] == "Secret":
             secret_instance = client.CoreV1Api(api_config_handler())
             secret_instance.create_namespaced_secret(
