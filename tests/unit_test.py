@@ -3148,6 +3148,9 @@ def test_gen_app_wrapper_with_oauth(mocker: MockerFixture):
         "codeflare_sdk.cluster.cluster.get_current_namespace",
         return_value="opendatahub",
     )
+    mocker.patch(
+        "codeflare_sdk.utils.generate_yaml.is_openshift_cluster", return_value=True
+    )
     write_user_appwrapper = MagicMock()
     mocker.patch(
         "codeflare_sdk.utils.generate_yaml.write_user_appwrapper", write_user_appwrapper
@@ -3155,7 +3158,6 @@ def test_gen_app_wrapper_with_oauth(mocker: MockerFixture):
     Cluster(
         ClusterConfiguration(
             "test_cluster",
-            openshift_oauth=True,
             image="quay.io/project-codeflare/ray:latest-py39-cu118",
             ingress_domain="apps.cluster.awsroute.org",
             write_to_file=True,

@@ -32,7 +32,6 @@ spec:
         kind: RayCluster
         metadata:
           annotations:
-            codeflare.dev/oauth: 'False'
             sdk.codeflare.dev/ingress_domain: apps.cluster.awsroute.org
             sdk.codeflare.dev/local_interactive: 'False'
           labels:

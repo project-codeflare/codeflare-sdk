@@ -42,7 +42,6 @@ spec:
         metadata:
           annotations:
             sdk.codeflare.dev/local_interactive: "False"
-            codeflare.dev/oauth: 'False'
           labels:
             workload.codeflare.dev/appwrapper: "aw-kuberay"
             controller-tools.k8s.io: "1.0"

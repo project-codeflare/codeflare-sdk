@@ -51,7 +51,6 @@ class TestRayClusterSDKOauth:
                 num_gpus=0,
                 instascale=False,
                 image=ray_image,
-                openshift_oauth=True,
                 write_to_file=True,
             )
         )

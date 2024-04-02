@@ -32,7 +32,6 @@ spec:
           annotations:
             sdk.codeflare.dev/ingress_domain: apps.cluster.awsroute.org
             sdk.codeflare.dev/local_interactive: 'False'
-            codeflare.dev/oauth: 'False'
           labels:
             controller-tools.k8s.io: '1.0'
             workload.codeflare.dev/appwrapper: unit-test-default-cluster

@@ -219,17 +219,16 @@ def update_rayclient_ingress(
     spec["rules"][0]["host"] = f"rayclient-{cluster_name}-{namespace}.{ingress_domain}"
 
 
-def update_names(yaml, item, appwrapper_name, cluster_name, namespace, openshift_oauth):
+def update_names(yaml, item, appwrapper_name, cluster_name, namespace):
     metadata = yaml.get("metadata")
     metadata["name"] = appwrapper_name
     metadata["namespace"] = namespace
     lower_meta = item.get("generictemplate", {}).get("metadata")
     lower_meta["labels"]["workload.codeflare.dev/appwrapper"] = appwrapper_name
-    lower_meta["annotations"]["codeflare.dev/oauth"] = f"{openshift_oauth}"
     lower_meta["name"] = cluster_name
     lower_meta["namespace"] = namespace
     lower_spec = item.get("generictemplate", {}).get("spec")
-    if openshift_oauth:
+    if is_openshift_cluster():
         cookie_secret_env_var = {
             "name": "COOKIE_SECRET",
             "valueFrom": {
@@ -600,9 +599,6 @@ def enable_openshift_oauth(user_yaml, cluster_name, namespace):
     )
     # allows for setting value of Cluster object when initializing object from an existing AppWrapper on cluster
     user_yaml["metadata"]["annotations"] = user_yaml["metadata"].get("annotations", {})
-    user_yaml["metadata"]["annotations"][
-        "codeflare-sdk-use-oauth"
-    ] = "true"  # if the user gets an
     ray_headgroup_pod = user_yaml["spec"]["resources"]["GenericItems"][0][
         "generictemplate"
     ]["spec"]["headGroupSpec"]["template"]["spec"]
@@ -711,7 +707,6 @@ def generate_appwrapper(
     image_pull_secrets: list,
     dispatch_priority: str,
     priority_val: int,
-    openshift_oauth: bool,
     ingress_domain: str,
     ingress_options: dict,
     write_to_file: bool,
@@ -722,9 +717,7 @@ def generate_appwrapper(
     item = resources["resources"].get("GenericItems")[0]
     ingress_item = resources["resources"].get("GenericItems")[1]
     route_item = resources["resources"].get("GenericItems")[2]
-    update_names(
-        user_yaml, item, appwrapper_name, cluster_name, namespace, openshift_oauth
-    )
+    update_names(user_yaml, item, appwrapper_name, cluster_name, namespace)
     update_labels(user_yaml, instascale, instance_types)
     update_priority(user_yaml, item, dispatch_priority, priority_val)
     update_custompodresources(
@@ -774,7 +767,7 @@ def generate_appwrapper(
 
     delete_route_or_ingress(resources["resources"])
 
-    if openshift_oauth:
+    if is_openshift_cluster():
         enable_openshift_oauth(user_yaml, cluster_name, namespace)
 
     directory_path = os.path.expanduser("~/.codeflare/appwrapper/")

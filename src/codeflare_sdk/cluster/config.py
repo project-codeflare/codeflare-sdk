@@ -52,7 +52,6 @@ class ClusterConfiguration:
     local_interactive: bool = False
     image_pull_secrets: list = field(default_factory=list)
     dispatch_priority: str = None
-    openshift_oauth: bool = False  # NOTE: to use the user must have permission to create a RoleBinding for system:auth-delegator
     ingress_options: dict = field(default_factory=dict)
     ingress_domain: str = None
     write_to_file: bool = False

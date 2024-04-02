@@ -82,20 +82,16 @@ class Cluster:
         }
 
     @property
-    def _client_verify_tls(self):
-        return not self.config.openshift_oauth
-
-    @property
     def job_client(self):
         k8client = api_config_handler() or client.ApiClient()
         if self._job_submission_client:
             return self._job_submission_client
-        if self.config.openshift_oauth:
+        if is_openshift_cluster():
             print(k8client.configuration.get_api_key_with_prefix("authorization"))
             self._job_submission_client = JobSubmissionClient(
                 self.cluster_dashboard_uri(),
                 headers=self._client_headers,
-                verify=self._client_verify_tls,
+                verify=False,
             )
         else:
             self._job_submission_client = JobSubmissionClient(
@@ -210,7 +206,6 @@ class Cluster:
             image_pull_secrets=image_pull_secrets,
             dispatch_priority=dispatch_priority,
             priority_val=priority_val,
-            openshift_oauth=self.config.openshift_oauth,
             ingress_domain=ingress_domain,
             ingress_options=ingress_options,
             write_to_file=write_to_file,
@@ -351,7 +346,7 @@ class Cluster:
                 self.cluster_dashboard_uri(),
                 headers=self._client_headers,
                 timeout=5,
-                verify=self._client_verify_tls,
+                verify=False,
             )
         except requests.exceptions.SSLError:  # pragma no cover
             # SSL exception occurs when oauth ingress has been created but cluster is not up
@@ -491,7 +486,6 @@ class Cluster:
         rc, mcad=True, ingress_domain=None, ingress_options={}, write_to_file=False
     ):
         config_check()
-        openshift_oauth = False
         if (
             rc["metadata"]["annotations"]["sdk.codeflare.dev/local_interactive"]
             == "True"
@@ -499,15 +493,6 @@ class Cluster:
             local_interactive = True
         else:
             local_interactive = False
-        if "codeflare.dev/oauth" in rc["metadata"]["annotations"]:
-            openshift_oauth = (
-                rc["metadata"]["annotations"]["codeflare.dev/oauth"] == "True"
-            )
-        else:
-            for container in rc["spec"]["headGroupSpec"]["template"]["spec"][
-                "containers"
-            ]:
-                openshift_oauth = "oauth-proxy" in container["name"]
         machine_types = (
             rc["metadata"]["labels"]["orderedinstance"].split("_")
             if "orderedinstance" in rc["metadata"]["labels"]
@@ -558,7 +543,6 @@ class Cluster:
             ingress_domain=ingress_domain,
             ingress_options=ingress_options,
             write_to_file=write_to_file,
-            openshift_oauth=openshift_oauth,
         )
         return Cluster(cluster_config)
 
