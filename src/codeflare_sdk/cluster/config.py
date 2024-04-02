@@ -55,3 +55,10 @@ class ClusterConfiguration:
     ingress_options: dict = field(default_factory=dict)
     ingress_domain: str = None
     write_to_file: bool = False
+    verify_tls: bool = True
+
+    def __post_init__(self):
+        if not self.verify_tls:
+            print(
+                "Warning: TLS verification has been disabled - Endpoint checks will be bypassed"
+            )

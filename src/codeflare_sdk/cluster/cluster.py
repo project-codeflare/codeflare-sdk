@@ -82,6 +82,12 @@ class Cluster:
         }
 
     @property
+    def _client_verify_tls(self):
+        if not is_openshift_cluster or not self.config.verify_tls:
+            return False
+        return True
+
+    @property
     def job_client(self):
         k8client = api_config_handler() or client.ApiClient()
         if self._job_submission_client:
@@ -91,7 +97,7 @@ class Cluster:
             self._job_submission_client = JobSubmissionClient(
                 self.cluster_dashboard_uri(),
                 headers=self._client_headers,
-                verify=False,
+                verify=self._client_verify_tls,
             )
         else:
             self._job_submission_client = JobSubmissionClient(
@@ -184,6 +190,7 @@ class Cluster:
         ingress_domain = self.config.ingress_domain
         ingress_options = self.config.ingress_options
         write_to_file = self.config.write_to_file
+        verify_tls = self.config.verify_tls
         return generate_appwrapper(
             name=name,
             namespace=namespace,
@@ -209,6 +216,7 @@ class Cluster:
             ingress_domain=ingress_domain,
             ingress_options=ingress_options,
             write_to_file=write_to_file,
+            verify_tls=verify_tls,
         )
 
     # creates a new cluster with the provided or default spec
@@ -346,7 +354,7 @@ class Cluster:
                 self.cluster_dashboard_uri(),
                 headers=self._client_headers,
                 timeout=5,
-                verify=False,
+                verify=self._client_verify_tls,
             )
         except requests.exceptions.SSLError:  # pragma no cover
             # SSL exception occurs when oauth ingress has been created but cluster is not up
@@ -483,7 +491,12 @@ class Cluster:
         return to_return
 
     def from_k8_cluster_object(
-        rc, mcad=True, ingress_domain=None, ingress_options={}, write_to_file=False
+        rc,
+        mcad=True,
+        ingress_domain=None,
+        ingress_options={},
+        write_to_file=False,
+        verify_tls=True,
     ):
         config_check()
         if (
@@ -543,6 +556,7 @@ class Cluster:
             ingress_domain=ingress_domain,
             ingress_options=ingress_options,
             write_to_file=write_to_file,
+            verify_tls=verify_tls,
         )
         return Cluster(cluster_config)
 
@@ -627,7 +641,10 @@ def get_current_namespace():  # pragma: no cover
 
 
 def get_cluster(
-    cluster_name: str, namespace: str = "default", write_to_file: bool = False
+    cluster_name: str,
+    namespace: str = "default",
+    write_to_file: bool = False,
+    verify_tls: bool = True,
 ):
     try:
         config_check()
@@ -701,6 +718,7 @@ def get_cluster(
                 ingress_domain=ingress_domain,
                 ingress_options=ingress_options,
                 write_to_file=write_to_file,
+                verify_tls=verify_tls,
             )
     raise FileNotFoundError(
         f"Cluster {cluster_name} is not found in {namespace} namespace"

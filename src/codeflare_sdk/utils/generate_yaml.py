@@ -710,6 +710,7 @@ def generate_appwrapper(
     ingress_domain: str,
     ingress_options: dict,
     write_to_file: bool,
+    verify_tls: bool,
 ):
     user_yaml = read_template(template)
     appwrapper_name, cluster_name = gen_names(name)
