@@ -535,27 +535,25 @@ class Cluster:
             name=rc["metadata"]["name"],
             namespace=rc["metadata"]["namespace"],
             machine_types=machine_types,
+            head_cpus=rc["spec"]["headGroupSpec"]["template"]["spec"]["containers"][0][
+                "resources"
+            ]["requests"]["cpu"],
+            head_memory=rc["spec"]["headGroupSpec"]["template"]["spec"]["containers"][
+                0
+            ]["resources"]["requests"]["memory"],
             num_workers=rc["spec"]["workerGroupSpecs"][0]["minReplicas"],
-            min_cpus=int(
-                rc["spec"]["workerGroupSpecs"][0]["template"]["spec"]["containers"][0][
-                    "resources"
-                ]["requests"]["cpu"]
-            ),
-            max_cpus=int(
-                rc["spec"]["workerGroupSpecs"][0]["template"]["spec"]["containers"][0][
-                    "resources"
-                ]["limits"]["cpu"]
-            ),
-            min_memory=int(
-                rc["spec"]["workerGroupSpecs"][0]["template"]["spec"]["containers"][0][
-                    "resources"
-                ]["requests"]["memory"][:-1]
-            ),
-            max_memory=int(
-                rc["spec"]["workerGroupSpecs"][0]["template"]["spec"]["containers"][0][
-                    "resources"
-                ]["limits"]["memory"][:-1]
-            ),
+            min_cpus=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"][
+                "containers"
+            ][0]["resources"]["requests"]["cpu"],
+            max_cpus=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"][
+                "containers"
+            ][0]["resources"]["limits"]["cpu"],
+            min_memory=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"][
+                "containers"
+            ][0]["resources"]["requests"]["memory"],
+            max_memory=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"][
+                "containers"
+            ][0]["resources"]["limits"]["memory"],
             num_gpus=int(
                 rc["spec"]["workerGroupSpecs"][0]["template"]["spec"]["containers"][0][
                     "resources"
