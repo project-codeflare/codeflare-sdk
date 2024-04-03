@@ -39,17 +39,12 @@ from codeflare_sdk.cluster.cluster import (
     get_cluster,
     _app_wrapper_status,
     _ray_cluster_status,
-    _get_ingress_domain,
 )
 from codeflare_sdk.cluster.auth import (
     TokenAuthentication,
     Authentication,
     KubeConfigFileAuthentication,
     config_check,
-)
-from codeflare_sdk.utils.openshift_oauth import (
-    create_openshift_oauth_objects,
-    delete_openshift_oauth_objects,
 )
 from codeflare_sdk.utils.pretty_print import (
     print_no_resources_found,
@@ -91,7 +86,6 @@ from codeflare_sdk.utils.generate_yaml import (
     read_template,
     enable_local_interactive,
 )
-import codeflare_sdk.utils.openshift_oauth as sdk_oauth
 
 import openshift
 from openshift.selector import Selector
@@ -113,7 +107,6 @@ fake_res = openshift.Result("fake")
 
 def mock_routes_api(mocker):
     mocker.patch.object(
-        sdk_oauth,
         "_route_api_getter",
         return_value=MagicMock(
             resources=MagicMock(
@@ -586,24 +579,6 @@ def test_rc_status(mocker):
     )
     rc = _ray_cluster_status("test-rc", "test-ns")
     assert rc == None
-
-
-def test_delete_openshift_oauth_objects(mocker):
-    mocker.patch.object(client.CoreV1Api, "delete_namespaced_service_account")
-    mocker.patch.object(client.CoreV1Api, "delete_namespaced_service")
-    mocker.patch.object(client.NetworkingV1Api, "delete_namespaced_ingress")
-    mocker.patch.object(client.RbacAuthorizationV1Api, "delete_cluster_role_binding")
-    mock_routes_api(mocker)
-    delete_openshift_oauth_objects("test-cluster", "test-namespace")
-    client.CoreV1Api.delete_namespaced_service_account.assert_called_with(
-        name="test-cluster-oauth-proxy", namespace="test-namespace"
-    )
-    client.CoreV1Api.delete_namespaced_service.assert_called_with(
-        name="test-cluster-oauth", namespace="test-namespace"
-    )
-    client.RbacAuthorizationV1Api.delete_cluster_role_binding.assert_called_with(
-        name="test-cluster-rb"
-    )
 
 
 def test_cluster_uris(mocker):
@@ -3167,89 +3142,14 @@ def test_enable_local_interactive(mocker):
     }
 
 
-def test_create_openshift_oauth(mocker: MockerFixture):
-    create_namespaced_service_account = MagicMock()
-    create_cluster_role_binding = MagicMock()
-    create_namespaced_service = MagicMock()
-    mocker.patch.object(
-        client.CoreV1Api,
-        "create_namespaced_service_account",
-        create_namespaced_service_account,
-    )
-    mocker.patch.object(
-        client.RbacAuthorizationV1Api,
-        "create_cluster_role_binding",
-        create_cluster_role_binding,
-    )
-    mocker.patch.object(
-        client.CoreV1Api, "create_namespaced_service", create_namespaced_service
-    )
-    mock_routes_api(mocker)
-    create_openshift_oauth_objects("foo", "bar")
-    create_ns_sa_args = create_namespaced_service_account.call_args
-    create_crb_args = create_cluster_role_binding.call_args
-    create_ns_serv_args = create_namespaced_service.call_args
-    assert (
-        create_ns_sa_args.kwargs["namespace"] == create_ns_serv_args.kwargs["namespace"]
-    )
-    assert isinstance(create_ns_sa_args.kwargs["body"], client.V1ServiceAccount)
-    assert isinstance(create_crb_args.kwargs["body"], client.V1ClusterRoleBinding)
-    assert isinstance(create_ns_serv_args.kwargs["body"], client.V1Service)
-
-
-def test_replace_openshift_oauth(mocker: MockerFixture):
-    # not_found_exception = client.ApiException(reason="Conflict")
-    create_namespaced_service_account = MagicMock(
-        side_effect=client.ApiException(reason="Conflict")
-    )
-    create_cluster_role_binding = MagicMock(
-        side_effect=client.ApiException(reason="Conflict")
-    )
-    create_namespaced_service = MagicMock(
-        side_effect=client.ApiException(reason="Conflict")
-    )
-    mocker.patch.object(
-        client.CoreV1Api,
-        "create_namespaced_service_account",
-        create_namespaced_service_account,
-    )
-    mocker.patch.object(
-        client.RbacAuthorizationV1Api,
-        "create_cluster_role_binding",
-        create_cluster_role_binding,
-    )
-    mocker.patch.object(
-        client.CoreV1Api, "create_namespaced_service", create_namespaced_service
-    )
-    mocker.patch.object(dynamic.ResourceList, "get", return_value=True)
-    replace_namespaced_service_account = MagicMock()
-    replace_cluster_role_binding = MagicMock()
-    replace_namespaced_service = MagicMock()
-    mocker.patch.object(
-        client.CoreV1Api,
-        "replace_namespaced_service_account",
-        replace_namespaced_service_account,
-    )
-    mocker.patch.object(
-        client.RbacAuthorizationV1Api,
-        "replace_cluster_role_binding",
-        replace_cluster_role_binding,
-    )
-    mocker.patch.object(
-        client.CoreV1Api, "replace_namespaced_service", replace_namespaced_service
-    )
-    mock_routes_api(mocker)
-    create_openshift_oauth_objects("foo", "bar")
-    replace_namespaced_service_account.assert_called_once()
-    replace_cluster_role_binding.assert_called_once()
-    replace_namespaced_service.assert_called_once()
-
-
 def test_gen_app_wrapper_with_oauth(mocker: MockerFixture):
     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch(
         "codeflare_sdk.cluster.cluster.get_current_namespace",
         return_value="opendatahub",
+    )
+    mocker.patch(
+        "codeflare_sdk.utils.generate_yaml.is_openshift_cluster", return_value=True
     )
     write_user_appwrapper = MagicMock()
     mocker.patch(
@@ -3258,7 +3158,6 @@ def test_gen_app_wrapper_with_oauth(mocker: MockerFixture):
     Cluster(
         ClusterConfiguration(
             "test_cluster",
-            openshift_oauth=True,
             image="quay.io/project-codeflare/ray:latest-py39-cu118",
             ingress_domain="apps.cluster.awsroute.org",
             write_to_file=True,

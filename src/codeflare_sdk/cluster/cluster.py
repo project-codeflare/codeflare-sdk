@@ -33,10 +33,7 @@ from ..utils.generate_yaml import (
 )
 from ..utils.kube_api_helpers import _kube_api_error_handling
 from ..utils.generate_yaml import is_openshift_cluster
-from ..utils.openshift_oauth import (
-    create_openshift_oauth_objects,
-    delete_openshift_oauth_objects,
-)
+
 from .config import ClusterConfiguration
 from .model import (
     AppWrapper,
@@ -86,14 +83,16 @@ class Cluster:
 
     @property
     def _client_verify_tls(self):
-        return not self.config.openshift_oauth
+        if not is_openshift_cluster or not self.config.verify_tls:
+            return False
+        return True
 
     @property
     def job_client(self):
         k8client = api_config_handler() or client.ApiClient()
         if self._job_submission_client:
             return self._job_submission_client
-        if self.config.openshift_oauth:
+        if is_openshift_cluster():
             print(k8client.configuration.get_api_key_with_prefix("authorization"))
             self._job_submission_client = JobSubmissionClient(
                 self.cluster_dashboard_uri(),
@@ -191,6 +190,7 @@ class Cluster:
         ingress_domain = self.config.ingress_domain
         ingress_options = self.config.ingress_options
         write_to_file = self.config.write_to_file
+        verify_tls = self.config.verify_tls
         return generate_appwrapper(
             name=name,
             namespace=namespace,
@@ -213,10 +213,10 @@ class Cluster:
             image_pull_secrets=image_pull_secrets,
             dispatch_priority=dispatch_priority,
             priority_val=priority_val,
-            openshift_oauth=self.config.openshift_oauth,
             ingress_domain=ingress_domain,
             ingress_options=ingress_options,
             write_to_file=write_to_file,
+            verify_tls=verify_tls,
         )
 
     # creates a new cluster with the provided or default spec
@@ -226,10 +226,6 @@ class Cluster:
         the MCAD queue.
         """
         namespace = self.config.namespace
-        if self.config.openshift_oauth:
-            create_openshift_oauth_objects(
-                cluster_name=self.config.name, namespace=namespace
-            )
 
         try:
             config_check()
@@ -280,11 +276,6 @@ class Cluster:
                 self._component_resources_down(namespace, api_instance)
         except Exception as e:  # pragma: no cover
             return _kube_api_error_handling(e)
-
-        if self.config.openshift_oauth:
-            delete_openshift_oauth_objects(
-                cluster_name=self.config.name, namespace=namespace
-            )
 
     def status(
         self, print_to_console: bool = True
@@ -500,10 +491,14 @@ class Cluster:
         return to_return
 
     def from_k8_cluster_object(
-        rc, mcad=True, ingress_domain=None, ingress_options={}, write_to_file=False
+        rc,
+        mcad=True,
+        ingress_domain=None,
+        ingress_options={},
+        write_to_file=False,
+        verify_tls=True,
     ):
         config_check()
-        openshift_oauth = False
         if (
             rc["metadata"]["annotations"]["sdk.codeflare.dev/local_interactive"]
             == "True"
@@ -511,15 +506,6 @@ class Cluster:
             local_interactive = True
         else:
             local_interactive = False
-        if "codeflare.dev/oauth" in rc["metadata"]["annotations"]:
-            openshift_oauth = (
-                rc["metadata"]["annotations"]["codeflare.dev/oauth"] == "True"
-            )
-        else:
-            for container in rc["spec"]["headGroupSpec"]["template"]["spec"][
-                "containers"
-            ]:
-                openshift_oauth = "oauth-proxy" in container["name"]
         machine_types = (
             rc["metadata"]["labels"]["orderedinstance"].split("_")
             if "orderedinstance" in rc["metadata"]["labels"]
@@ -570,7 +556,7 @@ class Cluster:
             ingress_domain=ingress_domain,
             ingress_options=ingress_options,
             write_to_file=write_to_file,
-            openshift_oauth=openshift_oauth,
+            verify_tls=verify_tls,
         )
         return Cluster(cluster_config)
 
@@ -655,7 +641,10 @@ def get_current_namespace():  # pragma: no cover
 
 
 def get_cluster(
-    cluster_name: str, namespace: str = "default", write_to_file: bool = False
+    cluster_name: str,
+    namespace: str = "default",
+    write_to_file: bool = False,
+    verify_tls: bool = True,
 ):
     try:
         config_check()
@@ -729,6 +718,7 @@ def get_cluster(
                 ingress_domain=ingress_domain,
                 ingress_options=ingress_options,
                 write_to_file=write_to_file,
+                verify_tls=verify_tls,
             )
     raise FileNotFoundError(
         f"Cluster {cluster_name} is not found in {namespace} namespace"

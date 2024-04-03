@@ -227,6 +227,20 @@ def update_names(yaml, item, appwrapper_name, cluster_name, namespace):
     lower_meta["labels"]["workload.codeflare.dev/appwrapper"] = appwrapper_name
     lower_meta["name"] = cluster_name
     lower_meta["namespace"] = namespace
+    lower_spec = item.get("generictemplate", {}).get("spec")
+    if is_openshift_cluster():
+        cookie_secret_env_var = {
+            "name": "COOKIE_SECRET",
+            "valueFrom": {
+                "secretKeyRef": {
+                    "key": "cookie_secret",
+                    "name": f"{cluster_name}-oauth-config",
+                }
+            },
+        }
+        lower_spec["headGroupSpec"]["template"]["spec"]["containers"][0]["env"].append(
+            cookie_secret_env_var
+        )
 
 
 def update_labels(yaml, instascale, instance_types):
@@ -585,9 +599,6 @@ def enable_openshift_oauth(user_yaml, cluster_name, namespace):
     )
     # allows for setting value of Cluster object when initializing object from an existing AppWrapper on cluster
     user_yaml["metadata"]["annotations"] = user_yaml["metadata"].get("annotations", {})
-    user_yaml["metadata"]["annotations"][
-        "codeflare-sdk-use-oauth"
-    ] = "true"  # if the user gets an
     ray_headgroup_pod = user_yaml["spec"]["resources"]["GenericItems"][0][
         "generictemplate"
     ]["spec"]["headGroupSpec"]["template"]["spec"]
@@ -620,7 +631,7 @@ def _create_oauth_sidecar_object(
             "--upstream=http://localhost:8265",
             f"--tls-cert={tls_mount_location}/tls.crt",
             f"--tls-key={tls_mount_location}/tls.key",
-            f"--cookie-secret={b64encode(urandom(64)).decode('utf-8')}",  # create random string for encrypting cookie
+            "--cookie-secret=$(COOKIE_SECRET)",
             f'--openshift-delegate-urls={{"/":{{"resource":"pods","namespace":"{namespace}","verb":"get"}}}}',
         ],
         image="registry.redhat.io/openshift4/ose-oauth-proxy@sha256:1ea6a01bf3e63cdcf125c6064cbd4a4a270deaf0f157b3eabb78f60556840366",
@@ -696,10 +707,10 @@ def generate_appwrapper(
     image_pull_secrets: list,
     dispatch_priority: str,
     priority_val: int,
-    openshift_oauth: bool,
     ingress_domain: str,
     ingress_options: dict,
     write_to_file: bool,
+    verify_tls: bool,
 ):
     user_yaml = read_template(template)
     appwrapper_name, cluster_name = gen_names(name)
@@ -757,7 +768,7 @@ def generate_appwrapper(
 
     delete_route_or_ingress(resources["resources"])
 
-    if openshift_oauth:
+    if is_openshift_cluster():
         enable_openshift_oauth(user_yaml, cluster_name, namespace)
 
     directory_path = os.path.expanduser("~/.codeflare/appwrapper/")
