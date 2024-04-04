@@ -50,13 +50,15 @@ class TestRayClusterSDKOauth:
                 max_memory=2,
                 num_gpus=0,
                 instascale=False,
+                mcad=False,
                 image=ray_image,
                 write_to_file=True,
             )
         )
 
         cluster.up()
-        self.assert_appwrapper_exists()
+        if cluster.config.mcad:
+            self.assert_appwrapper_exists()
 
         cluster.status()
 
@@ -96,7 +98,8 @@ class TestRayClusterSDKOauth:
             assert False
 
     def assert_jobsubmit_withlogin(self, cluster):
-        self.assert_appwrapper_exists()
+        if cluster.config.mcad:
+            self.assert_appwrapper_exists()
         jobdef = DDPJobDefinition(
             name="mnist",
             script="./tests/e2e/mnist.py",

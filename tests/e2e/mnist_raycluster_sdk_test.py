@@ -68,6 +68,7 @@ class TestMNISTRayClusterSDK:
                 max_memory=2,
                 num_gpus=0,
                 instascale=False,
+                mcad=False,
                 image=ray_image,
                 ingress_options=ingress_options,
                 write_to_file=True,
@@ -75,7 +76,8 @@ class TestMNISTRayClusterSDK:
         )
 
         cluster.up()
-        self.assert_appwrapper_exists()
+        if cluster.config.mcad:
+            self.assert_appwrapper_exists()
 
         cluster.status()
 
