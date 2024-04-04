@@ -64,6 +64,7 @@ jobs:
         with:
           repository: project-codeflare/codeflare-operator
           path: codeflare-operator
+          ref: mcadv1b2
 
       - name: Set Go
         uses: actions/setup-go@v5
@@ -77,6 +78,11 @@ jobs:
 
       - name: Setup and start KinD cluster
         uses: ./common/github-actions/kind
+
+      - name: Deploy Kueue
+        working-directory: codeflare-operator
+        run: |
+          make kueue-e2e
 
       - name: Deploy CodeFlare stack
         id: deploy
@@ -122,6 +128,7 @@ jobs:
           poetry run pytest -v -s ./tests/e2e -m kind > ${CODEFLARE_TEST_OUTPUT_DIR}/pytest_output.log 2>&1
 
       - name: Switch to kind-cluster context to print logs
+        if: always() && steps.deploy.outcome == 'success'
         run: kubectl config use-context kind-cluster
 
       - name: Print CodeFlare operator logs
@@ -129,6 +136,13 @@ jobs:
         run: |
           echo "Printing CodeFlare operator logs"
           kubectl logs -n openshift-operators --tail -1 -l app.kubernetes.io/name=codeflare-operator | tee ${CODEFLARE_TEST_OUTPUT_DIR}/codeflare-operator.log
+
+      - name: Print Kueue operator logs
+        if: always() && steps.deploy.outcome == 'success'
+        run: |
+          echo "Printing Kueue operator logs"
+          KUEUE_CONTROLLER_POD=$(kubectl get pods -n kueue-system | grep kueue-controller | awk '{print $1}')
+          kubectl logs -n kueue-system --tail -1 ${KUEUE_CONTROLLER_POD} | tee ${CODEFLARE_TEST_OUTPUT_DIR}/kueue.log
 
       - name: Print KubeRay operator logs
         if: always() && steps.deploy.outcome == 'success'
