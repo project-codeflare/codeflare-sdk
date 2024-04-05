@@ -56,6 +56,30 @@ def print_app_wrappers_status(app_wrappers: List[AppWrapper], starting: bool = F
     console.print(Panel.fit(table))
 
 
+def print_ray_clusters_status(app_wrappers: List[AppWrapper], starting: bool = False):
+    if not app_wrappers:
+        print_no_resources_found()
+        return  # shortcircuit
+
+    console = Console()
+    table = Table(
+        box=box.ASCII_DOUBLE_HEAD,
+        title="[bold] :rocket: Cluster Queue Status :rocket:",
+    )
+    table.add_column("Name", style="cyan", no_wrap=True)
+    table.add_column("Status", style="magenta")
+
+    for app_wrapper in app_wrappers:
+        name = app_wrapper.name
+        status = app_wrapper.status.value
+        if starting:
+            status += " (starting)"
+        table.add_row(name, status)
+        table.add_row("")  # empty row for spacing
+
+    console.print(Panel.fit(table))
+
+
 def print_cluster_status(cluster: RayCluster):
     "Pretty prints the status of a passed-in cluster"
     if not cluster:

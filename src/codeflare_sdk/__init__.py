@@ -12,6 +12,8 @@ from .cluster import (
     RayCluster,
     AppWrapper,
     get_cluster,
+    list_all_queued,
+    list_all_clusters,
 )
 
 from .job import JobDefinition, Job, DDPJobDefinition, DDPJob, RayJobClient

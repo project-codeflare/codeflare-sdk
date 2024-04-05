@@ -32,6 +32,7 @@ class RayClusterStatus(Enum):
     UNHEALTHY = "unhealthy"
     FAILED = "failed"
     UNKNOWN = "unknown"
+    SUSPENDED = "suspended"
 
 
 class AppWrapperStatus(Enum):
@@ -59,6 +60,7 @@ class CodeFlareClusterStatus(Enum):
     QUEUEING = 4
     FAILED = 5
     UNKNOWN = 6
+    SUSPENDED = 7
 
 
 @dataclass

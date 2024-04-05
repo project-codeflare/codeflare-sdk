@@ -13,6 +13,12 @@ from .model import (
     AppWrapper,
 )
 
-from .cluster import Cluster, ClusterConfiguration, get_cluster
+from .cluster import (
+    Cluster,
+    ClusterConfiguration,
+    get_cluster,
+    list_all_queued,
+    list_all_clusters,
+)
 
 from .awload import AWManager
