@@ -1,36 +1,7 @@
-from codeflare_sdk.job.jobs import (
-    DDPJobDefinition,
-    DDPJob,
-)
-
 from codeflare_sdk.cluster.cluster import (
     Cluster,
     ClusterConfiguration,
 )
-
-
-def createTestDDP():
-    ddp = DDPJobDefinition(
-        script="test.py",
-        m=None,
-        script_args=["test"],
-        name="test",
-        cpu=1,
-        gpu=0,
-        memMB=1024,
-        h=None,
-        j="2x1",
-        env={"test": "test"},
-        max_retries=0,
-        mounts=[],
-        rdzv_port=29500,
-        scheduler_args={"requirements": "test"},
-    )
-    return ddp
-
-
-def createDDPJob_no_cluster(ddp_def, cluster):
-    return DDPJob(ddp_def, cluster)
 
 
 def createClusterConfig():
@@ -61,8 +32,3 @@ def createClusterWithConfig(mocker):
     )
     cluster = Cluster(createClusterConfig())
     return cluster
-
-
-def createDDPJob_with_cluster(mocker, ddp_def, cluster=None):
-    cluster = createClusterWithConfig(mocker)
-    return DDPJob(ddp_def, cluster)

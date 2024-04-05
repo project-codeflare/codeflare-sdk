@@ -21,10 +21,8 @@ cluster setup queue, a list of all existing clusters, and the user's working nam
 from time import sleep
 from typing import List, Optional, Tuple, Dict
 
-import openshift as oc
 from kubernetes import config
 from ray.job_submission import JobSubmissionClient
-import urllib3
 
 from .auth import config_check, api_config_handler
 from ..utils import pretty_print
@@ -57,8 +55,6 @@ class Cluster:
 
     Note that currently, the underlying implementation is a Ray cluster.
     """
-
-    torchx_scheduler = "ray"
 
     def __init__(self, config: ClusterConfiguration):
         """
@@ -476,20 +472,6 @@ class Cluster:
         This method accesses the head ray node in your cluster and returns the logs for the provided job id.
         """
         return self.job_client.get_job_logs(job_id)
-
-    def torchx_config(
-        self, working_dir: str = None, requirements: str = None
-    ) -> Dict[str, str]:
-        dashboard_address = urllib3.util.parse_url(self.cluster_dashboard_uri()).host
-        to_return = {
-            "cluster_name": self.config.name,
-            "dashboard_address": dashboard_address,
-        }
-        if working_dir:
-            to_return["working_dir"] = working_dir
-        if requirements:
-            to_return["requirements"] = requirements
-        return to_return
 
     def from_k8_cluster_object(
         rc,

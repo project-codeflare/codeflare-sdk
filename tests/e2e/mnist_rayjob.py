@@ -2,10 +2,10 @@ import sys
 
 from time import sleep
 
-from torchx.specs.api import AppState, is_terminal
+from support import *
 
 from codeflare_sdk.cluster.cluster import get_cluster
-from codeflare_sdk.job.jobs import DDPJobDefinition
+from codeflare_sdk.job import RayJobClient
 
 namespace = sys.argv[1]
 
@@ -13,19 +13,23 @@ cluster = get_cluster("mnist", namespace)
 
 cluster.details()
 
-jobdef = DDPJobDefinition(
-    name="mnist",
-    script="mnist.py",
-    scheduler_args={"requirements": "requirements.txt"},
-)
-job = jobdef.submit(cluster)
+auth_token = run_oc_command(["whoami", "--show-token=true"])
+ray_dashboard = cluster.cluster_dashboard_uri()
+header = {"Authorization": f"Bearer {auth_token}"}
+client = RayJobClient(address=ray_dashboard, headers=header, verify=True)
 
+# Submit the job
+submission_id = client.submit_job(
+    entrypoint="python mnist.py",
+    runtime_env={"working_dir": "/", "pip": "requirements.txt"},
+)
+print(f"Submitted job with ID: {submission_id}")
 done = False
 time = 0
 timeout = 900
 while not done:
-    status = job.status()
-    if is_terminal(status.state):
+    status = client.get_job_status(submission_id)
+    if status.is_terminal():
         break
     if not done:
         print(status)
@@ -34,13 +38,14 @@ while not done:
         sleep(5)
         time += 5
 
-print(f"Job has completed: {status.state}")
+logs = client.get_job_logs(submission_id)
+print(logs)
 
-print(job.logs())
-
+client.delete_job(submission_id)
 cluster.down()
 
-if not status.state == AppState.SUCCEEDED:
+
+if not status == "SUCCEEDED":
     exit(1)
 else:
     exit(0)
