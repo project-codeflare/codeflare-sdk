@@ -595,7 +595,7 @@ def list_all_clusters(namespace: str, print_to_console: bool = True):
 
 def list_all_queued(namespace: str, print_to_console: bool = True, mcad: bool = False):
     """
-    Returns (and prints by default) a list of all currently queued-up Ray Clusters or AppWrappers
+    Returns (and prints by default) a list of all currently queued-up Ray Clusters
     in a given namespace.
     """
     if mcad:
