@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# TODO: replace all instances of torchx_runner
 
 from pathlib import Path
 import sys
@@ -81,10 +80,6 @@ from codeflare_sdk.utils.generate_yaml import (
 import openshift
 from openshift.selector import Selector
 import ray
-from torchx.specs import AppDryRunInfo, AppDef
-from torchx.runner import get_runner, Runner
-from torchx.schedulers.ray_scheduler import RayJob
-from torchx.schedulers.kubernetes_mcad_scheduler import KubernetesMCADJob
 import pytest
 import yaml
 from unittest.mock import MagicMock
