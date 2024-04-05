@@ -32,7 +32,6 @@ spec:
         kind: RayCluster
         metadata:
           annotations:
-            sdk.codeflare.dev/ingress_domain: apps.cluster.awsroute.org
             sdk.codeflare.dev/local_interactive: 'False'
           labels:
             controller-tools.k8s.io: '1.0'
@@ -226,28 +225,5 @@ spec:
                     name: odh-trusted-ca-bundle
                     optional: true
                   name: odh-ca-cert
-      replicas: 1
-    - generictemplate:
-        apiVersion: networking.k8s.io/v1
-        kind: Ingress
-        metadata:
-          labels:
-            ingress-options: 'false'
-            ingress-owner: unit-test-cluster
-          name: ray-dashboard-unit-test-cluster
-          namespace: ns
-        spec:
-          ingressClassName: nginx
-          rules:
-          - host: ray-dashboard-unit-test-cluster-ns.apps.cluster.awsroute.org
-            http:
-              paths:
-              - backend:
-                  service:
-                    name: unit-test-cluster-head-svc
-                    port:
-                      number: 8265
-                path: /
-                pathType: Prefix
       replicas: 1
     Items: []

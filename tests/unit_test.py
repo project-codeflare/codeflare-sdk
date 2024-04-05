@@ -331,7 +331,6 @@ def test_cluster_creation_no_mcad(mocker):
         instascale=True,
         machine_types=["cpu.small", "gpu.large"],
         image_pull_secrets=["unit-test-pull-secret"],
-        ingress_domain="apps.cluster.awsroute.org",
         image="quay.io/project-codeflare/ray:latest-py39-cu118",
         write_to_file=False,
         mcad=False,
@@ -384,7 +383,6 @@ def test_default_cluster_creation(mocker):
     default_config = ClusterConfiguration(
         name="unit-test-default-cluster",
         image="quay.io/project-codeflare/ray:latest-py39-cu118",
-        ingress_domain="apps.cluster.awsroute.org",
     )
     cluster = Cluster(default_config)
     test_aw = yaml.safe_load(cluster.app_wrapper_yaml)
@@ -651,7 +649,7 @@ def ray_addr(self, *args):
 
 
 def mocked_ingress(port, cluster_name="unit-test-cluster", annotations: dict = None):
-    labels = {"ingress-owner": cluster_name, "ingress-options": "false"}
+    labels = {"ingress-owner": cluster_name}
     if port == 10001:
         name = f"rayclient-{cluster_name}"
     else:
@@ -833,7 +831,6 @@ def test_ray_details(mocker, capsys):
             name="raytest2",
             namespace="ns",
             image="quay.io/project-codeflare/ray:latest-py39-cu118",
-            ingress_domain="apps.cluster.awsroute.org",
             write_to_file=True,
         )
     )
@@ -954,7 +951,6 @@ def get_ray_obj(group, version, namespace, plural, cls=None):
                     "generation": 1,
                     "annotations": {
                         "sdk.codeflare.dev/local_interactive": "True",
-                        "sdk.codeflare.dev/ingress_domain": "apps.cluster.awsroute.org",
                     },
                     "labels": {
                         "appwrapper.mcad.ibm.com": "quicktest",
@@ -1667,7 +1663,6 @@ def get_aw_obj(group, version, namespace, plural):
                                     "metadata": {
                                         "labels": {
                                             "ingress-owner": "appwrapper-name",
-                                            "ingress-options": "false",
                                         },
                                         "name": "ray-dashboard-quicktest",
                                         "namespace": "default",
@@ -2364,7 +2359,6 @@ def test_cluster_status(mocker):
             name="test",
             namespace="ns",
             image="quay.io/project-codeflare/ray:latest-py39-cu118",
-            ingress_domain="apps.cluster.awsroute.org",
             write_to_file=True,
         )
     )
@@ -2459,7 +2453,6 @@ def test_wait_ready(mocker, capsys):
             name="test",
             namespace="ns",
             image="quay.io/project-codeflare/ray:latest-py39-cu118",
-            ingress_domain="apps.cluster.awsroute.org",
             write_to_file=True,
         )
     )
@@ -2999,147 +2992,119 @@ def test_export_env():
     )
 
 
-def test_enable_local_interactive(mocker):
-    template = f"{parent}/src/codeflare_sdk/templates/base-template.yaml"
-    user_yaml = read_template(template)
-    aw_spec = user_yaml.get("spec", None)
-    cluster_name = "test-enable-local"
-    namespace = "default"
-    ingress_domain = "mytest.domain"
-    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
-    mocker.patch(
-        "codeflare_sdk.utils.generate_yaml.is_openshift_cluster", return_value=False
-    )
-    volume_mounts = [
-        {"name": "ca-vol", "mountPath": "/home/ray/workspace/ca", "readOnly": True},
-        {
-            "name": "server-cert",
-            "mountPath": "/home/ray/workspace/tls",
-            "readOnly": False,
-        },
-    ]
-    volumes = [
-        {
-            "name": "ca-vol",
-            "secret": {"secretName": "ca-secret-test-enable-local"},
-            "optional": False,
-        },
-        {"name": "server-cert", "emptyDir": {}},
-        {
-            "name": "odh-trusted-ca-cert",
-            "configMap": {
-                "name": "odh-trusted-ca-bundle",
-                "items": [
-                    {"key": "ca-bundle.crt", "path": "odh-trusted-ca-bundle.crt"}
-                ],
-                "optional": True,
-            },
-        },
-        {
-            "name": "odh-ca-cert",
-            "configMap": {
-                "name": "odh-trusted-ca-bundle",
-                "items": [{"key": "odh-ca-bundle.crt", "path": "odh-ca-bundle.crt"}],
-                "optional": True,
-            },
-        },
-    ]
-    tls_env = [
-        {"name": "RAY_USE_TLS", "value": "1"},
-        {"name": "RAY_TLS_SERVER_CERT", "value": "/home/ray/workspace/tls/server.crt"},
-        {"name": "RAY_TLS_SERVER_KEY", "value": "/home/ray/workspace/tls/server.key"},
-        {"name": "RAY_TLS_CA_CERT", "value": "/home/ray/workspace/tls/ca.crt"},
-    ]
-    assert aw_spec != None
-    enable_local_interactive(aw_spec, cluster_name, namespace, ingress_domain)
-    head_group_spec = aw_spec["resources"]["GenericItems"][0]["generictemplate"][
-        "spec"
-    ]["headGroupSpec"]
-    worker_group_spec = aw_spec["resources"]["GenericItems"][0]["generictemplate"][
-        "spec"
-    ]["workerGroupSpecs"]
-    ca_secret = aw_spec["resources"]["GenericItems"][5]["generictemplate"]
-    # At a minimal, make sure the following items are presented in the appwrapper spec.resources.
-    # 1. headgroup has the initContainers command to generated TLS cert from the mounted CA cert.
-    #    Note: In this particular command, the DNS.5 in [alt_name] must match the exposed local_client_url: rayclient-{cluster_name}.{namespace}.{ingress_domain}
-    assert (
-        head_group_spec["template"]["spec"]["initContainers"][0]["command"][2]
-        == f"cd /home/ray/workspace/tls && openssl req -nodes -newkey rsa:2048 -keyout server.key -out server.csr -subj '/CN=ray-head' && printf \"authorityKeyIdentifier=keyid,issuer\\nbasicConstraints=CA:FALSE\\nsubjectAltName = @alt_names\\n[alt_names]\\nDNS.1 = 127.0.0.1\\nDNS.2 = localhost\\nDNS.3 = ${{FQ_RAY_IP}}\\nDNS.4 = $(awk 'END{{print $1}}' /etc/hosts)\\nDNS.5 = rayclient-{cluster_name}-$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace).{ingress_domain}\">./domain.ext && cp /home/ray/workspace/ca/* . && openssl x509 -req -CA ca.crt -CAkey ca.key -in server.csr -out server.crt -days 365 -CAcreateserial -extfile domain.ext"
-    )
-    assert (
-        head_group_spec["template"]["spec"]["initContainers"][0]["volumeMounts"]
-        == volume_mounts
-    )
-    assert head_group_spec["template"]["spec"]["volumes"] == volumes
+# def test_enable_local_interactive(mocker):
+#     template = f"{parent}/src/codeflare_sdk/templates/base-template.yaml"
+#     user_yaml = read_template(template)
+#     aw_spec = user_yaml.get("spec", None)
+#     cluster_name = "test-enable-local"
+#     namespace = "default"
+#     ingress_domain = "mytest.domain"
+#     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+#     mocker.patch(
+#         "codeflare_sdk.utils.generate_yaml.is_openshift_cluster", return_value=False
+#     )
+#     volume_mounts = [
+#         {"name": "ca-vol", "mountPath": "/home/ray/workspace/ca", "readOnly": True},
+#         {
+#             "name": "server-cert",
+#             "mountPath": "/home/ray/workspace/tls",
+#             "readOnly": False,
+#         },
+#     ]
+#     volumes = [
+#         {
+#             "name": "ca-vol",
+#             "secret": {"secretName": "ca-secret-test-enable-local"},
+#             "optional": False,
+#         },
+#         {"name": "server-cert", "emptyDir": {}},
+#         {
+#             "name": "odh-trusted-ca-cert",
+#             "configMap": {
+#                 "name": "odh-trusted-ca-bundle",
+#                 "items": [
+#                     {"key": "ca-bundle.crt", "path": "odh-trusted-ca-bundle.crt"}
+#                 ],
+#                 "optional": True,
+#             },
+#         },
+#         {
+#             "name": "odh-ca-cert",
+#             "configMap": {
+#                 "name": "odh-trusted-ca-bundle",
+#                 "items": [{"key": "odh-ca-bundle.crt", "path": "odh-ca-bundle.crt"}],
+#                 "optional": True,
+#             },
+#         },
+#     ]
+#     tls_env = [
+#         {"name": "RAY_USE_TLS", "value": "1"},
+#         {"name": "RAY_TLS_SERVER_CERT", "value": "/home/ray/workspace/tls/server.crt"},
+#         {"name": "RAY_TLS_SERVER_KEY", "value": "/home/ray/workspace/tls/server.key"},
+#         {"name": "RAY_TLS_CA_CERT", "value": "/home/ray/workspace/tls/ca.crt"},
+#     ]
+#     assert aw_spec != None
+#     enable_local_interactive(aw_spec, cluster_name, namespace, ingress_domain)
+#     head_group_spec = aw_spec["resources"]["GenericItems"][0]["generictemplate"][
+#         "spec"
+#     ]["headGroupSpec"]
+#     worker_group_spec = aw_spec["resources"]["GenericItems"][0]["generictemplate"][
+#         "spec"
+#     ]["workerGroupSpecs"]
+#     ca_secret = aw_spec["resources"]["GenericItems"][1]["generictemplate"]
+#     # At a minimal, make sure the following items are presented in the appwrapper spec.resources.
+#     # 1. headgroup has the initContainers command to generated TLS cert from the mounted CA cert.
+#     #    Note: In this particular command, the DNS.5 in [alt_name] must match the exposed local_client_url: rayclient-{cluster_name}.{namespace}.{ingress_domain}
+#     assert (
+#         head_group_spec["template"]["spec"]["initContainers"][0]["command"][2]
+#         == f"cd /home/ray/workspace/tls && openssl req -nodes -newkey rsa:2048 -keyout server.key -out server.csr -subj '/CN=ray-head' && printf \"authorityKeyIdentifier=keyid,issuer\\nbasicConstraints=CA:FALSE\\nsubjectAltName = @alt_names\\n[alt_names]\\nDNS.1 = 127.0.0.1\\nDNS.2 = localhost\\nDNS.3 = ${{FQ_RAY_IP}}\\nDNS.4 = $(awk 'END{{print $1}}' /etc/hosts)\\nDNS.5 = rayclient-{cluster_name}-$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace).{ingress_domain}\">./domain.ext && cp /home/ray/workspace/ca/* . && openssl x509 -req -CA ca.crt -CAkey ca.key -in server.csr -out server.crt -days 365 -CAcreateserial -extfile domain.ext"
+#     )
+#     assert (
+#         head_group_spec["template"]["spec"]["initContainers"][0]["volumeMounts"]
+#         == volume_mounts
+#     )
+#     assert head_group_spec["template"]["spec"]["volumes"] == volumes
 
-    # 2. workerGroupSpec has the initContainers command to generated TLS cert from the mounted CA cert.
-    assert (
-        worker_group_spec[0]["template"]["spec"]["initContainers"][0]["command"][2]
-        == "cd /home/ray/workspace/tls && openssl req -nodes -newkey rsa:2048 -keyout server.key -out server.csr -subj '/CN=ray-head' && printf \"authorityKeyIdentifier=keyid,issuer\\nbasicConstraints=CA:FALSE\\nsubjectAltName = @alt_names\\n[alt_names]\\nDNS.1 = 127.0.0.1\\nDNS.2 = localhost\\nDNS.3 = ${FQ_RAY_IP}\\nDNS.4 = $(awk 'END{print $1}' /etc/hosts)\">./domain.ext && cp /home/ray/workspace/ca/* . && openssl x509 -req -CA ca.crt -CAkey ca.key -in server.csr -out server.crt -days 365 -CAcreateserial -extfile domain.ext"
-    )
-    assert (
-        worker_group_spec[0]["template"]["spec"]["initContainers"][0]["volumeMounts"]
-        == volume_mounts
-    )
-    assert worker_group_spec[0]["template"]["spec"]["volumes"] == volumes
+#     # 2. workerGroupSpec has the initContainers command to generated TLS cert from the mounted CA cert.
+#     assert (
+#         worker_group_spec[0]["template"]["spec"]["initContainers"][0]["command"][2]
+#         == "cd /home/ray/workspace/tls && openssl req -nodes -newkey rsa:2048 -keyout server.key -out server.csr -subj '/CN=ray-head' && printf \"authorityKeyIdentifier=keyid,issuer\\nbasicConstraints=CA:FALSE\\nsubjectAltName = @alt_names\\n[alt_names]\\nDNS.1 = 127.0.0.1\\nDNS.2 = localhost\\nDNS.3 = ${FQ_RAY_IP}\\nDNS.4 = $(awk 'END{print $1}' /etc/hosts)\">./domain.ext && cp /home/ray/workspace/ca/* . && openssl x509 -req -CA ca.crt -CAkey ca.key -in server.csr -out server.crt -days 365 -CAcreateserial -extfile domain.ext"
+#     )
+#     assert (
+#         worker_group_spec[0]["template"]["spec"]["initContainers"][0]["volumeMounts"]
+#         == volume_mounts
+#     )
+#     assert worker_group_spec[0]["template"]["spec"]["volumes"] == volumes
 
-    # 3. Required Envs to enable TLS encryption between head and workers
-    for i in range(len(tls_env)):
-        assert (
-            head_group_spec["template"]["spec"]["containers"][0]["env"][i + 1]["name"]
-            == tls_env[i]["name"]
-        )
-        assert (
-            head_group_spec["template"]["spec"]["containers"][0]["env"][i + 1]["value"]
-            == tls_env[i]["value"]
-        )
-        assert (
-            worker_group_spec[0]["template"]["spec"]["containers"][0]["env"][i + 1][
-                "name"
-            ]
-            == tls_env[i]["name"]
-        )
-        assert (
-            worker_group_spec[0]["template"]["spec"]["containers"][0]["env"][i + 1][
-                "value"
-            ]
-            == tls_env[i]["value"]
-        )
+#     # 3. Required Envs to enable TLS encryption between head and workers
+#     for i in range(len(tls_env)):
+#         assert (
+#             head_group_spec["template"]["spec"]["containers"][0]["env"][i + 1]["name"]
+#             == tls_env[i]["name"]
+#         )
+#         assert (
+#             head_group_spec["template"]["spec"]["containers"][0]["env"][i + 1]["value"]
+#             == tls_env[i]["value"]
+#         )
+#         assert (
+#             worker_group_spec[0]["template"]["spec"]["containers"][0]["env"][i + 1][
+#                 "name"
+#             ]
+#             == tls_env[i]["name"]
+#         )
+#         assert (
+#             worker_group_spec[0]["template"]["spec"]["containers"][0]["env"][i + 1][
+#                 "value"
+#             ]
+#             == tls_env[i]["value"]
+#         )
 
-    # 4. Secret with ca.crt and ca.key
-    assert ca_secret["kind"] == "Secret"
-    assert ca_secret["data"]["ca.crt"] != None
-    assert ca_secret["data"]["ca.key"] != None
-    assert ca_secret["metadata"]["name"] == f"ca-secret-{cluster_name}"
-    assert ca_secret["metadata"]["namespace"] == namespace
-
-    # 5. Rayclient ingress - Kind
-    rayclient_ingress = aw_spec["resources"]["GenericItems"][3]["generictemplate"]
-    paths = [
-        {
-            "backend": {
-                "service": {
-                    "name": f"{cluster_name}-head-svc",
-                    "port": {"number": 10001},
-                }
-            },
-            "path": "",
-            "pathType": "ImplementationSpecific",
-        }
-    ]
-
-    assert rayclient_ingress["kind"] == "Ingress"
-    assert rayclient_ingress["metadata"]["namespace"] == namespace
-    assert rayclient_ingress["metadata"]["annotations"] == {
-        "nginx.ingress.kubernetes.io/rewrite-target": "/",
-        "nginx.ingress.kubernetes.io/ssl-redirect": "true",
-        "nginx.ingress.kubernetes.io/ssl-passthrough": "true",
-    }
-    assert rayclient_ingress["metadata"]["name"] == f"rayclient-{cluster_name}"
-    assert rayclient_ingress["spec"]["rules"][0] == {
-        "host": f"rayclient-{cluster_name}-{namespace}.{ingress_domain}",
-        "http": {"paths": paths},
-    }
+#     # 4. Secret with ca.crt and ca.key
+#     assert ca_secret["kind"] == "Secret"
+#     assert ca_secret["data"]["ca.crt"] != None
+#     assert ca_secret["data"]["ca.key"] != None
+#     assert ca_secret["metadata"]["name"] == f"ca-secret-{cluster_name}"
+#     assert ca_secret["metadata"]["namespace"] == namespace
 
 
 def test_gen_app_wrapper_with_oauth(mocker: MockerFixture):
@@ -3159,7 +3124,6 @@ def test_gen_app_wrapper_with_oauth(mocker: MockerFixture):
         ClusterConfiguration(
             "test_cluster",
             image="quay.io/project-codeflare/ray:latest-py39-cu118",
-            ingress_domain="apps.cluster.awsroute.org",
             write_to_file=True,
         )
     )

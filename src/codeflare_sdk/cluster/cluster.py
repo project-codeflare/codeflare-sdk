@@ -187,8 +187,6 @@ class Cluster:
         local_interactive = self.config.local_interactive
         image_pull_secrets = self.config.image_pull_secrets
         dispatch_priority = self.config.dispatch_priority
-        ingress_domain = self.config.ingress_domain
-        ingress_options = self.config.ingress_options
         write_to_file = self.config.write_to_file
         verify_tls = self.config.verify_tls
         return generate_appwrapper(
@@ -213,8 +211,6 @@ class Cluster:
             image_pull_secrets=image_pull_secrets,
             dispatch_priority=dispatch_priority,
             priority_val=priority_val,
-            ingress_domain=ingress_domain,
-            ingress_options=ingress_options,
             write_to_file=write_to_file,
             verify_tls=verify_tls,
         )
@@ -493,8 +489,6 @@ class Cluster:
     def from_k8_cluster_object(
         rc,
         mcad=True,
-        ingress_domain=None,
-        ingress_options={},
         write_to_file=False,
         verify_tls=True,
     ):
@@ -511,11 +505,6 @@ class Cluster:
             if "orderedinstance" in rc["metadata"]["labels"]
             else []
         )
-
-        if local_interactive and ingress_domain == None:
-            ingress_domain = rc["metadata"]["annotations"][
-                "sdk.codeflare.dev/ingress_domain"
-            ]
 
         cluster_config = ClusterConfiguration(
             name=rc["metadata"]["name"],
@@ -553,8 +542,6 @@ class Cluster:
             ]["image"],
             local_interactive=local_interactive,
             mcad=mcad,
-            ingress_domain=ingress_domain,
-            ingress_options=ingress_options,
             write_to_file=write_to_file,
             verify_tls=verify_tls,
         )
@@ -661,62 +648,9 @@ def get_cluster(
     for rc in rcs["items"]:
         if rc["metadata"]["name"] == cluster_name:
             mcad = _check_aw_exists(cluster_name, namespace)
-            ingress_host = None
-            ingress_options = {}
-            if not is_openshift_cluster():
-                try:
-                    config_check()
-                    api_instance = client.NetworkingV1Api(api_config_handler())
-                    ingresses = api_instance.list_namespaced_ingress(namespace)
-                    for ingress in ingresses.items:
-                        # Search for ingress with AppWrapper name as the owner
-                        if (
-                            "ingress-owner" in ingress.metadata.labels
-                            and ingress.metadata.labels["ingress-owner"] == cluster_name
-                        ):
-                            ingress_host = ingress.spec.rules[0].host
-                            if (
-                                "ingress-options" in ingress.metadata.labels
-                                and ingress.metadata.labels["ingress-options"] == "true"
-                            ):
-                                ingress_name = ingress.metadata.name
-                                port = (
-                                    ingress.spec.rules[0]
-                                    .http.paths[0]
-                                    .backend.service.port.number
-                                )
-                                annotations = ingress.metadata.annotations
-                                path = ingress.spec.rules[0].http.paths[0].path
-                                ingress_class_name = ingress.spec.ingress_class_name
-                                path_type = (
-                                    ingress.spec.rules[0].http.paths[0].path_type
-                                )
-
-                                ingress_options = {
-                                    "ingresses": [
-                                        {
-                                            "ingressName": ingress_name,
-                                            "port": port,
-                                            "annotations": annotations,
-                                            "ingressClassName": ingress_class_name,
-                                            "pathType": path_type,
-                                            "path": path,
-                                            "host": ingress_host,
-                                        }
-                                    ]
-                                }
-                except Exception as e:  # pragma: no cover
-                    return _kube_api_error_handling(e)
-            # We gather the ingress domain from the host
-            if ingress_host is not None and ingress_options == {}:
-                ingress_domain = ingress_host.split(".", 1)[1]
-            else:
-                ingress_domain = None
             return Cluster.from_k8_cluster_object(
                 rc,
                 mcad=mcad,
-                ingress_domain=ingress_domain,
-                ingress_options=ingress_options,
                 write_to_file=write_to_file,
                 verify_tls=verify_tls,
             )
@@ -739,24 +673,6 @@ def _delete_resources(
                 plural="rayclusters",
                 name=name,
             )
-        elif resource["kind"] == "Ingress":
-            name = resource["metadata"]["name"]
-            api_instance.delete_namespaced_custom_object(
-                group="networking.k8s.io",
-                version="v1",
-                namespace=namespace,
-                plural="ingresses",
-                name=name,
-            )
-        elif resource["kind"] == "Route":
-            name = resource["metadata"]["name"]
-            api_instance.delete_namespaced_custom_object(
-                group="route.openshift.io",
-                version="v1",
-                namespace=namespace,
-                plural="routes",
-                name=name,
-            )
         elif resource["kind"] == "Secret":
             name = resource["metadata"]["name"]
             secret_instance = client.CoreV1Api(api_config_handler())
@@ -774,22 +690,6 @@ def _create_resources(yamls, namespace: str, api_instance: client.CustomObjectsA
                 version="v1",
                 namespace=namespace,
                 plural="rayclusters",
-                body=resource,
-            )
-        elif resource["kind"] == "Ingress":
-            api_instance.create_namespaced_custom_object(
-                group="networking.k8s.io",
-                version="v1",
-                namespace=namespace,
-                plural="ingresses",
-                body=resource,
-            )
-        elif resource["kind"] == "Route":
-            api_instance.create_namespaced_custom_object(
-                group="route.openshift.io",
-                version="v1",
-                namespace=namespace,
-                plural="routes",
                 body=resource,
             )
         elif resource["kind"] == "Secret":

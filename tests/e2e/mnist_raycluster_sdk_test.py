@@ -36,24 +36,6 @@ class TestMNISTRayClusterSDK:
 
     def run_mnist_raycluster_sdk(self):
         ray_image = get_ray_image()
-        host = os.getenv("CLUSTER_HOSTNAME")
-
-        ingress_options = {}
-        if host is not None:
-            ingress_options = {
-                "ingresses": [
-                    {
-                        "ingressName": "ray-dashboard",
-                        "port": 8265,
-                        "pathType": "Prefix",
-                        "path": "/",
-                        "host": host,
-                        "annotations": {
-                            "nginx.ingress.kubernetes.io/proxy-body-size": "100M",
-                        },
-                    },
-                ]
-            }
 
         cluster = Cluster(
             ClusterConfiguration(
@@ -69,7 +51,6 @@ class TestMNISTRayClusterSDK:
                 num_gpus=0,
                 instascale=False,
                 image=ray_image,
-                ingress_options=ingress_options,
                 write_to_file=True,
             )
         )
