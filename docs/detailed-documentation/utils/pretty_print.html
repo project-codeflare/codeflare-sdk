@@ -87,6 +87,30 @@ def print_app_wrappers_status(app_wrappers: List[AppWrapper], starting: bool = F
     console.print(Panel.fit(table))
 
 
+def print_ray_clusters_status(app_wrappers: List[AppWrapper], starting: bool = False):
+    if not app_wrappers:
+        print_no_resources_found()
+        return  # shortcircuit
+
+    console = Console()
+    table = Table(
+        box=box.ASCII_DOUBLE_HEAD,
+        title=&#34;[bold] :rocket: Cluster Queue Status :rocket:&#34;,
+    )
+    table.add_column(&#34;Name&#34;, style=&#34;cyan&#34;, no_wrap=True)
+    table.add_column(&#34;Status&#34;, style=&#34;magenta&#34;)
+
+    for app_wrapper in app_wrappers:
+        name = app_wrapper.name
+        status = app_wrapper.status.value
+        if starting:
+            status += &#34; (starting)&#34;
+        table.add_row(name, status)
+        table.add_row(&#34;&#34;)  # empty row for spacing
+
+    console.print(Panel.fit(table))
+
+
 def print_cluster_status(cluster: RayCluster):
     &#34;Pretty prints the status of a passed-in cluster&#34;
     if not cluster:
@@ -101,15 +125,11 @@ def print_cluster_status(cluster: RayCluster):
     )
     name = cluster.name
     dashboard = cluster.dashboard
-    # owned = bool(cluster[&#34;userOwned&#34;])
-    owned = True
 
     #&#39;table0&#39; to display the cluster name, status, url, and dashboard link
     table0 = Table(box=None, show_header=False)
-    if owned:
-        table0.add_row(&#34;[white on green][bold]Name&#34;)
-    else:
-        table0.add_row(&#34;&#34;)
+
+    table0.add_row(&#34;[white on green][bold]Name&#34;)
     table0.add_row(&#34;[bold underline]&#34; + name, status)
     table0.add_row()
     # fixme harcded to default for now
@@ -150,15 +170,11 @@ def print_clusters(clusters: List[RayCluster]):
         memory = str(cluster.worker_mem_min) + &#34;~&#34; + str(cluster.worker_mem_max)
         cpu = str(cluster.worker_cpu)
         gpu = str(cluster.worker_gpu)
-        # owned = bool(cluster[&#34;userOwned&#34;])
-        owned = True
 
         #&#39;table0&#39; to display the cluster name, status, url, and dashboard link
         table0 = Table(box=None, show_header=False)
-        if owned:
-            table0.add_row(&#34;[white on green][bold]Name&#34;)
-        else:
-            table0.add_row(&#34;&#34;)
+
+        table0.add_row(&#34;[white on green][bold]Name&#34;)
         table0.add_row(&#34;[bold underline]&#34; + name, status)
         table0.add_row()
         # fixme harcded to default for now
@@ -278,15 +294,11 @@ def print_clusters(clusters: List[RayCluster]):
     )
     name = cluster.name
     dashboard = cluster.dashboard
-    # owned = bool(cluster[&#34;userOwned&#34;])
-    owned = True
 
     #&#39;table0&#39; to display the cluster name, status, url, and dashboard link
     table0 = Table(box=None, show_header=False)
-    if owned:
-        table0.add_row(&#34;[white on green][bold]Name&#34;)
-    else:
-        table0.add_row(&#34;&#34;)
+
+    table0.add_row(&#34;[white on green][bold]Name&#34;)
     table0.add_row(&#34;[bold underline]&#34; + name, status)
     table0.add_row()
     # fixme harcded to default for now
@@ -336,15 +348,11 @@ def print_clusters(clusters: List[RayCluster]):
         memory = str(cluster.worker_mem_min) + &#34;~&#34; + str(cluster.worker_mem_max)
         cpu = str(cluster.worker_cpu)
         gpu = str(cluster.worker_gpu)
-        # owned = bool(cluster[&#34;userOwned&#34;])
-        owned = True
 
         #&#39;table0&#39; to display the cluster name, status, url, and dashboard link
         table0 = Table(box=None, show_header=False)
-        if owned:
-            table0.add_row(&#34;[white on green][bold]Name&#34;)
-        else:
-            table0.add_row(&#34;&#34;)
+
+        table0.add_row(&#34;[white on green][bold]Name&#34;)
         table0.add_row(&#34;[bold underline]&#34; + name, status)
         table0.add_row()
         # fixme harcded to default for now
@@ -415,6 +423,39 @@ def print_clusters(clusters: List[RayCluster]):
     console.print(Panel(&#34;[red]No resources found, have you run cluster.up() yet?&#34;))</code></pre>
 </details>
 </dd>
+<dt id="codeflare_sdk.utils.pretty_print.print_ray_clusters_status"><code class="name flex">
+<span>def <span class="ident">print_ray_clusters_status</span></span>(<span>app_wrappers: List[<a title="codeflare_sdk.cluster.model.AppWrapper" href="../cluster/model.html#codeflare_sdk.cluster.model.AppWrapper">AppWrapper</a>], starting: bool = False)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def print_ray_clusters_status(app_wrappers: List[AppWrapper], starting: bool = False):
+    if not app_wrappers:
+        print_no_resources_found()
+        return  # shortcircuit
+
+    console = Console()
+    table = Table(
+        box=box.ASCII_DOUBLE_HEAD,
+        title=&#34;[bold] :rocket: Cluster Queue Status :rocket:&#34;,
+    )
+    table.add_column(&#34;Name&#34;, style=&#34;cyan&#34;, no_wrap=True)
+    table.add_column(&#34;Status&#34;, style=&#34;magenta&#34;)
+
+    for app_wrapper in app_wrappers:
+        name = app_wrapper.name
+        status = app_wrapper.status.value
+        if starting:
+            status += &#34; (starting)&#34;
+        table.add_row(name, status)
+        table.add_row(&#34;&#34;)  # empty row for spacing
+
+    console.print(Panel.fit(table))</code></pre>
+</details>
+</dd>
 </dl>
 </section>
 <section>
@@ -437,6 +478,7 @@ def print_clusters(clusters: List[RayCluster]):
 <li><code><a title="codeflare_sdk.utils.pretty_print.print_cluster_status" href="#codeflare_sdk.utils.pretty_print.print_cluster_status">print_cluster_status</a></code></li>
 <li><code><a title="codeflare_sdk.utils.pretty_print.print_clusters" href="#codeflare_sdk.utils.pretty_print.print_clusters">print_clusters</a></code></li>
 <li><code><a title="codeflare_sdk.utils.pretty_print.print_no_resources_found" href="#codeflare_sdk.utils.pretty_print.print_no_resources_found">print_no_resources_found</a></code></li>
+<li><code><a title="codeflare_sdk.utils.pretty_print.print_ray_clusters_status" href="#codeflare_sdk.utils.pretty_print.print_ray_clusters_status">print_ray_clusters_status</a></code></li>
 </ul>
 </li>
 </ul>
