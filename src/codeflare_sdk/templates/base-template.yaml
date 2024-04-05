@@ -130,7 +130,7 @@ spec:
                   - name: RAY_TLS_CA_CERT
                     value: /home/ray/workspace/tls/ca.crt
                   name: ray-head
-                  image: rayproject/ray:latest
+                  image: quay.io/project-codeflare/ray:latest-py39-cu118
                   imagePullPolicy: Always
                   ports:
                   - containerPort: 6379
@@ -176,7 +176,7 @@ spec:
                   - sh
                   - -c
                   - cd /home/ray/workspace/tls && openssl req -nodes -newkey rsa:2048 -keyout server.key -out server.csr -subj '/CN=ray-head' && printf "authorityKeyIdentifier=keyid,issuer\nbasicConstraints=CA:FALSE\nsubjectAltName = @alt_names\n[alt_names]\nDNS.1 = 127.0.0.1\nDNS.2 = localhost\nDNS.3 = ${FQ_RAY_IP}\nDNS.4 = $(awk 'END{print $1}' /etc/hosts)\nDNS.5 = rayclient-deployment-name-$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace).server-name">./domain.ext && cp /home/ray/workspace/ca/* . && openssl x509 -req -CA ca.crt -CAkey ca.key -in server.csr -out server.crt -days 365 -CAcreateserial -extfile domain.ext
-                  image: rayproject/ray:2.7.0
+                  image: quay.io/project-codeflare/ray:latest-py39-cu118
                   name: create-cert
                   # securityContext:
                   #   runAsUser: 1000
@@ -252,7 +252,7 @@ spec:
                 initContainers:
                 # the env var $RAY_IP is set by the operator if missing, with the value of the head service name
                 - name: create-cert
-                  image: rayproject/ray:2.7.0
+                  image: quay.io/project-codeflare/ray:latest-py39-cu118
                   command:
                   - sh
                   - -c
@@ -269,7 +269,7 @@ spec:
                     readOnly: false
                 containers:
                 - name: machine-learning # must consist of lower case alphanumeric characters or '-', and must start and end with an alphanumeric character (e.g. 'my-name',  or '123-abc'
-                  image: rayproject/ray:latest
+                  image: quay.io/project-codeflare/ray:latest-py39-cu118
                   env:
                   - name: MY_POD_IP
                     valueFrom:
