@@ -78,15 +78,22 @@ class ClusterConfiguration:
     num_gpus: int = 0
     template: str = f&#34;{dir}/templates/base-template.yaml&#34;
     instascale: bool = False
-    mcad: bool = True
+    mcad: bool = False
     envs: dict = field(default_factory=dict)
     image: str = &#34;&#34;
     local_interactive: bool = False
     image_pull_secrets: list = field(default_factory=list)
     dispatch_priority: str = None
-    openshift_oauth: bool = False  # NOTE: to use the user must have permission to create a RoleBinding for system:auth-delegator
-    ingress_options: dict = field(default_factory=dict)
-    ingress_domain: str = None</code></pre>
+    write_to_file: bool = False
+    verify_tls: bool = True
+
+    def __post_init__(self):
+        if not self.verify_tls:
+            print(
+                &#34;Warning: TLS verification has been disabled - Endpoint checks will be bypassed&#34;
+            )
+
+    local_queue: str = None</code></pre>
 </details>
 </section>
 <section>
@@ -100,7 +107,7 @@ class ClusterConfiguration:
 <dl>
 <dt id="codeflare_sdk.cluster.config.ClusterConfiguration"><code class="flex name class">
 <span>class <span class="ident">ClusterConfiguration</span></span>
-<span>(</span><span>name: str, namespace: str = None, head_info: list = &lt;factory&gt;, head_cpus: int = 2, head_memory: int = 8, head_gpus: int = 0, machine_types: list = &lt;factory&gt;, min_cpus: int = 1, max_cpus: int = 1, num_workers: int = 1, min_memory: int = 2, max_memory: int = 2, num_gpus: int = 0, template: str = '/home/runner/work/codeflare-sdk/codeflare-sdk/src/codeflare_sdk/templates/base-template.yaml', instascale: bool = False, mcad: bool = True, envs: dict = &lt;factory&gt;, image: str = '', local_interactive: bool = False, image_pull_secrets: list = &lt;factory&gt;, dispatch_priority: str = None, openshift_oauth: bool = False, ingress_options: dict = &lt;factory&gt;, ingress_domain: str = None)</span>
+<span>(</span><span>name: str, namespace: str = None, head_info: list = &lt;factory&gt;, head_cpus: int = 2, head_memory: int = 8, head_gpus: int = 0, machine_types: list = &lt;factory&gt;, min_cpus: int = 1, max_cpus: int = 1, num_workers: int = 1, min_memory: int = 2, max_memory: int = 2, num_gpus: int = 0, template: str = '/home/runner/work/codeflare-sdk/codeflare-sdk/src/codeflare_sdk/templates/base-template.yaml', instascale: bool = False, mcad: bool = False, envs: dict = &lt;factory&gt;, image: str = '', local_interactive: bool = False, image_pull_secrets: list = &lt;factory&gt;, dispatch_priority: str = None, write_to_file: bool = False, verify_tls: bool = True, local_queue: str = None)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>This dataclass is used to specify resource requirements and other details, and
@@ -130,15 +137,22 @@ is passed in as an argument when creating a Cluster object.</p></div>
     num_gpus: int = 0
     template: str = f&#34;{dir}/templates/base-template.yaml&#34;
     instascale: bool = False
-    mcad: bool = True
+    mcad: bool = False
     envs: dict = field(default_factory=dict)
     image: str = &#34;&#34;
     local_interactive: bool = False
     image_pull_secrets: list = field(default_factory=list)
     dispatch_priority: str = None
-    openshift_oauth: bool = False  # NOTE: to use the user must have permission to create a RoleBinding for system:auth-delegator
-    ingress_options: dict = field(default_factory=dict)
-    ingress_domain: str = None</code></pre>
+    write_to_file: bool = False
+    verify_tls: bool = True
+
+    def __post_init__(self):
+        if not self.verify_tls:
+            print(
+                &#34;Warning: TLS verification has been disabled - Endpoint checks will be bypassed&#34;
+            )
+
+    local_queue: str = None</code></pre>
 </details>
 <h3>Class variables</h3>
 <dl>
@@ -174,19 +188,15 @@ is passed in as an argument when creating a Cluster object.</p></div>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="codeflare_sdk.cluster.config.ClusterConfiguration.ingress_domain"><code class="name">var <span class="ident">ingress_domain</span> : str</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="codeflare_sdk.cluster.config.ClusterConfiguration.ingress_options"><code class="name">var <span class="ident">ingress_options</span> : dict</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
 <dt id="codeflare_sdk.cluster.config.ClusterConfiguration.instascale"><code class="name">var <span class="ident">instascale</span> : bool</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 <dt id="codeflare_sdk.cluster.config.ClusterConfiguration.local_interactive"><code class="name">var <span class="ident">local_interactive</span> : bool</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="codeflare_sdk.cluster.config.ClusterConfiguration.local_queue"><code class="name">var <span class="ident">local_queue</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -230,11 +240,15 @@ is passed in as an argument when creating a Cluster object.</p></div>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="codeflare_sdk.cluster.config.ClusterConfiguration.openshift_oauth"><code class="name">var <span class="ident">openshift_oauth</span> : bool</code></dt>
+<dt id="codeflare_sdk.cluster.config.ClusterConfiguration.template"><code class="name">var <span class="ident">template</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="codeflare_sdk.cluster.config.ClusterConfiguration.template"><code class="name">var <span class="ident">template</span> : str</code></dt>
+<dt id="codeflare_sdk.cluster.config.ClusterConfiguration.verify_tls"><code class="name">var <span class="ident">verify_tls</span> : bool</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="codeflare_sdk.cluster.config.ClusterConfiguration.write_to_file"><code class="name">var <span class="ident">write_to_file</span> : bool</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -267,10 +281,9 @@ is passed in as an argument when creating a Cluster object.</p></div>
 <li><code><a title="codeflare_sdk.cluster.config.ClusterConfiguration.head_memory" href="#codeflare_sdk.cluster.config.ClusterConfiguration.head_memory">head_memory</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.config.ClusterConfiguration.image" href="#codeflare_sdk.cluster.config.ClusterConfiguration.image">image</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.config.ClusterConfiguration.image_pull_secrets" href="#codeflare_sdk.cluster.config.ClusterConfiguration.image_pull_secrets">image_pull_secrets</a></code></li>
-<li><code><a title="codeflare_sdk.cluster.config.ClusterConfiguration.ingress_domain" href="#codeflare_sdk.cluster.config.ClusterConfiguration.ingress_domain">ingress_domain</a></code></li>
-<li><code><a title="codeflare_sdk.cluster.config.ClusterConfiguration.ingress_options" href="#codeflare_sdk.cluster.config.ClusterConfiguration.ingress_options">ingress_options</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.config.ClusterConfiguration.instascale" href="#codeflare_sdk.cluster.config.ClusterConfiguration.instascale">instascale</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.config.ClusterConfiguration.local_interactive" href="#codeflare_sdk.cluster.config.ClusterConfiguration.local_interactive">local_interactive</a></code></li>
+<li><code><a title="codeflare_sdk.cluster.config.ClusterConfiguration.local_queue" href="#codeflare_sdk.cluster.config.ClusterConfiguration.local_queue">local_queue</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.config.ClusterConfiguration.machine_types" href="#codeflare_sdk.cluster.config.ClusterConfiguration.machine_types">machine_types</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.config.ClusterConfiguration.max_cpus" href="#codeflare_sdk.cluster.config.ClusterConfiguration.max_cpus">max_cpus</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.config.ClusterConfiguration.max_memory" href="#codeflare_sdk.cluster.config.ClusterConfiguration.max_memory">max_memory</a></code></li>
@@ -281,8 +294,9 @@ is passed in as an argument when creating a Cluster object.</p></div>
 <li><code><a title="codeflare_sdk.cluster.config.ClusterConfiguration.namespace" href="#codeflare_sdk.cluster.config.ClusterConfiguration.namespace">namespace</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.config.ClusterConfiguration.num_gpus" href="#codeflare_sdk.cluster.config.ClusterConfiguration.num_gpus">num_gpus</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.config.ClusterConfiguration.num_workers" href="#codeflare_sdk.cluster.config.ClusterConfiguration.num_workers">num_workers</a></code></li>
-<li><code><a title="codeflare_sdk.cluster.config.ClusterConfiguration.openshift_oauth" href="#codeflare_sdk.cluster.config.ClusterConfiguration.openshift_oauth">openshift_oauth</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.config.ClusterConfiguration.template" href="#codeflare_sdk.cluster.config.ClusterConfiguration.template">template</a></code></li>
+<li><code><a title="codeflare_sdk.cluster.config.ClusterConfiguration.verify_tls" href="#codeflare_sdk.cluster.config.ClusterConfiguration.verify_tls">verify_tls</a></code></li>
+<li><code><a title="codeflare_sdk.cluster.config.ClusterConfiguration.write_to_file" href="#codeflare_sdk.cluster.config.ClusterConfiguration.write_to_file">write_to_file</a></code></li>
 </ul>
 </li>
 </ul>
