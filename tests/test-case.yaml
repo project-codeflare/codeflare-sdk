@@ -52,6 +52,7 @@ spec:
             upscalingMode: Default
           enableInTreeAutoscaling: false
           headGroupSpec:
+            enableIngress: false
             rayStartParams:
               block: 'true'
               dashboard-host: 0.0.0.0
