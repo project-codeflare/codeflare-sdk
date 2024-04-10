@@ -547,6 +547,20 @@ class Cluster:
         if self.config.write_to_file:
             with open(self.app_wrapper_yaml) as f:
                 yamls = yaml.load_all(f, Loader=yaml.FullLoader)
+                for resource in yamls:
+                    enable_ingress = (
+                        resource.get("spec", {})
+                        .get("headGroupSpec", {})
+                        .get("enableIngress")
+                    )
+                    if resource["kind"] == "RayCluster" and enable_ingress is not False:
+                        name = resource["metadata"]["name"]
+                        print(
+                            f"Forbidden: RayCluster '{name}' has 'enableIngress' set to 'True' or is unset."
+                        )
+                        return
+                f.seek(0)  # Reset file pointer to the beginning
+                yamls = yaml.load_all(f, Loader=yaml.FullLoader)  # Reload the YAMLs
                 _create_resources(yamls, namespace, api_instance)
         else:
             yamls = yaml.load_all(self.app_wrapper_yaml, Loader=yaml.FullLoader)
