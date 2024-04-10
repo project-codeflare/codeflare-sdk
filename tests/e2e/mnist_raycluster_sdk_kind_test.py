@@ -1,38 +1,32 @@
-from kubernetes import client, config
-import kubernetes.client
-
-import os
+import requests
 
 from time import sleep
 
-import ray
-
-from codeflare_sdk.cluster.cluster import Cluster, ClusterConfiguration
+from codeflare_sdk import Cluster, ClusterConfiguration, TokenAuthentication
 from codeflare_sdk.job import RayJobClient
 
 import pytest
 
 from support import *
 
-# Creates a Ray cluster, and trains the MNIST dataset using the CodeFlare SDK.
-# Asserts creation of AppWrapper, RayCluster, and successful completion of the training job.
-# Covers successfull installation of CodeFlare-SDK
+# This test creates a Ray Cluster and covers the Ray Job submission functionality on Kind Cluster
 
 
 @pytest.mark.kind
-@pytest.mark.openshift
-class TestMNISTRayClusterSDK:
+class TestRayClusterSDKKind:
     def setup_method(self):
         initialize_kubernetes_client(self)
 
     def teardown_method(self):
         delete_namespace(self)
 
-    def test_mnist_ray_cluster_sdk(self):
+    def test_mnist_ray_cluster_sdk_kind(self):
+        self.setup_method()
         create_namespace(self)
-        self.run_mnist_raycluster_sdk()
+        create_kueue_resources(self)
+        self.run_mnist_raycluster_sdk_kind()
 
-    def run_mnist_raycluster_sdk(self):
+    def run_mnist_raycluster_sdk_kind(self):
         ray_image = get_ray_image()
 
         cluster = Cluster(
@@ -47,31 +41,30 @@ class TestMNISTRayClusterSDK:
                 min_memory=1,
                 max_memory=2,
                 num_gpus=0,
-                instascale=False,
                 image=ray_image,
                 write_to_file=True,
-                mcad=True,
+                verify_tls=False,
             )
         )
 
         cluster.up()
-        self.assert_appwrapper_exists()
 
         cluster.status()
 
         cluster.wait_ready()
-        self.assert_raycluster_exists()
 
         cluster.status()
 
         cluster.details()
 
-        auth_token = run_oc_command(["whoami", "--show-token=true"])
-        ray_dashboard = cluster.cluster_dashboard_uri()
-        header = {"Authorization": f"Bearer {auth_token}"}
-        client = RayJobClient(address=ray_dashboard, headers=header, verify=True)
+        self.assert_jobsubmit_withoutlogin_kind(cluster)
 
-        # Submit the job
+    # Assertions
+
+    def assert_jobsubmit_withoutlogin_kind(self, cluster):
+        ray_dashboard = cluster.cluster_dashboard_uri()
+        client = RayJobClient(address=ray_dashboard, verify=False)
+
         submission_id = client.submit_job(
             entrypoint="python mnist.py",
             runtime_env={
@@ -100,38 +93,8 @@ class TestMNISTRayClusterSDK:
         self.assert_job_completion(status)
 
         client.delete_job(submission_id)
+
         cluster.down()
-
-    # Assertions
-    def assert_appwrapper_exists(self):
-        try:
-            self.custom_api.get_namespaced_custom_object(
-                "workload.codeflare.dev",
-                "v1beta1",
-                self.namespace,
-                "appwrappers",
-                "mnist",
-            )
-            print(
-                f"AppWrapper 'mnist' has been created in the namespace: '{self.namespace}'"
-            )
-            assert True
-        except Exception as e:
-            print(f"AppWrapper 'mnist' has not been created. Error: {e}")
-            assert False
-
-    def assert_raycluster_exists(self):
-        try:
-            self.custom_api.get_namespaced_custom_object(
-                "ray.io", "v1", self.namespace, "rayclusters", "mnist"
-            )
-            print(
-                f"RayCluster 'mnist' created successfully in the namespace: '{self.namespace}'"
-            )
-            assert True
-        except Exception as e:
-            print(f"RayCluster 'mnist' has not been created. Error: {e}")
-            assert False
 
     def assert_job_completion(self, status):
         if status == "SUCCEEDED":

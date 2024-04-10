@@ -4,6 +4,7 @@ import string
 import subprocess
 from kubernetes import client, config
 import kubernetes.client
+import subprocess
 
 
 def get_ray_image():
@@ -45,3 +46,9 @@ def run_oc_command(args):
     except subprocess.CalledProcessError as e:
         print(f"Error executing 'oc {' '.join(args)}': {e}")
         return None
+
+
+def create_kueue_resources(self):
+    # Set executable permissions
+    os.chmod("tests/e2e/kueue_resources_setup.sh", 0o755)
+    subprocess.call(["bash", "tests/e2e/kueue_resources_setup.sh", self.namespace])
