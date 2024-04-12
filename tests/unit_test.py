@@ -64,7 +64,7 @@ from codeflare_sdk.utils.generate_cert import (
     export_env,
 )
 
-from unit_test_support import (
+from tests.unit_test_support import (
     createClusterWithConfig,
     createClusterConfig,
 )
