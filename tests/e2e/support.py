@@ -4,7 +4,6 @@ import string
 import subprocess
 from kubernetes import client, config
 import kubernetes.client
-import subprocess
 
 
 def get_ray_image():
@@ -27,10 +26,13 @@ def create_namespace(self):
 
 def create_namespace_with_name(self, namespace_name):
     self.namespace = namespace_name
-    namespace_body = client.V1Namespace(
-        metadata=client.V1ObjectMeta(name=self.namespace)
-    )
-    self.api_instance.create_namespace(namespace_body)
+    try:
+        namespace_body = client.V1Namespace(
+            metadata=client.V1ObjectMeta(name=self.namespace)
+        )
+        self.api_instance.create_namespace(namespace_body)
+    except Exception as e:
+        return _kube_api_error_handling(e)
 
 
 def delete_namespace(self):
