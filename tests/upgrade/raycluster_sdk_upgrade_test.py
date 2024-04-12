@@ -57,7 +57,7 @@ class TestMNISTRayClusterUp:
             cluster.up()
             cluster.status()
             # wait for raycluster to be Ready
-            # cluster.wait_ready() # temporarily broken
+            # cluster.wait_ready() #temporarily broken
             sleep(60)
             cluster.status()
             # Check cluster details
@@ -98,26 +98,15 @@ class TestMnistJobSubmit:
     # Assertions
     def assert_jobsubmit_withoutLogin(self, cluster):
         dashboard_url = cluster.cluster_dashboard_uri()
-        jobdata = {
-            "entrypoint": "python mnist.py",
-            "runtime_env": {
-                "working_dir": "./tests/e2e/",
-                "pip": "./tests/e2e/mnist_pip_requirements.txt",
-            },
-        }
         try:
-            response = requests.post(
-                dashboard_url + "/api/jobs/", verify=False, json=jobdata
-            )
-            if response.status_code == 403:
+            RayJobClient(address=dashboard_url, verify=False)
+            assert False
+        except Exception as e:
+            if e.response.status_code == 403:
                 assert True
             else:
-                response.raise_for_status()
+                print(f"An unexpected error occurred. Error: {e}")
                 assert False
-
-        except Exception as e:
-            print(f"An unexpected error occurred. Error: {e}")
-            assert False
 
     def assert_jobsubmit_withlogin(self, cluster):
         auth_token = run_oc_command(["whoami", "--show-token=true"])
