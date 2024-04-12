@@ -880,7 +880,7 @@ def _get_app_wrappers(
 
 
 def _map_to_ray_cluster(rc) -&gt; Optional[RayCluster]:
-    if &#34;state&#34; in rc[&#34;status&#34;]:
+    if &#34;status&#34; in rc and &#34;state&#34; in rc[&#34;status&#34;]:
         status = RayClusterStatus(rc[&#34;status&#34;][&#34;state&#34;].lower())
     else:
         status = RayClusterStatus.UNKNOWN
