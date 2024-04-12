@@ -25,6 +25,14 @@ def create_namespace(self):
     self.api_instance.create_namespace(namespace_body)
 
 
+def create_namespace_with_name(self, namespace_name):
+    self.namespace = namespace_name
+    namespace_body = client.V1Namespace(
+        metadata=client.V1ObjectMeta(name=self.namespace)
+    )
+    self.api_instance.create_namespace(namespace_body)
+
+
 def delete_namespace(self):
     if hasattr(self, "namespace"):
         self.api_instance.delete_namespace(self.namespace)
