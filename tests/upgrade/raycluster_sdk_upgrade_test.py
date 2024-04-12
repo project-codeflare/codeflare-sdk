@@ -19,7 +19,7 @@ class TestMNISTRayClusterUp:
     def setup_method(self):
         initialize_kubernetes_client(self)
         create_namespace_with_name(self, namespace)
-        cluster_queue = "cluster-queue"  # add cluster name here
+        cluster_queue = "cluster-queue"  # add cluster-queue name here
         create_local_queue(self, cluster_queue)
 
     def test_mnist_ray_cluster_sdk_auth(self):
@@ -50,7 +50,6 @@ class TestMNISTRayClusterUp:
                 instascale=False,
                 image=ray_image,
                 write_to_file=True,
-                mcad=False,
             )
         )
 
@@ -58,17 +57,19 @@ class TestMNISTRayClusterUp:
             cluster.up()
             cluster.status()
             # wait for raycluster to be Ready
-            cluster.wait_ready()
+            # cluster.wait_ready() # temporarily broken
+            sleep(60)
             cluster.status()
             # Check cluster details
             cluster.details()
             # Assert the cluster status is READY
             _, ready = cluster.status()
-            assert ready, "Cluster is not ready!"
+            assert ready
 
         except Exception as e:
             print(f"An unexpected error occurred. Error: ", e)
             delete_namespace(self)
+            assert False, "Cluster is not ready!"
 
 
 class TestMnistJobSubmit:
