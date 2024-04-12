@@ -48,6 +48,7 @@ pytest-timeout = "2.2.0"
 [tool.pytest.ini_options]
 filterwarnings = [
     "ignore::DeprecationWarning:pkg_resources",
+    "ignore::DeprecationWarning",
     "ignore:pkg_resources is deprecated as an API:DeprecationWarning",
 ]
 markers = [

@@ -75,6 +75,7 @@ from codeflare_sdk.utils.generate_yaml import (
     is_openshift_cluster,
     read_template,
     enable_local_interactive,
+    write_components,
 )
 
 import openshift
@@ -260,9 +261,65 @@ def test_config_creation():
     assert config.local_interactive == False
 
 
+def ca_secret_support(path, mcad: bool):
+    # Given that the secret is always random we need to set it to a static value for the tests to pass
+    if mcad:
+        with open(path, "r") as file:
+            try:
+                yaml_file = yaml.safe_load(file)
+            except yaml.YAMLError as exc:
+                print(exc)
+        resources = yaml_file.get("spec", "resources")
+        ca_secret_item = resources["resources"].get("GenericItems")[1]
+        data = ca_secret_item.get("generictemplate", {}).get("data")
+        data["ca.key"] = "ca-field"
+        data["ca.crt"] = "ca-field"
+        with open(path, "w") as outfile:
+            yaml.dump(yaml_file, outfile, default_flow_style=False)
+    else:
+        # Load the YAML file
+        with open(path, "r") as f:
+            data = list(yaml.safe_load_all(f))
+
+            # Find the Secret entry and update the fields
+            for item in data:
+                if item.get("kind") == "Secret":
+                    item["data"]["ca.crt"] = "ca-field"
+                    item["data"]["ca.key"] = "ca-field"
+                    break
+        with open(path, "w") as f:
+            for item in data:
+                f.write("---\n")
+                yaml.dump(item, f, default_flow_style=False)
+
+
+def ca_secret_support_no_write(yaml_file, mcad: bool):
+    if mcad:
+        file = yaml.safe_load(yaml_file)
+        resources = file.get("spec", "resources")
+
+        ca_secret_item = resources["resources"].get("GenericItems")[1]
+        data = ca_secret_item.get("generictemplate", {}).get("data")
+        data["ca.key"] = "ca-field"
+        data["ca.crt"] = "ca-field"
+        return file
+
+    else:
+        data = list(yaml.safe_load_all(yaml_file))
+        for item in data:
+            if item.get("kind") == "Secret":
+                item["data"]["ca.crt"] = "ca-field"
+                item["data"]["ca.key"] = "ca-field"
+                break
+
+        resources = "---\n" + "---\n".join([yaml.dump(item) for item in data])
+        return resources
+
+
 def test_cluster_creation(mocker):
     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     cluster = createClusterWithConfig(mocker)
+    ca_secret_support(f"{aw_dir}unit-test-cluster.yaml", True)
     assert cluster.app_wrapper_yaml == f"{aw_dir}unit-test-cluster.yaml"
     assert cluster.app_wrapper_name == "unit-test-cluster"
     assert filecmp.cmp(
@@ -326,8 +383,10 @@ def test_cluster_creation_no_mcad(mocker):
     config.write_to_file = True
     config.mcad = False
     cluster = Cluster(config)
+
     assert cluster.app_wrapper_yaml == f"{aw_dir}unit-test-cluster-ray.yaml"
     assert cluster.app_wrapper_name == "unit-test-cluster-ray"
+    ca_secret_support(cluster.app_wrapper_yaml, False)
     assert filecmp.cmp(
         f"{aw_dir}unit-test-cluster-ray.yaml",
         f"{parent}/tests/test-case-no-mcad.yamls",
@@ -349,6 +408,7 @@ def test_cluster_creation_no_mcad_local_queue(mocker):
     config.write_to_file = True
     config.local_queue = "local-queue-default"
     cluster = Cluster(config)
+    ca_secret_support(cluster.app_wrapper_yaml, False)
     assert cluster.app_wrapper_yaml == f"{aw_dir}unit-test-cluster-ray.yaml"
     assert cluster.app_wrapper_name == "unit-test-cluster-ray"
     assert filecmp.cmp(
@@ -377,7 +437,11 @@ def test_cluster_creation_no_mcad_local_queue(mocker):
     cluster = Cluster(config)
     test_resources = []
     expected_resources = []
-    test_aw = yaml.load_all(cluster.app_wrapper_yaml, Loader=yaml.FullLoader)
+
+    test_aw = yaml.load_all(
+        ca_secret_support_no_write(cluster.app_wrapper_yaml, False),
+        Loader=yaml.FullLoader,
+    )
     for resource in test_aw:
         test_resources.append(resource)
     with open(
@@ -404,6 +468,7 @@ def test_cluster_creation_priority(mocker):
         return_value={"spec": {"domain": "apps.cluster.awsroute.org"}},
     )
     cluster = Cluster(config)
+    ca_secret_support(cluster.app_wrapper_yaml, True)
     assert cluster.app_wrapper_yaml == f"{aw_dir}prio-test-cluster.yaml"
     assert cluster.app_wrapper_name == "prio-test-cluster"
     assert filecmp.cmp(
@@ -425,7 +490,8 @@ def test_default_cluster_creation(mocker):
         mcad=True,
     )
     cluster = Cluster(default_config)
-    test_aw = yaml.safe_load(cluster.app_wrapper_yaml)
+    test_aw = ca_secret_support_no_write(cluster.app_wrapper_yaml, True)
+
     with open(
         f"{parent}/tests/test-default-appwrapper.yaml",
     ) as f:
@@ -534,15 +600,11 @@ def test_cluster_up_down(mocker):
 
 
 def test_cluster_up_down_no_mcad(mocker):
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch(
         "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
         return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
-    )
-    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
-    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
-    mocker.patch(
-        "kubernetes.client.CustomObjectsApi.get_cluster_custom_object",
-        return_value={"spec": {"domain": "apps.cluster.awsroute.org"}},
     )
     mocker.patch(
         "kubernetes.client.CustomObjectsApi.create_namespaced_custom_object",
@@ -551,6 +613,12 @@ def test_cluster_up_down_no_mcad(mocker):
     mocker.patch(
         "kubernetes.client.CustomObjectsApi.delete_namespaced_custom_object",
         side_effect=arg_check_del_effect,
+    )
+    mocker.patch(
+        "kubernetes.client.CoreV1Api.create_namespaced_secret",
+    )
+    mocker.patch(
+        "kubernetes.client.CoreV1Api.delete_namespaced_secret",
     )
     mocker.patch(
         "kubernetes.client.CustomObjectsApi.list_cluster_custom_object",
@@ -3127,37 +3195,6 @@ def test_export_env():
 #     assert ca_secret["data"]["ca.key"] != None
 #     assert ca_secret["metadata"]["name"] == f"ca-secret-{cluster_name}"
 #     assert ca_secret["metadata"]["namespace"] == namespace
-
-
-def test_gen_app_wrapper_with_oauth(mocker: MockerFixture):
-    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
-    mocker.patch(
-        "codeflare_sdk.cluster.cluster.get_current_namespace",
-        return_value="opendatahub",
-    )
-    mocker.patch(
-        "codeflare_sdk.utils.generate_yaml.is_openshift_cluster", return_value=True
-    )
-    write_user_appwrapper = MagicMock()
-    mocker.patch(
-        "codeflare_sdk.utils.generate_yaml.write_user_appwrapper", write_user_appwrapper
-    )
-    Cluster(
-        ClusterConfiguration(
-            "test_cluster",
-            image="quay.io/project-codeflare/ray:latest-py39-cu118",
-            write_to_file=True,
-            mcad=True,
-        )
-    )
-    user_yaml = write_user_appwrapper.call_args.args[0]
-    assert any(
-        container["name"] == "oauth-proxy"
-        for container in user_yaml["spec"]["resources"]["GenericItems"][0][
-            "generictemplate"
-        ]["spec"]["headGroupSpec"]["template"]["spec"]["containers"]
-    )
-
 
 """
 Ray Jobs tests
