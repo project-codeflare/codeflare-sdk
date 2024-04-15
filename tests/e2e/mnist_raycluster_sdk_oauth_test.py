@@ -9,7 +9,7 @@ import pytest
 
 from support import *
 
-# This test Creates a Ray cluster with openshift_oauth enable and covers the Ray Job submission with authentication and without authentication functionality
+# This test creates a Ray Cluster and covers the Ray Job submission with authentication and without authentication functionality on Openshift Cluster
 
 
 @pytest.mark.openshift
@@ -23,6 +23,7 @@ class TestRayClusterSDKOauth:
     def test_mnist_ray_cluster_sdk_auth(self):
         self.setup_method()
         create_namespace(self)
+        create_kueue_resources(self)
         self.run_mnist_raycluster_sdk_oauth()
 
     def run_mnist_raycluster_sdk_oauth(self):
@@ -47,15 +48,13 @@ class TestRayClusterSDKOauth:
                 min_memory=1,
                 max_memory=2,
                 num_gpus=0,
-                instascale=False,
                 image=ray_image,
                 write_to_file=True,
-                mcad=True,
+                verify_tls=False,
             )
         )
 
         cluster.up()
-        self.assert_appwrapper_exists()
 
         cluster.status()
 
@@ -66,7 +65,6 @@ class TestRayClusterSDKOauth:
         cluster.details()
 
         self.assert_jobsubmit_withoutLogin(cluster)
-
         self.assert_jobsubmit_withlogin(cluster)
 
     # Assertions
@@ -95,18 +93,16 @@ class TestRayClusterSDKOauth:
             assert False
 
     def assert_jobsubmit_withlogin(self, cluster):
-        self.assert_appwrapper_exists()
         auth_token = run_oc_command(["whoami", "--show-token=true"])
         ray_dashboard = cluster.cluster_dashboard_uri()
         header = {"Authorization": f"Bearer {auth_token}"}
-        client = RayJobClient(address=ray_dashboard, headers=header, verify=True)
+        client = RayJobClient(address=ray_dashboard, headers=header, verify=False)
 
-        # Submit the job
         submission_id = client.submit_job(
             entrypoint="python mnist.py",
             runtime_env={
                 "working_dir": "./tests/e2e/",
-                "pip": "mnist_pip_requirements.txt",
+                "pip": "./tests/e2e/mnist_pip_requirements.txt",
             },
         )
         print(f"Submitted job with ID: {submission_id}")
@@ -130,24 +126,8 @@ class TestRayClusterSDKOauth:
         self.assert_job_completion(status)
 
         client.delete_job(submission_id)
-        cluster.down()
 
-    def assert_appwrapper_exists(self):
-        try:
-            self.custom_api.get_namespaced_custom_object(
-                "workload.codeflare.dev",
-                "v1beta1",
-                self.namespace,
-                "appwrappers",
-                "mnist",
-            )
-            print(
-                f"AppWrapper 'mnist' has been created in the namespace: '{self.namespace}'"
-            )
-            assert True
-        except Exception as e:
-            print(f"AppWrapper 'mnist' has not been created. Error: {e}")
-            assert False
+        cluster.down()
 
     def assert_job_completion(self, status):
         if status == "SUCCEEDED":

@@ -10,8 +10,10 @@ Pre-requisite for KinD clusters: please add in your local `/etc/hosts` file `127
   ```
   make kind-e2e
   export CLUSTER_HOSTNAME=kind
-  make deploy -e IMG=quay.io/project-codeflare/codeflare-operator:v1.1.0
   make setup-e2e
+  make deploy -e IMG=quay.io/project-codeflare/codeflare-operator:v1.3.0
+
+  For running tests locally on Kind cluster, we need to disable `rayDashboardOAuthEnabled` in `codeflare-operator-config` ConfigMap and then restart CodeFlare Operator
   ```
 
   - **(Optional)** - Create and add `sdk-user` with limited permissions to the cluster to run through the e2e tests:
@@ -53,9 +55,13 @@ Pre-requisite for KinD clusters: please add in your local `/etc/hosts` file `127
 
   ```
 
+  - Install the latest development version of kueue
+  ```
+  kubectl apply --server-side -k "github.com/opendatahub-io/kueue/config/rhoai?ref=dev"
+  ```
 
 - Test Phase:
-   - Once we have the codeflare-operator and kuberay-operator running and ready, we can run the e2e test on the codeflare-sdk repository:
+   - Once we have the codeflare-operator, kuberay-operator and kueue running and ready, we can run the e2e test on the codeflare-sdk repository:
   ```
   poetry install --with test,docs
   poetry run pytest -v -s ./tests/e2e/mnist_raycluster_sdk_test.py
@@ -67,11 +73,18 @@ Pre-requisite for KinD clusters: please add in your local `/etc/hosts` file `127
 - Setup Phase:
   - Pull the [codeflare-operator repo](https://github.com/project-codeflare/codeflare-operator) and run the following make targets:
   ```
-  make deploy -e IMG=quay.io/project-codeflare/codeflare-operator:v1.1.0
+
   make setup-e2e
+  make deploy -e IMG=quay.io/project-codeflare/codeflare-operator:v1.3.0
   ```
+
+  - Install the latest development version of kueue
+  ```
+  kubectl apply --server-side -k "github.com/opendatahub-io/kueue/config/rhoai?ref=dev"
+  ```
+
 - Test Phase:
-   - Once we have the codeflare-operator and kuberay-operator running and ready, we can run the e2e test on the codeflare-sdk repository:
+   - Once we have the codeflare-operator, kuberay-operator and kueue running and ready, we can run the e2e test on the codeflare-sdk repository:
   ```
   poetry install --with test,docs
   poetry run pytest -v -s ./tests/e2e/mnist_raycluster_sdk_test.py
