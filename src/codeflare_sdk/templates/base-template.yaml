@@ -40,8 +40,6 @@ spec:
         apiVersion: ray.io/v1
         kind: RayCluster
         metadata:
-          annotations:
-            sdk.codeflare.dev/local_interactive: "False"
           labels:
             workload.codeflare.dev/appwrapper: "aw-kuberay"
             controller-tools.k8s.io: "1.0"
@@ -153,12 +151,6 @@ spec:
                       memory: "8G"
                       nvidia.com/gpu: 0
                   volumeMounts:
-                  - name: ca-vol
-                    mountPath: "/home/ray/workspace/ca"
-                    readOnly: true
-                  - name: server-cert
-                    mountPath: "/home/ray/workspace/tls"
-                    readOnly: true
                   - mountPath: /etc/pki/tls/certs/odh-trusted-ca-bundle.crt
                     name: odh-trusted-ca-cert
                     subPath: odh-trusted-ca-bundle.crt
@@ -171,30 +163,7 @@ spec:
                   - mountPath: /etc/ssl/certs/odh-ca-bundle.crt
                     name: odh-ca-cert
                     subPath: odh-ca-bundle.crt
-                initContainers:
-                - command:
-                  - sh
-                  - -c
-                  - cd /home/ray/workspace/tls && openssl req -nodes -newkey rsa:2048 -keyout server.key -out server.csr -subj '/CN=ray-head' && printf "authorityKeyIdentifier=keyid,issuer\nbasicConstraints=CA:FALSE\nsubjectAltName = @alt_names\n[alt_names]\nDNS.1 = 127.0.0.1\nDNS.2 = localhost\nDNS.3 = ${FQ_RAY_IP}\nDNS.4 = $(awk 'END{print $1}' /etc/hosts)\nDNS.5 = rayclient-deployment-name-$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace).server-name">./domain.ext && cp /home/ray/workspace/ca/* . && openssl x509 -req -CA ca.crt -CAkey ca.key -in server.csr -out server.crt -days 365 -CAcreateserial -extfile domain.ext
-                  image: quay.io/project-codeflare/ray:latest-py39-cu118
-                  name: create-cert
-                  # securityContext:
-                  #   runAsUser: 1000
-                  #   runAsGroup: 1000
-                  volumeMounts:
-                  - name: ca-vol
-                    mountPath: "/home/ray/workspace/ca"
-                    readOnly: true
-                  - name: server-cert
-                    mountPath: "/home/ray/workspace/tls"
-                    readOnly: false
                 volumes:
-                - name: ca-vol
-                  secret:
-                    secretName: ca-secret-deployment-name
-                  optional: false
-                - name: server-cert
-                  emptyDir: {}
                 - name: odh-trusted-ca-cert
                   configMap:
                     name: odh-trusted-ca-bundle
@@ -249,24 +218,6 @@ spec:
                           operator: In
                           values:
                           - "aw-kuberay"
-                initContainers:
-                # the env var $RAY_IP is set by the operator if missing, with the value of the head service name
-                - name: create-cert
-                  image: quay.io/project-codeflare/ray:latest-py39-cu118
-                  command:
-                  - sh
-                  - -c
-                  - cd /home/ray/workspace/tls && openssl req -nodes -newkey rsa:2048 -keyout server.key -out server.csr -subj '/CN=ray-head' && printf "authorityKeyIdentifier=keyid,issuer\nbasicConstraints=CA:FALSE\nsubjectAltName = @alt_names\n[alt_names]\nDNS.1 = 127.0.0.1\nDNS.2 = localhost\nDNS.3 = ${FQ_RAY_IP}\nDNS.4 = $(awk 'END{print $1}' /etc/hosts)">./domain.ext && cp /home/ray/workspace/ca/* . && openssl x509 -req -CA ca.crt -CAkey ca.key -in server.csr -out server.crt -days 365 -CAcreateserial -extfile domain.ext
-                  # securityContext:
-                  #   runAsUser: 1000
-                  #   runAsGroup: 1000
-                  volumeMounts:
-                  - name: ca-vol
-                    mountPath: "/home/ray/workspace/ca"
-                    readOnly: true
-                  - name: server-cert
-                    mountPath: "/home/ray/workspace/tls"
-                    readOnly: false
                 containers:
                 - name: machine-learning # must consist of lower case alphanumeric characters or '-', and must start and end with an alphanumeric character (e.g. 'my-name',  or '123-abc'
                   image: quay.io/project-codeflare/ray:latest-py39-cu118
@@ -299,12 +250,6 @@ spec:
                       memory: "12G"
                       nvidia.com/gpu: "1"
                   volumeMounts:
-                  - name: ca-vol
-                    mountPath: "/home/ray/workspace/ca"
-                    readOnly: true
-                  - name: server-cert
-                    mountPath: "/home/ray/workspace/tls"
-                    readOnly: true
                   - mountPath: /etc/pki/tls/certs/odh-trusted-ca-bundle.crt
                     name: odh-trusted-ca-cert
                     subPath: odh-trusted-ca-bundle.crt
@@ -318,12 +263,6 @@ spec:
                     name: odh-ca-cert
                     subPath: odh-ca-bundle.crt
                 volumes:
-                - name: ca-vol
-                  secret:
-                    secretName: ca-secret-deployment-name
-                  optional: false
-                - name: server-cert
-                  emptyDir: {}
                 - name: odh-trusted-ca-cert
                   configMap:
                     name: odh-trusted-ca-bundle
@@ -338,15 +277,3 @@ spec:
                     - key: odh-ca-bundle.crt
                       path: odh-ca-bundle.crt
                     optional: true
-    - replicas: 1
-      generictemplate:
-        apiVersion: v1
-        data:
-          ca.crt: generated_crt
-          ca.key: generated_key
-        kind: Secret
-        metadata:
-          name: ca-secret-deployment-name
-          labels:
-            # allows me to return name of service that Ray operator creates
-            odh-ray-cluster-service: deployment-name-head-svc

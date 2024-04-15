@@ -180,7 +180,6 @@ class Cluster:
         mcad = self.config.mcad
         instance_types = self.config.machine_types
         env = self.config.envs
-        local_interactive = self.config.local_interactive
         image_pull_secrets = self.config.image_pull_secrets
         dispatch_priority = self.config.dispatch_priority
         write_to_file = self.config.write_to_file
@@ -204,7 +203,6 @@ class Cluster:
             mcad=mcad,
             instance_types=instance_types,
             env=env,
-            local_interactive=local_interactive,
             image_pull_secrets=image_pull_secrets,
             dispatch_priority=dispatch_priority,
             priority_val=priority_val,
@@ -480,13 +478,6 @@ class Cluster:
         verify_tls=True,
     ):
         config_check()
-        if (
-            rc["metadata"]["annotations"]["sdk.codeflare.dev/local_interactive"]
-            == "True"
-        ):
-            local_interactive = True
-        else:
-            local_interactive = False
         machine_types = (
             rc["metadata"]["labels"]["orderedinstance"].split("_")
             if "orderedinstance" in rc["metadata"]["labels"]
@@ -527,7 +518,6 @@ class Cluster:
             image=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"]["containers"][
                 0
             ]["image"],
-            local_interactive=local_interactive,
             mcad=mcad,
             write_to_file=write_to_file,
             verify_tls=verify_tls,
@@ -535,11 +525,8 @@ class Cluster:
         return Cluster(cluster_config)
 
     def local_client_url(self):
-        if self.config.local_interactive == True:
-            ingress_domain = _get_ingress_domain(self)
-            return f"ray://{ingress_domain}"
-        else:
-            return "None"
+        ingress_domain = _get_ingress_domain(self)
+        return f"ray://{ingress_domain}"
 
     def _component_resources_up(
         self, namespace: str, api_instance: client.CustomObjectsApi

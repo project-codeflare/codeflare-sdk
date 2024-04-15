@@ -291,45 +291,6 @@ def update_ca_secret(ca_secret_item, cluster_name, namespace):
     data["ca.key"], data["ca.crt"] = generate_cert.generate_ca_cert(365)
 
 
-def enable_local_interactive(resources, cluster_name, namespace):  # pragma: no cover
-    from ..cluster.cluster import _get_ingress_domain
-
-    ca_secret_item = resources["resources"].get("GenericItems")[1]
-    item = resources["resources"].get("GenericItems")[0]
-    update_ca_secret(ca_secret_item, cluster_name, namespace)
-    # update_ca_secret_volumes
-    item["generictemplate"]["spec"]["headGroupSpec"]["template"]["spec"]["volumes"][0][
-        "secret"
-    ]["secretName"] = f"ca-secret-{cluster_name}"
-    item["generictemplate"]["spec"]["workerGroupSpecs"][0]["template"]["spec"][
-        "volumes"
-    ][0]["secret"]["secretName"] = f"ca-secret-{cluster_name}"
-    # update_tls_env
-    item["generictemplate"]["spec"]["headGroupSpec"]["template"]["spec"]["containers"][
-        0
-    ]["env"][1]["value"] = "1"
-    item["generictemplate"]["spec"]["workerGroupSpecs"][0]["template"]["spec"][
-        "containers"
-    ][0]["env"][1]["value"] = "1"
-    # update_init_container
-    command = item["generictemplate"]["spec"]["headGroupSpec"]["template"]["spec"][
-        "initContainers"
-    ][0].get("command")[2]
-
-    command = command.replace("deployment-name", cluster_name)
-
-    domain = ""  ## FIX - We can't retrieve ingress domain - move init container to CFO
-
-    command = command.replace("server-name", domain)
-    item["generictemplate"]["metadata"]["annotations"][
-        "sdk.codeflare.dev/local_interactive"
-    ] = "True"
-
-    item["generictemplate"]["spec"]["headGroupSpec"]["template"]["spec"][
-        "initContainers"
-    ][0].get("command")[2] = command
-
-
 def del_from_list_by_name(l: list, target: typing.List[str]) -> list:
     return [x for x in l if x["name"] not in target]
 
@@ -568,7 +529,6 @@ def generate_appwrapper(
     mcad: bool,
     instance_types: list,
     env,
-    local_interactive: bool,
     image_pull_secrets: list,
     dispatch_priority: str,
     priority_val: int,
@@ -618,11 +578,6 @@ def generate_appwrapper(
         head_memory,
         head_gpus,
     )
-
-    if local_interactive:
-        enable_local_interactive(resources, cluster_name, namespace)
-    else:
-        disable_raycluster_tls(resources["resources"])
 
     if is_openshift_cluster():
         enable_openshift_oauth(user_yaml, cluster_name, namespace)
