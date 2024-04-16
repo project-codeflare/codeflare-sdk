@@ -65,6 +65,7 @@ class RayClusterStatus(Enum):
     UNHEALTHY = &#34;unhealthy&#34;
     FAILED = &#34;failed&#34;
     UNKNOWN = &#34;unknown&#34;
+    SUSPENDED = &#34;suspended&#34;
 
 
 class AppWrapperStatus(Enum):
@@ -92,6 +93,7 @@ class CodeFlareClusterStatus(Enum):
     QUEUEING = 4
     FAILED = 5
     UNKNOWN = 6
+    SUSPENDED = 7
 
 
 @dataclass
@@ -254,7 +256,8 @@ class AppWrapper:
     QUEUED = 3
     QUEUEING = 4
     FAILED = 5
-    UNKNOWN = 6</code></pre>
+    UNKNOWN = 6
+    SUSPENDED = 7</code></pre>
 </details>
 <h3>Ancestors</h3>
 <ul class="hlist">
@@ -279,6 +282,10 @@ class AppWrapper:
 <div class="desc"></div>
 </dd>
 <dt id="codeflare_sdk.cluster.model.CodeFlareClusterStatus.STARTING"><code class="name">var <span class="ident">STARTING</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="codeflare_sdk.cluster.model.CodeFlareClusterStatus.SUSPENDED"><code class="name">var <span class="ident">SUSPENDED</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -387,7 +394,8 @@ class AppWrapper:
     READY = &#34;ready&#34;
     UNHEALTHY = &#34;unhealthy&#34;
     FAILED = &#34;failed&#34;
-    UNKNOWN = &#34;unknown&#34;</code></pre>
+    UNKNOWN = &#34;unknown&#34;
+    SUSPENDED = &#34;suspended&#34;</code></pre>
 </details>
 <h3>Ancestors</h3>
 <ul class="hlist">
@@ -400,6 +408,10 @@ class AppWrapper:
 <div class="desc"></div>
 </dd>
 <dt id="codeflare_sdk.cluster.model.RayClusterStatus.READY"><code class="name">var <span class="ident">READY</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="codeflare_sdk.cluster.model.RayClusterStatus.SUSPENDED"><code class="name">var <span class="ident">SUSPENDED</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -458,6 +470,7 @@ class AppWrapper:
 <li><code><a title="codeflare_sdk.cluster.model.CodeFlareClusterStatus.QUEUEING" href="#codeflare_sdk.cluster.model.CodeFlareClusterStatus.QUEUEING">QUEUEING</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.model.CodeFlareClusterStatus.READY" href="#codeflare_sdk.cluster.model.CodeFlareClusterStatus.READY">READY</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.model.CodeFlareClusterStatus.STARTING" href="#codeflare_sdk.cluster.model.CodeFlareClusterStatus.STARTING">STARTING</a></code></li>
+<li><code><a title="codeflare_sdk.cluster.model.CodeFlareClusterStatus.SUSPENDED" href="#codeflare_sdk.cluster.model.CodeFlareClusterStatus.SUSPENDED">SUSPENDED</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.model.CodeFlareClusterStatus.UNKNOWN" href="#codeflare_sdk.cluster.model.CodeFlareClusterStatus.UNKNOWN">UNKNOWN</a></code></li>
 </ul>
 </li>
@@ -483,6 +496,7 @@ class AppWrapper:
 <ul class="">
 <li><code><a title="codeflare_sdk.cluster.model.RayClusterStatus.FAILED" href="#codeflare_sdk.cluster.model.RayClusterStatus.FAILED">FAILED</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.model.RayClusterStatus.READY" href="#codeflare_sdk.cluster.model.RayClusterStatus.READY">READY</a></code></li>
+<li><code><a title="codeflare_sdk.cluster.model.RayClusterStatus.SUSPENDED" href="#codeflare_sdk.cluster.model.RayClusterStatus.SUSPENDED">SUSPENDED</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.model.RayClusterStatus.UNHEALTHY" href="#codeflare_sdk.cluster.model.RayClusterStatus.UNHEALTHY">UNHEALTHY</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.model.RayClusterStatus.UNKNOWN" href="#codeflare_sdk.cluster.model.RayClusterStatus.UNKNOWN">UNKNOWN</a></code></li>
 </ul>

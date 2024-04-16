@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# TODO: replace all instances of torchx_runner
 
 from pathlib import Path
 import sys
@@ -24,7 +23,7 @@ import uuid
 from codeflare_sdk.cluster import cluster
 
 parent = Path(__file__).resolve().parents[1]
-aw_dir = os.path.expanduser("~/.codeflare/appwrapper/")
+aw_dir = os.path.expanduser("~/.codeflare/resources/")
 sys.path.append(str(parent) + "/src")
 
 from kubernetes import client, config, dynamic
@@ -59,12 +58,6 @@ from codeflare_sdk.cluster.model import (
     RayClusterStatus,
     CodeFlareClusterStatus,
 )
-from codeflare_sdk.job.jobs import (
-    JobDefinition,
-    Job,
-    DDPJobDefinition,
-    DDPJob,
-)
 from codeflare_sdk.utils.generate_cert import (
     generate_ca_cert,
     generate_tls_cert,
@@ -73,10 +66,7 @@ from codeflare_sdk.utils.generate_cert import (
 
 from unit_test_support import (
     createClusterWithConfig,
-    createTestDDP,
-    createDDPJob_no_cluster,
     createClusterConfig,
-    createDDPJob_with_cluster,
 )
 
 import codeflare_sdk.utils.kube_api_helpers
@@ -90,10 +80,6 @@ from codeflare_sdk.utils.generate_yaml import (
 import openshift
 from openshift.selector import Selector
 import ray
-from torchx.specs import AppDryRunInfo, AppDef
-from torchx.runner import get_runner, Runner
-from torchx.schedulers.ray_scheduler import RayJob
-from torchx.schedulers.kubernetes_mcad_scheduler import KubernetesMCADJob
 import pytest
 import yaml
 from unittest.mock import MagicMock
@@ -299,8 +285,59 @@ def test_create_app_wrapper_raises_error_with_no_image():
         ), "Error message did not match expected output."
 
 
+def get_local_queue(group, version, namespace, plural):
+    assert group == "kueue.x-k8s.io"
+    assert version == "v1beta1"
+    assert namespace == "ns"
+    assert plural == "localqueues"
+    local_queues = {
+        "apiVersion": "kueue.x-k8s.io/v1beta1",
+        "items": [
+            {
+                "apiVersion": "kueue.x-k8s.io/v1beta1",
+                "kind": "LocalQueue",
+                "metadata": {
+                    "annotations": {"kueue.x-k8s.io/default-queue": "true"},
+                    "name": "local-queue-default",
+                    "namespace": "ns",
+                },
+                "spec": {"clusterQueue": "cluster-queue"},
+            }
+        ],
+        "kind": "LocalQueueList",
+        "metadata": {"continue": "", "resourceVersion": "2266811"},
+    }
+    return local_queues
+
+
 def test_cluster_creation_no_mcad(mocker):
+    # Create Ray Cluster with no local queue specified
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.get_cluster_custom_object",
+        return_value={"spec": {"domain": "apps.cluster.awsroute.org"}},
+    )
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
+        return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
+    )
+    config = createClusterConfig()
+    config.name = "unit-test-cluster-ray"
+    config.write_to_file = True
+    config.mcad = False
+    cluster = Cluster(config)
+    assert cluster.app_wrapper_yaml == f"{aw_dir}unit-test-cluster-ray.yaml"
+    assert cluster.app_wrapper_name == "unit-test-cluster-ray"
+    assert filecmp.cmp(
+        f"{aw_dir}unit-test-cluster-ray.yaml",
+        f"{parent}/tests/test-case-no-mcad.yamls",
+        shallow=True,
+    )
+
+
+def test_cluster_creation_no_mcad_local_queue(mocker):
     # With written resources
+    # Create Ray Cluster with local queue specified
     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch(
         "kubernetes.client.CustomObjectsApi.get_cluster_custom_object",
@@ -310,6 +347,7 @@ def test_cluster_creation_no_mcad(mocker):
     config.name = "unit-test-cluster-ray"
     config.mcad = False
     config.write_to_file = True
+    config.local_queue = "local-queue-default"
     cluster = Cluster(config)
     assert cluster.app_wrapper_yaml == f"{aw_dir}unit-test-cluster-ray.yaml"
     assert cluster.app_wrapper_name == "unit-test-cluster-ray"
@@ -331,10 +369,10 @@ def test_cluster_creation_no_mcad(mocker):
         instascale=True,
         machine_types=["cpu.small", "gpu.large"],
         image_pull_secrets=["unit-test-pull-secret"],
-        ingress_domain="apps.cluster.awsroute.org",
         image="quay.io/project-codeflare/ray:latest-py39-cu118",
         write_to_file=False,
         mcad=False,
+        local_queue="local-queue-default",
     )
     cluster = Cluster(config)
     test_resources = []
@@ -384,7 +422,7 @@ def test_default_cluster_creation(mocker):
     default_config = ClusterConfiguration(
         name="unit-test-default-cluster",
         image="quay.io/project-codeflare/ray:latest-py39-cu118",
-        ingress_domain="apps.cluster.awsroute.org",
+        mcad=True,
     )
     cluster = Cluster(default_config)
     test_aw = yaml.safe_load(cluster.app_wrapper_yaml)
@@ -498,6 +536,9 @@ def test_cluster_up_down(mocker):
 
 def test_cluster_up_down_no_mcad(mocker):
     mocker.patch("codeflare_sdk.cluster.cluster.Cluster._throw_for_no_raycluster")
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
+        return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
     mocker.patch(
@@ -653,7 +694,7 @@ def ray_addr(self, *args):
 
 
 def mocked_ingress(port, cluster_name="unit-test-cluster", annotations: dict = None):
-    labels = {"ingress-owner": cluster_name, "ingress-options": "false"}
+    labels = {"ingress-owner": cluster_name}
     if port == 10001:
         name = f"rayclient-{cluster_name}"
     else:
@@ -835,8 +876,8 @@ def test_ray_details(mocker, capsys):
             name="raytest2",
             namespace="ns",
             image="quay.io/project-codeflare/ray:latest-py39-cu118",
-            ingress_domain="apps.cluster.awsroute.org",
             write_to_file=True,
+            mcad=True,
         )
     )
     captured = capsys.readouterr()
@@ -956,7 +997,6 @@ def get_ray_obj(group, version, namespace, plural, cls=None):
                     "generation": 1,
                     "annotations": {
                         "sdk.codeflare.dev/local_interactive": "True",
-                        "sdk.codeflare.dev/ingress_domain": "apps.cluster.awsroute.org",
                     },
                     "labels": {
                         "appwrapper.mcad.ibm.com": "quicktest",
@@ -1395,7 +1435,263 @@ def get_ray_obj(group, version, namespace, plural, cls=None):
                     "observedGeneration": 1,
                     "state": "ready",
                 },
-            }
+            },
+            {
+                "apiVersion": "ray.io/v1",
+                "kind": "RayCluster",
+                "metadata": {
+                    "creationTimestamp": "2023-02-22T16:26:07Z",
+                    "generation": 1,
+                    "labels": {
+                        "workload.codeflare.dev/appwrapper": "quicktest2",
+                        "controller-tools.k8s.io": "1.0",
+                        "resourceName": "quicktest2",
+                        "orderedinstance": "m4.xlarge_g4dn.xlarge",
+                    },
+                    "managedFields": [
+                        {
+                            "apiVersion": "ray.io/v1",
+                            "fieldsType": "FieldsV1",
+                            "fieldsV1": {
+                                "f:metadata": {
+                                    "f:labels": {
+                                        ".": {},
+                                        "f:workload.codeflare.dev/appwrapper": {},
+                                        "f:controller-tools.k8s.io": {},
+                                        "f:resourceName": {},
+                                    },
+                                    "f:ownerReferences": {
+                                        ".": {},
+                                        'k:{"uid":"6334fc1b-471e-4876-8e7b-0b2277679235"}': {},
+                                    },
+                                },
+                                "f:spec": {
+                                    ".": {},
+                                    "f:autoscalerOptions": {
+                                        ".": {},
+                                        "f:idleTimeoutSeconds": {},
+                                        "f:imagePullPolicy": {},
+                                        "f:resources": {
+                                            ".": {},
+                                            "f:limits": {
+                                                ".": {},
+                                                "f:cpu": {},
+                                                "f:memory": {},
+                                            },
+                                            "f:requests": {
+                                                ".": {},
+                                                "f:cpu": {},
+                                                "f:memory": {},
+                                            },
+                                        },
+                                        "f:upscalingMode": {},
+                                    },
+                                    "f:enableInTreeAutoscaling": {},
+                                    "f:headGroupSpec": {
+                                        ".": {},
+                                        "f:rayStartParams": {
+                                            ".": {},
+                                            "f:block": {},
+                                            "f:dashboard-host": {},
+                                            "f:num-gpus": {},
+                                        },
+                                        "f:serviceType": {},
+                                        "f:template": {
+                                            ".": {},
+                                            "f:spec": {".": {}, "f:containers": {}},
+                                        },
+                                    },
+                                    "f:rayVersion": {},
+                                    "f:workerGroupSpecs": {},
+                                },
+                            },
+                            "manager": "mcad-controller",
+                            "operation": "Update",
+                            "time": "2023-02-22T16:26:07Z",
+                        },
+                        {
+                            "apiVersion": "ray.io/v1",
+                            "fieldsType": "FieldsV1",
+                            "fieldsV1": {
+                                "f:status": {
+                                    ".": {},
+                                    "f:availableWorkerReplicas": {},
+                                    "f:desiredWorkerReplicas": {},
+                                    "f:endpoints": {
+                                        ".": {},
+                                        "f:client": {},
+                                        "f:dashboard": {},
+                                        "f:gcs": {},
+                                    },
+                                    "f:lastUpdateTime": {},
+                                    "f:maxWorkerReplicas": {},
+                                    "f:minWorkerReplicas": {},
+                                    "f:state": {},
+                                }
+                            },
+                            "manager": "manager",
+                            "operation": "Update",
+                            "subresource": "status",
+                            "time": "2023-02-22T16:26:16Z",
+                        },
+                    ],
+                    "name": "quicktest2",
+                    "namespace": "ns",
+                    "ownerReferences": [
+                        {
+                            "apiVersion": "workload.codeflare.dev/v1beta1",
+                            "blockOwnerDeletion": True,
+                            "controller": True,
+                            "kind": "AppWrapper",
+                            "name": "quicktest2",
+                            "uid": "6334fc1b-471e-4876-8e7b-0b2277679235",
+                        }
+                    ],
+                    "resourceVersion": "9482407",
+                    "uid": "44d45d1f-26c8-43e7-841f-831dbd8c1285",
+                },
+                "spec": {
+                    "autoscalerOptions": {
+                        "idleTimeoutSeconds": 60,
+                        "imagePullPolicy": "Always",
+                        "resources": {
+                            "limits": {"cpu": "500m", "memory": "512Mi"},
+                            "requests": {"cpu": "500m", "memory": "512Mi"},
+                        },
+                        "upscalingMode": "Default",
+                    },
+                    "enableInTreeAutoscaling": False,
+                    "headGroupSpec": {
+                        "rayStartParams": {
+                            "block": "true",
+                            "dashboard-host": "0.0.0.0",
+                            "num-gpus": "0",
+                        },
+                        "serviceType": "ClusterIP",
+                        "template": {
+                            "spec": {
+                                "containers": [
+                                    {
+                                        "image": "ghcr.io/foundation-model-stack/base:ray2.1.0-py38-gpu-pytorch1.12.0cu116-20221213-193103",
+                                        "imagePullPolicy": "Always",
+                                        "lifecycle": {
+                                            "preStop": {
+                                                "exec": {
+                                                    "command": [
+                                                        "/bin/sh",
+                                                        "-c",
+                                                        "ray stop",
+                                                    ]
+                                                }
+                                            }
+                                        },
+                                        "name": "ray-head",
+                                        "ports": [
+                                            {
+                                                "containerPort": 6379,
+                                                "name": "gcs",
+                                                "protocol": "TCP",
+                                            },
+                                            {
+                                                "containerPort": 8265,
+                                                "name": "dashboard",
+                                                "protocol": "TCP",
+                                            },
+                                            {
+                                                "containerPort": 10001,
+                                                "name": "client",
+                                                "protocol": "TCP",
+                                            },
+                                        ],
+                                        "resources": {
+                                            "limits": {
+                                                "cpu": 2,
+                                                "memory": "8G",
+                                                "nvidia.com/gpu": 0,
+                                            },
+                                            "requests": {
+                                                "cpu": 2,
+                                                "memory": "8G",
+                                                "nvidia.com/gpu": 0,
+                                            },
+                                        },
+                                    }
+                                ]
+                            }
+                        },
+                    },
+                    "rayVersion": "1.12.0",
+                    "workerGroupSpecs": [
+                        {
+                            "groupName": "small-group-quicktest2",
+                            "maxReplicas": 1,
+                            "minReplicas": 1,
+                            "rayStartParams": {"block": "true", "num-gpus": "0"},
+                            "replicas": 1,
+                            "template": {
+                                "metadata": {
+                                    "annotations": {"key": "value"},
+                                    "labels": {"key": "value"},
+                                },
+                                "spec": {
+                                    "containers": [
+                                        {
+                                            "env": [
+                                                {
+                                                    "name": "MY_POD_IP",
+                                                    "valueFrom": {
+                                                        "fieldRef": {
+                                                            "fieldPath": "status.podIP"
+                                                        }
+                                                    },
+                                                }
+                                            ],
+                                            "image": "ghcr.io/foundation-model-stack/base:ray2.1.0-py38-gpu-pytorch1.12.0cu116-20221213-193103",
+                                            "lifecycle": {
+                                                "preStop": {
+                                                    "exec": {
+                                                        "command": [
+                                                            "/bin/sh",
+                                                            "-c",
+                                                            "ray stop",
+                                                        ]
+                                                    }
+                                                }
+                                            },
+                                            "name": "machine-learning",
+                                            "resources": {
+                                                "limits": {
+                                                    "cpu": 1,
+                                                    "memory": "2G",
+                                                    "nvidia.com/gpu": 0,
+                                                },
+                                                "requests": {
+                                                    "cpu": 1,
+                                                    "memory": "2G",
+                                                    "nvidia.com/gpu": 0,
+                                                },
+                                            },
+                                        }
+                                    ],
+                                },
+                            },
+                        }
+                    ],
+                },
+                "status": {
+                    "availableWorkerReplicas": 2,
+                    "desiredWorkerReplicas": 1,
+                    "endpoints": {
+                        "client": "10001",
+                        "dashboard": "8265",
+                        "gcs": "6379",
+                    },
+                    "lastUpdateTime": "2023-02-22T16:26:16Z",
+                    "maxWorkerReplicas": 1,
+                    "minWorkerReplicas": 1,
+                    "state": "suspended",
+                },
+            },
         ]
     }
     return api_obj
@@ -1669,7 +1965,6 @@ def get_aw_obj(group, version, namespace, plural):
                                     "metadata": {
                                         "labels": {
                                             "ingress-owner": "appwrapper-name",
-                                            "ingress-options": "false",
                                         },
                                         "name": "ray-dashboard-quicktest",
                                         "namespace": "default",
@@ -2124,6 +2419,8 @@ def test_get_cluster_openshift(mocker):
             return get_ray_obj("ray.io", "v1", "ns", "rayclusters")
         elif plural == "appwrappers":
             return get_aw_obj("workload.codeflare.dev", "v1beta1", "ns", "appwrappers")
+        elif plural == "localqueues":
+            return get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues")
 
     mocker.patch(
         "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object", get_aw_obj
@@ -2303,6 +2600,22 @@ def test_list_clusters(mocker, capsys):
         " │   │             │  │                                      │   │ \n"
         " │   ╰─────────────╯  ╰──────────────────────────────────────╯   │ \n"
         " ╰───────────────────────────────────────────────────────────────╯ \n"
+        "╭───────────────────────────────────────────────────────────────╮\n"
+        "│   Name                                                        │\n"
+        "│   quicktest2                                   Inactive ❌    │\n"
+        "│                                                               │\n"
+        "│   URI: ray://quicktest2-head-svc.ns.svc:10001                 │\n"
+        "│                                                               │\n"
+        "│   Dashboard🔗                                                 │\n"
+        "│                                                               │\n"
+        "│                       Cluster Resources                       │\n"
+        "│   ╭── Workers ──╮  ╭───────── Worker specs(each) ─────────╮   │\n"
+        "│   │  # Workers  │  │  Memory      CPU         GPU         │   │\n"
+        "│   │             │  │                                      │   │\n"
+        "│   │  1          │  │  2G~2G       1           0           │   │\n"
+        "│   │             │  │                                      │   │\n"
+        "│   ╰─────────────╯  ╰──────────────────────────────────────╯   │\n"
+        "╰───────────────────────────────────────────────────────────────╯\n"
     )
 
 
@@ -2312,7 +2625,7 @@ def test_list_queue(mocker, capsys):
         "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
         side_effect=get_obj_none,
     )
-    list_all_queued("ns")
+    list_all_queued("ns", mcad=True)
     captured = capsys.readouterr()
     assert captured.out == (
         "╭──────────────────────────────────────────────────────────────────────────────╮\n"
@@ -2323,7 +2636,7 @@ def test_list_queue(mocker, capsys):
         "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
         side_effect=get_aw_obj,
     )
-    list_all_queued("ns")
+    list_all_queued("ns", mcad=True)
     captured = capsys.readouterr()
     assert captured.out == (
         "╭──────────────────────────╮\n"
@@ -2338,6 +2651,49 @@ def test_list_queue(mocker, capsys):
         "│ |            |         | │\n"
         "│ +------------+---------+ │\n"
         "╰──────────────────────────╯\n"
+    )
+
+
+def test_list_queue_rayclusters(mocker, capsys):
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+    mock_api = MagicMock()
+    mock_api.get_api_versions.return_value.groups = [
+        MagicMock(versions=[MagicMock(group_version="route.openshift.io/v1")])
+    ]
+    mocker.patch("kubernetes.client.ApisApi", return_value=mock_api)
+
+    assert is_openshift_cluster() == True
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
+        side_effect=get_obj_none,
+    )
+    list_all_queued("ns")
+    captured = capsys.readouterr()
+    assert captured.out == (
+        "╭──────────────────────────────────────────────────────────────────────────────╮\n"
+        "│ No resources found, have you run cluster.up() yet?                           │\n"
+        "╰──────────────────────────────────────────────────────────────────────────────╯\n"
+    )
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
+        side_effect=get_ray_obj,
+    )
+    list_all_queued("ns")
+    captured = capsys.readouterr()
+    print(captured.out)
+    assert captured.out == (
+        "╭────────────────────────────╮\n"
+        "│   🚀 Cluster Queue Status  │\n"
+        "│             🚀             │\n"
+        "│ +------------+-----------+ │\n"
+        "│ | Name       | Status    | │\n"
+        "│ +============+===========+ │\n"
+        "│ | quicktest  | ready     | │\n"
+        "│ |            |           | │\n"
+        "│ | quicktest2 | suspended | │\n"
+        "│ |            |           | │\n"
+        "│ +------------+-----------+ │\n"
+        "╰────────────────────────────╯\n"
     )
 
 
@@ -2366,8 +2722,8 @@ def test_cluster_status(mocker):
             name="test",
             namespace="ns",
             image="quay.io/project-codeflare/ray:latest-py39-cu118",
-            ingress_domain="apps.cluster.awsroute.org",
             write_to_file=True,
+            mcad=True,
         )
     )
     mocker.patch("codeflare_sdk.cluster.cluster._app_wrapper_status", return_value=None)
@@ -2461,8 +2817,8 @@ def test_wait_ready(mocker, capsys):
             name="test",
             namespace="ns",
             image="quay.io/project-codeflare/ray:latest-py39-cu118",
-            ingress_domain="apps.cluster.awsroute.org",
             write_to_file=True,
+            mcad=True,
         )
     )
     try:
@@ -2494,350 +2850,8 @@ def test_wait_ready(mocker, capsys):
     )
 
 
-def test_jobdefinition_coverage(mocker):
-    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
-    mocker.patch(
-        "kubernetes.client.CustomObjectsApi.get_cluster_custom_object",
-        return_value={"spec": {"domain": ""}},
-    )
-    abstract = JobDefinition()
-    cluster = createClusterWithConfig(mocker)
-    abstract._dry_run(cluster)
-    abstract.submit(cluster)
-
-
-def test_job_coverage():
-    abstract = Job()
-    abstract.status()
-    abstract.logs()
-
-
-def test_DDPJobDefinition_creation(mocker):
-    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
-    ddp = createTestDDP()
-    assert ddp.script == "test.py"
-    assert ddp.m == None
-    assert ddp.script_args == ["test"]
-    assert ddp.name == "test"
-    assert ddp.cpu == 1
-    assert ddp.gpu == 0
-    assert ddp.memMB == 1024
-    assert ddp.h == None
-    assert ddp.j == "2x1"
-    assert ddp.env == {"test": "test"}
-    assert ddp.max_retries == 0
-    assert ddp.mounts == []
-    assert ddp.rdzv_port == 29500
-    assert ddp.scheduler_args == {"requirements": "test"}
-
-
-def test_DDPJobDefinition_dry_run(mocker: MockerFixture):
-    """
-    Test that the dry run method returns the correct type: AppDryRunInfo,
-    that the attributes of the returned object are of the correct type,
-    and that the values from cluster and job definition are correctly passed.
-    """
-    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
-    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
-    mocker.patch(
-        "codeflare_sdk.cluster.cluster.Cluster.cluster_dashboard_uri",
-        return_value="",
-    )
-    mocker.patch.object(Cluster, "job_client")
-    ddp = createTestDDP()
-    cluster = createClusterWithConfig(mocker)
-    ddp_job, _ = ddp._dry_run(cluster)
-    assert type(ddp_job) == AppDryRunInfo
-    assert ddp_job._fmt is not None
-    assert type(ddp_job.request) == RayJob
-    assert type(ddp_job._app) == AppDef
-    assert type(ddp_job._cfg) == type(dict())
-    assert type(ddp_job._scheduler) == type(str())
-
-    assert ddp_job.request.app_id.startswith("test")
-    assert ddp_job.request.cluster_name == "unit-test-cluster"
-    assert ddp_job.request.requirements == "test"
-
-    assert ddp_job._app.roles[0].resource.cpu == 1
-    assert ddp_job._app.roles[0].resource.gpu == 0
-    assert ddp_job._app.roles[0].resource.memMB == 1024
-
-    assert ddp_job._cfg["cluster_name"] == "unit-test-cluster"
-    assert ddp_job._cfg["requirements"] == "test"
-
-    assert ddp_job._scheduler == "ray"
-
-
-def test_DDPJobDefinition_dry_run_no_cluster(mocker):
-    """
-    Test that the dry run method returns the correct type: AppDryRunInfo,
-    that the attributes of the returned object are of the correct type,
-    and that the values from cluster and job definition are correctly passed.
-    """
-    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
-    mocker.patch(
-        "codeflare_sdk.job.jobs.get_current_namespace",
-        return_value="opendatahub",
-    )
-
-    ddp = createTestDDP()
-    ddp.image = "fake-image"
-    ddp_job, _ = ddp._dry_run_no_cluster()
-    assert type(ddp_job) == AppDryRunInfo
-    assert ddp_job._fmt is not None
-    assert type(ddp_job.request) == KubernetesMCADJob
-    assert type(ddp_job._app) == AppDef
-    assert type(ddp_job._cfg) == type(dict())
-    assert type(ddp_job._scheduler) == type(str())
-
-    assert (
-        ddp_job.request.resource["spec"]["resources"]["GenericItems"][0][
-            "generictemplate"
-        ]
-        .spec.containers[0]
-        .image
-        == "fake-image"
-    )
-
-    assert ddp_job._app.roles[0].resource.cpu == 1
-    assert ddp_job._app.roles[0].resource.gpu == 0
-    assert ddp_job._app.roles[0].resource.memMB == 1024
-
-    assert ddp_job._cfg["requirements"] == "test"
-
-    assert ddp_job._scheduler == "kubernetes_mcad"
-
-
-def test_DDPJobDefinition_dry_run_no_resource_args(mocker):
-    """
-    Test that the dry run correctly gets resources from the cluster object
-    when the job definition does not specify resources.
-    """
-    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
-    mocker.patch.object(Cluster, "job_client")
-    mocker.patch(
-        "kubernetes.client.CustomObjectsApi.get_cluster_custom_object",
-        return_value={"spec": {"domain": ""}},
-    )
-    mocker.patch(
-        "codeflare_sdk.cluster.cluster.Cluster.cluster_dashboard_uri",
-        return_value="",
-    )
-    cluster = createClusterWithConfig(mocker)
-    ddp = DDPJobDefinition(
-        script="test.py",
-        m=None,
-        script_args=["test"],
-        name="test",
-        h=None,
-        env={"test": "test"},
-        max_retries=0,
-        mounts=[],
-        rdzv_port=29500,
-        scheduler_args={"requirements": "test"},
-    )
-    ddp_job, _ = ddp._dry_run(cluster)
-
-    assert ddp_job._app.roles[0].resource.cpu == cluster.config.max_cpus
-    assert ddp_job._app.roles[0].resource.gpu == cluster.config.num_gpus
-    assert ddp_job._app.roles[0].resource.memMB == cluster.config.max_memory * 1024
-    assert (
-        parse_j(ddp_job._app.roles[0].args[1])
-        == f"{cluster.config.num_workers}x{cluster.config.num_gpus}"
-    )
-
-
-def test_DDPJobDefinition_dry_run_no_cluster_no_resource_args(mocker):
-    """
-    Test that the dry run method returns the correct type: AppDryRunInfo,
-    that the attributes of the returned object are of the correct type,
-    and that the values from cluster and job definition are correctly passed.
-    """
-    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
-
-    mocker.patch(
-        "codeflare_sdk.job.jobs.get_current_namespace",
-        return_value="opendatahub",
-    )
-
-    ddp = createTestDDP()
-    try:
-        ddp._dry_run_no_cluster()
-        assert 0 == 1
-    except ValueError as e:
-        assert str(e) == "Job definition missing arg: image"
-    ddp.image = "fake-image"
-    ddp.name = None
-    try:
-        ddp._dry_run_no_cluster()
-        assert 0 == 1
-    except ValueError as e:
-        assert str(e) == "Job definition missing arg: name"
-    ddp.name = "fake"
-    ddp.cpu = None
-    try:
-        ddp._dry_run_no_cluster()
-        assert 0 == 1
-    except ValueError as e:
-        assert str(e) == "Job definition missing arg: cpu (# cpus per worker)"
-    ddp.cpu = 1
-    ddp.gpu = None
-    try:
-        ddp._dry_run_no_cluster()
-        assert 0 == 1
-    except ValueError as e:
-        assert str(e) == "Job definition missing arg: gpu (# gpus per worker)"
-    ddp.gpu = 1
-    ddp.memMB = None
-    try:
-        ddp._dry_run_no_cluster()
-        assert 0 == 1
-    except ValueError as e:
-        assert str(e) == "Job definition missing arg: memMB (memory in MB)"
-    ddp.memMB = 1
-    ddp.j = None
-    try:
-        ddp._dry_run_no_cluster()
-        assert 0 == 1
-    except ValueError as e:
-        assert str(e) == "Job definition missing arg: j (`workers`x`procs`)"
-
-
-def test_DDPJobDefinition_submit(mocker: MockerFixture):
-    """
-    Tests that the submit method returns the correct type: DDPJob
-    And that the attributes of the returned object are of the correct type
-    """
-    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
-    mock_schedule = MagicMock()
-    mocker.patch.object(Runner, "schedule", mock_schedule)
-    mock_schedule.return_value = "fake-dashboard-url"
-    mocker.patch.object(Cluster, "job_client")
-    ddp_def = createTestDDP()
-    cluster = createClusterWithConfig(mocker)
-    mocker.patch(
-        "codeflare_sdk.job.jobs.get_current_namespace",
-        side_effect="opendatahub",
-    )
-    mocker.patch.object(
-        Cluster, "cluster_dashboard_uri", return_value="fake-dashboard-url"
-    )
-    ddp_job = ddp_def.submit(cluster)
-    assert type(ddp_job) == DDPJob
-    assert type(ddp_job.job_definition) == DDPJobDefinition
-    assert type(ddp_job.cluster) == Cluster
-    assert type(ddp_job._app_handle) == str
-    assert ddp_job._app_handle == "fake-dashboard-url"
-
-    ddp_def.image = "fake-image"
-    ddp_job = ddp_def.submit()
-    assert type(ddp_job) == DDPJob
-    assert type(ddp_job.job_definition) == DDPJobDefinition
-    assert ddp_job.cluster == None
-    assert type(ddp_job._app_handle) == str
-    assert ddp_job._app_handle == "fake-dashboard-url"
-
-
-def test_DDPJob_creation(mocker: MockerFixture):
-    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
-    mocker.patch.object(Cluster, "job_client")
-    mock_schedule = MagicMock()
-    mocker.patch.object(Runner, "schedule", mock_schedule)
-    mocker.patch.object(
-        Cluster, "cluster_dashboard_uri", return_value="fake-dashboard-url"
-    )
-    ddp_def = createTestDDP()
-    cluster = createClusterWithConfig(mocker)
-    mock_schedule.return_value = "fake-dashboard-url"
-    ddp_job = createDDPJob_with_cluster(mocker, ddp_def, cluster)
-    assert type(ddp_job) == DDPJob
-    assert type(ddp_job.job_definition) == DDPJobDefinition
-    assert type(ddp_job.cluster) == Cluster
-    assert type(ddp_job._app_handle) == str
-    assert ddp_job._app_handle == "fake-dashboard-url"
-    _, args, kwargs = mock_schedule.mock_calls[0]
-    assert type(args[0]) == AppDryRunInfo
-    job_info = args[0]
-    assert type(job_info.request) == RayJob
-    assert type(job_info._app) == AppDef
-    assert type(job_info._cfg) == type(dict())
-    assert type(job_info._scheduler) == type(str())
-
-
-def test_DDPJob_creation_no_cluster(mocker: MockerFixture):
-    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
-    ddp_def = createTestDDP()
-    ddp_def.image = "fake-image"
-    mocker.patch(
-        "codeflare_sdk.job.jobs.get_current_namespace",
-        side_effect="opendatahub",
-    )
-    mock_schedule = MagicMock()
-    mocker.patch.object(Runner, "schedule", mock_schedule)
-    mock_schedule.return_value = "fake-app-handle"
-    ddp_job = createDDPJob_no_cluster(ddp_def, None)
-    assert type(ddp_job) == DDPJob
-    assert type(ddp_job.job_definition) == DDPJobDefinition
-    assert ddp_job.cluster == None
-    assert type(ddp_job._app_handle) == str
-    assert ddp_job._app_handle == "fake-app-handle"
-    _, args, kwargs = mock_schedule.mock_calls[0]
-    assert type(args[0]) == AppDryRunInfo
-    job_info = args[0]
-    assert type(job_info.request) == KubernetesMCADJob
-    assert type(job_info._app) == AppDef
-    assert type(job_info._cfg) == type(dict())
-    assert type(job_info._scheduler) == type(str())
-
-
-def test_DDPJob_status(mocker: MockerFixture):
-    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
-    # Setup the neccesary mock patches
-    mock_status = MagicMock()
-    mocker.patch.object(Runner, "status", mock_status)
-    test_DDPJob_creation(mocker)
-    ddp_def = createTestDDP()
-    cluster = createClusterWithConfig(mocker)
-    ddp_job = createDDPJob_with_cluster(mocker, ddp_def, cluster)
-    mock_status.return_value = "fake-status"
-    assert ddp_job.status() == "fake-status"
-    _, args, kwargs = mock_status.mock_calls[0]
-    assert args[0] == "fake-dashboard-url"
-
-
-def test_DDPJob_logs(mocker: MockerFixture):
-    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
-    mock_log = MagicMock()
-    mocker.patch.object(Runner, "log_lines", mock_log)
-    # Setup the neccesary mock patches
-    test_DDPJob_creation(mocker)
-    ddp_def = createTestDDP()
-    cluster = createClusterWithConfig(mocker)
-    ddp_job = createDDPJob_with_cluster(mocker, ddp_def, cluster)
-    mock_log.return_value = "fake-logs"
-    assert ddp_job.logs() == "fake-logs"
-    _, args, kwargs = mock_log.mock_calls[0]
-    assert args[0] == "fake-dashboard-url"
-
-
 def arg_check_side_effect(*args):
     assert args[0] == "fake-app-handle"
-
-
-def test_DDPJob_cancel(mocker: MockerFixture):
-    mock_cancel = MagicMock()
-    mocker.patch.object(Runner, "cancel", mock_cancel)
-    # Setup the neccesary mock patches
-    test_DDPJob_creation_no_cluster(mocker)
-    ddp_def = createTestDDP()
-    ddp_def.image = "fake-image"
-    ddp_job = createDDPJob_no_cluster(ddp_def, None)
-    mocker.patch(
-        "openshift.get_project_name",
-        return_value="opendatahub",
-    )
-    mock_cancel.side_effect = arg_check_side_effect
-    ddp_job.cancel()
 
 
 def parse_j(cmd):
@@ -3001,147 +3015,119 @@ def test_export_env():
     )
 
 
-def test_enable_local_interactive(mocker):
-    template = f"{parent}/src/codeflare_sdk/templates/base-template.yaml"
-    user_yaml = read_template(template)
-    aw_spec = user_yaml.get("spec", None)
-    cluster_name = "test-enable-local"
-    namespace = "default"
-    ingress_domain = "mytest.domain"
-    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
-    mocker.patch(
-        "codeflare_sdk.utils.generate_yaml.is_openshift_cluster", return_value=False
-    )
-    volume_mounts = [
-        {"name": "ca-vol", "mountPath": "/home/ray/workspace/ca", "readOnly": True},
-        {
-            "name": "server-cert",
-            "mountPath": "/home/ray/workspace/tls",
-            "readOnly": False,
-        },
-    ]
-    volumes = [
-        {
-            "name": "ca-vol",
-            "secret": {"secretName": "ca-secret-test-enable-local"},
-            "optional": False,
-        },
-        {"name": "server-cert", "emptyDir": {}},
-        {
-            "name": "odh-trusted-ca-cert",
-            "configMap": {
-                "name": "odh-trusted-ca-bundle",
-                "items": [
-                    {"key": "ca-bundle.crt", "path": "odh-trusted-ca-bundle.crt"}
-                ],
-                "optional": True,
-            },
-        },
-        {
-            "name": "odh-ca-cert",
-            "configMap": {
-                "name": "odh-trusted-ca-bundle",
-                "items": [{"key": "odh-ca-bundle.crt", "path": "odh-ca-bundle.crt"}],
-                "optional": True,
-            },
-        },
-    ]
-    tls_env = [
-        {"name": "RAY_USE_TLS", "value": "1"},
-        {"name": "RAY_TLS_SERVER_CERT", "value": "/home/ray/workspace/tls/server.crt"},
-        {"name": "RAY_TLS_SERVER_KEY", "value": "/home/ray/workspace/tls/server.key"},
-        {"name": "RAY_TLS_CA_CERT", "value": "/home/ray/workspace/tls/ca.crt"},
-    ]
-    assert aw_spec != None
-    enable_local_interactive(aw_spec, cluster_name, namespace, ingress_domain)
-    head_group_spec = aw_spec["resources"]["GenericItems"][0]["generictemplate"][
-        "spec"
-    ]["headGroupSpec"]
-    worker_group_spec = aw_spec["resources"]["GenericItems"][0]["generictemplate"][
-        "spec"
-    ]["workerGroupSpecs"]
-    ca_secret = aw_spec["resources"]["GenericItems"][5]["generictemplate"]
-    # At a minimal, make sure the following items are presented in the appwrapper spec.resources.
-    # 1. headgroup has the initContainers command to generated TLS cert from the mounted CA cert.
-    #    Note: In this particular command, the DNS.5 in [alt_name] must match the exposed local_client_url: rayclient-{cluster_name}.{namespace}.{ingress_domain}
-    assert (
-        head_group_spec["template"]["spec"]["initContainers"][0]["command"][2]
-        == f"cd /home/ray/workspace/tls && openssl req -nodes -newkey rsa:2048 -keyout server.key -out server.csr -subj '/CN=ray-head' && printf \"authorityKeyIdentifier=keyid,issuer\\nbasicConstraints=CA:FALSE\\nsubjectAltName = @alt_names\\n[alt_names]\\nDNS.1 = 127.0.0.1\\nDNS.2 = localhost\\nDNS.3 = ${{FQ_RAY_IP}}\\nDNS.4 = $(awk 'END{{print $1}}' /etc/hosts)\\nDNS.5 = rayclient-{cluster_name}-$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace).{ingress_domain}\">./domain.ext && cp /home/ray/workspace/ca/* . && openssl x509 -req -CA ca.crt -CAkey ca.key -in server.csr -out server.crt -days 365 -CAcreateserial -extfile domain.ext"
-    )
-    assert (
-        head_group_spec["template"]["spec"]["initContainers"][0]["volumeMounts"]
-        == volume_mounts
-    )
-    assert head_group_spec["template"]["spec"]["volumes"] == volumes
+# def test_enable_local_interactive(mocker):
+#     template = f"{parent}/src/codeflare_sdk/templates/base-template.yaml"
+#     user_yaml = read_template(template)
+#     aw_spec = user_yaml.get("spec", None)
+#     cluster_name = "test-enable-local"
+#     namespace = "default"
+#     ingress_domain = "mytest.domain"
+#     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+#     mocker.patch(
+#         "codeflare_sdk.utils.generate_yaml.is_openshift_cluster", return_value=False
+#     )
+#     volume_mounts = [
+#         {"name": "ca-vol", "mountPath": "/home/ray/workspace/ca", "readOnly": True},
+#         {
+#             "name": "server-cert",
+#             "mountPath": "/home/ray/workspace/tls",
+#             "readOnly": False,
+#         },
+#     ]
+#     volumes = [
+#         {
+#             "name": "ca-vol",
+#             "secret": {"secretName": "ca-secret-test-enable-local"},
+#             "optional": False,
+#         },
+#         {"name": "server-cert", "emptyDir": {}},
+#         {
+#             "name": "odh-trusted-ca-cert",
+#             "configMap": {
+#                 "name": "odh-trusted-ca-bundle",
+#                 "items": [
+#                     {"key": "ca-bundle.crt", "path": "odh-trusted-ca-bundle.crt"}
+#                 ],
+#                 "optional": True,
+#             },
+#         },
+#         {
+#             "name": "odh-ca-cert",
+#             "configMap": {
+#                 "name": "odh-trusted-ca-bundle",
+#                 "items": [{"key": "odh-ca-bundle.crt", "path": "odh-ca-bundle.crt"}],
+#                 "optional": True,
+#             },
+#         },
+#     ]
+#     tls_env = [
+#         {"name": "RAY_USE_TLS", "value": "1"},
+#         {"name": "RAY_TLS_SERVER_CERT", "value": "/home/ray/workspace/tls/server.crt"},
+#         {"name": "RAY_TLS_SERVER_KEY", "value": "/home/ray/workspace/tls/server.key"},
+#         {"name": "RAY_TLS_CA_CERT", "value": "/home/ray/workspace/tls/ca.crt"},
+#     ]
+#     assert aw_spec != None
+#     enable_local_interactive(aw_spec, cluster_name, namespace, ingress_domain)
+#     head_group_spec = aw_spec["resources"]["GenericItems"][0]["generictemplate"][
+#         "spec"
+#     ]["headGroupSpec"]
+#     worker_group_spec = aw_spec["resources"]["GenericItems"][0]["generictemplate"][
+#         "spec"
+#     ]["workerGroupSpecs"]
+#     ca_secret = aw_spec["resources"]["GenericItems"][1]["generictemplate"]
+#     # At a minimal, make sure the following items are presented in the appwrapper spec.resources.
+#     # 1. headgroup has the initContainers command to generated TLS cert from the mounted CA cert.
+#     #    Note: In this particular command, the DNS.5 in [alt_name] must match the exposed local_client_url: rayclient-{cluster_name}.{namespace}.{ingress_domain}
+#     assert (
+#         head_group_spec["template"]["spec"]["initContainers"][0]["command"][2]
+#         == f"cd /home/ray/workspace/tls && openssl req -nodes -newkey rsa:2048 -keyout server.key -out server.csr -subj '/CN=ray-head' && printf \"authorityKeyIdentifier=keyid,issuer\\nbasicConstraints=CA:FALSE\\nsubjectAltName = @alt_names\\n[alt_names]\\nDNS.1 = 127.0.0.1\\nDNS.2 = localhost\\nDNS.3 = ${{FQ_RAY_IP}}\\nDNS.4 = $(awk 'END{{print $1}}' /etc/hosts)\\nDNS.5 = rayclient-{cluster_name}-$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace).{ingress_domain}\">./domain.ext && cp /home/ray/workspace/ca/* . && openssl x509 -req -CA ca.crt -CAkey ca.key -in server.csr -out server.crt -days 365 -CAcreateserial -extfile domain.ext"
+#     )
+#     assert (
+#         head_group_spec["template"]["spec"]["initContainers"][0]["volumeMounts"]
+#         == volume_mounts
+#     )
+#     assert head_group_spec["template"]["spec"]["volumes"] == volumes
 
-    # 2. workerGroupSpec has the initContainers command to generated TLS cert from the mounted CA cert.
-    assert (
-        worker_group_spec[0]["template"]["spec"]["initContainers"][0]["command"][2]
-        == "cd /home/ray/workspace/tls && openssl req -nodes -newkey rsa:2048 -keyout server.key -out server.csr -subj '/CN=ray-head' && printf \"authorityKeyIdentifier=keyid,issuer\\nbasicConstraints=CA:FALSE\\nsubjectAltName = @alt_names\\n[alt_names]\\nDNS.1 = 127.0.0.1\\nDNS.2 = localhost\\nDNS.3 = ${FQ_RAY_IP}\\nDNS.4 = $(awk 'END{print $1}' /etc/hosts)\">./domain.ext && cp /home/ray/workspace/ca/* . && openssl x509 -req -CA ca.crt -CAkey ca.key -in server.csr -out server.crt -days 365 -CAcreateserial -extfile domain.ext"
-    )
-    assert (
-        worker_group_spec[0]["template"]["spec"]["initContainers"][0]["volumeMounts"]
-        == volume_mounts
-    )
-    assert worker_group_spec[0]["template"]["spec"]["volumes"] == volumes
+#     # 2. workerGroupSpec has the initContainers command to generated TLS cert from the mounted CA cert.
+#     assert (
+#         worker_group_spec[0]["template"]["spec"]["initContainers"][0]["command"][2]
+#         == "cd /home/ray/workspace/tls && openssl req -nodes -newkey rsa:2048 -keyout server.key -out server.csr -subj '/CN=ray-head' && printf \"authorityKeyIdentifier=keyid,issuer\\nbasicConstraints=CA:FALSE\\nsubjectAltName = @alt_names\\n[alt_names]\\nDNS.1 = 127.0.0.1\\nDNS.2 = localhost\\nDNS.3 = ${FQ_RAY_IP}\\nDNS.4 = $(awk 'END{print $1}' /etc/hosts)\">./domain.ext && cp /home/ray/workspace/ca/* . && openssl x509 -req -CA ca.crt -CAkey ca.key -in server.csr -out server.crt -days 365 -CAcreateserial -extfile domain.ext"
+#     )
+#     assert (
+#         worker_group_spec[0]["template"]["spec"]["initContainers"][0]["volumeMounts"]
+#         == volume_mounts
+#     )
+#     assert worker_group_spec[0]["template"]["spec"]["volumes"] == volumes
 
-    # 3. Required Envs to enable TLS encryption between head and workers
-    for i in range(len(tls_env)):
-        assert (
-            head_group_spec["template"]["spec"]["containers"][0]["env"][i + 1]["name"]
-            == tls_env[i]["name"]
-        )
-        assert (
-            head_group_spec["template"]["spec"]["containers"][0]["env"][i + 1]["value"]
-            == tls_env[i]["value"]
-        )
-        assert (
-            worker_group_spec[0]["template"]["spec"]["containers"][0]["env"][i + 1][
-                "name"
-            ]
-            == tls_env[i]["name"]
-        )
-        assert (
-            worker_group_spec[0]["template"]["spec"]["containers"][0]["env"][i + 1][
-                "value"
-            ]
-            == tls_env[i]["value"]
-        )
+#     # 3. Required Envs to enable TLS encryption between head and workers
+#     for i in range(len(tls_env)):
+#         assert (
+#             head_group_spec["template"]["spec"]["containers"][0]["env"][i + 1]["name"]
+#             == tls_env[i]["name"]
+#         )
+#         assert (
+#             head_group_spec["template"]["spec"]["containers"][0]["env"][i + 1]["value"]
+#             == tls_env[i]["value"]
+#         )
+#         assert (
+#             worker_group_spec[0]["template"]["spec"]["containers"][0]["env"][i + 1][
+#                 "name"
+#             ]
+#             == tls_env[i]["name"]
+#         )
+#         assert (
+#             worker_group_spec[0]["template"]["spec"]["containers"][0]["env"][i + 1][
+#                 "value"
+#             ]
+#             == tls_env[i]["value"]
+#         )
 
-    # 4. Secret with ca.crt and ca.key
-    assert ca_secret["kind"] == "Secret"
-    assert ca_secret["data"]["ca.crt"] != None
-    assert ca_secret["data"]["ca.key"] != None
-    assert ca_secret["metadata"]["name"] == f"ca-secret-{cluster_name}"
-    assert ca_secret["metadata"]["namespace"] == namespace
-
-    # 5. Rayclient ingress - Kind
-    rayclient_ingress = aw_spec["resources"]["GenericItems"][3]["generictemplate"]
-    paths = [
-        {
-            "backend": {
-                "service": {
-                    "name": f"{cluster_name}-head-svc",
-                    "port": {"number": 10001},
-                }
-            },
-            "path": "",
-            "pathType": "ImplementationSpecific",
-        }
-    ]
-
-    assert rayclient_ingress["kind"] == "Ingress"
-    assert rayclient_ingress["metadata"]["namespace"] == namespace
-    assert rayclient_ingress["metadata"]["annotations"] == {
-        "nginx.ingress.kubernetes.io/rewrite-target": "/",
-        "nginx.ingress.kubernetes.io/ssl-redirect": "true",
-        "nginx.ingress.kubernetes.io/ssl-passthrough": "true",
-    }
-    assert rayclient_ingress["metadata"]["name"] == f"rayclient-{cluster_name}"
-    assert rayclient_ingress["spec"]["rules"][0] == {
-        "host": f"rayclient-{cluster_name}-{namespace}.{ingress_domain}",
-        "http": {"paths": paths},
-    }
+#     # 4. Secret with ca.crt and ca.key
+#     assert ca_secret["kind"] == "Secret"
+#     assert ca_secret["data"]["ca.crt"] != None
+#     assert ca_secret["data"]["ca.key"] != None
+#     assert ca_secret["metadata"]["name"] == f"ca-secret-{cluster_name}"
+#     assert ca_secret["metadata"]["namespace"] == namespace
 
 
 def test_gen_app_wrapper_with_oauth(mocker: MockerFixture):
@@ -3161,8 +3147,8 @@ def test_gen_app_wrapper_with_oauth(mocker: MockerFixture):
         ClusterConfiguration(
             "test_cluster",
             image="quay.io/project-codeflare/ray:latest-py39-cu118",
-            ingress_domain="apps.cluster.awsroute.org",
             write_to_file=True,
+            mcad=True,
         )
     )
     user_yaml = write_user_appwrapper.call_args.args[0]

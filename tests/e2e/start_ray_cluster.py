@@ -7,21 +7,6 @@ from codeflare_sdk.cluster.cluster import Cluster, ClusterConfiguration
 
 namespace = sys.argv[1]
 ray_image = os.getenv("RAY_IMAGE")
-host = os.getenv("CLUSTER_HOSTNAME")
-
-ingress_options = {}
-if host is not None:
-    ingress_options = {
-        "ingresses": [
-            {
-                "ingressName": "ray-dashboard",
-                "port": 8265,
-                "pathType": "Prefix",
-                "path": "/",
-                "host": host,
-            },
-        ]
-    }
 
 cluster = Cluster(
     ClusterConfiguration(
@@ -37,7 +22,7 @@ cluster = Cluster(
         num_gpus=0,
         instascale=False,
         image=ray_image,
-        ingress_options=ingress_options,
+        mcad=True,
     )
 )
 

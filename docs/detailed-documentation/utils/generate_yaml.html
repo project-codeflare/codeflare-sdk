@@ -48,6 +48,7 @@ This sub-module exists primarily to be used internally by the Cluster object
 (in the cluster sub-module) for AppWrapper generation.
 &#34;&#34;&#34;
 
+from typing import Optional
 import typing
 import yaml
 import sys
@@ -80,10 +81,6 @@ def gen_names(name):
         return name, name
 
 
-def gen_dashboard_ingress_name(cluster_name):
-    return f&#34;ray-dashboard-{cluster_name}&#34;
-
-
 # Check if the routes api exists
 def is_openshift_cluster():
     try:
@@ -98,156 +95,17 @@ def is_openshift_cluster():
         return _kube_api_error_handling(e)
 
 
-def update_dashboard_route(route_item, cluster_name, namespace):
-    metadata = route_item.get(&#34;generictemplate&#34;, {}).get(&#34;metadata&#34;)
-    metadata[&#34;name&#34;] = gen_dashboard_ingress_name(cluster_name)
-    metadata[&#34;namespace&#34;] = namespace
-    metadata[&#34;labels&#34;][&#34;odh-ray-cluster-service&#34;] = f&#34;{cluster_name}-head-svc&#34;
-    spec = route_item.get(&#34;generictemplate&#34;, {}).get(&#34;spec&#34;)
-    spec[&#34;to&#34;][&#34;name&#34;] = f&#34;{cluster_name}-head-svc&#34;
-
-
-# ToDo: refactor the update_x_route() functions
-def update_rayclient_route(route_item, cluster_name, namespace):
-    metadata = route_item.get(&#34;generictemplate&#34;, {}).get(&#34;metadata&#34;)
-    metadata[&#34;name&#34;] = f&#34;rayclient-{cluster_name}&#34;
-    metadata[&#34;namespace&#34;] = namespace
-    metadata[&#34;labels&#34;][&#34;odh-ray-cluster-service&#34;] = f&#34;{cluster_name}-head-svc&#34;
-    spec = route_item.get(&#34;generictemplate&#34;, {}).get(&#34;spec&#34;)
-    spec[&#34;to&#34;][&#34;name&#34;] = f&#34;{cluster_name}-head-svc&#34;
-
-
-def update_dashboard_exposure(
-    ingress_item, route_item, cluster_name, namespace, ingress_options, ingress_domain
-):
-    if is_openshift_cluster():
-        update_dashboard_route(route_item, cluster_name, namespace)
-    else:
-        update_dashboard_ingress(
-            ingress_item, cluster_name, namespace, ingress_options, ingress_domain
-        )
-
-
-def update_rayclient_exposure(
-    client_route_item, client_ingress_item, cluster_name, namespace, ingress_domain
-):
-    if is_openshift_cluster():
-        update_rayclient_route(client_route_item, cluster_name, namespace)
-    else:
-        update_rayclient_ingress(
-            client_ingress_item, cluster_name, namespace, ingress_domain
-        )
-
-
-def update_dashboard_ingress(
-    ingress_item, cluster_name, namespace, ingress_options, ingress_domain
-):  # pragma: no cover
-    metadata = ingress_item.get(&#34;generictemplate&#34;, {}).get(&#34;metadata&#34;)
-    spec = ingress_item.get(&#34;generictemplate&#34;, {}).get(&#34;spec&#34;)
-    if ingress_options != {}:
-        for index, ingress_option in enumerate(ingress_options[&#34;ingresses&#34;]):
-            if &#34;ingressName&#34; not in ingress_option.keys():
-                raise ValueError(
-                    f&#34;Error: &#39;ingressName&#39; is missing or empty for ingress item at index {index}&#34;
-                )
-            if &#34;port&#34; not in ingress_option.keys():
-                raise ValueError(
-                    f&#34;Error: &#39;port&#39; is missing or empty for ingress item at index {index}&#34;
-                )
-            elif not isinstance(ingress_option[&#34;port&#34;], int):
-                raise ValueError(
-                    f&#34;Error: &#39;port&#39; is not of type int for ingress item at index {index}&#34;
-                )
-            if ingress_option is not None:
-                metadata[&#34;name&#34;] = ingress_option[&#34;ingressName&#34;]
-                metadata[&#34;namespace&#34;] = namespace
-                metadata[&#34;labels&#34;][&#34;ingress-owner&#34;] = cluster_name
-                metadata[&#34;labels&#34;][&#34;ingress-options&#34;] = &#34;true&#34;
-                if (
-                    &#34;annotations&#34; not in ingress_option.keys()
-                    or ingress_option[&#34;annotations&#34;] is None
-                ):
-                    del metadata[&#34;annotations&#34;]
-                else:
-                    metadata[&#34;annotations&#34;] = ingress_option[&#34;annotations&#34;]
-                if (
-                    &#34;path&#34; not in ingress_option.keys()
-                    or ingress_option[&#34;path&#34;] is None
-                ):
-                    del spec[&#34;rules&#34;][0][&#34;http&#34;][&#34;paths&#34;][0][&#34;path&#34;]
-                else:
-                    spec[&#34;rules&#34;][0][&#34;http&#34;][&#34;paths&#34;][0][&#34;path&#34;] = ingress_option[
-                        &#34;path&#34;
-                    ]
-                if (
-                    &#34;pathType&#34; not in ingress_option.keys()
-                    or ingress_option[&#34;pathType&#34;] is None
-                ):
-                    spec[&#34;rules&#34;][0][&#34;http&#34;][&#34;paths&#34;][0][
-                        &#34;pathType&#34;
-                    ] = &#34;ImplementationSpecific&#34;
-                if (
-                    &#34;host&#34; not in ingress_option.keys()
-                    or ingress_option[&#34;host&#34;] is None
-                ):
-                    del spec[&#34;rules&#34;][0][&#34;host&#34;]
-                else:
-                    spec[&#34;rules&#34;][0][&#34;host&#34;] = ingress_option[&#34;host&#34;]
-                if (
-                    &#34;ingressClassName&#34; not in ingress_option.keys()
-                    or ingress_option[&#34;ingressClassName&#34;] is None
-                ):
-                    del spec[&#34;ingressClassName&#34;]
-                else:
-                    spec[&#34;ingressClassName&#34;] = ingress_option[&#34;ingressClassName&#34;]
-
-                spec[&#34;rules&#34;][0][&#34;http&#34;][&#34;paths&#34;][0][&#34;backend&#34;][&#34;service&#34;][
-                    &#34;name&#34;
-                ] = f&#34;{cluster_name}-head-svc&#34;
-    else:
-        spec[&#34;ingressClassName&#34;] = &#34;nginx&#34;
-        metadata[&#34;name&#34;] = gen_dashboard_ingress_name(cluster_name)
-        metadata[&#34;labels&#34;][&#34;ingress-owner&#34;] = cluster_name
-        metadata[&#34;namespace&#34;] = namespace
-        spec[&#34;rules&#34;][0][&#34;http&#34;][&#34;paths&#34;][0][&#34;backend&#34;][&#34;service&#34;][
-            &#34;name&#34;
-        ] = f&#34;{cluster_name}-head-svc&#34;
-        if ingress_domain is None:
-            raise ValueError(
-                &#34;ingress_domain is invalid. Please specify an ingress domain&#34;
-            )
-        else:
-            domain = ingress_domain
-        del metadata[&#34;annotations&#34;]
-        spec[&#34;rules&#34;][0][&#34;host&#34;] = f&#34;ray-dashboard-{cluster_name}-{namespace}.{domain}&#34;
-
-
-def update_rayclient_ingress(
-    ingress_item, cluster_name, namespace, ingress_domain
-):  # pragma: no cover
-    metadata = ingress_item.get(&#34;generictemplate&#34;, {}).get(&#34;metadata&#34;)
-    spec = ingress_item.get(&#34;generictemplate&#34;, {}).get(&#34;spec&#34;)
-    metadata[&#34;name&#34;] = f&#34;rayclient-{cluster_name}&#34;
-    metadata[&#34;namespace&#34;] = namespace
-    metadata[&#34;labels&#34;][&#34;odh-ray-cluster-service&#34;] = f&#34;{cluster_name}-head-svc&#34;
-
-    spec[&#34;rules&#34;][0][&#34;http&#34;][&#34;paths&#34;][0][&#34;backend&#34;][&#34;service&#34;][
-        &#34;name&#34;
-    ] = f&#34;{cluster_name}-head-svc&#34;
-
-    if ingress_domain is not None:
-        ingressClassName = &#34;nginx&#34;
-        annotations = {
-            &#34;nginx.ingress.kubernetes.io/rewrite-target&#34;: &#34;/&#34;,
-            &#34;nginx.ingress.kubernetes.io/ssl-redirect&#34;: &#34;true&#34;,
-            &#34;nginx.ingress.kubernetes.io/ssl-passthrough&#34;: &#34;true&#34;,
-        }
-    else:
-        raise ValueError(&#34;ingress_domain is invalid. Please specify a domain&#34;)
-
-    metadata[&#34;annotations&#34;] = annotations
-    spec[&#34;ingressClassName&#34;] = ingressClassName
-    spec[&#34;rules&#34;][0][&#34;host&#34;] = f&#34;rayclient-{cluster_name}-{namespace}.{ingress_domain}&#34;
+def is_kind_cluster():
+    try:
+        config_check()
+        v1 = client.CoreV1Api()
+        label_selector = &#34;kubernetes.io/hostname=kind-control-plane&#34;
+        nodes = v1.list_node(label_selector=label_selector)
+        # If we find one or more nodes with the label, assume it&#39;s a KinD cluster
+        return len(nodes.items) &gt; 0
+    except Exception as e:
+        print(f&#34;Error checking if cluster is KinD: {e}&#34;)
+        return False
 
 
 def update_names(yaml, item, appwrapper_name, cluster_name, namespace):
@@ -258,6 +116,20 @@ def update_names(yaml, item, appwrapper_name, cluster_name, namespace):
     lower_meta[&#34;labels&#34;][&#34;workload.codeflare.dev/appwrapper&#34;] = appwrapper_name
     lower_meta[&#34;name&#34;] = cluster_name
     lower_meta[&#34;namespace&#34;] = namespace
+    lower_spec = item.get(&#34;generictemplate&#34;, {}).get(&#34;spec&#34;)
+    if is_openshift_cluster():
+        cookie_secret_env_var = {
+            &#34;name&#34;: &#34;COOKIE_SECRET&#34;,
+            &#34;valueFrom&#34;: {
+                &#34;secretKeyRef&#34;: {
+                    &#34;key&#34;: &#34;cookie_secret&#34;,
+                    &#34;name&#34;: f&#34;{cluster_name}-oauth-config&#34;,
+                }
+            },
+        }
+        lower_spec[&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;][&#34;containers&#34;][0][&#34;env&#34;].append(
+            cookie_secret_env_var
+        )
 
 
 def update_labels(yaml, instascale, instance_types):
@@ -450,10 +322,10 @@ def update_ca_secret(ca_secret_item, cluster_name, namespace):
     data[&#34;ca.key&#34;], data[&#34;ca.crt&#34;] = generate_cert.generate_ca_cert(365)
 
 
-def enable_local_interactive(resources, cluster_name, namespace, ingress_domain):
-    rayclient_ingress_item = resources[&#34;resources&#34;].get(&#34;GenericItems&#34;)[3]
-    rayclient_route_item = resources[&#34;resources&#34;].get(&#34;GenericItems&#34;)[4]
-    ca_secret_item = resources[&#34;resources&#34;].get(&#34;GenericItems&#34;)[5]
+def enable_local_interactive(resources, cluster_name, namespace):  # pragma: no cover
+    from ..cluster.cluster import _get_ingress_domain
+
+    ca_secret_item = resources[&#34;resources&#34;].get(&#34;GenericItems&#34;)[1]
     item = resources[&#34;resources&#34;].get(&#34;GenericItems&#34;)[0]
     update_ca_secret(ca_secret_item, cluster_name, namespace)
     # update_ca_secret_volumes
@@ -477,21 +349,12 @@ def enable_local_interactive(resources, cluster_name, namespace, ingress_domain)
 
     command = command.replace(&#34;deployment-name&#34;, cluster_name)
 
-    if ingress_domain is None:
-        raise ValueError(
-            &#34;ingress_domain is invalid. For creating the client route/ingress please specify an ingress domain&#34;
-        )
-    else:
-        domain = ingress_domain
+    domain = &#34;&#34;  ## FIX - We can&#39;t retrieve ingress domain - move init container to CFO
 
     command = command.replace(&#34;server-name&#34;, domain)
-    update_rayclient_exposure(
-        rayclient_route_item,
-        rayclient_ingress_item,
-        cluster_name,
-        namespace,
-        ingress_domain,
-    )
+    item[&#34;generictemplate&#34;][&#34;metadata&#34;][&#34;annotations&#34;][
+        &#34;sdk.codeflare.dev/local_interactive&#34;
+    ] = &#34;True&#34;
 
     item[&#34;generictemplate&#34;][&#34;spec&#34;][&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;][
         &#34;initContainers&#34;
@@ -548,26 +411,6 @@ def disable_raycluster_tls(resources):
     resources[&#34;GenericItems&#34;] = updated_items
 
 
-def delete_route_or_ingress(resources):
-    if is_openshift_cluster():
-        client_to_remove_name = &#34;rayclient-deployment-ingress&#34;
-        dashboard_to_remove_name = &#34;ray-dashboard-deployment-ingress&#34;
-    else:
-        client_to_remove_name = &#34;rayclient-deployment-route&#34;
-        dashboard_to_remove_name = &#34;ray-dashboard-deployment-route&#34;
-
-    updated_items = []
-    for i in resources[&#34;GenericItems&#34;][:]:
-        if dashboard_to_remove_name in i[&#34;generictemplate&#34;][&#34;metadata&#34;][&#34;name&#34;]:
-            continue
-        elif client_to_remove_name in i[&#34;generictemplate&#34;][&#34;metadata&#34;][&#34;name&#34;]:
-            continue
-
-        updated_items.append(i)
-
-    resources[&#34;GenericItems&#34;] = updated_items
-
-
 def write_user_appwrapper(user_yaml, output_file_name):
     # Create the directory if it doesn&#39;t exist
     directory_path = os.path.dirname(output_file_name)
@@ -603,13 +446,9 @@ def enable_openshift_oauth(user_yaml, cluster_name, namespace):
     )
     # allows for setting value of Cluster object when initializing object from an existing AppWrapper on cluster
     user_yaml[&#34;metadata&#34;][&#34;annotations&#34;] = user_yaml[&#34;metadata&#34;].get(&#34;annotations&#34;, {})
-    user_yaml[&#34;metadata&#34;][&#34;annotations&#34;][
-        &#34;codeflare-sdk-use-oauth&#34;
-    ] = &#34;true&#34;  # if the user gets an
     ray_headgroup_pod = user_yaml[&#34;spec&#34;][&#34;resources&#34;][&#34;GenericItems&#34;][0][
         &#34;generictemplate&#34;
     ][&#34;spec&#34;][&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;]
-    user_yaml[&#34;spec&#34;][&#34;resources&#34;][&#34;GenericItems&#34;].pop(1)
     ray_headgroup_pod[&#34;serviceAccount&#34;] = oauth_sa_name
     ray_headgroup_pod[&#34;volumes&#34;] = ray_headgroup_pod.get(&#34;volumes&#34;, [])
 
@@ -638,7 +477,7 @@ def _create_oauth_sidecar_object(
             &#34;--upstream=http://localhost:8265&#34;,
             f&#34;--tls-cert={tls_mount_location}/tls.crt&#34;,
             f&#34;--tls-key={tls_mount_location}/tls.key&#34;,
-            f&#34;--cookie-secret={b64encode(urandom(64)).decode(&#39;utf-8&#39;)}&#34;,  # create random string for encrypting cookie
+            &#34;--cookie-secret=$(COOKIE_SECRET)&#34;,
             f&#39;--openshift-delegate-urls={{&#34;/&#34;:{{&#34;resource&#34;:&#34;pods&#34;,&#34;namespace&#34;:&#34;{namespace}&#34;,&#34;verb&#34;:&#34;get&#34;}}}}&#39;,
         ],
         image=&#34;registry.redhat.io/openshift4/ose-oauth-proxy@sha256:1ea6a01bf3e63cdcf125c6064cbd4a4a270deaf0f157b3eabb78f60556840366&#34;,
@@ -653,7 +492,35 @@ def _create_oauth_sidecar_object(
     )
 
 
-def write_components(user_yaml: dict, output_file_name: str):
+def get_default_kueue_name(namespace: str):
+    # If the local queue is set, use it. Otherwise, try to use the default queue.
+    try:
+        config_check()
+        api_instance = client.CustomObjectsApi(api_config_handler())
+        local_queues = api_instance.list_namespaced_custom_object(
+            group=&#34;kueue.x-k8s.io&#34;,
+            version=&#34;v1beta1&#34;,
+            namespace=namespace,
+            plural=&#34;localqueues&#34;,
+        )
+    except Exception as e:  # pragma: no cover
+        return _kube_api_error_handling(e)
+    for lq in local_queues[&#34;items&#34;]:
+        if (
+            &#34;annotations&#34; in lq[&#34;metadata&#34;]
+            and &#34;kueue.x-k8s.io/default-queue&#34; in lq[&#34;metadata&#34;][&#34;annotations&#34;]
+            and lq[&#34;metadata&#34;][&#34;annotations&#34;][&#34;kueue.x-k8s.io/default-queue&#34;].lower()
+            == &#34;true&#34;
+        ):
+            return lq[&#34;metadata&#34;][&#34;name&#34;]
+    raise ValueError(
+        &#34;Default Local Queue with kueue.x-k8s.io/default-queue: true annotation not found please create a default Local Queue or provide the local_queue name in Cluster Configuration&#34;
+    )
+
+
+def write_components(
+    user_yaml: dict, output_file_name: str, namespace: str, local_queue: Optional[str]
+):
     # Create the directory if it doesn&#39;t exist
     directory_path = os.path.dirname(output_file_name)
     if not os.path.exists(directory_path):
@@ -661,14 +528,57 @@ def write_components(user_yaml: dict, output_file_name: str):
 
     components = user_yaml.get(&#34;spec&#34;, &#34;resources&#34;)[&#34;resources&#34;].get(&#34;GenericItems&#34;)
     open(output_file_name, &#34;w&#34;).close()
+    lq_name = local_queue or get_default_kueue_name(namespace)
     with open(output_file_name, &#34;a&#34;) as outfile:
         for component in components:
             if &#34;generictemplate&#34; in component:
+                if (
+                    &#34;workload.codeflare.dev/appwrapper&#34;
+                    in component[&#34;generictemplate&#34;][&#34;metadata&#34;][&#34;labels&#34;]
+                ):
+                    del component[&#34;generictemplate&#34;][&#34;metadata&#34;][&#34;labels&#34;][
+                        &#34;workload.codeflare.dev/appwrapper&#34;
+                    ]
+                    labels = component[&#34;generictemplate&#34;][&#34;metadata&#34;][&#34;labels&#34;]
+                    labels.update({&#34;kueue.x-k8s.io/queue-name&#34;: lq_name})
                 outfile.write(&#34;---\n&#34;)
                 yaml.dump(
                     component[&#34;generictemplate&#34;], outfile, default_flow_style=False
                 )
     print(f&#34;Written to: {output_file_name}&#34;)
+
+
+def load_components(
+    user_yaml: dict, name: str, namespace: str, local_queue: Optional[str]
+):
+    component_list = []
+    components = user_yaml.get(&#34;spec&#34;, &#34;resources&#34;)[&#34;resources&#34;].get(&#34;GenericItems&#34;)
+    lq_name = local_queue or get_default_kueue_name(namespace)
+    for component in components:
+        if &#34;generictemplate&#34; in component:
+            if (
+                &#34;workload.codeflare.dev/appwrapper&#34;
+                in component[&#34;generictemplate&#34;][&#34;metadata&#34;][&#34;labels&#34;]
+            ):
+                del component[&#34;generictemplate&#34;][&#34;metadata&#34;][&#34;labels&#34;][
+                    &#34;workload.codeflare.dev/appwrapper&#34;
+                ]
+                labels = component[&#34;generictemplate&#34;][&#34;metadata&#34;][&#34;labels&#34;]
+                labels.update({&#34;kueue.x-k8s.io/queue-name&#34;: lq_name})
+            component_list.append(component[&#34;generictemplate&#34;])
+
+    resources = &#34;---\n&#34; + &#34;---\n&#34;.join(
+        [yaml.dump(component) for component in component_list]
+    )
+    user_yaml = resources
+    print(f&#34;Yaml resources loaded for {name}&#34;)
+    return user_yaml
+
+
+def load_appwrapper(user_yaml: dict, name: str):
+    user_yaml = yaml.dump(user_yaml)
+    print(f&#34;Yaml resources loaded for {name}&#34;)
+    return user_yaml
 
 
 def generate_appwrapper(
@@ -693,17 +603,21 @@ def generate_appwrapper(
     image_pull_secrets: list,
     dispatch_priority: str,
     priority_val: int,
-    openshift_oauth: bool,
-    ingress_domain: str,
-    ingress_options: dict,
+    write_to_file: bool,
+    verify_tls: bool,
+    local_queue: Optional[str],
 ):
     user_yaml = read_template(template)
     appwrapper_name, cluster_name = gen_names(name)
     resources = user_yaml.get(&#34;spec&#34;, &#34;resources&#34;)
     item = resources[&#34;resources&#34;].get(&#34;GenericItems&#34;)[0]
-    ingress_item = resources[&#34;resources&#34;].get(&#34;GenericItems&#34;)[1]
-    route_item = resources[&#34;resources&#34;].get(&#34;GenericItems&#34;)[2]
-    update_names(user_yaml, item, appwrapper_name, cluster_name, namespace)
+    update_names(
+        user_yaml,
+        item,
+        appwrapper_name,
+        cluster_name,
+        namespace,
+    )
     update_labels(user_yaml, instascale, instance_types)
     update_priority(user_yaml, item, dispatch_priority, priority_val)
     update_custompodresources(
@@ -735,31 +649,30 @@ def generate_appwrapper(
         head_memory,
         head_gpus,
     )
-    update_dashboard_exposure(
-        ingress_item,
-        route_item,
-        cluster_name,
-        namespace,
-        ingress_options,
-        ingress_domain,
-    )
+
     if local_interactive:
-        enable_local_interactive(resources, cluster_name, namespace, ingress_domain)
+        enable_local_interactive(resources, cluster_name, namespace)
     else:
         disable_raycluster_tls(resources[&#34;resources&#34;])
 
-    delete_route_or_ingress(resources[&#34;resources&#34;])
-
-    if openshift_oauth:
+    if is_openshift_cluster():
         enable_openshift_oauth(user_yaml, cluster_name, namespace)
 
-    directory_path = os.path.expanduser(&#34;~/.codeflare/appwrapper/&#34;)
+    directory_path = os.path.expanduser(&#34;~/.codeflare/resources/&#34;)
     outfile = os.path.join(directory_path, appwrapper_name + &#34;.yaml&#34;)
-    if not mcad:
-        write_components(user_yaml, outfile)
+
+    if write_to_file:
+        if mcad:
+            write_user_appwrapper(user_yaml, outfile)
+        else:
+            write_components(user_yaml, outfile, namespace, local_queue)
+        return outfile
     else:
-        write_user_appwrapper(user_yaml, outfile)
-    return outfile</code></pre>
+        if mcad:
+            user_yaml = load_appwrapper(user_yaml, name)
+        else:
+            user_yaml = load_components(user_yaml, name, namespace, local_queue)
+        return user_yaml</code></pre>
 </details>
 </section>
 <section>
@@ -780,35 +693,6 @@ def generate_appwrapper(
 </summary>
 <pre><code class="python">def del_from_list_by_name(l: list, target: typing.List[str]) -&gt; list:
     return [x for x in l if x[&#34;name&#34;] not in target]</code></pre>
-</details>
-</dd>
-<dt id="codeflare_sdk.utils.generate_yaml.delete_route_or_ingress"><code class="name flex">
-<span>def <span class="ident">delete_route_or_ingress</span></span>(<span>resources)</span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def delete_route_or_ingress(resources):
-    if is_openshift_cluster():
-        client_to_remove_name = &#34;rayclient-deployment-ingress&#34;
-        dashboard_to_remove_name = &#34;ray-dashboard-deployment-ingress&#34;
-    else:
-        client_to_remove_name = &#34;rayclient-deployment-route&#34;
-        dashboard_to_remove_name = &#34;ray-dashboard-deployment-route&#34;
-
-    updated_items = []
-    for i in resources[&#34;GenericItems&#34;][:]:
-        if dashboard_to_remove_name in i[&#34;generictemplate&#34;][&#34;metadata&#34;][&#34;name&#34;]:
-            continue
-        elif client_to_remove_name in i[&#34;generictemplate&#34;][&#34;metadata&#34;][&#34;name&#34;]:
-            continue
-
-        updated_items.append(i)
-
-    resources[&#34;GenericItems&#34;] = updated_items</code></pre>
 </details>
 </dd>
 <dt id="codeflare_sdk.utils.generate_yaml.disable_raycluster_tls"><code class="name flex">
@@ -867,7 +751,7 @@ def generate_appwrapper(
 </details>
 </dd>
 <dt id="codeflare_sdk.utils.generate_yaml.enable_local_interactive"><code class="name flex">
-<span>def <span class="ident">enable_local_interactive</span></span>(<span>resources, cluster_name, namespace, ingress_domain)</span>
+<span>def <span class="ident">enable_local_interactive</span></span>(<span>resources, cluster_name, namespace)</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -875,10 +759,10 @@ def generate_appwrapper(
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def enable_local_interactive(resources, cluster_name, namespace, ingress_domain):
-    rayclient_ingress_item = resources[&#34;resources&#34;].get(&#34;GenericItems&#34;)[3]
-    rayclient_route_item = resources[&#34;resources&#34;].get(&#34;GenericItems&#34;)[4]
-    ca_secret_item = resources[&#34;resources&#34;].get(&#34;GenericItems&#34;)[5]
+<pre><code class="python">def enable_local_interactive(resources, cluster_name, namespace):  # pragma: no cover
+    from ..cluster.cluster import _get_ingress_domain
+
+    ca_secret_item = resources[&#34;resources&#34;].get(&#34;GenericItems&#34;)[1]
     item = resources[&#34;resources&#34;].get(&#34;GenericItems&#34;)[0]
     update_ca_secret(ca_secret_item, cluster_name, namespace)
     # update_ca_secret_volumes
@@ -902,21 +786,12 @@ def generate_appwrapper(
 
     command = command.replace(&#34;deployment-name&#34;, cluster_name)
 
-    if ingress_domain is None:
-        raise ValueError(
-            &#34;ingress_domain is invalid. For creating the client route/ingress please specify an ingress domain&#34;
-        )
-    else:
-        domain = ingress_domain
+    domain = &#34;&#34;  ## FIX - We can&#39;t retrieve ingress domain - move init container to CFO
 
     command = command.replace(&#34;server-name&#34;, domain)
-    update_rayclient_exposure(
-        rayclient_route_item,
-        rayclient_ingress_item,
-        cluster_name,
-        namespace,
-        ingress_domain,
-    )
+    item[&#34;generictemplate&#34;][&#34;metadata&#34;][&#34;annotations&#34;][
+        &#34;sdk.codeflare.dev/local_interactive&#34;
+    ] = &#34;True&#34;
 
     item[&#34;generictemplate&#34;][&#34;spec&#34;][&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;][
         &#34;initContainers&#34;
@@ -955,13 +830,9 @@ def generate_appwrapper(
     )
     # allows for setting value of Cluster object when initializing object from an existing AppWrapper on cluster
     user_yaml[&#34;metadata&#34;][&#34;annotations&#34;] = user_yaml[&#34;metadata&#34;].get(&#34;annotations&#34;, {})
-    user_yaml[&#34;metadata&#34;][&#34;annotations&#34;][
-        &#34;codeflare-sdk-use-oauth&#34;
-    ] = &#34;true&#34;  # if the user gets an
     ray_headgroup_pod = user_yaml[&#34;spec&#34;][&#34;resources&#34;][&#34;GenericItems&#34;][0][
         &#34;generictemplate&#34;
     ][&#34;spec&#34;][&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;]
-    user_yaml[&#34;spec&#34;][&#34;resources&#34;][&#34;GenericItems&#34;].pop(1)
     ray_headgroup_pod[&#34;serviceAccount&#34;] = oauth_sa_name
     ray_headgroup_pod[&#34;volumes&#34;] = ray_headgroup_pod.get(&#34;volumes&#34;, [])
 
@@ -972,19 +843,6 @@ def generate_appwrapper(
     ray_headgroup_pod[&#34;containers&#34;].append(
         client.ApiClient().sanitize_for_serialization(oauth_sidecar)
     )</code></pre>
-</details>
-</dd>
-<dt id="codeflare_sdk.utils.generate_yaml.gen_dashboard_ingress_name"><code class="name flex">
-<span>def <span class="ident">gen_dashboard_ingress_name</span></span>(<span>cluster_name)</span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def gen_dashboard_ingress_name(cluster_name):
-    return f&#34;ray-dashboard-{cluster_name}&#34;</code></pre>
 </details>
 </dd>
 <dt id="codeflare_sdk.utils.generate_yaml.gen_names"><code class="name flex">
@@ -1007,7 +865,7 @@ def generate_appwrapper(
 </details>
 </dd>
 <dt id="codeflare_sdk.utils.generate_yaml.generate_appwrapper"><code class="name flex">
-<span>def <span class="ident">generate_appwrapper</span></span>(<span>name: str, namespace: str, head_cpus: int, head_memory: int, head_gpus: int, min_cpu: int, max_cpu: int, min_memory: int, max_memory: int, gpu: int, workers: int, template: str, image: str, instascale: bool, mcad: bool, instance_types: list, env, local_interactive: bool, image_pull_secrets: list, dispatch_priority: str, priority_val: int, openshift_oauth: bool, ingress_domain: str, ingress_options: dict)</span>
+<span>def <span class="ident">generate_appwrapper</span></span>(<span>name: str, namespace: str, head_cpus: int, head_memory: int, head_gpus: int, min_cpu: int, max_cpu: int, min_memory: int, max_memory: int, gpu: int, workers: int, template: str, image: str, instascale: bool, mcad: bool, instance_types: list, env, local_interactive: bool, image_pull_secrets: list, dispatch_priority: str, priority_val: int, write_to_file: bool, verify_tls: bool, local_queue: Optional[str])</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -1037,17 +895,21 @@ def generate_appwrapper(
     image_pull_secrets: list,
     dispatch_priority: str,
     priority_val: int,
-    openshift_oauth: bool,
-    ingress_domain: str,
-    ingress_options: dict,
+    write_to_file: bool,
+    verify_tls: bool,
+    local_queue: Optional[str],
 ):
     user_yaml = read_template(template)
     appwrapper_name, cluster_name = gen_names(name)
     resources = user_yaml.get(&#34;spec&#34;, &#34;resources&#34;)
     item = resources[&#34;resources&#34;].get(&#34;GenericItems&#34;)[0]
-    ingress_item = resources[&#34;resources&#34;].get(&#34;GenericItems&#34;)[1]
-    route_item = resources[&#34;resources&#34;].get(&#34;GenericItems&#34;)[2]
-    update_names(user_yaml, item, appwrapper_name, cluster_name, namespace)
+    update_names(
+        user_yaml,
+        item,
+        appwrapper_name,
+        cluster_name,
+        namespace,
+    )
     update_labels(user_yaml, instascale, instance_types)
     update_priority(user_yaml, item, dispatch_priority, priority_val)
     update_custompodresources(
@@ -1079,31 +941,87 @@ def generate_appwrapper(
         head_memory,
         head_gpus,
     )
-    update_dashboard_exposure(
-        ingress_item,
-        route_item,
-        cluster_name,
-        namespace,
-        ingress_options,
-        ingress_domain,
-    )
+
     if local_interactive:
-        enable_local_interactive(resources, cluster_name, namespace, ingress_domain)
+        enable_local_interactive(resources, cluster_name, namespace)
     else:
         disable_raycluster_tls(resources[&#34;resources&#34;])
 
-    delete_route_or_ingress(resources[&#34;resources&#34;])
-
-    if openshift_oauth:
+    if is_openshift_cluster():
         enable_openshift_oauth(user_yaml, cluster_name, namespace)
 
-    directory_path = os.path.expanduser(&#34;~/.codeflare/appwrapper/&#34;)
+    directory_path = os.path.expanduser(&#34;~/.codeflare/resources/&#34;)
     outfile = os.path.join(directory_path, appwrapper_name + &#34;.yaml&#34;)
-    if not mcad:
-        write_components(user_yaml, outfile)
+
+    if write_to_file:
+        if mcad:
+            write_user_appwrapper(user_yaml, outfile)
+        else:
+            write_components(user_yaml, outfile, namespace, local_queue)
+        return outfile
     else:
-        write_user_appwrapper(user_yaml, outfile)
-    return outfile</code></pre>
+        if mcad:
+            user_yaml = load_appwrapper(user_yaml, name)
+        else:
+            user_yaml = load_components(user_yaml, name, namespace, local_queue)
+        return user_yaml</code></pre>
+</details>
+</dd>
+<dt id="codeflare_sdk.utils.generate_yaml.get_default_kueue_name"><code class="name flex">
+<span>def <span class="ident">get_default_kueue_name</span></span>(<span>namespace: str)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_default_kueue_name(namespace: str):
+    # If the local queue is set, use it. Otherwise, try to use the default queue.
+    try:
+        config_check()
+        api_instance = client.CustomObjectsApi(api_config_handler())
+        local_queues = api_instance.list_namespaced_custom_object(
+            group=&#34;kueue.x-k8s.io&#34;,
+            version=&#34;v1beta1&#34;,
+            namespace=namespace,
+            plural=&#34;localqueues&#34;,
+        )
+    except Exception as e:  # pragma: no cover
+        return _kube_api_error_handling(e)
+    for lq in local_queues[&#34;items&#34;]:
+        if (
+            &#34;annotations&#34; in lq[&#34;metadata&#34;]
+            and &#34;kueue.x-k8s.io/default-queue&#34; in lq[&#34;metadata&#34;][&#34;annotations&#34;]
+            and lq[&#34;metadata&#34;][&#34;annotations&#34;][&#34;kueue.x-k8s.io/default-queue&#34;].lower()
+            == &#34;true&#34;
+        ):
+            return lq[&#34;metadata&#34;][&#34;name&#34;]
+    raise ValueError(
+        &#34;Default Local Queue with kueue.x-k8s.io/default-queue: true annotation not found please create a default Local Queue or provide the local_queue name in Cluster Configuration&#34;
+    )</code></pre>
+</details>
+</dd>
+<dt id="codeflare_sdk.utils.generate_yaml.is_kind_cluster"><code class="name flex">
+<span>def <span class="ident">is_kind_cluster</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def is_kind_cluster():
+    try:
+        config_check()
+        v1 = client.CoreV1Api()
+        label_selector = &#34;kubernetes.io/hostname=kind-control-plane&#34;
+        nodes = v1.list_node(label_selector=label_selector)
+        # If we find one or more nodes with the label, assume it&#39;s a KinD cluster
+        return len(nodes.items) &gt; 0
+    except Exception as e:
+        print(f&#34;Error checking if cluster is KinD: {e}&#34;)
+        return False</code></pre>
 </details>
 </dd>
 <dt id="codeflare_sdk.utils.generate_yaml.is_openshift_cluster"><code class="name flex">
@@ -1126,6 +1044,57 @@ def generate_appwrapper(
             return False
     except Exception as e:  # pragma: no cover
         return _kube_api_error_handling(e)</code></pre>
+</details>
+</dd>
+<dt id="codeflare_sdk.utils.generate_yaml.load_appwrapper"><code class="name flex">
+<span>def <span class="ident">load_appwrapper</span></span>(<span>user_yaml: dict, name: str)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def load_appwrapper(user_yaml: dict, name: str):
+    user_yaml = yaml.dump(user_yaml)
+    print(f&#34;Yaml resources loaded for {name}&#34;)
+    return user_yaml</code></pre>
+</details>
+</dd>
+<dt id="codeflare_sdk.utils.generate_yaml.load_components"><code class="name flex">
+<span>def <span class="ident">load_components</span></span>(<span>user_yaml: dict, name: str, namespace: str, local_queue: Optional[str])</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def load_components(
+    user_yaml: dict, name: str, namespace: str, local_queue: Optional[str]
+):
+    component_list = []
+    components = user_yaml.get(&#34;spec&#34;, &#34;resources&#34;)[&#34;resources&#34;].get(&#34;GenericItems&#34;)
+    lq_name = local_queue or get_default_kueue_name(namespace)
+    for component in components:
+        if &#34;generictemplate&#34; in component:
+            if (
+                &#34;workload.codeflare.dev/appwrapper&#34;
+                in component[&#34;generictemplate&#34;][&#34;metadata&#34;][&#34;labels&#34;]
+            ):
+                del component[&#34;generictemplate&#34;][&#34;metadata&#34;][&#34;labels&#34;][
+                    &#34;workload.codeflare.dev/appwrapper&#34;
+                ]
+                labels = component[&#34;generictemplate&#34;][&#34;metadata&#34;][&#34;labels&#34;]
+                labels.update({&#34;kueue.x-k8s.io/queue-name&#34;: lq_name})
+            component_list.append(component[&#34;generictemplate&#34;])
+
+    resources = &#34;---\n&#34; + &#34;---\n&#34;.join(
+        [yaml.dump(component) for component in component_list]
+    )
+    user_yaml = resources
+    print(f&#34;Yaml resources loaded for {name}&#34;)
+    return user_yaml</code></pre>
 </details>
 </dd>
 <dt id="codeflare_sdk.utils.generate_yaml.read_template"><code class="name flex">
@@ -1247,136 +1216,6 @@ def generate_appwrapper(
         sys.exit(&#34;Error: malformed template&#34;)</code></pre>
 </details>
 </dd>
-<dt id="codeflare_sdk.utils.generate_yaml.update_dashboard_exposure"><code class="name flex">
-<span>def <span class="ident">update_dashboard_exposure</span></span>(<span>ingress_item, route_item, cluster_name, namespace, ingress_options, ingress_domain)</span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def update_dashboard_exposure(
-    ingress_item, route_item, cluster_name, namespace, ingress_options, ingress_domain
-):
-    if is_openshift_cluster():
-        update_dashboard_route(route_item, cluster_name, namespace)
-    else:
-        update_dashboard_ingress(
-            ingress_item, cluster_name, namespace, ingress_options, ingress_domain
-        )</code></pre>
-</details>
-</dd>
-<dt id="codeflare_sdk.utils.generate_yaml.update_dashboard_ingress"><code class="name flex">
-<span>def <span class="ident">update_dashboard_ingress</span></span>(<span>ingress_item, cluster_name, namespace, ingress_options, ingress_domain)</span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def update_dashboard_ingress(
-    ingress_item, cluster_name, namespace, ingress_options, ingress_domain
-):  # pragma: no cover
-    metadata = ingress_item.get(&#34;generictemplate&#34;, {}).get(&#34;metadata&#34;)
-    spec = ingress_item.get(&#34;generictemplate&#34;, {}).get(&#34;spec&#34;)
-    if ingress_options != {}:
-        for index, ingress_option in enumerate(ingress_options[&#34;ingresses&#34;]):
-            if &#34;ingressName&#34; not in ingress_option.keys():
-                raise ValueError(
-                    f&#34;Error: &#39;ingressName&#39; is missing or empty for ingress item at index {index}&#34;
-                )
-            if &#34;port&#34; not in ingress_option.keys():
-                raise ValueError(
-                    f&#34;Error: &#39;port&#39; is missing or empty for ingress item at index {index}&#34;
-                )
-            elif not isinstance(ingress_option[&#34;port&#34;], int):
-                raise ValueError(
-                    f&#34;Error: &#39;port&#39; is not of type int for ingress item at index {index}&#34;
-                )
-            if ingress_option is not None:
-                metadata[&#34;name&#34;] = ingress_option[&#34;ingressName&#34;]
-                metadata[&#34;namespace&#34;] = namespace
-                metadata[&#34;labels&#34;][&#34;ingress-owner&#34;] = cluster_name
-                metadata[&#34;labels&#34;][&#34;ingress-options&#34;] = &#34;true&#34;
-                if (
-                    &#34;annotations&#34; not in ingress_option.keys()
-                    or ingress_option[&#34;annotations&#34;] is None
-                ):
-                    del metadata[&#34;annotations&#34;]
-                else:
-                    metadata[&#34;annotations&#34;] = ingress_option[&#34;annotations&#34;]
-                if (
-                    &#34;path&#34; not in ingress_option.keys()
-                    or ingress_option[&#34;path&#34;] is None
-                ):
-                    del spec[&#34;rules&#34;][0][&#34;http&#34;][&#34;paths&#34;][0][&#34;path&#34;]
-                else:
-                    spec[&#34;rules&#34;][0][&#34;http&#34;][&#34;paths&#34;][0][&#34;path&#34;] = ingress_option[
-                        &#34;path&#34;
-                    ]
-                if (
-                    &#34;pathType&#34; not in ingress_option.keys()
-                    or ingress_option[&#34;pathType&#34;] is None
-                ):
-                    spec[&#34;rules&#34;][0][&#34;http&#34;][&#34;paths&#34;][0][
-                        &#34;pathType&#34;
-                    ] = &#34;ImplementationSpecific&#34;
-                if (
-                    &#34;host&#34; not in ingress_option.keys()
-                    or ingress_option[&#34;host&#34;] is None
-                ):
-                    del spec[&#34;rules&#34;][0][&#34;host&#34;]
-                else:
-                    spec[&#34;rules&#34;][0][&#34;host&#34;] = ingress_option[&#34;host&#34;]
-                if (
-                    &#34;ingressClassName&#34; not in ingress_option.keys()
-                    or ingress_option[&#34;ingressClassName&#34;] is None
-                ):
-                    del spec[&#34;ingressClassName&#34;]
-                else:
-                    spec[&#34;ingressClassName&#34;] = ingress_option[&#34;ingressClassName&#34;]
-
-                spec[&#34;rules&#34;][0][&#34;http&#34;][&#34;paths&#34;][0][&#34;backend&#34;][&#34;service&#34;][
-                    &#34;name&#34;
-                ] = f&#34;{cluster_name}-head-svc&#34;
-    else:
-        spec[&#34;ingressClassName&#34;] = &#34;nginx&#34;
-        metadata[&#34;name&#34;] = gen_dashboard_ingress_name(cluster_name)
-        metadata[&#34;labels&#34;][&#34;ingress-owner&#34;] = cluster_name
-        metadata[&#34;namespace&#34;] = namespace
-        spec[&#34;rules&#34;][0][&#34;http&#34;][&#34;paths&#34;][0][&#34;backend&#34;][&#34;service&#34;][
-            &#34;name&#34;
-        ] = f&#34;{cluster_name}-head-svc&#34;
-        if ingress_domain is None:
-            raise ValueError(
-                &#34;ingress_domain is invalid. Please specify an ingress domain&#34;
-            )
-        else:
-            domain = ingress_domain
-        del metadata[&#34;annotations&#34;]
-        spec[&#34;rules&#34;][0][&#34;host&#34;] = f&#34;ray-dashboard-{cluster_name}-{namespace}.{domain}&#34;</code></pre>
-</details>
-</dd>
-<dt id="codeflare_sdk.utils.generate_yaml.update_dashboard_route"><code class="name flex">
-<span>def <span class="ident">update_dashboard_route</span></span>(<span>route_item, cluster_name, namespace)</span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def update_dashboard_route(route_item, cluster_name, namespace):
-    metadata = route_item.get(&#34;generictemplate&#34;, {}).get(&#34;metadata&#34;)
-    metadata[&#34;name&#34;] = gen_dashboard_ingress_name(cluster_name)
-    metadata[&#34;namespace&#34;] = namespace
-    metadata[&#34;labels&#34;][&#34;odh-ray-cluster-service&#34;] = f&#34;{cluster_name}-head-svc&#34;
-    spec = route_item.get(&#34;generictemplate&#34;, {}).get(&#34;spec&#34;)
-    spec[&#34;to&#34;][&#34;name&#34;] = f&#34;{cluster_name}-head-svc&#34;</code></pre>
-</details>
-</dd>
 <dt id="codeflare_sdk.utils.generate_yaml.update_env"><code class="name flex">
 <span>def <span class="ident">update_env</span></span>(<span>spec, env)</span>
 </code></dt>
@@ -1468,7 +1307,21 @@ def generate_appwrapper(
     lower_meta = item.get(&#34;generictemplate&#34;, {}).get(&#34;metadata&#34;)
     lower_meta[&#34;labels&#34;][&#34;workload.codeflare.dev/appwrapper&#34;] = appwrapper_name
     lower_meta[&#34;name&#34;] = cluster_name
-    lower_meta[&#34;namespace&#34;] = namespace</code></pre>
+    lower_meta[&#34;namespace&#34;] = namespace
+    lower_spec = item.get(&#34;generictemplate&#34;, {}).get(&#34;spec&#34;)
+    if is_openshift_cluster():
+        cookie_secret_env_var = {
+            &#34;name&#34;: &#34;COOKIE_SECRET&#34;,
+            &#34;valueFrom&#34;: {
+                &#34;secretKeyRef&#34;: {
+                    &#34;key&#34;: &#34;cookie_secret&#34;,
+                    &#34;name&#34;: f&#34;{cluster_name}-oauth-config&#34;,
+                }
+            },
+        }
+        lower_spec[&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;][&#34;containers&#34;][0][&#34;env&#34;].append(
+            cookie_secret_env_var
+        )</code></pre>
 </details>
 </dd>
 <dt id="codeflare_sdk.utils.generate_yaml.update_nodes"><code class="name flex">
@@ -1550,81 +1403,6 @@ def generate_appwrapper(
         spec.pop(&#34;priority&#34;)</code></pre>
 </details>
 </dd>
-<dt id="codeflare_sdk.utils.generate_yaml.update_rayclient_exposure"><code class="name flex">
-<span>def <span class="ident">update_rayclient_exposure</span></span>(<span>client_route_item, client_ingress_item, cluster_name, namespace, ingress_domain)</span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def update_rayclient_exposure(
-    client_route_item, client_ingress_item, cluster_name, namespace, ingress_domain
-):
-    if is_openshift_cluster():
-        update_rayclient_route(client_route_item, cluster_name, namespace)
-    else:
-        update_rayclient_ingress(
-            client_ingress_item, cluster_name, namespace, ingress_domain
-        )</code></pre>
-</details>
-</dd>
-<dt id="codeflare_sdk.utils.generate_yaml.update_rayclient_ingress"><code class="name flex">
-<span>def <span class="ident">update_rayclient_ingress</span></span>(<span>ingress_item, cluster_name, namespace, ingress_domain)</span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def update_rayclient_ingress(
-    ingress_item, cluster_name, namespace, ingress_domain
-):  # pragma: no cover
-    metadata = ingress_item.get(&#34;generictemplate&#34;, {}).get(&#34;metadata&#34;)
-    spec = ingress_item.get(&#34;generictemplate&#34;, {}).get(&#34;spec&#34;)
-    metadata[&#34;name&#34;] = f&#34;rayclient-{cluster_name}&#34;
-    metadata[&#34;namespace&#34;] = namespace
-    metadata[&#34;labels&#34;][&#34;odh-ray-cluster-service&#34;] = f&#34;{cluster_name}-head-svc&#34;
-
-    spec[&#34;rules&#34;][0][&#34;http&#34;][&#34;paths&#34;][0][&#34;backend&#34;][&#34;service&#34;][
-        &#34;name&#34;
-    ] = f&#34;{cluster_name}-head-svc&#34;
-
-    if ingress_domain is not None:
-        ingressClassName = &#34;nginx&#34;
-        annotations = {
-            &#34;nginx.ingress.kubernetes.io/rewrite-target&#34;: &#34;/&#34;,
-            &#34;nginx.ingress.kubernetes.io/ssl-redirect&#34;: &#34;true&#34;,
-            &#34;nginx.ingress.kubernetes.io/ssl-passthrough&#34;: &#34;true&#34;,
-        }
-    else:
-        raise ValueError(&#34;ingress_domain is invalid. Please specify a domain&#34;)
-
-    metadata[&#34;annotations&#34;] = annotations
-    spec[&#34;ingressClassName&#34;] = ingressClassName
-    spec[&#34;rules&#34;][0][&#34;host&#34;] = f&#34;rayclient-{cluster_name}-{namespace}.{ingress_domain}&#34;</code></pre>
-</details>
-</dd>
-<dt id="codeflare_sdk.utils.generate_yaml.update_rayclient_route"><code class="name flex">
-<span>def <span class="ident">update_rayclient_route</span></span>(<span>route_item, cluster_name, namespace)</span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def update_rayclient_route(route_item, cluster_name, namespace):
-    metadata = route_item.get(&#34;generictemplate&#34;, {}).get(&#34;metadata&#34;)
-    metadata[&#34;name&#34;] = f&#34;rayclient-{cluster_name}&#34;
-    metadata[&#34;namespace&#34;] = namespace
-    metadata[&#34;labels&#34;][&#34;odh-ray-cluster-service&#34;] = f&#34;{cluster_name}-head-svc&#34;
-    spec = route_item.get(&#34;generictemplate&#34;, {}).get(&#34;spec&#34;)
-    spec[&#34;to&#34;][&#34;name&#34;] = f&#34;{cluster_name}-head-svc&#34;</code></pre>
-</details>
-</dd>
 <dt id="codeflare_sdk.utils.generate_yaml.update_resources"><code class="name flex">
 <span>def <span class="ident">update_resources</span></span>(<span>spec, min_cpu, max_cpu, min_memory, max_memory, gpu)</span>
 </code></dt>
@@ -1650,7 +1428,7 @@ def generate_appwrapper(
 </details>
 </dd>
 <dt id="codeflare_sdk.utils.generate_yaml.write_components"><code class="name flex">
-<span>def <span class="ident">write_components</span></span>(<span>user_yaml: dict, output_file_name: str)</span>
+<span>def <span class="ident">write_components</span></span>(<span>user_yaml: dict, output_file_name: str, namespace: str, local_queue: Optional[str])</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -1658,7 +1436,9 @@ def generate_appwrapper(
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def write_components(user_yaml: dict, output_file_name: str):
+<pre><code class="python">def write_components(
+    user_yaml: dict, output_file_name: str, namespace: str, local_queue: Optional[str]
+):
     # Create the directory if it doesn&#39;t exist
     directory_path = os.path.dirname(output_file_name)
     if not os.path.exists(directory_path):
@@ -1666,9 +1446,19 @@ def generate_appwrapper(
 
     components = user_yaml.get(&#34;spec&#34;, &#34;resources&#34;)[&#34;resources&#34;].get(&#34;GenericItems&#34;)
     open(output_file_name, &#34;w&#34;).close()
+    lq_name = local_queue or get_default_kueue_name(namespace)
     with open(output_file_name, &#34;a&#34;) as outfile:
         for component in components:
             if &#34;generictemplate&#34; in component:
+                if (
+                    &#34;workload.codeflare.dev/appwrapper&#34;
+                    in component[&#34;generictemplate&#34;][&#34;metadata&#34;][&#34;labels&#34;]
+                ):
+                    del component[&#34;generictemplate&#34;][&#34;metadata&#34;][&#34;labels&#34;][
+                        &#34;workload.codeflare.dev/appwrapper&#34;
+                    ]
+                    labels = component[&#34;generictemplate&#34;][&#34;metadata&#34;][&#34;labels&#34;]
+                    labels.update({&#34;kueue.x-k8s.io/queue-name&#34;: lq_name})
                 outfile.write(&#34;---\n&#34;)
                 yaml.dump(
                     component[&#34;generictemplate&#34;], outfile, default_flow_style=False
@@ -1716,21 +1506,20 @@ def generate_appwrapper(
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
 <li><code><a title="codeflare_sdk.utils.generate_yaml.del_from_list_by_name" href="#codeflare_sdk.utils.generate_yaml.del_from_list_by_name">del_from_list_by_name</a></code></li>
-<li><code><a title="codeflare_sdk.utils.generate_yaml.delete_route_or_ingress" href="#codeflare_sdk.utils.generate_yaml.delete_route_or_ingress">delete_route_or_ingress</a></code></li>
 <li><code><a title="codeflare_sdk.utils.generate_yaml.disable_raycluster_tls" href="#codeflare_sdk.utils.generate_yaml.disable_raycluster_tls">disable_raycluster_tls</a></code></li>
 <li><code><a title="codeflare_sdk.utils.generate_yaml.enable_local_interactive" href="#codeflare_sdk.utils.generate_yaml.enable_local_interactive">enable_local_interactive</a></code></li>
 <li><code><a title="codeflare_sdk.utils.generate_yaml.enable_openshift_oauth" href="#codeflare_sdk.utils.generate_yaml.enable_openshift_oauth">enable_openshift_oauth</a></code></li>
-<li><code><a title="codeflare_sdk.utils.generate_yaml.gen_dashboard_ingress_name" href="#codeflare_sdk.utils.generate_yaml.gen_dashboard_ingress_name">gen_dashboard_ingress_name</a></code></li>
 <li><code><a title="codeflare_sdk.utils.generate_yaml.gen_names" href="#codeflare_sdk.utils.generate_yaml.gen_names">gen_names</a></code></li>
 <li><code><a title="codeflare_sdk.utils.generate_yaml.generate_appwrapper" href="#codeflare_sdk.utils.generate_yaml.generate_appwrapper">generate_appwrapper</a></code></li>
+<li><code><a title="codeflare_sdk.utils.generate_yaml.get_default_kueue_name" href="#codeflare_sdk.utils.generate_yaml.get_default_kueue_name">get_default_kueue_name</a></code></li>
+<li><code><a title="codeflare_sdk.utils.generate_yaml.is_kind_cluster" href="#codeflare_sdk.utils.generate_yaml.is_kind_cluster">is_kind_cluster</a></code></li>
 <li><code><a title="codeflare_sdk.utils.generate_yaml.is_openshift_cluster" href="#codeflare_sdk.utils.generate_yaml.is_openshift_cluster">is_openshift_cluster</a></code></li>
+<li><code><a title="codeflare_sdk.utils.generate_yaml.load_appwrapper" href="#codeflare_sdk.utils.generate_yaml.load_appwrapper">load_appwrapper</a></code></li>
+<li><code><a title="codeflare_sdk.utils.generate_yaml.load_components" href="#codeflare_sdk.utils.generate_yaml.load_components">load_components</a></code></li>
 <li><code><a title="codeflare_sdk.utils.generate_yaml.read_template" href="#codeflare_sdk.utils.generate_yaml.read_template">read_template</a></code></li>
 <li><code><a title="codeflare_sdk.utils.generate_yaml.update_affinity" href="#codeflare_sdk.utils.generate_yaml.update_affinity">update_affinity</a></code></li>
 <li><code><a title="codeflare_sdk.utils.generate_yaml.update_ca_secret" href="#codeflare_sdk.utils.generate_yaml.update_ca_secret">update_ca_secret</a></code></li>
 <li><code><a title="codeflare_sdk.utils.generate_yaml.update_custompodresources" href="#codeflare_sdk.utils.generate_yaml.update_custompodresources">update_custompodresources</a></code></li>
-<li><code><a title="codeflare_sdk.utils.generate_yaml.update_dashboard_exposure" href="#codeflare_sdk.utils.generate_yaml.update_dashboard_exposure">update_dashboard_exposure</a></code></li>
-<li><code><a title="codeflare_sdk.utils.generate_yaml.update_dashboard_ingress" href="#codeflare_sdk.utils.generate_yaml.update_dashboard_ingress">update_dashboard_ingress</a></code></li>
-<li><code><a title="codeflare_sdk.utils.generate_yaml.update_dashboard_route" href="#codeflare_sdk.utils.generate_yaml.update_dashboard_route">update_dashboard_route</a></code></li>
 <li><code><a title="codeflare_sdk.utils.generate_yaml.update_env" href="#codeflare_sdk.utils.generate_yaml.update_env">update_env</a></code></li>
 <li><code><a title="codeflare_sdk.utils.generate_yaml.update_image" href="#codeflare_sdk.utils.generate_yaml.update_image">update_image</a></code></li>
 <li><code><a title="codeflare_sdk.utils.generate_yaml.update_image_pull_secrets" href="#codeflare_sdk.utils.generate_yaml.update_image_pull_secrets">update_image_pull_secrets</a></code></li>
@@ -1738,9 +1527,6 @@ def generate_appwrapper(
 <li><code><a title="codeflare_sdk.utils.generate_yaml.update_names" href="#codeflare_sdk.utils.generate_yaml.update_names">update_names</a></code></li>
 <li><code><a title="codeflare_sdk.utils.generate_yaml.update_nodes" href="#codeflare_sdk.utils.generate_yaml.update_nodes">update_nodes</a></code></li>
 <li><code><a title="codeflare_sdk.utils.generate_yaml.update_priority" href="#codeflare_sdk.utils.generate_yaml.update_priority">update_priority</a></code></li>
-<li><code><a title="codeflare_sdk.utils.generate_yaml.update_rayclient_exposure" href="#codeflare_sdk.utils.generate_yaml.update_rayclient_exposure">update_rayclient_exposure</a></code></li>
-<li><code><a title="codeflare_sdk.utils.generate_yaml.update_rayclient_ingress" href="#codeflare_sdk.utils.generate_yaml.update_rayclient_ingress">update_rayclient_ingress</a></code></li>
-<li><code><a title="codeflare_sdk.utils.generate_yaml.update_rayclient_route" href="#codeflare_sdk.utils.generate_yaml.update_rayclient_route">update_rayclient_route</a></code></li>
 <li><code><a title="codeflare_sdk.utils.generate_yaml.update_resources" href="#codeflare_sdk.utils.generate_yaml.update_resources">update_resources</a></code></li>
 <li><code><a title="codeflare_sdk.utils.generate_yaml.write_components" href="#codeflare_sdk.utils.generate_yaml.write_components">write_components</a></code></li>
 <li><code><a title="codeflare_sdk.utils.generate_yaml.write_user_appwrapper" href="#codeflare_sdk.utils.generate_yaml.write_user_appwrapper">write_user_appwrapper</a></code></li>

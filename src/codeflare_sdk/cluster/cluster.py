@@ -21,10 +21,8 @@ cluster setup queue, a list of all existing clusters, and the user's working nam
 from time import sleep
 from typing import List, Optional, Tuple, Dict
 
-import openshift as oc
 from kubernetes import config
 from ray.job_submission import JobSubmissionClient
-import urllib3
 
 from .auth import config_check, api_config_handler
 from ..utils import pretty_print
@@ -58,8 +56,6 @@ class Cluster:
 
     Note that currently, the underlying implementation is a Ray cluster.
     """
-
-    torchx_scheduler = "ray"
 
     def __init__(self, config: ClusterConfiguration):
         """
@@ -188,10 +184,9 @@ class Cluster:
         local_interactive = self.config.local_interactive
         image_pull_secrets = self.config.image_pull_secrets
         dispatch_priority = self.config.dispatch_priority
-        ingress_domain = self.config.ingress_domain
-        ingress_options = self.config.ingress_options
         write_to_file = self.config.write_to_file
         verify_tls = self.config.verify_tls
+        local_queue = self.config.local_queue
         return generate_appwrapper(
             name=name,
             namespace=namespace,
@@ -214,10 +209,9 @@ class Cluster:
             image_pull_secrets=image_pull_secrets,
             dispatch_priority=dispatch_priority,
             priority_val=priority_val,
-            ingress_domain=ingress_domain,
-            ingress_options=ingress_options,
             write_to_file=write_to_file,
             verify_tls=verify_tls,
+            local_queue=local_queue,
         )
 
     # creates a new cluster with the provided or default spec
@@ -348,6 +342,9 @@ class Cluster:
         # check the ray cluster status
         cluster = _ray_cluster_status(self.config.name, self.config.namespace)
         if cluster:
+            if cluster.status == RayClusterStatus.SUSPENDED:
+                ready = False
+                status = CodeFlareClusterStatus.SUSPENDED
             if cluster.status == RayClusterStatus.UNKNOWN:
                 ready = False
                 status = CodeFlareClusterStatus.STARTING
@@ -501,25 +498,9 @@ class Cluster:
         """
         return self.job_client.get_job_logs(job_id)
 
-    def torchx_config(
-        self, working_dir: str = None, requirements: str = None
-    ) -> Dict[str, str]:
-        dashboard_address = urllib3.util.parse_url(self.cluster_dashboard_uri()).host
-        to_return = {
-            "cluster_name": self.config.name,
-            "dashboard_address": dashboard_address,
-        }
-        if working_dir:
-            to_return["working_dir"] = working_dir
-        if requirements:
-            to_return["requirements"] = requirements
-        return to_return
-
     def from_k8_cluster_object(
         rc,
         mcad=True,
-        ingress_domain=None,
-        ingress_options={},
         write_to_file=False,
         verify_tls=True,
     ):
@@ -536,11 +517,6 @@ class Cluster:
             if "orderedinstance" in rc["metadata"]["labels"]
             else []
         )
-
-        if local_interactive and ingress_domain == None:
-            ingress_domain = rc["metadata"]["annotations"][
-                "sdk.codeflare.dev/ingress_domain"
-            ]
 
         cluster_config = ClusterConfiguration(
             name=rc["metadata"]["name"],
@@ -578,8 +554,6 @@ class Cluster:
             ]["image"],
             local_interactive=local_interactive,
             mcad=mcad,
-            ingress_domain=ingress_domain,
-            ingress_options=ingress_options,
             write_to_file=write_to_file,
             verify_tls=verify_tls,
         )
@@ -597,7 +571,19 @@ class Cluster:
     ):
         if self.config.write_to_file:
             with open(self.app_wrapper_yaml) as f:
-                yamls = yaml.load_all(f, Loader=yaml.FullLoader)
+                yamls = list(yaml.load_all(f, Loader=yaml.FullLoader))
+                for resource in yamls:
+                    enable_ingress = (
+                        resource.get("spec", {})
+                        .get("headGroupSpec", {})
+                        .get("enableIngress")
+                    )
+                    if resource["kind"] == "RayCluster" and enable_ingress is not False:
+                        name = resource["metadata"]["name"]
+                        print(
+                            f"Forbidden: RayCluster '{name}' has 'enableIngress' set to 'True' or is unset."
+                        )
+                        return
                 _create_resources(yamls, namespace, api_instance)
         else:
             yamls = yaml.load_all(self.app_wrapper_yaml, Loader=yaml.FullLoader)
@@ -626,17 +612,24 @@ def list_all_clusters(namespace: str, print_to_console: bool = True):
     return clusters
 
 
-def list_all_queued(namespace: str, print_to_console: bool = True):
+def list_all_queued(namespace: str, print_to_console: bool = True, mcad: bool = False):
     """
-    Returns (and prints by default) a list of all currently queued-up AppWrappers
+    Returns (and prints by default) a list of all currently queued-up Ray Clusters
     in a given namespace.
     """
-    app_wrappers = _get_app_wrappers(
-        namespace, filter=[AppWrapperStatus.RUNNING, AppWrapperStatus.PENDING]
-    )
-    if print_to_console:
-        pretty_print.print_app_wrappers_status(app_wrappers)
-    return app_wrappers
+    if mcad:
+        resources = _get_app_wrappers(
+            namespace, filter=[AppWrapperStatus.RUNNING, AppWrapperStatus.PENDING]
+        )
+        if print_to_console:
+            pretty_print.print_app_wrappers_status(resources)
+    else:
+        resources = _get_ray_clusters(
+            namespace, filter=[RayClusterStatus.READY, RayClusterStatus.SUSPENDED]
+        )
+        if print_to_console:
+            pretty_print.print_ray_clusters_status(resources)
+    return resources
 
 
 def get_current_namespace():  # pragma: no cover
@@ -686,62 +679,9 @@ def get_cluster(
     for rc in rcs["items"]:
         if rc["metadata"]["name"] == cluster_name:
             mcad = _check_aw_exists(cluster_name, namespace)
-            ingress_host = None
-            ingress_options = {}
-            if not is_openshift_cluster():
-                try:
-                    config_check()
-                    api_instance = client.NetworkingV1Api(api_config_handler())
-                    ingresses = api_instance.list_namespaced_ingress(namespace)
-                    for ingress in ingresses.items:
-                        # Search for ingress with AppWrapper name as the owner
-                        if (
-                            "ingress-owner" in ingress.metadata.labels
-                            and ingress.metadata.labels["ingress-owner"] == cluster_name
-                        ):
-                            ingress_host = ingress.spec.rules[0].host
-                            if (
-                                "ingress-options" in ingress.metadata.labels
-                                and ingress.metadata.labels["ingress-options"] == "true"
-                            ):
-                                ingress_name = ingress.metadata.name
-                                port = (
-                                    ingress.spec.rules[0]
-                                    .http.paths[0]
-                                    .backend.service.port.number
-                                )
-                                annotations = ingress.metadata.annotations
-                                path = ingress.spec.rules[0].http.paths[0].path
-                                ingress_class_name = ingress.spec.ingress_class_name
-                                path_type = (
-                                    ingress.spec.rules[0].http.paths[0].path_type
-                                )
-
-                                ingress_options = {
-                                    "ingresses": [
-                                        {
-                                            "ingressName": ingress_name,
-                                            "port": port,
-                                            "annotations": annotations,
-                                            "ingressClassName": ingress_class_name,
-                                            "pathType": path_type,
-                                            "path": path,
-                                            "host": ingress_host,
-                                        }
-                                    ]
-                                }
-                except Exception as e:  # pragma: no cover
-                    return _kube_api_error_handling(e)
-            # We gather the ingress domain from the host
-            if ingress_host is not None and ingress_options == {}:
-                ingress_domain = ingress_host.split(".", 1)[1]
-            else:
-                ingress_domain = None
             return Cluster.from_k8_cluster_object(
                 rc,
                 mcad=mcad,
-                ingress_domain=ingress_domain,
-                ingress_options=ingress_options,
                 write_to_file=write_to_file,
                 verify_tls=verify_tls,
             )
@@ -764,24 +704,6 @@ def _delete_resources(
                 plural="rayclusters",
                 name=name,
             )
-        elif resource["kind"] == "Ingress":
-            name = resource["metadata"]["name"]
-            api_instance.delete_namespaced_custom_object(
-                group="networking.k8s.io",
-                version="v1",
-                namespace=namespace,
-                plural="ingresses",
-                name=name,
-            )
-        elif resource["kind"] == "Route":
-            name = resource["metadata"]["name"]
-            api_instance.delete_namespaced_custom_object(
-                group="route.openshift.io",
-                version="v1",
-                namespace=namespace,
-                plural="routes",
-                name=name,
-            )
         elif resource["kind"] == "Secret":
             name = resource["metadata"]["name"]
             secret_instance = client.CoreV1Api(api_config_handler())
@@ -799,22 +721,6 @@ def _create_resources(yamls, namespace: str, api_instance: client.CustomObjectsA
                 version="v1",
                 namespace=namespace,
                 plural="rayclusters",
-                body=resource,
-            )
-        elif resource["kind"] == "Ingress":
-            api_instance.create_namespaced_custom_object(
-                group="networking.k8s.io",
-                version="v1",
-                namespace=namespace,
-                plural="ingresses",
-                body=resource,
-            )
-        elif resource["kind"] == "Route":
-            api_instance.create_namespaced_custom_object(
-                group="route.openshift.io",
-                version="v1",
-                namespace=namespace,
-                plural="routes",
                 body=resource,
             )
         elif resource["kind"] == "Secret":
@@ -923,7 +829,9 @@ def _ray_cluster_status(name, namespace="default") -> Optional[RayCluster]:
     return None
 
 
-def _get_ray_clusters(namespace="default") -> List[RayCluster]:
+def _get_ray_clusters(
+    namespace="default", filter: Optional[List[RayClusterStatus]] = None
+) -> List[RayCluster]:
     list_of_clusters = []
     try:
         config_check()
@@ -937,8 +845,15 @@ def _get_ray_clusters(namespace="default") -> List[RayCluster]:
     except Exception as e:  # pragma: no cover
         return _kube_api_error_handling(e)
 
-    for rc in rcs["items"]:
-        list_of_clusters.append(_map_to_ray_cluster(rc))
+    # Get a list of RCs with the filter if it is passed to the function
+    if filter is not None:
+        for rc in rcs["items"]:
+            ray_cluster = _map_to_ray_cluster(rc)
+            if filter and ray_cluster.status in filter:
+                list_of_clusters.append(ray_cluster)
+    else:
+        for rc in rcs["items"]:
+            list_of_clusters.append(_map_to_ray_cluster(rc))
     return list_of_clusters
 
 
@@ -970,7 +885,7 @@ def _get_app_wrappers(
 
 
 def _map_to_ray_cluster(rc) -> Optional[RayCluster]:
-    if "state" in rc["status"]:
+    if "status" in rc and "state" in rc["status"]:
         status = RayClusterStatus(rc["status"]["state"].lower())
     else:
         status = RayClusterStatus.UNKNOWN

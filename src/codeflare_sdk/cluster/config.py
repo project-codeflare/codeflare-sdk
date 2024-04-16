@@ -46,14 +46,12 @@ class ClusterConfiguration:
     num_gpus: int = 0
     template: str = f"{dir}/templates/base-template.yaml"
     instascale: bool = False
-    mcad: bool = True
+    mcad: bool = False
     envs: dict = field(default_factory=dict)
     image: str = ""
     local_interactive: bool = False
     image_pull_secrets: list = field(default_factory=list)
     dispatch_priority: str = None
-    ingress_options: dict = field(default_factory=dict)
-    ingress_domain: str = None
     write_to_file: bool = False
     verify_tls: bool = True
 
@@ -62,3 +60,5 @@ class ClusterConfiguration:
             print(
                 "Warning: TLS verification has been disabled - Endpoint checks will be bypassed"
             )
+
+    local_queue: str = None

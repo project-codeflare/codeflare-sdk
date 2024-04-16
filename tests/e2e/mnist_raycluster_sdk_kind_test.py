@@ -9,32 +9,25 @@ import pytest
 
 from support import *
 
-# This test creates a Ray Cluster and covers the Ray Job submission with authentication and without authentication functionality on Openshift Cluster
+# This test creates a Ray Cluster and covers the Ray Job submission functionality on Kind Cluster
 
 
-@pytest.mark.openshift
-class TestRayClusterSDKOauth:
+@pytest.mark.kind
+class TestRayClusterSDKKind:
     def setup_method(self):
         initialize_kubernetes_client(self)
 
     def teardown_method(self):
         delete_namespace(self)
 
-    def test_mnist_ray_cluster_sdk_auth(self):
+    def test_mnist_ray_cluster_sdk_kind(self):
         self.setup_method()
         create_namespace(self)
         create_kueue_resources(self)
-        self.run_mnist_raycluster_sdk_oauth()
+        self.run_mnist_raycluster_sdk_kind()
 
-    def run_mnist_raycluster_sdk_oauth(self):
+    def run_mnist_raycluster_sdk_kind(self):
         ray_image = get_ray_image()
-
-        auth = TokenAuthentication(
-            token=run_oc_command(["whoami", "--show-token=true"]),
-            server=run_oc_command(["whoami", "--show-server=true"]),
-            skip_tls=True,
-        )
-        auth.login()
 
         cluster = Cluster(
             ClusterConfiguration(
@@ -64,39 +57,13 @@ class TestRayClusterSDKOauth:
 
         cluster.details()
 
-        self.assert_jobsubmit_withoutLogin(cluster)
-        self.assert_jobsubmit_withlogin(cluster)
+        self.assert_jobsubmit_withoutlogin_kind(cluster)
 
     # Assertions
 
-    def assert_jobsubmit_withoutLogin(self, cluster):
-        dashboard_url = cluster.cluster_dashboard_uri()
-        jobdata = {
-            "entrypoint": "python mnist.py",
-            "runtime_env": {
-                "working_dir": "./tests/e2e/",
-                "pip": "./tests/e2e/mnist_pip_requirements.txt",
-            },
-        }
-        try:
-            response = requests.post(
-                dashboard_url + "/api/jobs/", verify=False, json=jobdata
-            )
-            if response.status_code == 403:
-                assert True
-            else:
-                response.raise_for_status()
-                assert False
-
-        except Exception as e:
-            print(f"An unexpected error occurred. Error: {e}")
-            assert False
-
-    def assert_jobsubmit_withlogin(self, cluster):
-        auth_token = run_oc_command(["whoami", "--show-token=true"])
+    def assert_jobsubmit_withoutlogin_kind(self, cluster):
         ray_dashboard = cluster.cluster_dashboard_uri()
-        header = {"Authorization": f"Bearer {auth_token}"}
-        client = RayJobClient(address=ray_dashboard, headers=header, verify=False)
+        client = RayJobClient(address=ray_dashboard, verify=False)
 
         submission_id = client.submit_job(
             entrypoint="python mnist.py",
