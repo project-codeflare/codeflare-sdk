@@ -282,52 +282,6 @@ def del_from_list_by_name(l: list, target: typing.List[str]) -> list:
     return [x for x in l if x["name"] not in target]
 
 
-def disable_raycluster_tls(resources):
-    generic_template_spec = resources["GenericItems"][0]["generictemplate"]["spec"]
-
-    headGroupTemplateSpec = generic_template_spec["headGroupSpec"]["template"]["spec"]
-    headGroupTemplateSpec["volumes"] = del_from_list_by_name(
-        headGroupTemplateSpec.get("volumes", []),
-        ["ca-vol", "server-cert"],
-    )
-
-    c: dict
-    for c in generic_template_spec["headGroupSpec"]["template"]["spec"]["containers"]:
-        c["volumeMounts"] = del_from_list_by_name(
-            c.get("volumeMounts", []), ["ca-vol", "server-cert"]
-        )
-
-    if "initContainers" in generic_template_spec["headGroupSpec"]["template"]["spec"]:
-        del generic_template_spec["headGroupSpec"]["template"]["spec"]["initContainers"]
-
-    for workerGroup in generic_template_spec.get("workerGroupSpecs", []):
-        workerGroupSpec = workerGroup["template"]["spec"]
-        workerGroupSpec["volumes"] = del_from_list_by_name(
-            workerGroupSpec.get("volumes", []),
-            ["ca-vol", "server-cert"],
-        )
-        for c in workerGroup["template"]["spec"].get("containers", []):
-            c["volumeMounts"] = del_from_list_by_name(
-                c.get("volumeMounts", []), ["ca-vol", "server-cert"]
-            )
-
-    del generic_template_spec["workerGroupSpecs"][0]["template"]["spec"][
-        "initContainers"
-    ]
-
-    updated_items = []
-    for i in resources["GenericItems"][:]:
-        if "rayclient-deployment-ingress" in i["generictemplate"]["metadata"]["name"]:
-            continue
-        if "rayclient-deployment-route" in i["generictemplate"]["metadata"]["name"]:
-            continue
-        if "ca-secret-deployment-name" in i["generictemplate"]["metadata"]["name"]:
-            continue
-        updated_items.append(i)
-
-    resources["GenericItems"] = updated_items
-
-
 def write_user_appwrapper(user_yaml, output_file_name):
     # Create the directory if it doesn't exist
     directory_path = os.path.dirname(output_file_name)
