@@ -64,19 +64,6 @@ def is_openshift_cluster():
         return _kube_api_error_handling(e)
 
 
-def is_kind_cluster():
-    try:
-        config_check()
-        v1 = client.CoreV1Api()
-        label_selector = "kubernetes.io/hostname=kind-control-plane"
-        nodes = v1.list_node(label_selector=label_selector)
-        # If we find one or more nodes with the label, assume it's a KinD cluster
-        return len(nodes.items) > 0
-    except Exception as e:
-        print(f"Error checking if cluster is KinD: {e}")
-        return False
-
-
 def update_names(yaml, item, appwrapper_name, cluster_name, namespace):
     metadata = yaml.get("metadata")
     metadata["name"] = appwrapper_name
