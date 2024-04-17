@@ -89,7 +89,6 @@ class Cluster:
         if self._job_submission_client:
             return self._job_submission_client
         if is_openshift_cluster():
-            print(k8client.configuration.get_api_key_with_prefix("authorization"))
             self._job_submission_client = JobSubmissionClient(
                 self.cluster_dashboard_uri(),
                 headers=self._client_headers,
