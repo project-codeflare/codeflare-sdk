@@ -1,15 +1,13 @@
 import requests
 from time import sleep
 
-from torchx.specs.api import AppState, is_terminal
-
 from codeflare_sdk import Cluster, ClusterConfiguration, TokenAuthentication
 from codeflare_sdk.job import RayJobClient
 
-import pytest
-
 from tests.e2e.support import *
 from codeflare_sdk.cluster.cluster import get_cluster
+
+from codeflare_sdk.utils.kube_api_helpers import _kube_api_error_handling
 
 namespace = "test-ns-rayupgrade"
 
@@ -19,8 +17,11 @@ class TestMNISTRayClusterUp:
     def setup_method(self):
         initialize_kubernetes_client(self)
         create_namespace_with_name(self, namespace)
-        cluster_queue = "cluster-queue"  # add cluster-queue name here
-        create_local_queue(self, cluster_queue)
+        try:
+            create_kueue_resources(self)
+        except Exception as e:
+            delete_namespace(self)
+            return _kube_api_error_handling(e)
 
     def test_mnist_ray_cluster_sdk_auth(self):
         self.run_mnist_raycluster_sdk_oauth()
@@ -57,8 +58,7 @@ class TestMNISTRayClusterUp:
             cluster.up()
             cluster.status()
             # wait for raycluster to be Ready
-            # cluster.wait_ready() #temporarily broken
-            sleep(60)
+            cluster.wait_ready()
             cluster.status()
             # Check cluster details
             cluster.details()
