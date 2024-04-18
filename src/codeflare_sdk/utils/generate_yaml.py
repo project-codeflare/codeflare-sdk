@@ -277,14 +277,6 @@ def update_ca_secret(ca_secret_item, cluster_name, namespace):
     data["ca.key"], data["ca.crt"] = generate_cert.generate_ca_cert(365)
 
 
-def enable_local_interactive(resources):  # pragma: no cover
-    item = resources["resources"].get("GenericItems")[0]
-
-    item["generictemplate"]["metadata"]["annotations"][
-        "sdk.codeflare.dev/local_interactive"
-    ] = "True"
-
-
 def del_from_list_by_name(l: list, target: typing.List[str]) -> list:
     return [x for x in l if x["name"] not in target]
 
@@ -454,7 +446,6 @@ def generate_appwrapper(
     mcad: bool,
     instance_types: list,
     env,
-    local_interactive: bool,
     image_pull_secrets: list,
     dispatch_priority: str,
     priority_val: int,
@@ -504,9 +495,6 @@ def generate_appwrapper(
         head_memory,
         head_gpus,
     )
-
-    if local_interactive:
-        enable_local_interactive(resources)
 
     ca_secret_item = resources["resources"].get("GenericItems")[1]
     update_ca_secret(ca_secret_item, cluster_name, namespace)
