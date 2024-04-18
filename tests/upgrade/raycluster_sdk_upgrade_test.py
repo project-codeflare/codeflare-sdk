@@ -41,16 +41,16 @@ class TestMNISTRayClusterUp:
                 name="mnist",
                 namespace=self.namespace,
                 num_workers=1,
-                head_cpus="1",
+                head_cpus=1,
                 head_memory=2,
-                min_cpus="1",
+                min_cpus=1,
                 max_cpus=1,
                 min_memory=1,
                 max_memory=2,
                 num_gpus=0,
-                instascale=False,
                 image=ray_image,
                 write_to_file=True,
+                verify_tls=False,
             )
         )
 
