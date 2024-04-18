@@ -508,9 +508,6 @@ def generate_appwrapper(
     if local_interactive:
         enable_local_interactive(resources)
 
-    # else:
-    #     disable_raycluster_tls(resources["resources"])
-
     ca_secret_item = resources["resources"].get("GenericItems")[1]
     update_ca_secret(ca_secret_item, cluster_name, namespace)
 
