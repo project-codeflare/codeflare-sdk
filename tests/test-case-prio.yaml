@@ -214,16 +214,4 @@ spec:
                     optional: true
                   name: odh-ca-cert
       replicas: 1
-    - generictemplate:
-        apiVersion: v1
-        data:
-          ca.crt: ca-field
-          ca.key: ca-field
-        kind: Secret
-        metadata:
-          labels:
-            odh-ray-cluster-service: prio-test-cluster-head-svc
-          name: ca-secret-prio-test-cluster
-          namespace: ns
-      replicas: 1
     Items: []

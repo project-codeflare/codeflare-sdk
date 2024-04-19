@@ -259,65 +259,9 @@ def test_config_creation():
     assert config.mcad == True
 
 
-def ca_secret_support(path, mcad: bool):
-    # Given that the secret is always random we need to set it to a static value for the tests to pass
-    if mcad:
-        with open(path, "r") as file:
-            try:
-                yaml_file = yaml.safe_load(file)
-            except yaml.YAMLError as exc:
-                print(exc)
-        resources = yaml_file.get("spec", "resources")
-        ca_secret_item = resources["resources"].get("GenericItems")[1]
-        data = ca_secret_item.get("generictemplate", {}).get("data")
-        data["ca.key"] = "ca-field"
-        data["ca.crt"] = "ca-field"
-        with open(path, "w") as outfile:
-            yaml.dump(yaml_file, outfile, default_flow_style=False)
-    else:
-        # Load the YAML file
-        with open(path, "r") as f:
-            data = list(yaml.safe_load_all(f))
-
-            # Find the Secret entry and update the fields
-            for item in data:
-                if item.get("kind") == "Secret":
-                    item["data"]["ca.crt"] = "ca-field"
-                    item["data"]["ca.key"] = "ca-field"
-                    break
-        with open(path, "w") as f:
-            for item in data:
-                f.write("---\n")
-                yaml.dump(item, f, default_flow_style=False)
-
-
-def ca_secret_support_no_write(yaml_file, mcad: bool):
-    if mcad:
-        file = yaml.safe_load(yaml_file)
-        resources = file.get("spec", "resources")
-
-        ca_secret_item = resources["resources"].get("GenericItems")[1]
-        data = ca_secret_item.get("generictemplate", {}).get("data")
-        data["ca.key"] = "ca-field"
-        data["ca.crt"] = "ca-field"
-        return file
-
-    else:
-        data = list(yaml.safe_load_all(yaml_file))
-        for item in data:
-            if item.get("kind") == "Secret":
-                item["data"]["ca.crt"] = "ca-field"
-                item["data"]["ca.key"] = "ca-field"
-                break
-
-        resources = "---\n" + "---\n".join([yaml.dump(item) for item in data])
-        return resources
-
-
 def test_cluster_creation(mocker):
     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     cluster = createClusterWithConfig(mocker)
-    ca_secret_support(f"{aw_dir}unit-test-cluster.yaml", True)
     assert cluster.app_wrapper_yaml == f"{aw_dir}unit-test-cluster.yaml"
     assert cluster.app_wrapper_name == "unit-test-cluster"
     assert filecmp.cmp(
@@ -384,7 +328,6 @@ def test_cluster_creation_no_mcad(mocker):
 
     assert cluster.app_wrapper_yaml == f"{aw_dir}unit-test-cluster-ray.yaml"
     assert cluster.app_wrapper_name == "unit-test-cluster-ray"
-    ca_secret_support(cluster.app_wrapper_yaml, False)
     assert filecmp.cmp(
         f"{aw_dir}unit-test-cluster-ray.yaml",
         f"{parent}/tests/test-case-no-mcad.yamls",
@@ -406,7 +349,6 @@ def test_cluster_creation_no_mcad_local_queue(mocker):
     config.write_to_file = True
     config.local_queue = "local-queue-default"
     cluster = Cluster(config)
-    ca_secret_support(cluster.app_wrapper_yaml, False)
     assert cluster.app_wrapper_yaml == f"{aw_dir}unit-test-cluster-ray.yaml"
     assert cluster.app_wrapper_name == "unit-test-cluster-ray"
     assert filecmp.cmp(
@@ -428,27 +370,18 @@ def test_cluster_creation_no_mcad_local_queue(mocker):
         machine_types=["cpu.small", "gpu.large"],
         image_pull_secrets=["unit-test-pull-secret"],
         image="quay.io/project-codeflare/ray:latest-py39-cu118",
-        write_to_file=False,
+        write_to_file=True,
         mcad=False,
         local_queue="local-queue-default",
     )
     cluster = Cluster(config)
-    test_resources = []
-    expected_resources = []
-
-    test_aw = yaml.load_all(
-        ca_secret_support_no_write(cluster.app_wrapper_yaml, False),
-        Loader=yaml.FullLoader,
-    )
-    for resource in test_aw:
-        test_resources.append(resource)
-    with open(
+    assert cluster.app_wrapper_yaml == f"{aw_dir}unit-test-cluster-ray.yaml"
+    assert cluster.app_wrapper_name == "unit-test-cluster-ray"
+    assert filecmp.cmp(
+        f"{aw_dir}unit-test-cluster-ray.yaml",
         f"{parent}/tests/test-case-no-mcad.yamls",
-    ) as f:
-        default_aw = yaml.load_all(f, Loader=yaml.FullLoader)
-        for resource in default_aw:
-            expected_resources.append(resource)
-    assert test_resources == expected_resources
+        shallow=True,
+    )
 
 
 def test_cluster_creation_priority(mocker):
@@ -466,7 +399,6 @@ def test_cluster_creation_priority(mocker):
         return_value={"spec": {"domain": "apps.cluster.awsroute.org"}},
     )
     cluster = Cluster(config)
-    ca_secret_support(cluster.app_wrapper_yaml, True)
     assert cluster.app_wrapper_yaml == f"{aw_dir}prio-test-cluster.yaml"
     assert cluster.app_wrapper_name == "prio-test-cluster"
     assert filecmp.cmp(
@@ -488,7 +420,7 @@ def test_default_cluster_creation(mocker):
         mcad=True,
     )
     cluster = Cluster(default_config)
-    test_aw = ca_secret_support_no_write(cluster.app_wrapper_yaml, True)
+    test_aw = yaml.load(cluster.app_wrapper_yaml, Loader=yaml.FullLoader)
 
     with open(
         f"{parent}/tests/test-default-appwrapper.yaml",

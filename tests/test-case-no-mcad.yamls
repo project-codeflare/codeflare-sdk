@@ -181,14 +181,3 @@ spec:
             name: odh-trusted-ca-bundle
             optional: true
           name: odh-ca-cert
----
-apiVersion: v1
-data:
-  ca.crt: ca-field
-  ca.key: ca-field
-kind: Secret
-metadata:
-  labels:
-    odh-ray-cluster-service: unit-test-cluster-ray-head-svc
-  name: ca-secret-unit-test-cluster-ray
-  namespace: ns
