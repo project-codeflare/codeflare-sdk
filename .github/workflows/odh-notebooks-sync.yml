@@ -28,7 +28,7 @@ env:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04-4core
     steps:
       - name: Clone repository and Sync
         run: |
