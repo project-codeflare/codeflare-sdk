@@ -139,12 +139,6 @@ spec:
                       memory: "8G"
                       nvidia.com/gpu: 0
                   volumeMounts:
-                  - name: ca-vol
-                    mountPath: "/home/ray/workspace/ca"
-                    readOnly: true
-                  - name: server-cert
-                    mountPath: "/home/ray/workspace/tls"
-                    readOnly: true
                   - mountPath: /etc/pki/tls/certs/odh-trusted-ca-bundle.crt
                     name: odh-trusted-ca-cert
                     subPath: odh-trusted-ca-bundle.crt
@@ -231,12 +225,6 @@ spec:
                       memory: "12G"
                       nvidia.com/gpu: "1"
                   volumeMounts:
-                  - name: ca-vol
-                    mountPath: "/home/ray/workspace/ca"
-                    readOnly: true
-                  - name: server-cert
-                    mountPath: "/home/ray/workspace/tls"
-                    readOnly: true
                   - mountPath: /etc/pki/tls/certs/odh-trusted-ca-bundle.crt
                     name: odh-trusted-ca-cert
                     subPath: odh-trusted-ca-bundle.crt
