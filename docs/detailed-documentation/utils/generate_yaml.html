@@ -116,20 +116,6 @@ def update_names(yaml, item, appwrapper_name, cluster_name, namespace):
     lower_meta[&#34;labels&#34;][&#34;workload.codeflare.dev/appwrapper&#34;] = appwrapper_name
     lower_meta[&#34;name&#34;] = cluster_name
     lower_meta[&#34;namespace&#34;] = namespace
-    lower_spec = item.get(&#34;generictemplate&#34;, {}).get(&#34;spec&#34;)
-    if is_openshift_cluster():
-        cookie_secret_env_var = {
-            &#34;name&#34;: &#34;COOKIE_SECRET&#34;,
-            &#34;valueFrom&#34;: {
-                &#34;secretKeyRef&#34;: {
-                    &#34;key&#34;: &#34;cookie_secret&#34;,
-                    &#34;name&#34;: f&#34;{cluster_name}-oauth-config&#34;,
-                }
-            },
-        }
-        lower_spec[&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;][&#34;containers&#34;][0][&#34;env&#34;].append(
-            cookie_secret_env_var
-        )
 
 
 def update_labels(yaml, instascale, instance_types):
@@ -311,104 +297,8 @@ def update_nodes(
                 update_resources(spec, min_cpu, max_cpu, min_memory, max_memory, gpu)
 
 
-def update_ca_secret(ca_secret_item, cluster_name, namespace):
-    from . import generate_cert
-
-    metadata = ca_secret_item.get(&#34;generictemplate&#34;, {}).get(&#34;metadata&#34;)
-    metadata[&#34;name&#34;] = f&#34;ca-secret-{cluster_name}&#34;
-    metadata[&#34;namespace&#34;] = namespace
-    metadata[&#34;labels&#34;][&#34;odh-ray-cluster-service&#34;] = f&#34;{cluster_name}-head-svc&#34;
-    data = ca_secret_item.get(&#34;generictemplate&#34;, {}).get(&#34;data&#34;)
-    data[&#34;ca.key&#34;], data[&#34;ca.crt&#34;] = generate_cert.generate_ca_cert(365)
-
-
-def enable_local_interactive(resources, cluster_name, namespace):  # pragma: no cover
-    from ..cluster.cluster import _get_ingress_domain
-
-    ca_secret_item = resources[&#34;resources&#34;].get(&#34;GenericItems&#34;)[1]
-    item = resources[&#34;resources&#34;].get(&#34;GenericItems&#34;)[0]
-    update_ca_secret(ca_secret_item, cluster_name, namespace)
-    # update_ca_secret_volumes
-    item[&#34;generictemplate&#34;][&#34;spec&#34;][&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;][&#34;volumes&#34;][0][
-        &#34;secret&#34;
-    ][&#34;secretName&#34;] = f&#34;ca-secret-{cluster_name}&#34;
-    item[&#34;generictemplate&#34;][&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][
-        &#34;volumes&#34;
-    ][0][&#34;secret&#34;][&#34;secretName&#34;] = f&#34;ca-secret-{cluster_name}&#34;
-    # update_tls_env
-    item[&#34;generictemplate&#34;][&#34;spec&#34;][&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;][&#34;containers&#34;][
-        0
-    ][&#34;env&#34;][1][&#34;value&#34;] = &#34;1&#34;
-    item[&#34;generictemplate&#34;][&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][
-        &#34;containers&#34;
-    ][0][&#34;env&#34;][1][&#34;value&#34;] = &#34;1&#34;
-    # update_init_container
-    command = item[&#34;generictemplate&#34;][&#34;spec&#34;][&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;][
-        &#34;initContainers&#34;
-    ][0].get(&#34;command&#34;)[2]
-
-    command = command.replace(&#34;deployment-name&#34;, cluster_name)
-
-    domain = &#34;&#34;  ## FIX - We can&#39;t retrieve ingress domain - move init container to CFO
-
-    command = command.replace(&#34;server-name&#34;, domain)
-    item[&#34;generictemplate&#34;][&#34;metadata&#34;][&#34;annotations&#34;][
-        &#34;sdk.codeflare.dev/local_interactive&#34;
-    ] = &#34;True&#34;
-
-    item[&#34;generictemplate&#34;][&#34;spec&#34;][&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;][
-        &#34;initContainers&#34;
-    ][0].get(&#34;command&#34;)[2] = command
-
-
 def del_from_list_by_name(l: list, target: typing.List[str]) -&gt; list:
     return [x for x in l if x[&#34;name&#34;] not in target]
-
-
-def disable_raycluster_tls(resources):
-    generic_template_spec = resources[&#34;GenericItems&#34;][0][&#34;generictemplate&#34;][&#34;spec&#34;]
-
-    headGroupTemplateSpec = generic_template_spec[&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;]
-    headGroupTemplateSpec[&#34;volumes&#34;] = del_from_list_by_name(
-        headGroupTemplateSpec.get(&#34;volumes&#34;, []),
-        [&#34;ca-vol&#34;, &#34;server-cert&#34;],
-    )
-
-    c: dict
-    for c in generic_template_spec[&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;][&#34;containers&#34;]:
-        c[&#34;volumeMounts&#34;] = del_from_list_by_name(
-            c.get(&#34;volumeMounts&#34;, []), [&#34;ca-vol&#34;, &#34;server-cert&#34;]
-        )
-
-    if &#34;initContainers&#34; in generic_template_spec[&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;]:
-        del generic_template_spec[&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;][&#34;initContainers&#34;]
-
-    for workerGroup in generic_template_spec.get(&#34;workerGroupSpecs&#34;, []):
-        workerGroupSpec = workerGroup[&#34;template&#34;][&#34;spec&#34;]
-        workerGroupSpec[&#34;volumes&#34;] = del_from_list_by_name(
-            workerGroupSpec.get(&#34;volumes&#34;, []),
-            [&#34;ca-vol&#34;, &#34;server-cert&#34;],
-        )
-        for c in workerGroup[&#34;template&#34;][&#34;spec&#34;].get(&#34;containers&#34;, []):
-            c[&#34;volumeMounts&#34;] = del_from_list_by_name(
-                c.get(&#34;volumeMounts&#34;, []), [&#34;ca-vol&#34;, &#34;server-cert&#34;]
-            )
-
-    del generic_template_spec[&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][
-        &#34;initContainers&#34;
-    ]
-
-    updated_items = []
-    for i in resources[&#34;GenericItems&#34;][:]:
-        if &#34;rayclient-deployment-ingress&#34; in i[&#34;generictemplate&#34;][&#34;metadata&#34;][&#34;name&#34;]:
-            continue
-        if &#34;rayclient-deployment-route&#34; in i[&#34;generictemplate&#34;][&#34;metadata&#34;][&#34;name&#34;]:
-            continue
-        if &#34;ca-secret-deployment-name&#34; in i[&#34;generictemplate&#34;][&#34;metadata&#34;][&#34;name&#34;]:
-            continue
-        updated_items.append(i)
-
-    resources[&#34;GenericItems&#34;] = updated_items
 
 
 def write_user_appwrapper(user_yaml, output_file_name):
@@ -421,75 +311,6 @@ def write_user_appwrapper(user_yaml, output_file_name):
         yaml.dump(user_yaml, outfile, default_flow_style=False)
 
     print(f&#34;Written to: {output_file_name}&#34;)
-
-
-def enable_openshift_oauth(user_yaml, cluster_name, namespace):
-    config_check()
-    k8_client = api_config_handler() or client.ApiClient()
-    tls_mount_location = &#34;/etc/tls/private&#34;
-    oauth_port = 8443
-    oauth_sa_name = f&#34;{cluster_name}-oauth-proxy&#34;
-    tls_secret_name = f&#34;{cluster_name}-proxy-tls-secret&#34;
-    tls_volume_name = &#34;proxy-tls-secret&#34;
-    port_name = &#34;oauth-proxy&#34;
-    oauth_sidecar = _create_oauth_sidecar_object(
-        namespace,
-        tls_mount_location,
-        oauth_port,
-        oauth_sa_name,
-        tls_volume_name,
-        port_name,
-    )
-    tls_secret_volume = client.V1Volume(
-        name=tls_volume_name,
-        secret=client.V1SecretVolumeSource(secret_name=tls_secret_name),
-    )
-    # allows for setting value of Cluster object when initializing object from an existing AppWrapper on cluster
-    user_yaml[&#34;metadata&#34;][&#34;annotations&#34;] = user_yaml[&#34;metadata&#34;].get(&#34;annotations&#34;, {})
-    ray_headgroup_pod = user_yaml[&#34;spec&#34;][&#34;resources&#34;][&#34;GenericItems&#34;][0][
-        &#34;generictemplate&#34;
-    ][&#34;spec&#34;][&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;]
-    ray_headgroup_pod[&#34;serviceAccount&#34;] = oauth_sa_name
-    ray_headgroup_pod[&#34;volumes&#34;] = ray_headgroup_pod.get(&#34;volumes&#34;, [])
-
-    # we use a generic api client here so that the serialization function doesn&#39;t need to be mocked for unit tests
-    ray_headgroup_pod[&#34;volumes&#34;].append(
-        client.ApiClient().sanitize_for_serialization(tls_secret_volume)
-    )
-    ray_headgroup_pod[&#34;containers&#34;].append(
-        client.ApiClient().sanitize_for_serialization(oauth_sidecar)
-    )
-
-
-def _create_oauth_sidecar_object(
-    namespace: str,
-    tls_mount_location: str,
-    oauth_port: int,
-    oauth_sa_name: str,
-    tls_volume_name: str,
-    port_name: str,
-) -&gt; client.V1Container:
-    return client.V1Container(
-        args=[
-            f&#34;--https-address=:{oauth_port}&#34;,
-            &#34;--provider=openshift&#34;,
-            f&#34;--openshift-service-account={oauth_sa_name}&#34;,
-            &#34;--upstream=http://localhost:8265&#34;,
-            f&#34;--tls-cert={tls_mount_location}/tls.crt&#34;,
-            f&#34;--tls-key={tls_mount_location}/tls.key&#34;,
-            &#34;--cookie-secret=$(COOKIE_SECRET)&#34;,
-            f&#39;--openshift-delegate-urls={{&#34;/&#34;:{{&#34;resource&#34;:&#34;pods&#34;,&#34;namespace&#34;:&#34;{namespace}&#34;,&#34;verb&#34;:&#34;get&#34;}}}}&#39;,
-        ],
-        image=&#34;registry.redhat.io/openshift4/ose-oauth-proxy@sha256:1ea6a01bf3e63cdcf125c6064cbd4a4a270deaf0f157b3eabb78f60556840366&#34;,
-        name=&#34;oauth-proxy&#34;,
-        ports=[client.V1ContainerPort(container_port=oauth_port, name=port_name)],
-        resources=client.V1ResourceRequirements(limits=None, requests=None),
-        volume_mounts=[
-            client.V1VolumeMount(
-                mount_path=tls_mount_location, name=tls_volume_name, read_only=True
-            )
-        ],
-    )
 
 
 def get_default_kueue_name(namespace: str):
@@ -599,7 +420,6 @@ def generate_appwrapper(
     mcad: bool,
     instance_types: list,
     env,
-    local_interactive: bool,
     image_pull_secrets: list,
     dispatch_priority: str,
     priority_val: int,
@@ -649,14 +469,6 @@ def generate_appwrapper(
         head_memory,
         head_gpus,
     )
-
-    if local_interactive:
-        enable_local_interactive(resources, cluster_name, namespace)
-    else:
-        disable_raycluster_tls(resources[&#34;resources&#34;])
-
-    if is_openshift_cluster():
-        enable_openshift_oauth(user_yaml, cluster_name, namespace)
 
     directory_path = os.path.expanduser(&#34;~/.codeflare/resources/&#34;)
     outfile = os.path.join(directory_path, appwrapper_name + &#34;.yaml&#34;)
@@ -695,156 +507,6 @@ def generate_appwrapper(
     return [x for x in l if x[&#34;name&#34;] not in target]</code></pre>
 </details>
 </dd>
-<dt id="codeflare_sdk.utils.generate_yaml.disable_raycluster_tls"><code class="name flex">
-<span>def <span class="ident">disable_raycluster_tls</span></span>(<span>resources)</span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def disable_raycluster_tls(resources):
-    generic_template_spec = resources[&#34;GenericItems&#34;][0][&#34;generictemplate&#34;][&#34;spec&#34;]
-
-    headGroupTemplateSpec = generic_template_spec[&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;]
-    headGroupTemplateSpec[&#34;volumes&#34;] = del_from_list_by_name(
-        headGroupTemplateSpec.get(&#34;volumes&#34;, []),
-        [&#34;ca-vol&#34;, &#34;server-cert&#34;],
-    )
-
-    c: dict
-    for c in generic_template_spec[&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;][&#34;containers&#34;]:
-        c[&#34;volumeMounts&#34;] = del_from_list_by_name(
-            c.get(&#34;volumeMounts&#34;, []), [&#34;ca-vol&#34;, &#34;server-cert&#34;]
-        )
-
-    if &#34;initContainers&#34; in generic_template_spec[&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;]:
-        del generic_template_spec[&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;][&#34;initContainers&#34;]
-
-    for workerGroup in generic_template_spec.get(&#34;workerGroupSpecs&#34;, []):
-        workerGroupSpec = workerGroup[&#34;template&#34;][&#34;spec&#34;]
-        workerGroupSpec[&#34;volumes&#34;] = del_from_list_by_name(
-            workerGroupSpec.get(&#34;volumes&#34;, []),
-            [&#34;ca-vol&#34;, &#34;server-cert&#34;],
-        )
-        for c in workerGroup[&#34;template&#34;][&#34;spec&#34;].get(&#34;containers&#34;, []):
-            c[&#34;volumeMounts&#34;] = del_from_list_by_name(
-                c.get(&#34;volumeMounts&#34;, []), [&#34;ca-vol&#34;, &#34;server-cert&#34;]
-            )
-
-    del generic_template_spec[&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][
-        &#34;initContainers&#34;
-    ]
-
-    updated_items = []
-    for i in resources[&#34;GenericItems&#34;][:]:
-        if &#34;rayclient-deployment-ingress&#34; in i[&#34;generictemplate&#34;][&#34;metadata&#34;][&#34;name&#34;]:
-            continue
-        if &#34;rayclient-deployment-route&#34; in i[&#34;generictemplate&#34;][&#34;metadata&#34;][&#34;name&#34;]:
-            continue
-        if &#34;ca-secret-deployment-name&#34; in i[&#34;generictemplate&#34;][&#34;metadata&#34;][&#34;name&#34;]:
-            continue
-        updated_items.append(i)
-
-    resources[&#34;GenericItems&#34;] = updated_items</code></pre>
-</details>
-</dd>
-<dt id="codeflare_sdk.utils.generate_yaml.enable_local_interactive"><code class="name flex">
-<span>def <span class="ident">enable_local_interactive</span></span>(<span>resources, cluster_name, namespace)</span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def enable_local_interactive(resources, cluster_name, namespace):  # pragma: no cover
-    from ..cluster.cluster import _get_ingress_domain
-
-    ca_secret_item = resources[&#34;resources&#34;].get(&#34;GenericItems&#34;)[1]
-    item = resources[&#34;resources&#34;].get(&#34;GenericItems&#34;)[0]
-    update_ca_secret(ca_secret_item, cluster_name, namespace)
-    # update_ca_secret_volumes
-    item[&#34;generictemplate&#34;][&#34;spec&#34;][&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;][&#34;volumes&#34;][0][
-        &#34;secret&#34;
-    ][&#34;secretName&#34;] = f&#34;ca-secret-{cluster_name}&#34;
-    item[&#34;generictemplate&#34;][&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][
-        &#34;volumes&#34;
-    ][0][&#34;secret&#34;][&#34;secretName&#34;] = f&#34;ca-secret-{cluster_name}&#34;
-    # update_tls_env
-    item[&#34;generictemplate&#34;][&#34;spec&#34;][&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;][&#34;containers&#34;][
-        0
-    ][&#34;env&#34;][1][&#34;value&#34;] = &#34;1&#34;
-    item[&#34;generictemplate&#34;][&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][
-        &#34;containers&#34;
-    ][0][&#34;env&#34;][1][&#34;value&#34;] = &#34;1&#34;
-    # update_init_container
-    command = item[&#34;generictemplate&#34;][&#34;spec&#34;][&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;][
-        &#34;initContainers&#34;
-    ][0].get(&#34;command&#34;)[2]
-
-    command = command.replace(&#34;deployment-name&#34;, cluster_name)
-
-    domain = &#34;&#34;  ## FIX - We can&#39;t retrieve ingress domain - move init container to CFO
-
-    command = command.replace(&#34;server-name&#34;, domain)
-    item[&#34;generictemplate&#34;][&#34;metadata&#34;][&#34;annotations&#34;][
-        &#34;sdk.codeflare.dev/local_interactive&#34;
-    ] = &#34;True&#34;
-
-    item[&#34;generictemplate&#34;][&#34;spec&#34;][&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;][
-        &#34;initContainers&#34;
-    ][0].get(&#34;command&#34;)[2] = command</code></pre>
-</details>
-</dd>
-<dt id="codeflare_sdk.utils.generate_yaml.enable_openshift_oauth"><code class="name flex">
-<span>def <span class="ident">enable_openshift_oauth</span></span>(<span>user_yaml, cluster_name, namespace)</span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def enable_openshift_oauth(user_yaml, cluster_name, namespace):
-    config_check()
-    k8_client = api_config_handler() or client.ApiClient()
-    tls_mount_location = &#34;/etc/tls/private&#34;
-    oauth_port = 8443
-    oauth_sa_name = f&#34;{cluster_name}-oauth-proxy&#34;
-    tls_secret_name = f&#34;{cluster_name}-proxy-tls-secret&#34;
-    tls_volume_name = &#34;proxy-tls-secret&#34;
-    port_name = &#34;oauth-proxy&#34;
-    oauth_sidecar = _create_oauth_sidecar_object(
-        namespace,
-        tls_mount_location,
-        oauth_port,
-        oauth_sa_name,
-        tls_volume_name,
-        port_name,
-    )
-    tls_secret_volume = client.V1Volume(
-        name=tls_volume_name,
-        secret=client.V1SecretVolumeSource(secret_name=tls_secret_name),
-    )
-    # allows for setting value of Cluster object when initializing object from an existing AppWrapper on cluster
-    user_yaml[&#34;metadata&#34;][&#34;annotations&#34;] = user_yaml[&#34;metadata&#34;].get(&#34;annotations&#34;, {})
-    ray_headgroup_pod = user_yaml[&#34;spec&#34;][&#34;resources&#34;][&#34;GenericItems&#34;][0][
-        &#34;generictemplate&#34;
-    ][&#34;spec&#34;][&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;]
-    ray_headgroup_pod[&#34;serviceAccount&#34;] = oauth_sa_name
-    ray_headgroup_pod[&#34;volumes&#34;] = ray_headgroup_pod.get(&#34;volumes&#34;, [])
-
-    # we use a generic api client here so that the serialization function doesn&#39;t need to be mocked for unit tests
-    ray_headgroup_pod[&#34;volumes&#34;].append(
-        client.ApiClient().sanitize_for_serialization(tls_secret_volume)
-    )
-    ray_headgroup_pod[&#34;containers&#34;].append(
-        client.ApiClient().sanitize_for_serialization(oauth_sidecar)
-    )</code></pre>
-</details>
-</dd>
 <dt id="codeflare_sdk.utils.generate_yaml.gen_names"><code class="name flex">
 <span>def <span class="ident">gen_names</span></span>(<span>name)</span>
 </code></dt>
@@ -865,7 +527,7 @@ def generate_appwrapper(
 </details>
 </dd>
 <dt id="codeflare_sdk.utils.generate_yaml.generate_appwrapper"><code class="name flex">
-<span>def <span class="ident">generate_appwrapper</span></span>(<span>name: str, namespace: str, head_cpus: int, head_memory: int, head_gpus: int, min_cpu: int, max_cpu: int, min_memory: int, max_memory: int, gpu: int, workers: int, template: str, image: str, instascale: bool, mcad: bool, instance_types: list, env, local_interactive: bool, image_pull_secrets: list, dispatch_priority: str, priority_val: int, write_to_file: bool, verify_tls: bool, local_queue: Optional[str])</span>
+<span>def <span class="ident">generate_appwrapper</span></span>(<span>name: str, namespace: str, head_cpus: int, head_memory: int, head_gpus: int, min_cpu: int, max_cpu: int, min_memory: int, max_memory: int, gpu: int, workers: int, template: str, image: str, instascale: bool, mcad: bool, instance_types: list, env, image_pull_secrets: list, dispatch_priority: str, priority_val: int, write_to_file: bool, verify_tls: bool, local_queue: Optional[str])</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -891,7 +553,6 @@ def generate_appwrapper(
     mcad: bool,
     instance_types: list,
     env,
-    local_interactive: bool,
     image_pull_secrets: list,
     dispatch_priority: str,
     priority_val: int,
@@ -941,14 +602,6 @@ def generate_appwrapper(
         head_memory,
         head_gpus,
     )
-
-    if local_interactive:
-        enable_local_interactive(resources, cluster_name, namespace)
-    else:
-        disable_raycluster_tls(resources[&#34;resources&#34;])
-
-    if is_openshift_cluster():
-        enable_openshift_oauth(user_yaml, cluster_name, namespace)
 
     directory_path = os.path.expanduser(&#34;~/.codeflare/resources/&#34;)
     outfile = os.path.join(directory_path, appwrapper_name + &#34;.yaml&#34;)
@@ -1137,26 +790,6 @@ def generate_appwrapper(
         spec.pop(&#34;affinity&#34;)</code></pre>
 </details>
 </dd>
-<dt id="codeflare_sdk.utils.generate_yaml.update_ca_secret"><code class="name flex">
-<span>def <span class="ident">update_ca_secret</span></span>(<span>ca_secret_item, cluster_name, namespace)</span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def update_ca_secret(ca_secret_item, cluster_name, namespace):
-    from . import generate_cert
-
-    metadata = ca_secret_item.get(&#34;generictemplate&#34;, {}).get(&#34;metadata&#34;)
-    metadata[&#34;name&#34;] = f&#34;ca-secret-{cluster_name}&#34;
-    metadata[&#34;namespace&#34;] = namespace
-    metadata[&#34;labels&#34;][&#34;odh-ray-cluster-service&#34;] = f&#34;{cluster_name}-head-svc&#34;
-    data = ca_secret_item.get(&#34;generictemplate&#34;, {}).get(&#34;data&#34;)
-    data[&#34;ca.key&#34;], data[&#34;ca.crt&#34;] = generate_cert.generate_ca_cert(365)</code></pre>
-</details>
-</dd>
 <dt id="codeflare_sdk.utils.generate_yaml.update_custompodresources"><code class="name flex">
 <span>def <span class="ident">update_custompodresources</span></span>(<span>item, min_cpu, max_cpu, min_memory, max_memory, gpu, workers, head_cpus, head_memory, head_gpus)</span>
 </code></dt>
@@ -1307,21 +940,7 @@ def generate_appwrapper(
     lower_meta = item.get(&#34;generictemplate&#34;, {}).get(&#34;metadata&#34;)
     lower_meta[&#34;labels&#34;][&#34;workload.codeflare.dev/appwrapper&#34;] = appwrapper_name
     lower_meta[&#34;name&#34;] = cluster_name
-    lower_meta[&#34;namespace&#34;] = namespace
-    lower_spec = item.get(&#34;generictemplate&#34;, {}).get(&#34;spec&#34;)
-    if is_openshift_cluster():
-        cookie_secret_env_var = {
-            &#34;name&#34;: &#34;COOKIE_SECRET&#34;,
-            &#34;valueFrom&#34;: {
-                &#34;secretKeyRef&#34;: {
-                    &#34;key&#34;: &#34;cookie_secret&#34;,
-                    &#34;name&#34;: f&#34;{cluster_name}-oauth-config&#34;,
-                }
-            },
-        }
-        lower_spec[&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;][&#34;containers&#34;][0][&#34;env&#34;].append(
-            cookie_secret_env_var
-        )</code></pre>
+    lower_meta[&#34;namespace&#34;] = namespace</code></pre>
 </details>
 </dd>
 <dt id="codeflare_sdk.utils.generate_yaml.update_nodes"><code class="name flex">
@@ -1506,9 +1125,6 @@ def generate_appwrapper(
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
 <li><code><a title="codeflare_sdk.utils.generate_yaml.del_from_list_by_name" href="#codeflare_sdk.utils.generate_yaml.del_from_list_by_name">del_from_list_by_name</a></code></li>
-<li><code><a title="codeflare_sdk.utils.generate_yaml.disable_raycluster_tls" href="#codeflare_sdk.utils.generate_yaml.disable_raycluster_tls">disable_raycluster_tls</a></code></li>
-<li><code><a title="codeflare_sdk.utils.generate_yaml.enable_local_interactive" href="#codeflare_sdk.utils.generate_yaml.enable_local_interactive">enable_local_interactive</a></code></li>
-<li><code><a title="codeflare_sdk.utils.generate_yaml.enable_openshift_oauth" href="#codeflare_sdk.utils.generate_yaml.enable_openshift_oauth">enable_openshift_oauth</a></code></li>
 <li><code><a title="codeflare_sdk.utils.generate_yaml.gen_names" href="#codeflare_sdk.utils.generate_yaml.gen_names">gen_names</a></code></li>
 <li><code><a title="codeflare_sdk.utils.generate_yaml.generate_appwrapper" href="#codeflare_sdk.utils.generate_yaml.generate_appwrapper">generate_appwrapper</a></code></li>
 <li><code><a title="codeflare_sdk.utils.generate_yaml.get_default_kueue_name" href="#codeflare_sdk.utils.generate_yaml.get_default_kueue_name">get_default_kueue_name</a></code></li>
@@ -1518,7 +1134,6 @@ def generate_appwrapper(
 <li><code><a title="codeflare_sdk.utils.generate_yaml.load_components" href="#codeflare_sdk.utils.generate_yaml.load_components">load_components</a></code></li>
 <li><code><a title="codeflare_sdk.utils.generate_yaml.read_template" href="#codeflare_sdk.utils.generate_yaml.read_template">read_template</a></code></li>
 <li><code><a title="codeflare_sdk.utils.generate_yaml.update_affinity" href="#codeflare_sdk.utils.generate_yaml.update_affinity">update_affinity</a></code></li>
-<li><code><a title="codeflare_sdk.utils.generate_yaml.update_ca_secret" href="#codeflare_sdk.utils.generate_yaml.update_ca_secret">update_ca_secret</a></code></li>
 <li><code><a title="codeflare_sdk.utils.generate_yaml.update_custompodresources" href="#codeflare_sdk.utils.generate_yaml.update_custompodresources">update_custompodresources</a></code></li>
 <li><code><a title="codeflare_sdk.utils.generate_yaml.update_env" href="#codeflare_sdk.utils.generate_yaml.update_env">update_env</a></code></li>
 <li><code><a title="codeflare_sdk.utils.generate_yaml.update_image" href="#codeflare_sdk.utils.generate_yaml.update_image">update_image</a></code></li>
