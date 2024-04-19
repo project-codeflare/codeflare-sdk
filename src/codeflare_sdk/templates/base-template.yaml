@@ -264,15 +264,3 @@ spec:
                     - key: odh-ca-bundle.crt
                       path: odh-ca-bundle.crt
                     optional: true
-    - replicas: 1
-      generictemplate:
-        apiVersion: v1
-        data:
-          ca.crt: generated_crt
-          ca.key: generated_key
-        kind: Secret
-        metadata:
-          name: ca-secret-deployment-name
-          labels:
-            # allows me to return name of service that Ray operator creates
-            odh-ray-cluster-service: deployment-name-head-svc
