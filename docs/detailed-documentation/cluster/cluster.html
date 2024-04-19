@@ -121,7 +121,6 @@ class Cluster:
         if self._job_submission_client:
             return self._job_submission_client
         if is_openshift_cluster():
-            print(k8client.configuration.get_api_key_with_prefix(&#34;authorization&#34;))
             self._job_submission_client = JobSubmissionClient(
                 self.cluster_dashboard_uri(),
                 headers=self._client_headers,
@@ -212,7 +211,6 @@ class Cluster:
         mcad = self.config.mcad
         instance_types = self.config.machine_types
         env = self.config.envs
-        local_interactive = self.config.local_interactive
         image_pull_secrets = self.config.image_pull_secrets
         dispatch_priority = self.config.dispatch_priority
         write_to_file = self.config.write_to_file
@@ -236,7 +234,6 @@ class Cluster:
             mcad=mcad,
             instance_types=instance_types,
             env=env,
-            local_interactive=local_interactive,
             image_pull_secrets=image_pull_secrets,
             dispatch_priority=dispatch_priority,
             priority_val=priority_val,
@@ -512,13 +509,6 @@ class Cluster:
         verify_tls=True,
     ):
         config_check()
-        if (
-            rc[&#34;metadata&#34;][&#34;annotations&#34;][&#34;sdk.codeflare.dev/local_interactive&#34;]
-            == &#34;True&#34;
-        ):
-            local_interactive = True
-        else:
-            local_interactive = False
         machine_types = (
             rc[&#34;metadata&#34;][&#34;labels&#34;][&#34;orderedinstance&#34;].split(&#34;_&#34;)
             if &#34;orderedinstance&#34; in rc[&#34;metadata&#34;][&#34;labels&#34;]
@@ -559,7 +549,6 @@ class Cluster:
             image=rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][&#34;containers&#34;][
                 0
             ][&#34;image&#34;],
-            local_interactive=local_interactive,
             mcad=mcad,
             write_to_file=write_to_file,
             verify_tls=verify_tls,
@@ -567,18 +556,27 @@ class Cluster:
         return Cluster(cluster_config)
 
     def local_client_url(self):
-        if self.config.local_interactive == True:
-            ingress_domain = _get_ingress_domain(self)
-            return f&#34;ray://{ingress_domain}&#34;
-        else:
-            return &#34;None&#34;
+        ingress_domain = _get_ingress_domain(self)
+        return f&#34;ray://{ingress_domain}&#34;
 
     def _component_resources_up(
         self, namespace: str, api_instance: client.CustomObjectsApi
     ):
         if self.config.write_to_file:
             with open(self.app_wrapper_yaml) as f:
-                yamls = yaml.load_all(f, Loader=yaml.FullLoader)
+                yamls = list(yaml.load_all(f, Loader=yaml.FullLoader))
+                for resource in yamls:
+                    enable_ingress = (
+                        resource.get(&#34;spec&#34;, {})
+                        .get(&#34;headGroupSpec&#34;, {})
+                        .get(&#34;enableIngress&#34;)
+                    )
+                    if resource[&#34;kind&#34;] == &#34;RayCluster&#34; and enable_ingress is not False:
+                        name = resource[&#34;metadata&#34;][&#34;name&#34;]
+                        print(
+                            f&#34;Forbidden: RayCluster &#39;{name}&#39; has &#39;enableIngress&#39; set to &#39;True&#39; or is unset.&#34;
+                        )
+                        return
                 _create_resources(yamls, namespace, api_instance)
         else:
             yamls = yaml.load_all(self.app_wrapper_yaml, Loader=yaml.FullLoader)
@@ -699,13 +697,6 @@ def _delete_resources(
                 plural=&#34;rayclusters&#34;,
                 name=name,
             )
-        elif resource[&#34;kind&#34;] == &#34;Secret&#34;:
-            name = resource[&#34;metadata&#34;][&#34;name&#34;]
-            secret_instance = client.CoreV1Api(api_config_handler())
-            secret_instance.delete_namespaced_secret(
-                namespace=namespace,
-                name=name,
-            )
 
 
 def _create_resources(yamls, namespace: str, api_instance: client.CustomObjectsApi):
@@ -716,12 +707,6 @@ def _create_resources(yamls, namespace: str, api_instance: client.CustomObjectsA
                 version=&#34;v1&#34;,
                 namespace=namespace,
                 plural=&#34;rayclusters&#34;,
-                body=resource,
-            )
-        elif resource[&#34;kind&#34;] == &#34;Secret&#34;:
-            secret_instance = client.CoreV1Api(api_config_handler())
-            secret_instance.create_namespaced_secret(
-                namespace=namespace,
                 body=resource,
             )
 
@@ -1185,7 +1170,6 @@ request.</p></div>
         if self._job_submission_client:
             return self._job_submission_client
         if is_openshift_cluster():
-            print(k8client.configuration.get_api_key_with_prefix(&#34;authorization&#34;))
             self._job_submission_client = JobSubmissionClient(
                 self.cluster_dashboard_uri(),
                 headers=self._client_headers,
@@ -1276,7 +1260,6 @@ request.</p></div>
         mcad = self.config.mcad
         instance_types = self.config.machine_types
         env = self.config.envs
-        local_interactive = self.config.local_interactive
         image_pull_secrets = self.config.image_pull_secrets
         dispatch_priority = self.config.dispatch_priority
         write_to_file = self.config.write_to_file
@@ -1300,7 +1283,6 @@ request.</p></div>
             mcad=mcad,
             instance_types=instance_types,
             env=env,
-            local_interactive=local_interactive,
             image_pull_secrets=image_pull_secrets,
             dispatch_priority=dispatch_priority,
             priority_val=priority_val,
@@ -1576,13 +1558,6 @@ request.</p></div>
         verify_tls=True,
     ):
         config_check()
-        if (
-            rc[&#34;metadata&#34;][&#34;annotations&#34;][&#34;sdk.codeflare.dev/local_interactive&#34;]
-            == &#34;True&#34;
-        ):
-            local_interactive = True
-        else:
-            local_interactive = False
         machine_types = (
             rc[&#34;metadata&#34;][&#34;labels&#34;][&#34;orderedinstance&#34;].split(&#34;_&#34;)
             if &#34;orderedinstance&#34; in rc[&#34;metadata&#34;][&#34;labels&#34;]
@@ -1623,7 +1598,6 @@ request.</p></div>
             image=rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][&#34;containers&#34;][
                 0
             ][&#34;image&#34;],
-            local_interactive=local_interactive,
             mcad=mcad,
             write_to_file=write_to_file,
             verify_tls=verify_tls,
@@ -1631,18 +1605,27 @@ request.</p></div>
         return Cluster(cluster_config)
 
     def local_client_url(self):
-        if self.config.local_interactive == True:
-            ingress_domain = _get_ingress_domain(self)
-            return f&#34;ray://{ingress_domain}&#34;
-        else:
-            return &#34;None&#34;
+        ingress_domain = _get_ingress_domain(self)
+        return f&#34;ray://{ingress_domain}&#34;
 
     def _component_resources_up(
         self, namespace: str, api_instance: client.CustomObjectsApi
     ):
         if self.config.write_to_file:
             with open(self.app_wrapper_yaml) as f:
-                yamls = yaml.load_all(f, Loader=yaml.FullLoader)
+                yamls = list(yaml.load_all(f, Loader=yaml.FullLoader))
+                for resource in yamls:
+                    enable_ingress = (
+                        resource.get(&#34;spec&#34;, {})
+                        .get(&#34;headGroupSpec&#34;, {})
+                        .get(&#34;enableIngress&#34;)
+                    )
+                    if resource[&#34;kind&#34;] == &#34;RayCluster&#34; and enable_ingress is not False:
+                        name = resource[&#34;metadata&#34;][&#34;name&#34;]
+                        print(
+                            f&#34;Forbidden: RayCluster &#39;{name}&#39; has &#39;enableIngress&#39; set to &#39;True&#39; or is unset.&#34;
+                        )
+                        return
                 _create_resources(yamls, namespace, api_instance)
         else:
             yamls = yaml.load_all(self.app_wrapper_yaml, Loader=yaml.FullLoader)
@@ -1675,7 +1658,6 @@ def job_client(self):
     if self._job_submission_client:
         return self._job_submission_client
     if is_openshift_cluster():
-        print(k8client.configuration.get_api_key_with_prefix(&#34;authorization&#34;))
         self._job_submission_client = JobSubmissionClient(
             self.cluster_dashboard_uri(),
             headers=self._client_headers,
@@ -1824,7 +1806,6 @@ the specifications of the ClusterConfiguration.</p></div>
     mcad = self.config.mcad
     instance_types = self.config.machine_types
     env = self.config.envs
-    local_interactive = self.config.local_interactive
     image_pull_secrets = self.config.image_pull_secrets
     dispatch_priority = self.config.dispatch_priority
     write_to_file = self.config.write_to_file
@@ -1848,7 +1829,6 @@ the specifications of the ClusterConfiguration.</p></div>
         mcad=mcad,
         instance_types=instance_types,
         env=env,
-        local_interactive=local_interactive,
         image_pull_secrets=image_pull_secrets,
         dispatch_priority=dispatch_priority,
         priority_val=priority_val,
@@ -1953,13 +1933,6 @@ associated with the cluster.</p></div>
     verify_tls=True,
 ):
     config_check()
-    if (
-        rc[&#34;metadata&#34;][&#34;annotations&#34;][&#34;sdk.codeflare.dev/local_interactive&#34;]
-        == &#34;True&#34;
-    ):
-        local_interactive = True
-    else:
-        local_interactive = False
     machine_types = (
         rc[&#34;metadata&#34;][&#34;labels&#34;][&#34;orderedinstance&#34;].split(&#34;_&#34;)
         if &#34;orderedinstance&#34; in rc[&#34;metadata&#34;][&#34;labels&#34;]
@@ -2000,7 +1973,6 @@ associated with the cluster.</p></div>
         image=rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][&#34;containers&#34;][
             0
         ][&#34;image&#34;],
-        local_interactive=local_interactive,
         mcad=mcad,
         write_to_file=write_to_file,
         verify_tls=verify_tls,
@@ -2092,11 +2064,8 @@ associated with the cluster.</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def local_client_url(self):
-    if self.config.local_interactive == True:
-        ingress_domain = _get_ingress_domain(self)
-        return f&#34;ray://{ingress_domain}&#34;
-    else:
-        return &#34;None&#34;</code></pre>
+    ingress_domain = _get_ingress_domain(self)
+    return f&#34;ray://{ingress_domain}&#34;</code></pre>
 </details>
 </dd>
 <dt id="codeflare_sdk.cluster.cluster.Cluster.status"><code class="name flex">
