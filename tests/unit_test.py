@@ -268,7 +268,6 @@ def test_config_creation():
     assert config.instascale
     assert config.machine_types == ["cpu.small", "gpu.large"]
     assert config.image_pull_secrets == ["unit-test-pull-secret"]
-    assert config.dispatch_priority == None
     assert config.appwrapper == True
 
 
@@ -409,30 +408,6 @@ def test_cluster_creation_no_mcad_local_queue(mocker):
     assert filecmp.cmp(
         f"{aw_dir}unit-test-cluster-ray.yaml",
         f"{parent}/tests/test-case-no-mcad.yamls",
-        shallow=True,
-    )
-
-
-def test_cluster_creation_priority(mocker):
-    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
-    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
-    mocker.patch(
-        "kubernetes.client.CustomObjectsApi.list_cluster_custom_object",
-        return_value={"items": [{"metadata": {"name": "default"}, "value": 10}]},
-    )
-    config = createClusterConfig()
-    config.name = "prio-test-cluster"
-    config.dispatch_priority = "default"
-    mocker.patch(
-        "kubernetes.client.CustomObjectsApi.get_cluster_custom_object",
-        return_value={"spec": {"domain": "apps.cluster.awsroute.org"}},
-    )
-    cluster = Cluster(config)
-    assert cluster.app_wrapper_yaml == f"{aw_dir}prio-test-cluster.yaml"
-    assert cluster.app_wrapper_name == "prio-test-cluster"
-    assert filecmp.cmp(
-        f"{aw_dir}prio-test-cluster.yaml",
-        f"{parent}/tests/test-case-prio.yaml",
         shallow=True,
     )
 
@@ -3255,7 +3230,6 @@ def test_rjc_list_jobs(ray_job_client, mocker):
 # Make sure to always keep this function last
 def test_cleanup():
     os.remove(f"{aw_dir}unit-test-cluster.yaml")
-    os.remove(f"{aw_dir}prio-test-cluster.yaml")
     os.remove(f"{aw_dir}test.yaml")
     os.remove(f"{aw_dir}raytest2.yaml")
     os.remove(f"{aw_dir}unit-test-cluster-ray.yaml")

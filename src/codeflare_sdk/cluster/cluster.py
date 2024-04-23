@@ -103,26 +103,6 @@ class Cluster:
             )
         return self._job_submission_client
 
-    def evaluate_dispatch_priority(self):
-        priority_class = self.config.dispatch_priority
-
-        try:
-            config_check()
-            api_instance = client.CustomObjectsApi(api_config_handler())
-            priority_classes = api_instance.list_cluster_custom_object(
-                group="scheduling.k8s.io",
-                version="v1",
-                plural="priorityclasses",
-            )
-        except Exception as e:  # pragma: no cover
-            return _kube_api_error_handling(e)
-
-        for pc in priority_classes["items"]:
-            if pc["metadata"]["name"] == priority_class:
-                return pc["value"]
-        print(f"Priority class {priority_class} is not available in the cluster")
-        return None
-
     def validate_image_config(self):
         """
         Validates that the image configuration is not empty.
@@ -152,18 +132,6 @@ class Cluster:
         self.validate_image_config()
 
         # Before attempting to create the cluster AW, let's evaluate the ClusterConfig
-        if self.config.dispatch_priority:
-            if not self.config.appwrapper:
-                raise ValueError(
-                    "Invalid Cluster Configuration, cannot have dispatch priority without MCAD"
-                )
-            priority_val = self.evaluate_dispatch_priority()
-            if priority_val == None:
-                raise ValueError(
-                    "Invalid Cluster Configuration, AppWrapper not generated"
-                )
-        else:
-            priority_val = None
 
         name = self.config.name
         namespace = self.config.namespace
@@ -183,7 +151,6 @@ class Cluster:
         instance_types = self.config.machine_types
         env = self.config.envs
         image_pull_secrets = self.config.image_pull_secrets
-        dispatch_priority = self.config.dispatch_priority
         write_to_file = self.config.write_to_file
         verify_tls = self.config.verify_tls
         local_queue = self.config.local_queue
@@ -207,8 +174,6 @@ class Cluster:
             instance_types=instance_types,
             env=env,
             image_pull_secrets=image_pull_secrets,
-            dispatch_priority=dispatch_priority,
-            priority_val=priority_val,
             write_to_file=write_to_file,
             verify_tls=verify_tls,
             local_queue=local_queue,
