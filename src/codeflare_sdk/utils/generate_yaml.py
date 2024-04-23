@@ -140,8 +140,8 @@ def update_custompodresources(
                 # Leave head node resources as template default
                 resource["requests"]["cpu"] = head_cpus
                 resource["limits"]["cpu"] = head_cpus
-                resource["requests"]["memory"] = str(head_memory) + "G"
-                resource["limits"]["memory"] = str(head_memory) + "G"
+                resource["requests"]["memory"] = head_memory
+                resource["limits"]["memory"] = head_memory
                 resource["requests"]["nvidia.com/gpu"] = head_gpus
                 resource["limits"]["nvidia.com/gpu"] = head_gpus
 
@@ -158,9 +158,9 @@ def update_custompodresources(
                                     resource[k][spec] = min_cpu
                             if spec == "memory":
                                 if k == "limits":
-                                    resource[k][spec] = str(max_memory) + "G"
+                                    resource[k][spec] = max_memory
                                 else:
-                                    resource[k][spec] = str(min_memory) + "G"
+                                    resource[k][spec] = min_memory
                             if spec == "nvidia.com/gpu":
                                 if i == 0:
                                     resource[k][spec] = 0
@@ -213,12 +213,12 @@ def update_resources(spec, min_cpu, max_cpu, min_memory, max_memory, gpu):
         requests = resource.get("resources").get("requests")
         if requests is not None:
             requests["cpu"] = min_cpu
-            requests["memory"] = str(min_memory) + "G"
+            requests["memory"] = min_memory
             requests["nvidia.com/gpu"] = gpu
         limits = resource.get("resources").get("limits")
         if limits is not None:
             limits["cpu"] = max_cpu
-            limits["memory"] = str(max_memory) + "G"
+            limits["memory"] = max_memory
             limits["nvidia.com/gpu"] = gpu
 
 

@@ -20,6 +20,7 @@ Cluster object.
 
 from dataclasses import dataclass, field
 import pathlib
+import typing
 
 dir = pathlib.Path(__file__).parent.parent.resolve()
 
@@ -34,15 +35,15 @@ class ClusterConfiguration:
     name: str
     namespace: str = None
     head_info: list = field(default_factory=list)
-    head_cpus: int = 2
-    head_memory: int = 8
+    head_cpus: typing.Union[int, str] = 2
+    head_memory: typing.Union[int, str] = 8
     head_gpus: int = 0
     machine_types: list = field(default_factory=list)  # ["m4.xlarge", "g4dn.xlarge"]
-    min_cpus: int = 1
-    max_cpus: int = 1
+    min_cpus: typing.Union[int, str] = 1
+    max_cpus: typing.Union[int, str] = 1
     num_workers: int = 1
-    min_memory: int = 2
-    max_memory: int = 2
+    min_memory: typing.Union[int, str] = 2
+    max_memory: typing.Union[int, str] = 2
     num_gpus: int = 0
     template: str = f"{dir}/templates/base-template.yaml"
     instascale: bool = False
@@ -59,5 +60,23 @@ class ClusterConfiguration:
             print(
                 "Warning: TLS verification has been disabled - Endpoint checks will be bypassed"
             )
+        self._memory_to_string()
+        self._str_mem_no_unit_add_GB()
+
+    def _str_mem_no_unit_add_GB(self):
+        if isinstance(self.head_memory, str) and self.head_memory.isdecimal():
+            self.head_memory = f"{self.head_memory}G"
+        if isinstance(self.min_memory, str) and self.min_memory.isdecimal():
+            self.min_memory = f"{self.min_memory}G"
+        if isinstance(self.max_memory, str) and self.max_memory.isdecimal():
+            self.max_memory = f"{self.max_memory}G"
+
+    def _memory_to_string(self):
+        if isinstance(self.head_memory, int):
+            self.head_memory = f"{self.head_memory}G"
+        if isinstance(self.min_memory, int):
+            self.min_memory = f"{self.min_memory}G"
+        if isinstance(self.max_memory, int):
+            self.max_memory = f"{self.max_memory}G"
 
     local_queue: str = None

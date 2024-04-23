@@ -248,7 +248,7 @@ def test_config_creation():
     assert config.name == "unit-test-cluster" and config.namespace == "ns"
     assert config.num_workers == 2
     assert config.min_cpus == 3 and config.max_cpus == 4
-    assert config.min_memory == 5 and config.max_memory == 6
+    assert config.min_memory == "5G" and config.max_memory == "6G"
     assert config.num_gpus == 7
     assert config.image == "quay.io/project-codeflare/ray:latest-py39-cu118"
     assert config.template == f"{parent}/src/codeflare_sdk/templates/base-template.yaml"
@@ -849,8 +849,8 @@ def test_ray_details(mocker, capsys):
         name="raytest1",
         status=RayClusterStatus.READY,
         workers=1,
-        worker_mem_min=2,
-        worker_mem_max=2,
+        worker_mem_min="2G",
+        worker_mem_max="2G",
         worker_cpu=1,
         worker_gpu=0,
         namespace="ns",
@@ -909,7 +909,7 @@ def test_ray_details(mocker, capsys):
         " │   ╭── Workers ──╮  ╭───────── Worker specs(each) ─────────╮   │ \n"
         " │   │  # Workers  │  │  Memory      CPU         GPU         │   │ \n"
         " │   │             │  │                                      │   │ \n"
-        " │   │  1          │  │  2~2         1           0           │   │ \n"
+        " │   │  1          │  │  2G~2G       1           0           │   │ \n"
         " │   │             │  │                                      │   │ \n"
         " │   ╰─────────────╯  ╰──────────────────────────────────────╯   │ \n"
         " ╰───────────────────────────────────────────────────────────────╯ \n"
@@ -927,7 +927,7 @@ def test_ray_details(mocker, capsys):
         " │   ╭── Workers ──╮  ╭───────── Worker specs(each) ─────────╮   │ \n"
         " │   │  # Workers  │  │  Memory      CPU         GPU         │   │ \n"
         " │   │             │  │                                      │   │ \n"
-        " │   │  1          │  │  2~2         1           0           │   │ \n"
+        " │   │  1          │  │  2G~2G       1           0           │   │ \n"
         " │   │             │  │                                      │   │ \n"
         " │   ╰─────────────╯  ╰──────────────────────────────────────╯   │ \n"
         " ╰───────────────────────────────────────────────────────────────╯ \n"
@@ -943,7 +943,7 @@ def test_ray_details(mocker, capsys):
         "│   ╭── Workers ──╮  ╭───────── Worker specs(each) ─────────╮   │\n"
         "│   │  # Workers  │  │  Memory      CPU         GPU         │   │\n"
         "│   │             │  │                                      │   │\n"
-        "│   │  1          │  │  2~2         1           0           │   │\n"
+        "│   │  1          │  │  2G~2G       1           0           │   │\n"
         "│   │             │  │                                      │   │\n"
         "│   ╰─────────────╯  ╰──────────────────────────────────────╯   │\n"
         "╰───────────────────────────────────────────────────────────────╯\n"
@@ -2436,7 +2436,7 @@ def test_get_cluster_openshift(mocker):
         and "g4dn.xlarge" in cluster_config.machine_types
     )
     assert cluster_config.min_cpus == 1 and cluster_config.max_cpus == 1
-    assert cluster_config.min_memory == 2 and cluster_config.max_memory == 2
+    assert cluster_config.min_memory == "2G" and cluster_config.max_memory == "2G"
     assert cluster_config.num_gpus == 0
     assert (
         cluster_config.image
@@ -2468,7 +2468,7 @@ def test_get_cluster(mocker):
         and "g4dn.xlarge" in cluster_config.machine_types
     )
     assert cluster_config.min_cpus == 1 and cluster_config.max_cpus == 1
-    assert cluster_config.min_memory == 2 and cluster_config.max_memory == 2
+    assert cluster_config.min_memory == "2G" and cluster_config.max_memory == "2G"
     assert cluster_config.num_gpus == 0
     assert cluster_config.instascale
     assert (
