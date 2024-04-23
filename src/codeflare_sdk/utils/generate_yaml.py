@@ -426,7 +426,7 @@ def generate_appwrapper(
     template: str,
     image: str,
     instascale: bool,
-    mcad: bool,
+    appwrapper: bool,
     instance_types: list,
     env,
     image_pull_secrets: list,
@@ -484,13 +484,13 @@ def generate_appwrapper(
     outfile = os.path.join(directory_path, appwrapper_name + ".yaml")
 
     if write_to_file:
-        if mcad:
+        if appwrapper:
             write_user_appwrapper(user_yaml, outfile)
         else:
             write_components(user_yaml, outfile, namespace, local_queue, labels)
         return outfile
     else:
-        if mcad:
+        if appwrapper:
             user_yaml = load_appwrapper(user_yaml, name)
         else:
             user_yaml = load_components(user_yaml, name, namespace, local_queue, labels)

@@ -22,7 +22,7 @@ cluster = Cluster(
         num_gpus=0,
         instascale=False,
         image=ray_image,
-        mcad=True,
+        appwrapper=True,
     )
 )
 

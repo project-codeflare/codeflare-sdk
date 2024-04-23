@@ -269,7 +269,7 @@ def test_config_creation():
     assert config.machine_types == ["cpu.small", "gpu.large"]
     assert config.image_pull_secrets == ["unit-test-pull-secret"]
     assert config.dispatch_priority == None
-    assert config.mcad == True
+    assert config.appwrapper == True
 
 
 def test_cluster_creation(mocker):
@@ -345,8 +345,8 @@ def test_cluster_creation_no_mcad(mocker):
     config = createClusterConfig()
     config.name = "unit-test-cluster-ray"
     config.write_to_file = True
-    config.mcad = False
     config.labels = {"testlabel": "test", "testlabel2": "test"}
+    config.appwrapper = False
     cluster = Cluster(config)
 
     assert cluster.app_wrapper_yaml == f"{aw_dir}unit-test-cluster-ray.yaml"
@@ -372,7 +372,7 @@ def test_cluster_creation_no_mcad_local_queue(mocker):
     )
     config = createClusterConfig()
     config.name = "unit-test-cluster-ray"
-    config.mcad = False
+    config.appwrapper = False
     config.write_to_file = True
     config.local_queue = "local-queue-default"
     config.labels = {"testlabel": "test", "testlabel2": "test"}
@@ -399,7 +399,7 @@ def test_cluster_creation_no_mcad_local_queue(mocker):
         image_pull_secrets=["unit-test-pull-secret"],
         image="quay.io/project-codeflare/ray:latest-py39-cu118",
         write_to_file=True,
-        mcad=False,
+        appwrapper=False,
         local_queue="local-queue-default",
         labels={"testlabel": "test", "testlabel2": "test"},
     )
@@ -446,7 +446,7 @@ def test_default_cluster_creation(mocker):
     default_config = ClusterConfiguration(
         name="unit-test-default-cluster",
         image="quay.io/project-codeflare/ray:latest-py39-cu118",
-        mcad=True,
+        appwrapper=True,
     )
     cluster = Cluster(default_config)
     test_aw = yaml.load(cluster.app_wrapper_yaml, Loader=yaml.FullLoader)
@@ -587,7 +587,7 @@ def test_cluster_up_down_no_mcad(mocker):
     )
     config = createClusterConfig()
     config.name = "unit-test-cluster-ray"
-    config.mcad = False
+    config.appwrapper = False
     cluster = Cluster(config)
     cluster.up()
     cluster.down()
@@ -904,7 +904,7 @@ def test_ray_details(mocker, capsys):
             namespace="ns",
             image="quay.io/project-codeflare/ray:latest-py39-cu118",
             write_to_file=True,
-            mcad=True,
+            appwrapper=True,
         )
     )
     captured = capsys.readouterr()
@@ -2672,7 +2672,7 @@ def test_list_queue(mocker, capsys):
         "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
         side_effect=get_obj_none,
     )
-    list_all_queued("ns", mcad=True)
+    list_all_queued("ns", appwrapper=True)
     captured = capsys.readouterr()
     assert captured.out == (
         "╭──────────────────────────────────────────────────────────────────────────────╮\n"
@@ -2683,7 +2683,7 @@ def test_list_queue(mocker, capsys):
         "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
         side_effect=get_aw_obj,
     )
-    list_all_queued("ns", mcad=True)
+    list_all_queued("ns", appwrapper=True)
     captured = capsys.readouterr()
     assert captured.out == (
         "╭──────────────────────────╮\n"
@@ -2770,7 +2770,7 @@ def test_cluster_status(mocker):
             namespace="ns",
             image="quay.io/project-codeflare/ray:latest-py39-cu118",
             write_to_file=True,
-            mcad=True,
+            appwrapper=True,
         )
     )
     mocker.patch("codeflare_sdk.cluster.cluster._app_wrapper_status", return_value=None)
@@ -2865,7 +2865,7 @@ def test_wait_ready(mocker, capsys):
             namespace="ns",
             image="quay.io/project-codeflare/ray:latest-py39-cu118",
             write_to_file=True,
-            mcad=True,
+            appwrapper=True,
         )
     )
     try:

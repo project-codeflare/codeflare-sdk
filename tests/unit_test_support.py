@@ -14,7 +14,7 @@ def createClusterConfig():
         min_memory=5,
         max_memory=6,
         num_gpus=7,
-        mcad=True,
+        appwrapper=True,
         instascale=True,
         machine_types=["cpu.small", "gpu.large"],
         image_pull_secrets=["unit-test-pull-secret"],
