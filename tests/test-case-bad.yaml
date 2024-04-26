@@ -6,7 +6,6 @@ metadata:
   nam: unit-test-cluster
   namspace: ns
 spec:
-  priority: 9
   resources:
     GenericItems:
     - custompodresources:
@@ -58,15 +57,6 @@ spec:
             serviceType: ClusterIP
             template:
               spec:
-                affinity:
-                  nodeAffinity:
-                    requiredDuringSchedulingIgnoredDuringExecution:
-                      nodeSelectorTerms:
-                      - matchExpressions:
-                        - key: unit-test-cluster
-                          operator: In
-                          values:
-                          - unit-test-cluster
                 containers:
                 - env:
                   - name: MY_POD_IP
@@ -115,15 +105,6 @@ spec:
                 labels:
                   key: value
               spec:
-                affinity:
-                  nodeAffinity:
-                    requiredDuringSchedulingIgnoredDuringExecution:
-                      nodeSelectorTerms:
-                      - matchExpressions:
-                        - key: unit-test-cluster
-                          operator: In
-                          values:
-                          - unit-test-cluster
                 containers:
                 - env:
                   - name: MY_POD_IP
@@ -149,19 +130,3 @@ spec:
                       memory: 5G
                       nvidia.com/gpu: 7
       replicas: 1
-    - generictemplate:
-        apiVersion: route.openshift.io/v1
-        kind: Route
-        metadata:
-          labels:
-            odh-ray-cluster-service: unit-test-cluster-head-svc
-          name: ray-dashboard-unit-test-cluster
-          namespace: ns
-        spec:
-          port:
-            targetPort: dashboard
-          to:
-            kind: Service
-            name: unit-test-cluster-head-svc
-      replicas: 1
-    Items: []

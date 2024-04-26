@@ -3,11 +3,7 @@ kind: AppWrapper
 metadata:
   name: aw-kuberay
   namespace: default
-  #new addition
-  labels:
-    orderedinstance: "m4.xlarge_g4dn.xlarge"
 spec:
-  priority: 9
   resources:
     Items: []
     GenericItems:
@@ -103,16 +99,6 @@ spec:
             #pod template
             template:
               spec:
-                #new addition
-                affinity:
-                  nodeAffinity:
-                    requiredDuringSchedulingIgnoredDuringExecution:
-                      nodeSelectorTerms:
-                      - matchExpressions:
-                        - key: aw-kuberay
-                          operator: In
-                          values:
-                          - "aw-kuberay"
                 containers:
                 # The Ray head pod
                 - name: ray-head
@@ -197,15 +183,6 @@ spec:
                 # finalizers:
                 # - kubernetes
               spec:
-                affinity:
-                  nodeAffinity:
-                    requiredDuringSchedulingIgnoredDuringExecution:
-                      nodeSelectorTerms:
-                      - matchExpressions:
-                        - key: aw-kuberay
-                          operator: In
-                          values:
-                          - "aw-kuberay"
                 containers:
                 - name: machine-learning # must consist of lower case alphanumeric characters or '-', and must start and end with an alphanumeric character (e.g. 'my-name',  or '123-abc'
                   image: quay.io/project-codeflare/ray:latest-py39-cu118

@@ -87,16 +87,6 @@ def update_names(yaml, item, appwrapper_name, cluster_name, namespace):
     lower_meta["namespace"] = namespace
 
 
-def update_labels(yaml, instance_types):
-    metadata = yaml.get("metadata")
-    metadata.pop("labels")
-
-
-def update_priority(yaml, item):
-    spec = yaml.get("spec")
-    spec.pop("priority")
-
-
 def update_custompodresources(
     item,
     min_cpu,
@@ -145,10 +135,6 @@ def update_custompodresources(
                                     resource[k][spec] = gpu
     else:
         sys.exit("Error: malformed template")
-
-
-def update_affinity(spec, appwrapper_name):
-    spec.pop("affinity")
 
 
 def update_image(spec, image):
@@ -219,7 +205,6 @@ def update_nodes(
 
         for comp in [head, worker]:
             spec = comp.get("template").get("spec")
-            update_affinity(spec, appwrapper_name)
             update_image_pull_secrets(spec, image_pull_secrets)
             update_image(spec, image)
             update_env(spec, env)
@@ -411,8 +396,6 @@ def generate_appwrapper(
         cluster_name,
         namespace,
     )
-    update_labels(user_yaml, instance_types)
-    update_priority(user_yaml, item)
     update_custompodresources(
         item,
         min_cpu,
