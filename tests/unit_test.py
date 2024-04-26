@@ -1003,106 +1003,6 @@ def get_ray_obj(group, version, namespace, plural, cls=None):
                         "orderedinstance": "m4.xlarge_g4dn.xlarge",
                         "kueue.x-k8s.io/queue-name": "team-a-queue",
                     },
-                    "managedFields": [
-                        {
-                            "apiVersion": "ray.io/v1",
-                            "fieldsType": "FieldsV1",
-                            "fieldsV1": {
-                                "f:metadata": {
-                                    "f:labels": {
-                                        ".": {},
-                                        "f:appwrapper.mcad.ibm.com": {},
-                                        "f:controller-tools.k8s.io": {},
-                                        "f:resourceName": {},
-                                        "f:workload.codeflare.dev/appwrapper": {},
-                                    },
-                                    "f:ownerReferences": {
-                                        ".": {},
-                                        'k:{"uid":"a29b1a7a-0992-4860-a8d5-a689a751a3e8"}': {},
-                                    },
-                                },
-                                "f:spec": {
-                                    ".": {},
-                                    "f:autoscalerOptions": {
-                                        ".": {},
-                                        "f:idleTimeoutSeconds": {},
-                                        "f:imagePullPolicy": {},
-                                        "f:resources": {
-                                            ".": {},
-                                            "f:limits": {
-                                                ".": {},
-                                                "f:cpu": {},
-                                                "f:memory": {},
-                                            },
-                                            "f:requests": {
-                                                ".": {},
-                                                "f:cpu": {},
-                                                "f:memory": {},
-                                            },
-                                        },
-                                        "f:upscalingMode": {},
-                                    },
-                                    "f:enableInTreeAutoscaling": {},
-                                    "f:headGroupSpec": {
-                                        ".": {},
-                                        "f:rayStartParams": {
-                                            ".": {},
-                                            "f:block": {},
-                                            "f:dashboard-host": {},
-                                            "f:num-gpus": {},
-                                        },
-                                        "f:serviceType": {},
-                                        "f:template": {
-                                            ".": {},
-                                            "f:spec": {
-                                                ".": {},
-                                                "f:affinity": {
-                                                    ".": {},
-                                                    "f:nodeAffinity": {
-                                                        ".": {},
-                                                        "f:requiredDuringSchedulingIgnoredDuringExecution": {},
-                                                    },
-                                                },
-                                                "f:imagePullSecrets": {},
-                                                "f:volumes": {},
-                                            },
-                                        },
-                                    },
-                                    "f:rayVersion": {},
-                                    "f:workerGroupSpecs": {},
-                                },
-                            },
-                            "manager": "codeflare-operator",
-                            "operation": "Update",
-                            "time": "2024-03-05T09:55:37Z",
-                        },
-                        {
-                            "apiVersion": "ray.io/v1alpha1",
-                            "fieldsType": "FieldsV1",
-                            "fieldsV1": {
-                                "f:status": {
-                                    ".": {},
-                                    "f:desiredWorkerReplicas": {},
-                                    "f:endpoints": {
-                                        ".": {},
-                                        "f:client": {},
-                                        "f:dashboard": {},
-                                        "f:gcs": {},
-                                        "f:metrics": {},
-                                    },
-                                    "f:head": {".": {}, "f:serviceIP": {}},
-                                    "f:lastUpdateTime": {},
-                                    "f:maxWorkerReplicas": {},
-                                    "f:minWorkerReplicas": {},
-                                    "f:observedGeneration": {},
-                                }
-                            },
-                            "manager": "manager",
-                            "operation": "Update",
-                            "subresource": "status",
-                            "time": "2024-03-05T09:55:37Z",
-                        },
-                    ],
                     "name": "quicktest",
                     "namespace": "ns",
                     "ownerReferences": [
@@ -1673,65 +1573,8 @@ def get_aw_obj(group, version, namespace, plural):
                 "apiVersion": "workload.codeflare.dev/v1beta1",
                 "kind": "AppWrapper",
                 "metadata": {
-                    "annotations": {
-                        "kubectl.kubernetes.io/last-applied-configuration": '{"apiVersion":"codeflare.dev/v1beta1","kind":"AppWrapper","metadata":{"annotations":{},"name":"quicktest1","namespace":"ns"},"spec":{"resources":{"GenericItems":[{"custompodresources":[{"limits":{"cpu":2,"memory":"8G","nvidia.com/gpu":0},"replicas":1,"requests":{"cpu":2,"memory":"8G","nvidia.com/gpu":0}},{"limits":{"cpu":1,"memory":"2G","nvidia.com/gpu":0},"replicas":1,"requests":{"cpu":1,"memory":"2G","nvidia.com/gpu":0}}],"generictemplate":{"apiVersion":"ray.io/v1","kind":"RayCluster","metadata":{"labels":{"appwrapper.codeflare.dev":"quicktest1","controller-tools.k8s.io":"1.0"},"name":"quicktest1","namespace":"ns"},"spec":{"autoscalerOptions":{"idleTimeoutSeconds":60,"imagePullPolicy":"Always","resources":{"limits":{"cpu":"500m","memory":"512Mi"},"requests":{"cpu":"500m","memory":"512Mi"}},"upscalingMode":"Default"},"enableInTreeAutoscaling":false,"headGroupSpec":{"rayStartParams":{"block":"true","dashboard-host":"0.0.0.0","num-gpus":"0"},"serviceType":"ClusterIP","template":{"spec":{"containers":[{"image":"ghcr.io/foundation-model-stack/base:ray2.1.0-py38-gpu-pytorch1.12.0cu116-20221213-193103","imagePullPolicy":"Always","lifecycle":{"preStop":{"exec":{"command":["/bin/sh","-c","ray stop"]}}},"name":"ray-head","ports":[{"containerPort":6379,"name":"gcs"},{"containerPort":8265,"name":"dashboard"},{"containerPort":10001,"name":"client"}],"resources":{"limits":{"cpu":2,"memory":"8G","nvidia.com/gpu":0},"requests":{"cpu":2,"memory":"8G","nvidia.com/gpu":0}}}]}}},"rayVersion":"1.12.0","workerGroupSpecs":[{"groupName":"small-group-quicktest","maxReplicas":1,"minReplicas":1,"rayStartParams":{"block":"true","num-gpus":"0"},"replicas":1,"template":{"metadata":{"annotations":{"key":"value"},"labels":{"key":"value"}},"spec":{"containers":[{"env":[{"name":"MY_POD_IP","valueFrom":{"fieldRef":{"fieldPath":"status.podIP"}}}],"image":"ghcr.io/foundation-model-stack/base:ray2.1.0-py38-gpu-pytorch1.12.0cu116-20221213-193103","lifecycle":{"preStop":{"exec":{"command":["/bin/sh","-c","ray stop"]}}},"name":"machine-learning","resources":{"limits":{"cpu":1,"memory":"2G","nvidia.com/gpu":0},"requests":{"cpu":1,"memory":"2G","nvidia.com/gpu":0}}}],}}}]}},"replicas":1},{"generictemplate":{"apiVersion":"route.openshift.io/v1","kind":"Route","metadata":{"labels":{"odh-ray-cluster-service":"quicktest-head-svc"},"name":"ray-dashboard-quicktest","namespace":"default"},"spec":{"port":{"targetPort":"dashboard"},"to":{"kind":"Service","name":"quicktest-head-svc"}}},"replica":1}],"Items":[]}}}\n'
-                    },
-                    "creationTimestamp": "2023-02-22T16:26:07Z",
-                    "generation": 4,
-                    "managedFields": [
-                        {
-                            "apiVersion": "workload.codeflare.dev/v1beta1",
-                            "fieldsType": "FieldsV1",
-                            "fieldsV1": {
-                                "f:spec": {
-                                    "f:resources": {
-                                        "f:GenericItems": {},
-                                        "f:metadata": {},
-                                    },
-                                    "f:schedulingSpec": {},
-                                    "f:service": {".": {}, "f:spec": {}},
-                                },
-                                "f:status": {
-                                    ".": {},
-                                    "f:canrun": {},
-                                    "f:conditions": {},
-                                    "f:controllerfirsttimestamp": {},
-                                    "f:filterignore": {},
-                                    "f:queuejobstate": {},
-                                    "f:sender": {},
-                                    "f:state": {},
-                                    "f:systempriority": {},
-                                },
-                            },
-                            "manager": "Go-http-client",
-                            "operation": "Update",
-                            "time": "2023-02-22T16:26:07Z",
-                        },
-                        {
-                            "apiVersion": "workload.codeflare.dev/v1beta1",
-                            "fieldsType": "FieldsV1",
-                            "fieldsV1": {
-                                "f:metadata": {
-                                    "f:annotations": {
-                                        ".": {},
-                                        "f:kubectl.kubernetes.io/last-applied-configuration": {},
-                                    }
-                                },
-                                "f:spec": {
-                                    ".": {},
-                                    "f:priority": {},
-                                    "f:resources": {".": {}, "f:Items": {}},
-                                },
-                            },
-                            "manager": "kubectl-client-side-apply",
-                            "operation": "Update",
-                            "time": "2023-02-22T16:26:07Z",
-                        },
-                    ],
                     "name": "quicktest1",
                     "namespace": "ns",
-                    "resourceVersion": "9482384",
-                    "uid": "6334fc1b-471e-4876-8e7b-0b2277679235",
                 },
                 "spec": {
                     "resources": {
@@ -1999,65 +1842,8 @@ def get_aw_obj(group, version, namespace, plural):
                 "apiVersion": "workload.codeflare.dev/v1beta1",
                 "kind": "AppWrapper",
                 "metadata": {
-                    "annotations": {
-                        "kubectl.kubernetes.io/last-applied-configuration": '{"apiVersion":"codeflare.dev/v1beta1","kind":"AppWrapper","metadata":{"annotations":{},"name":"quicktest2","namespace":"ns"},"spec":{"resources":{"GenericItems":[{"custompodresources":[{"limits":{"cpu":2,"memory":"8G","nvidia.com/gpu":0},"replicas":1,"requests":{"cpu":2,"memory":"8G","nvidia.com/gpu":0}},{"limits":{"cpu":1,"memory":"2G","nvidia.com/gpu":0},"replicas":1,"requests":{"cpu":1,"memory":"2G","nvidia.com/gpu":0}}],"generictemplate":{"apiVersion":"ray.io/v1","kind":"RayCluster","metadata":{"labels":{"appwrapper.codeflare.dev":"quicktest2","controller-tools.k8s.io":"1.0"},"name":"quicktest2","namespace":"ns"},"spec":{"autoscalerOptions":{"idleTimeoutSeconds":60,"imagePullPolicy":"Always","resources":{"limits":{"cpu":"500m","memory":"512Mi"},"requests":{"cpu":"500m","memory":"512Mi"}},"upscalingMode":"Default"},"enableInTreeAutoscaling":false,"headGroupSpec":{"rayStartParams":{"block":"true","dashboard-host":"0.0.0.0","num-gpus":"0"},"serviceType":"ClusterIP","template":{"spec":{"containers":[{"image":"ghcr.io/foundation-model-stack/base:ray2.1.0-py38-gpu-pytorch1.12.0cu116-20221213-193103","imagePullPolicy":"Always","lifecycle":{"preStop":{"exec":{"command":["/bin/sh","-c","ray stop"]}}},"name":"ray-head","ports":[{"containerPort":6379,"name":"gcs"},{"containerPort":8265,"name":"dashboard"},{"containerPort":10001,"name":"client"}],"resources":{"limits":{"cpu":2,"memory":"8G","nvidia.com/gpu":0},"requests":{"cpu":2,"memory":"8G","nvidia.com/gpu":0}}}]}}},"rayVersion":"1.12.0","workerGroupSpecs":[{"groupName":"small-group-quicktest","maxReplicas":1,"minReplicas":1,"rayStartParams":{"block":"true","num-gpus":"0"},"replicas":1,"template":{"metadata":{"annotations":{"key":"value"},"labels":{"key":"value"}},"spec":{"containers":[{"env":[{"name":"MY_POD_IP","valueFrom":{"fieldRef":{"fieldPath":"status.podIP"}}}],"image":"ghcr.io/foundation-model-stack/base:ray2.1.0-py38-gpu-pytorch1.12.0cu116-20221213-193103","lifecycle":{"preStop":{"exec":{"command":["/bin/sh","-c","ray stop"]}}},"name":"machine-learning","resources":{"limits":{"cpu":1,"memory":"2G","nvidia.com/gpu":0},"requests":{"cpu":1,"memory":"2G","nvidia.com/gpu":0}}}],}}}]}},"replicas":1},{"generictemplate":{"apiVersion":"route.openshift.io/v1","kind":"Route","metadata":{"labels":{"odh-ray-cluster-service":"quicktest-head-svc"},"name":"ray-dashboard-quicktest","namespace":"default"},"spec":{"port":{"targetPort":"dashboard"},"to":{"kind":"Service","name":"quicktest-head-svc"}}},"replica":1}],"Items":[]}}}\n'
-                    },
-                    "creationTimestamp": "2023-02-22T16:26:07Z",
-                    "generation": 4,
-                    "managedFields": [
-                        {
-                            "apiVersion": "workload.codeflare.dev/v1beta1",
-                            "fieldsType": "FieldsV1",
-                            "fieldsV1": {
-                                "f:spec": {
-                                    "f:resources": {
-                                        "f:GenericItems": {},
-                                        "f:metadata": {},
-                                    },
-                                    "f:schedulingSpec": {},
-                                    "f:service": {".": {}, "f:spec": {}},
-                                },
-                                "f:status": {
-                                    ".": {},
-                                    "f:canrun": {},
-                                    "f:conditions": {},
-                                    "f:controllerfirsttimestamp": {},
-                                    "f:filterignore": {},
-                                    "f:queuejobstate": {},
-                                    "f:sender": {},
-                                    "f:state": {},
-                                    "f:systempriority": {},
-                                },
-                            },
-                            "manager": "Go-http-client",
-                            "operation": "Update",
-                            "time": "2023-02-22T16:26:07Z",
-                        },
-                        {
-                            "apiVersion": "workload.codeflare.dev/v1beta1",
-                            "fieldsType": "FieldsV1",
-                            "fieldsV1": {
-                                "f:metadata": {
-                                    "f:annotations": {
-                                        ".": {},
-                                        "f:kubectl.kubernetes.io/last-applied-configuration": {},
-                                    }
-                                },
-                                "f:spec": {
-                                    ".": {},
-                                    "f:priority": {},
-                                    "f:resources": {".": {}, "f:Items": {}},
-                                },
-                            },
-                            "manager": "kubectl-client-side-apply",
-                            "operation": "Update",
-                            "time": "2023-02-22T16:26:07Z",
-                        },
-                    ],
                     "name": "quicktest2",
                     "namespace": "ns",
-                    "resourceVersion": "9482384",
-                    "uid": "6334fc1b-471e-4876-8e7b-0b2277679235",
                 },
                 "spec": {
                     "resources": {
