@@ -274,25 +274,23 @@ class Cluster:
             appwrapper = _app_wrapper_status(self.config.name, self.config.namespace)
             if appwrapper:
                 if appwrapper.status in [
-                    AppWrapperStatus.RUNNING,
-                    AppWrapperStatus.COMPLETED,
-                    AppWrapperStatus.RUNNING_HOLD_COMPLETION,
+                    AppWrapperStatus.RESUMING,
+                    AppWrapperStatus.RESETTING,
                 ]:
                     ready = False
                     status = CodeFlareClusterStatus.STARTING
                 elif appwrapper.status in [
                     AppWrapperStatus.FAILED,
-                    AppWrapperStatus.DELETED,
                 ]:
                     ready = False
                     status = CodeFlareClusterStatus.FAILED  # should deleted be separate
                     return status, ready  # exit early, no need to check ray status
                 elif appwrapper.status in [
-                    AppWrapperStatus.PENDING,
-                    AppWrapperStatus.QUEUEING,
+                    AppWrapperStatus.SUSPENDED,
+                    AppWrapperStatus.SUSPENDING,
                 ]:
                     ready = False
-                    if appwrapper.status == AppWrapperStatus.PENDING:
+                    if appwrapper.status == AppWrapperStatus.SUSPENDED:
                         status = CodeFlareClusterStatus.QUEUED
                     else:
                         status = CodeFlareClusterStatus.QUEUEING
@@ -567,9 +565,7 @@ def list_all_queued(
     in a given namespace.
     """
     if appwrapper:
-        resources = _get_app_wrappers(
-            namespace, filter=[AppWrapperStatus.RUNNING, AppWrapperStatus.PENDING]
-        )
+        resources = _get_app_wrappers(namespace, filter=[AppWrapperStatus.SUSPENDED])
         if print_to_console:
             pretty_print.print_app_wrappers_status(resources)
     else:
@@ -909,18 +905,14 @@ def _map_to_ray_cluster(rc) -> Optional[RayCluster]:
 
 
 def _map_to_app_wrapper(aw) -> AppWrapper:
-    if "status" in aw and "canrun" in aw["status"]:
+    if "status" in aw:
         return AppWrapper(
             name=aw["metadata"]["name"],
             status=AppWrapperStatus(aw["status"]["state"].lower()),
-            can_run=aw["status"]["canrun"],
-            job_state=aw["status"]["queuejobstate"],
         )
     return AppWrapper(
         name=aw["metadata"]["name"],
-        status=AppWrapperStatus("queueing"),
-        can_run=False,
-        job_state="Still adding to queue",
+        status=AppWrapperStatus("suspended"),
     )
 
 

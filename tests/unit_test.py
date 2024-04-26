@@ -816,15 +816,11 @@ def test_print_no_cluster(capsys):
 def test_print_appwrappers(capsys):
     aw1 = AppWrapper(
         name="awtest1",
-        status=AppWrapperStatus.PENDING,
-        can_run=False,
-        job_state="queue-state",
+        status=AppWrapperStatus.SUSPENDED,
     )
     aw2 = AppWrapper(
         name="awtest2",
         status=AppWrapperStatus.RUNNING,
-        can_run=False,
-        job_state="queue-state",
     )
     try:
         print_app_wrappers_status([aw1, aw2])
@@ -832,18 +828,18 @@ def test_print_appwrappers(capsys):
         assert 1 == 0
     captured = capsys.readouterr()
     assert captured.out == (
-        "╭───────────────────────╮\n"
-        "│    🚀 Cluster Queue   │\n"
-        "│       Status 🚀       │\n"
-        "│ +---------+---------+ │\n"
-        "│ | Name    | Status  | │\n"
-        "│ +=========+=========+ │\n"
-        "│ | awtest1 | pending | │\n"
-        "│ |         |         | │\n"
-        "│ | awtest2 | running | │\n"
-        "│ |         |         | │\n"
-        "│ +---------+---------+ │\n"
-        "╰───────────────────────╯\n"
+        "╭─────────────────────────╮\n"
+        "│     🚀 Cluster Queue    │\n"
+        "│        Status 🚀        │\n"
+        "│ +---------+-----------+ │\n"
+        "│ | Name    | Status    | │\n"
+        "│ +=========+===========+ │\n"
+        "│ | awtest1 | suspended | │\n"
+        "│ |         |           | │\n"
+        "│ | awtest2 | running   | │\n"
+        "│ |         |           | │\n"
+        "│ +---------+-----------+ │\n"
+        "╰─────────────────────────╯\n"
     )
 
 
@@ -2088,7 +2084,7 @@ def get_aw_obj(group, version, namespace, plural):
                     "filterignore": True,
                     "queuejobstate": "Dispatched",
                     "sender": "before manageQueueJob - afterEtcdDispatching",
-                    "state": "Pending",
+                    "state": "Suspended",
                     "systempriority": 9,
                 },
             },
@@ -2408,18 +2404,18 @@ def test_list_queue(mocker, capsys):
     list_all_queued("ns", appwrapper=True)
     captured = capsys.readouterr()
     assert captured.out == (
-        "╭──────────────────────────╮\n"
-        "│  🚀 Cluster Queue Status │\n"
-        "│            🚀            │\n"
-        "│ +------------+---------+ │\n"
-        "│ | Name       | Status  | │\n"
-        "│ +============+=========+ │\n"
-        "│ | quicktest1 | running | │\n"
-        "│ |            |         | │\n"
-        "│ | quicktest2 | pending | │\n"
-        "│ |            |         | │\n"
-        "│ +------------+---------+ │\n"
-        "╰──────────────────────────╯\n"
+        "╭────────────────────────────╮\n"
+        "│   🚀 Cluster Queue Status  │\n"
+        "│             🚀             │\n"
+        "│ +------------+-----------+ │\n"
+        "│ | Name       | Status    | │\n"
+        "│ +============+===========+ │\n"
+        "│ | quicktest1 | running   | │\n"
+        "│ |            |           | │\n"
+        "│ | quicktest2 | suspended | │\n"
+        "│ |            |           | │\n"
+        "│ +------------+-----------+ │\n"
+        "╰────────────────────────────╯\n"
     )
 
 
@@ -2469,9 +2465,7 @@ def test_list_queue_rayclusters(mocker, capsys):
 def test_cluster_status(mocker):
     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
-    fake_aw = AppWrapper(
-        "test", AppWrapperStatus.FAILED, can_run=True, job_state="unused"
-    )
+    fake_aw = AppWrapper("test", AppWrapperStatus.FAILED)
     fake_ray = RayCluster(
         name="test",
         status=RayClusterStatus.UNKNOWN,
@@ -2508,29 +2502,24 @@ def test_cluster_status(mocker):
     assert status == CodeFlareClusterStatus.FAILED
     assert ready == False
 
-    fake_aw.status = AppWrapperStatus.DELETED
-    status, ready = cf.status()
-    assert status == CodeFlareClusterStatus.FAILED
-    assert ready == False
-
-    fake_aw.status = AppWrapperStatus.PENDING
+    fake_aw.status = AppWrapperStatus.SUSPENDED
     status, ready = cf.status()
     assert status == CodeFlareClusterStatus.QUEUED
     assert ready == False
 
-    fake_aw.status = AppWrapperStatus.COMPLETED
+    fake_aw.status = AppWrapperStatus.RESUMING
     status, ready = cf.status()
     assert status == CodeFlareClusterStatus.STARTING
     assert ready == False
 
-    fake_aw.status = AppWrapperStatus.RUNNING_HOLD_COMPLETION
+    fake_aw.status = AppWrapperStatus.RESETTING
     status, ready = cf.status()
     assert status == CodeFlareClusterStatus.STARTING
     assert ready == False
 
     fake_aw.status = AppWrapperStatus.RUNNING
     status, ready = cf.status()
-    assert status == CodeFlareClusterStatus.STARTING
+    assert status == CodeFlareClusterStatus.UNKNOWN
     assert ready == False
 
     mocker.patch(
