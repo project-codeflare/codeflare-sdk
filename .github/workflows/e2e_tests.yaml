@@ -86,7 +86,6 @@ jobs:
           make setup-e2e
           echo Deploying CodeFlare operator
           IMG="${REGISTRY_ADDRESS}"/codeflare-operator
-          sed -i 's/RayDashboardOAuthEnabled: pointer.Bool(true)/RayDashboardOAuthEnabled: pointer.Bool(false)/' main.go
           make image-push -e IMG="${IMG}"
           make deploy -e IMG="${IMG}" -e ENV="e2e"
           kubectl wait --timeout=120s --for=condition=Available=true deployment -n openshift-operators codeflare-operator-manager
@@ -97,6 +96,9 @@ jobs:
         with:
           user-name: sdk-user
 
+      - name: Add kueue resources
+        run: kubectl apply --server-side -f "https://github.com/kubernetes-sigs/kueue/releases/download/v0.6.2/manifests.yaml"
+
       - name: Configure RBAC for sdk user with limited permissions
         run: |
           kubectl create clusterrole list-ingresses --verb=get,list --resource=ingresses
@@ -105,6 +107,12 @@ jobs:
           kubectl create clusterrolebinding sdk-user-namespace-creator --clusterrole=namespace-creator --user=sdk-user
           kubectl create clusterrole raycluster-creator --verb=get,list,create,delete,patch --resource=rayclusters
           kubectl create clusterrolebinding sdk-user-raycluster-creator --clusterrole=raycluster-creator --user=sdk-user
+          kubectl create clusterrole resourceflavor-creator --verb=get,list,create,delete --resource=resourceflavors
+          kubectl create clusterrolebinding sdk-user-resourceflavor-creator --clusterrole=resourceflavor-creator --user=sdk-user
+          kubectl create clusterrole clusterqueue-creator --verb=get,list,create,delete,patch --resource=clusterqueues
+          kubectl create clusterrolebinding sdk-user-clusterqueue-creator --clusterrole=clusterqueue-creator --user=sdk-user
+          kubectl create clusterrole localqueue-creator --verb=get,list,create,delete,patch --resource=localqueues
+          kubectl create clusterrolebinding sdk-user-localqueue-creator --clusterrole=localqueue-creator --user=sdk-user
           kubectl config use-context sdk-user
 
       - name: Run e2e tests

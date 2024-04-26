@@ -29,8 +29,6 @@ spec:
         apiVersion: ray.io/v1
         kind: RayCluster
         metadata:
-          annotations:
-            sdk.codeflare.dev/local_interactive: 'False'
           labels:
             controller-tools.k8s.io: '1.0'
             workload.codeflare.dev/appwrapper: unit-test-default-cluster
@@ -59,20 +57,7 @@ spec:
             template:
               spec:
                 containers:
-                - env:
-                  - name: MY_POD_IP
-                    valueFrom:
-                      fieldRef:
-                        fieldPath: status.podIP
-                  - name: RAY_USE_TLS
-                    value: '0'
-                  - name: RAY_TLS_SERVER_CERT
-                    value: /home/ray/workspace/tls/server.crt
-                  - name: RAY_TLS_SERVER_KEY
-                    value: /home/ray/workspace/tls/server.key
-                  - name: RAY_TLS_CA_CERT
-                    value: /home/ray/workspace/tls/ca.crt
-                  image: quay.io/project-codeflare/ray:latest-py39-cu118
+                - image: quay.io/project-codeflare/ray:latest-py39-cu118
                   imagePullPolicy: Always
                   lifecycle:
                     preStop:
@@ -144,20 +129,7 @@ spec:
                   key: value
               spec:
                 containers:
-                - env:
-                  - name: MY_POD_IP
-                    valueFrom:
-                      fieldRef:
-                        fieldPath: status.podIP
-                  - name: RAY_USE_TLS
-                    value: '0'
-                  - name: RAY_TLS_SERVER_CERT
-                    value: /home/ray/workspace/tls/server.crt
-                  - name: RAY_TLS_SERVER_KEY
-                    value: /home/ray/workspace/tls/server.key
-                  - name: RAY_TLS_CA_CERT
-                    value: /home/ray/workspace/tls/ca.crt
-                  image: quay.io/project-codeflare/ray:latest-py39-cu118
+                - image: quay.io/project-codeflare/ray:latest-py39-cu118
                   lifecycle:
                     preStop:
                       exec:

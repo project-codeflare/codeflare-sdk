@@ -64,7 +64,7 @@ from codeflare_sdk.utils.generate_cert import (
     export_env,
 )
 
-from unit_test_support import (
+from tests.unit_test_support import (
     createClusterWithConfig,
     createClusterConfig,
 )
@@ -74,7 +74,7 @@ from codeflare_sdk.utils.generate_yaml import (
     gen_names,
     is_openshift_cluster,
     read_template,
-    enable_local_interactive,
+    write_components,
 )
 
 import openshift
@@ -257,7 +257,6 @@ def test_config_creation():
     assert config.image_pull_secrets == ["unit-test-pull-secret"]
     assert config.dispatch_priority == None
     assert config.mcad == True
-    assert config.local_interactive == False
 
 
 def test_cluster_creation(mocker):
@@ -326,6 +325,7 @@ def test_cluster_creation_no_mcad(mocker):
     config.write_to_file = True
     config.mcad = False
     cluster = Cluster(config)
+
     assert cluster.app_wrapper_yaml == f"{aw_dir}unit-test-cluster-ray.yaml"
     assert cluster.app_wrapper_name == "unit-test-cluster-ray"
     assert filecmp.cmp(
@@ -370,23 +370,18 @@ def test_cluster_creation_no_mcad_local_queue(mocker):
         machine_types=["cpu.small", "gpu.large"],
         image_pull_secrets=["unit-test-pull-secret"],
         image="quay.io/project-codeflare/ray:latest-py39-cu118",
-        write_to_file=False,
+        write_to_file=True,
         mcad=False,
         local_queue="local-queue-default",
     )
     cluster = Cluster(config)
-    test_resources = []
-    expected_resources = []
-    test_aw = yaml.load_all(cluster.app_wrapper_yaml, Loader=yaml.FullLoader)
-    for resource in test_aw:
-        test_resources.append(resource)
-    with open(
+    assert cluster.app_wrapper_yaml == f"{aw_dir}unit-test-cluster-ray.yaml"
+    assert cluster.app_wrapper_name == "unit-test-cluster-ray"
+    assert filecmp.cmp(
+        f"{aw_dir}unit-test-cluster-ray.yaml",
         f"{parent}/tests/test-case-no-mcad.yamls",
-    ) as f:
-        default_aw = yaml.load_all(f, Loader=yaml.FullLoader)
-        for resource in default_aw:
-            expected_resources.append(resource)
-    assert test_resources == expected_resources
+        shallow=True,
+    )
 
 
 def test_cluster_creation_priority(mocker):
@@ -425,7 +420,8 @@ def test_default_cluster_creation(mocker):
         mcad=True,
     )
     cluster = Cluster(default_config)
-    test_aw = yaml.safe_load(cluster.app_wrapper_yaml)
+    test_aw = yaml.load(cluster.app_wrapper_yaml, Loader=yaml.FullLoader)
+
     with open(
         f"{parent}/tests/test-default-appwrapper.yaml",
     ) as f:
@@ -536,14 +532,11 @@ def test_cluster_up_down(mocker):
 
 def test_cluster_up_down_no_mcad(mocker):
     mocker.patch("codeflare_sdk.cluster.cluster.Cluster._throw_for_no_raycluster")
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch(
         "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
         return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
-    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
-    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
-    mocker.patch(
-        "kubernetes.client.CustomObjectsApi.get_cluster_custom_object",
-        return_value={"spec": {"domain": "apps.cluster.awsroute.org"}},
     )
     mocker.patch(
         "kubernetes.client.CustomObjectsApi.create_namespaced_custom_object",
@@ -552,6 +545,12 @@ def test_cluster_up_down_no_mcad(mocker):
     mocker.patch(
         "kubernetes.client.CustomObjectsApi.delete_namespaced_custom_object",
         side_effect=arg_check_del_effect,
+    )
+    mocker.patch(
+        "kubernetes.client.CoreV1Api.create_namespaced_secret",
+    )
+    mocker.patch(
+        "kubernetes.client.CoreV1Api.delete_namespaced_secret",
     )
     mocker.patch(
         "kubernetes.client.CustomObjectsApi.list_cluster_custom_object",
@@ -679,7 +678,6 @@ def test_local_client_url(mocker):
     cluster_config = ClusterConfiguration(
         name="unit-test-cluster-localinter",
         namespace="ns",
-        local_interactive=True,
         write_to_file=True,
     )
     cluster = Cluster(cluster_config)
@@ -995,9 +993,6 @@ def get_ray_obj(group, version, namespace, plural, cls=None):
                 "metadata": {
                     "creationTimestamp": "2024-03-05T09:55:37Z",
                     "generation": 1,
-                    "annotations": {
-                        "sdk.codeflare.dev/local_interactive": "True",
-                    },
                     "labels": {
                         "appwrapper.mcad.ibm.com": "quicktest",
                         "controller-tools.k8s.io": "1.0",
@@ -1807,9 +1802,6 @@ def get_aw_obj(group, version, namespace, plural):
                                     "apiVersion": "ray.io/v1",
                                     "kind": "RayCluster",
                                     "metadata": {
-                                        "annotations": {
-                                            "sdk.codeflare.dev/local_interactive": "False"
-                                        },
                                         "labels": {
                                             "workload.codeflare.dev/appwrapper": "quicktest1",
                                             "controller-tools.k8s.io": "1.0",
@@ -2137,9 +2129,6 @@ def get_aw_obj(group, version, namespace, plural):
                                     "apiVersion": "ray.io/v1",
                                     "kind": "RayCluster",
                                     "metadata": {
-                                        "annotations": {
-                                            "sdk.codeflare.dev/local_interactive": "False"
-                                        },
                                         "labels": {
                                             "workload.codeflare.dev/appwrapper": "quicktest2",
                                             "controller-tools.k8s.io": "1.0",
@@ -2451,7 +2440,6 @@ def test_get_cluster_openshift(mocker):
     assert cluster_config.min_cpus == 1 and cluster_config.max_cpus == 1
     assert cluster_config.min_memory == 2 and cluster_config.max_memory == 2
     assert cluster_config.num_gpus == 0
-    assert cluster_config.local_interactive == True
     assert (
         cluster_config.image
         == "ghcr.io/foundation-model-stack/base:ray2.1.0-py38-gpu-pytorch1.12.0cu116-20221213-193103"
@@ -2485,7 +2473,6 @@ def test_get_cluster(mocker):
     assert cluster_config.min_memory == 2 and cluster_config.max_memory == 2
     assert cluster_config.num_gpus == 0
     assert cluster_config.instascale
-    assert cluster_config.local_interactive
     assert (
         cluster_config.image
         == "ghcr.io/foundation-model-stack/base:ray2.1.0-py38-gpu-pytorch1.12.0cu116-20221213-193103"
@@ -3015,151 +3002,6 @@ def test_export_env():
     )
 
 
-# def test_enable_local_interactive(mocker):
-#     template = f"{parent}/src/codeflare_sdk/templates/base-template.yaml"
-#     user_yaml = read_template(template)
-#     aw_spec = user_yaml.get("spec", None)
-#     cluster_name = "test-enable-local"
-#     namespace = "default"
-#     ingress_domain = "mytest.domain"
-#     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
-#     mocker.patch(
-#         "codeflare_sdk.utils.generate_yaml.is_openshift_cluster", return_value=False
-#     )
-#     volume_mounts = [
-#         {"name": "ca-vol", "mountPath": "/home/ray/workspace/ca", "readOnly": True},
-#         {
-#             "name": "server-cert",
-#             "mountPath": "/home/ray/workspace/tls",
-#             "readOnly": False,
-#         },
-#     ]
-#     volumes = [
-#         {
-#             "name": "ca-vol",
-#             "secret": {"secretName": "ca-secret-test-enable-local"},
-#             "optional": False,
-#         },
-#         {"name": "server-cert", "emptyDir": {}},
-#         {
-#             "name": "odh-trusted-ca-cert",
-#             "configMap": {
-#                 "name": "odh-trusted-ca-bundle",
-#                 "items": [
-#                     {"key": "ca-bundle.crt", "path": "odh-trusted-ca-bundle.crt"}
-#                 ],
-#                 "optional": True,
-#             },
-#         },
-#         {
-#             "name": "odh-ca-cert",
-#             "configMap": {
-#                 "name": "odh-trusted-ca-bundle",
-#                 "items": [{"key": "odh-ca-bundle.crt", "path": "odh-ca-bundle.crt"}],
-#                 "optional": True,
-#             },
-#         },
-#     ]
-#     tls_env = [
-#         {"name": "RAY_USE_TLS", "value": "1"},
-#         {"name": "RAY_TLS_SERVER_CERT", "value": "/home/ray/workspace/tls/server.crt"},
-#         {"name": "RAY_TLS_SERVER_KEY", "value": "/home/ray/workspace/tls/server.key"},
-#         {"name": "RAY_TLS_CA_CERT", "value": "/home/ray/workspace/tls/ca.crt"},
-#     ]
-#     assert aw_spec != None
-#     enable_local_interactive(aw_spec, cluster_name, namespace, ingress_domain)
-#     head_group_spec = aw_spec["resources"]["GenericItems"][0]["generictemplate"][
-#         "spec"
-#     ]["headGroupSpec"]
-#     worker_group_spec = aw_spec["resources"]["GenericItems"][0]["generictemplate"][
-#         "spec"
-#     ]["workerGroupSpecs"]
-#     ca_secret = aw_spec["resources"]["GenericItems"][1]["generictemplate"]
-#     # At a minimal, make sure the following items are presented in the appwrapper spec.resources.
-#     # 1. headgroup has the initContainers command to generated TLS cert from the mounted CA cert.
-#     #    Note: In this particular command, the DNS.5 in [alt_name] must match the exposed local_client_url: rayclient-{cluster_name}.{namespace}.{ingress_domain}
-#     assert (
-#         head_group_spec["template"]["spec"]["initContainers"][0]["command"][2]
-#         == f"cd /home/ray/workspace/tls && openssl req -nodes -newkey rsa:2048 -keyout server.key -out server.csr -subj '/CN=ray-head' && printf \"authorityKeyIdentifier=keyid,issuer\\nbasicConstraints=CA:FALSE\\nsubjectAltName = @alt_names\\n[alt_names]\\nDNS.1 = 127.0.0.1\\nDNS.2 = localhost\\nDNS.3 = ${{FQ_RAY_IP}}\\nDNS.4 = $(awk 'END{{print $1}}' /etc/hosts)\\nDNS.5 = rayclient-{cluster_name}-$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace).{ingress_domain}\">./domain.ext && cp /home/ray/workspace/ca/* . && openssl x509 -req -CA ca.crt -CAkey ca.key -in server.csr -out server.crt -days 365 -CAcreateserial -extfile domain.ext"
-#     )
-#     assert (
-#         head_group_spec["template"]["spec"]["initContainers"][0]["volumeMounts"]
-#         == volume_mounts
-#     )
-#     assert head_group_spec["template"]["spec"]["volumes"] == volumes
-
-#     # 2. workerGroupSpec has the initContainers command to generated TLS cert from the mounted CA cert.
-#     assert (
-#         worker_group_spec[0]["template"]["spec"]["initContainers"][0]["command"][2]
-#         == "cd /home/ray/workspace/tls && openssl req -nodes -newkey rsa:2048 -keyout server.key -out server.csr -subj '/CN=ray-head' && printf \"authorityKeyIdentifier=keyid,issuer\\nbasicConstraints=CA:FALSE\\nsubjectAltName = @alt_names\\n[alt_names]\\nDNS.1 = 127.0.0.1\\nDNS.2 = localhost\\nDNS.3 = ${FQ_RAY_IP}\\nDNS.4 = $(awk 'END{print $1}' /etc/hosts)\">./domain.ext && cp /home/ray/workspace/ca/* . && openssl x509 -req -CA ca.crt -CAkey ca.key -in server.csr -out server.crt -days 365 -CAcreateserial -extfile domain.ext"
-#     )
-#     assert (
-#         worker_group_spec[0]["template"]["spec"]["initContainers"][0]["volumeMounts"]
-#         == volume_mounts
-#     )
-#     assert worker_group_spec[0]["template"]["spec"]["volumes"] == volumes
-
-#     # 3. Required Envs to enable TLS encryption between head and workers
-#     for i in range(len(tls_env)):
-#         assert (
-#             head_group_spec["template"]["spec"]["containers"][0]["env"][i + 1]["name"]
-#             == tls_env[i]["name"]
-#         )
-#         assert (
-#             head_group_spec["template"]["spec"]["containers"][0]["env"][i + 1]["value"]
-#             == tls_env[i]["value"]
-#         )
-#         assert (
-#             worker_group_spec[0]["template"]["spec"]["containers"][0]["env"][i + 1][
-#                 "name"
-#             ]
-#             == tls_env[i]["name"]
-#         )
-#         assert (
-#             worker_group_spec[0]["template"]["spec"]["containers"][0]["env"][i + 1][
-#                 "value"
-#             ]
-#             == tls_env[i]["value"]
-#         )
-
-#     # 4. Secret with ca.crt and ca.key
-#     assert ca_secret["kind"] == "Secret"
-#     assert ca_secret["data"]["ca.crt"] != None
-#     assert ca_secret["data"]["ca.key"] != None
-#     assert ca_secret["metadata"]["name"] == f"ca-secret-{cluster_name}"
-#     assert ca_secret["metadata"]["namespace"] == namespace
-
-
-def test_gen_app_wrapper_with_oauth(mocker: MockerFixture):
-    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
-    mocker.patch(
-        "codeflare_sdk.cluster.cluster.get_current_namespace",
-        return_value="opendatahub",
-    )
-    mocker.patch(
-        "codeflare_sdk.utils.generate_yaml.is_openshift_cluster", return_value=True
-    )
-    write_user_appwrapper = MagicMock()
-    mocker.patch(
-        "codeflare_sdk.utils.generate_yaml.write_user_appwrapper", write_user_appwrapper
-    )
-    Cluster(
-        ClusterConfiguration(
-            "test_cluster",
-            image="quay.io/project-codeflare/ray:latest-py39-cu118",
-            write_to_file=True,
-            mcad=True,
-        )
-    )
-    user_yaml = write_user_appwrapper.call_args.args[0]
-    assert any(
-        container["name"] == "oauth-proxy"
-        for container in user_yaml["spec"]["resources"]["GenericItems"][0][
-            "generictemplate"
-        ]["spec"]["headGroupSpec"]["template"]["spec"]["containers"]
-    )
-
-
 def test_cluster_throw_for_no_raycluster(mocker: MockerFixture):
     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch(
@@ -3167,14 +3009,23 @@ def test_cluster_throw_for_no_raycluster(mocker: MockerFixture):
         return_value="opendatahub",
     )
     mocker.patch(
+        "codeflare_sdk.utils.generate_yaml.get_default_kueue_name",
+        return_value="default",
+    )
+
+    def throw_if_getting_raycluster(group, version, namespace, plural):
+        if plural == "rayclusters":
+            raise client.ApiException(status=404)
+        return
+
+    mocker.patch(
         "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
-        side_effect=client.ApiException(status=404),
+        side_effect=throw_if_getting_raycluster,
     )
     cluster = Cluster(
         ClusterConfiguration(
             "test_cluster",
             image="quay.io/project-codeflare/ray:latest-py39-cu118",
-            ingress_domain="apps.cluster.awsroute.org",
             write_to_file=False,
         )
     )

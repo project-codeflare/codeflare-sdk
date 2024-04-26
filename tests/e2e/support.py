@@ -4,7 +4,7 @@ import string
 import subprocess
 from kubernetes import client, config
 import kubernetes.client
-import subprocess
+from codeflare_sdk.utils.kube_api_helpers import _kube_api_error_handling
 
 
 def get_ray_image():
@@ -23,6 +23,17 @@ def create_namespace(self):
         metadata=client.V1ObjectMeta(name=self.namespace)
     )
     self.api_instance.create_namespace(namespace_body)
+
+
+def create_namespace_with_name(self, namespace_name):
+    self.namespace = namespace_name
+    try:
+        namespace_body = client.V1Namespace(
+            metadata=client.V1ObjectMeta(name=self.namespace)
+        )
+        self.api_instance.create_namespace(namespace_body)
+    except Exception as e:
+        return _kube_api_error_handling(e)
 
 
 def delete_namespace(self):
@@ -48,7 +59,107 @@ def run_oc_command(args):
         return None
 
 
-def create_kueue_resources(self):
-    # Set executable permissions
-    os.chmod("tests/e2e/kueue_resources_setup.sh", 0o755)
-    subprocess.call(["bash", "tests/e2e/kueue_resources_setup.sh", self.namespace])
+def create_kueue_resources(
+    self,
+    cluster_queue="cluster-queue-mnist",
+    flavor="default-flavor-mnist",
+    local_queue="local-queue-mnist",
+):
+    print("creating Kueue resources ...")
+    resource_flavor_json = {
+        "apiVersion": "kueue.x-k8s.io/v1beta1",
+        "kind": "ResourceFlavor",
+        "metadata": {"name": flavor},
+    }
+    cluster_queue_json = {
+        "apiVersion": "kueue.x-k8s.io/v1beta1",
+        "kind": "ClusterQueue",
+        "metadata": {"name": cluster_queue},
+        "spec": {
+            "namespaceSelector": {},
+            "resourceGroups": [
+                {
+                    "coveredResources": ["cpu", "memory", "nvidia.com/gpu"],
+                    "flavors": [
+                        {
+                            "name": flavor,
+                            "resources": [
+                                {"name": "cpu", "nominalQuota": 9},
+                                {"name": "memory", "nominalQuota": "36Gi"},
+                                {"name": "nvidia.com/gpu", "nominalQuota": 0},
+                            ],
+                        }
+                    ],
+                }
+            ],
+        },
+    }
+    local_queue_json = {
+        "apiVersion": "kueue.x-k8s.io/v1beta1",
+        "kind": "LocalQueue",
+        "metadata": {
+            "namespace": self.namespace,
+            "name": local_queue,
+            "annotations": {"kueue.x-k8s.io/default-queue": "true"},
+        },
+        "spec": {"clusterQueue": cluster_queue},
+    }
+
+    try:
+        # Check if resource flavor exists
+        self.custom_api.get_cluster_custom_object(
+            group="kueue.x-k8s.io",
+            plural="resourceflavors",
+            version="v1beta1",
+            name=flavor,
+        )
+        print(f"'{flavor}' already exists")
+    except:
+        # create kueue resource flavor
+        self.custom_api.create_cluster_custom_object(
+            group="kueue.x-k8s.io",
+            plural="resourceflavors",
+            version="v1beta1",
+            body=resource_flavor_json,
+        )
+        print(f"'{flavor}' created!")
+
+    try:
+        # Check if cluster-queue exists
+        self.custom_api.get_cluster_custom_object(
+            group="kueue.x-k8s.io",
+            plural="clusterqueues",
+            version="v1beta1",
+            name=cluster_queue,
+        )
+        print(f"'{cluster_queue}' already exists")
+    except:
+        # create cluster-queue
+        self.custom_api.create_cluster_custom_object(
+            group="kueue.x-k8s.io",
+            plural="clusterqueues",
+            version="v1beta1",
+            body=cluster_queue_json,
+        )
+        print(f"'{cluster_queue}' created")
+
+    try:
+        # Check if local-queue exists in given namespace
+        self.custom_api.get_namespaced_custom_object(
+            group="kueue.x-k8s.io",
+            namespace=self.namespace,
+            plural="localqueues",
+            version="v1beta1",
+            name=local_queue,
+        )
+        print(f"'{local_queue}' already exists in namespace '{self.namespace}'")
+    except:
+        # create local-queue
+        self.custom_api.create_namespaced_custom_object(
+            group="kueue.x-k8s.io",
+            namespace=self.namespace,
+            plural="localqueues",
+            version="v1beta1",
+            body=local_queue_json,
+        )
+        print(f"'{local_queue}' created in namespace '{self.namespace}'")

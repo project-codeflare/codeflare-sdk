@@ -85,20 +85,6 @@ def update_names(yaml, item, appwrapper_name, cluster_name, namespace):
     lower_meta["labels"]["workload.codeflare.dev/appwrapper"] = appwrapper_name
     lower_meta["name"] = cluster_name
     lower_meta["namespace"] = namespace
-    lower_spec = item.get("generictemplate", {}).get("spec")
-    if is_openshift_cluster():
-        cookie_secret_env_var = {
-            "name": "COOKIE_SECRET",
-            "valueFrom": {
-                "secretKeyRef": {
-                    "key": "cookie_secret",
-                    "name": f"{cluster_name}-oauth-config",
-                }
-            },
-        }
-        lower_spec["headGroupSpec"]["template"]["spec"]["containers"][0]["env"].append(
-            cookie_secret_env_var
-        )
 
 
 def update_labels(yaml, instascale, instance_types):
@@ -280,104 +266,8 @@ def update_nodes(
                 update_resources(spec, min_cpu, max_cpu, min_memory, max_memory, gpu)
 
 
-def update_ca_secret(ca_secret_item, cluster_name, namespace):
-    from . import generate_cert
-
-    metadata = ca_secret_item.get("generictemplate", {}).get("metadata")
-    metadata["name"] = f"ca-secret-{cluster_name}"
-    metadata["namespace"] = namespace
-    metadata["labels"]["odh-ray-cluster-service"] = f"{cluster_name}-head-svc"
-    data = ca_secret_item.get("generictemplate", {}).get("data")
-    data["ca.key"], data["ca.crt"] = generate_cert.generate_ca_cert(365)
-
-
-def enable_local_interactive(resources, cluster_name, namespace):  # pragma: no cover
-    from ..cluster.cluster import _get_ingress_domain
-
-    ca_secret_item = resources["resources"].get("GenericItems")[1]
-    item = resources["resources"].get("GenericItems")[0]
-    update_ca_secret(ca_secret_item, cluster_name, namespace)
-    # update_ca_secret_volumes
-    item["generictemplate"]["spec"]["headGroupSpec"]["template"]["spec"]["volumes"][0][
-        "secret"
-    ]["secretName"] = f"ca-secret-{cluster_name}"
-    item["generictemplate"]["spec"]["workerGroupSpecs"][0]["template"]["spec"][
-        "volumes"
-    ][0]["secret"]["secretName"] = f"ca-secret-{cluster_name}"
-    # update_tls_env
-    item["generictemplate"]["spec"]["headGroupSpec"]["template"]["spec"]["containers"][
-        0
-    ]["env"][1]["value"] = "1"
-    item["generictemplate"]["spec"]["workerGroupSpecs"][0]["template"]["spec"][
-        "containers"
-    ][0]["env"][1]["value"] = "1"
-    # update_init_container
-    command = item["generictemplate"]["spec"]["headGroupSpec"]["template"]["spec"][
-        "initContainers"
-    ][0].get("command")[2]
-
-    command = command.replace("deployment-name", cluster_name)
-
-    domain = ""  ## FIX - We can't retrieve ingress domain - move init container to CFO
-
-    command = command.replace("server-name", domain)
-    item["generictemplate"]["metadata"]["annotations"][
-        "sdk.codeflare.dev/local_interactive"
-    ] = "True"
-
-    item["generictemplate"]["spec"]["headGroupSpec"]["template"]["spec"][
-        "initContainers"
-    ][0].get("command")[2] = command
-
-
 def del_from_list_by_name(l: list, target: typing.List[str]) -> list:
     return [x for x in l if x["name"] not in target]
-
-
-def disable_raycluster_tls(resources):
-    generic_template_spec = resources["GenericItems"][0]["generictemplate"]["spec"]
-
-    headGroupTemplateSpec = generic_template_spec["headGroupSpec"]["template"]["spec"]
-    headGroupTemplateSpec["volumes"] = del_from_list_by_name(
-        headGroupTemplateSpec.get("volumes", []),
-        ["ca-vol", "server-cert"],
-    )
-
-    c: dict
-    for c in generic_template_spec["headGroupSpec"]["template"]["spec"]["containers"]:
-        c["volumeMounts"] = del_from_list_by_name(
-            c.get("volumeMounts", []), ["ca-vol", "server-cert"]
-        )
-
-    if "initContainers" in generic_template_spec["headGroupSpec"]["template"]["spec"]:
-        del generic_template_spec["headGroupSpec"]["template"]["spec"]["initContainers"]
-
-    for workerGroup in generic_template_spec.get("workerGroupSpecs", []):
-        workerGroupSpec = workerGroup["template"]["spec"]
-        workerGroupSpec["volumes"] = del_from_list_by_name(
-            workerGroupSpec.get("volumes", []),
-            ["ca-vol", "server-cert"],
-        )
-        for c in workerGroup["template"]["spec"].get("containers", []):
-            c["volumeMounts"] = del_from_list_by_name(
-                c.get("volumeMounts", []), ["ca-vol", "server-cert"]
-            )
-
-    del generic_template_spec["workerGroupSpecs"][0]["template"]["spec"][
-        "initContainers"
-    ]
-
-    updated_items = []
-    for i in resources["GenericItems"][:]:
-        if "rayclient-deployment-ingress" in i["generictemplate"]["metadata"]["name"]:
-            continue
-        if "rayclient-deployment-route" in i["generictemplate"]["metadata"]["name"]:
-            continue
-        if "ca-secret-deployment-name" in i["generictemplate"]["metadata"]["name"]:
-            continue
-        updated_items.append(i)
-
-    resources["GenericItems"] = updated_items
 
 
 def write_user_appwrapper(user_yaml, output_file_name):
@@ -390,75 +280,6 @@ def write_user_appwrapper(user_yaml, output_file_name):
         yaml.dump(user_yaml, outfile, default_flow_style=False)
 
     print(f"Written to: {output_file_name}")
-
-
-def enable_openshift_oauth(user_yaml, cluster_name, namespace):
-    config_check()
-    k8_client = api_config_handler() or client.ApiClient()
-    tls_mount_location = "/etc/tls/private"
-    oauth_port = 8443
-    oauth_sa_name = f"{cluster_name}-oauth-proxy"
-    tls_secret_name = f"{cluster_name}-proxy-tls-secret"
-    tls_volume_name = "proxy-tls-secret"
-    port_name = "oauth-proxy"
-    oauth_sidecar = _create_oauth_sidecar_object(
-        namespace,
-        tls_mount_location,
-        oauth_port,
-        oauth_sa_name,
-        tls_volume_name,
-        port_name,
-    )
-    tls_secret_volume = client.V1Volume(
-        name=tls_volume_name,
-        secret=client.V1SecretVolumeSource(secret_name=tls_secret_name),
-    )
-    # allows for setting value of Cluster object when initializing object from an existing AppWrapper on cluster
-    user_yaml["metadata"]["annotations"] = user_yaml["metadata"].get("annotations", {})
-    ray_headgroup_pod = user_yaml["spec"]["resources"]["GenericItems"][0][
-        "generictemplate"
-    ]["spec"]["headGroupSpec"]["template"]["spec"]
-    ray_headgroup_pod["serviceAccount"] = oauth_sa_name
-    ray_headgroup_pod["volumes"] = ray_headgroup_pod.get("volumes", [])
-
-    # we use a generic api client here so that the serialization function doesn't need to be mocked for unit tests
-    ray_headgroup_pod["volumes"].append(
-        client.ApiClient().sanitize_for_serialization(tls_secret_volume)
-    )
-    ray_headgroup_pod["containers"].append(
-        client.ApiClient().sanitize_for_serialization(oauth_sidecar)
-    )
-
-
-def _create_oauth_sidecar_object(
-    namespace: str,
-    tls_mount_location: str,
-    oauth_port: int,
-    oauth_sa_name: str,
-    tls_volume_name: str,
-    port_name: str,
-) -> client.V1Container:
-    return client.V1Container(
-        args=[
-            f"--https-address=:{oauth_port}",
-            "--provider=openshift",
-            f"--openshift-service-account={oauth_sa_name}",
-            "--upstream=http://localhost:8265",
-            f"--tls-cert={tls_mount_location}/tls.crt",
-            f"--tls-key={tls_mount_location}/tls.key",
-            "--cookie-secret=$(COOKIE_SECRET)",
-            f'--openshift-delegate-urls={{"/":{{"resource":"pods","namespace":"{namespace}","verb":"get"}}}}',
-        ],
-        image="registry.redhat.io/openshift4/ose-oauth-proxy@sha256:1ea6a01bf3e63cdcf125c6064cbd4a4a270deaf0f157b3eabb78f60556840366",
-        name="oauth-proxy",
-        ports=[client.V1ContainerPort(container_port=oauth_port, name=port_name)],
-        resources=client.V1ResourceRequirements(limits=None, requests=None),
-        volume_mounts=[
-            client.V1VolumeMount(
-                mount_path=tls_mount_location, name=tls_volume_name, read_only=True
-            )
-        ],
-    )
 
 
 def get_default_kueue_name(namespace: str):
@@ -568,7 +389,6 @@ def generate_appwrapper(
     mcad: bool,
     instance_types: list,
     env,
-    local_interactive: bool,
     image_pull_secrets: list,
     dispatch_priority: str,
     priority_val: int,
@@ -618,14 +438,6 @@ def generate_appwrapper(
         head_memory,
         head_gpus,
     )
-
-    if local_interactive:
-        enable_local_interactive(resources, cluster_name, namespace)
-    else:
-        disable_raycluster_tls(resources["resources"])
-
-    if is_openshift_cluster():
-        enable_openshift_oauth(user_yaml, cluster_name, namespace)
 
     directory_path = os.path.expanduser("~/.codeflare/resources/")
     outfile = os.path.join(directory_path, appwrapper_name + ".yaml")
