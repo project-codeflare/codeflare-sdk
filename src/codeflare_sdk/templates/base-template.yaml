@@ -5,29 +5,8 @@ metadata:
   namespace: default
 spec:
   resources:
-    Items: []
     GenericItems:
     - replicas: 1
-      #new addition
-      custompodresources:
-      - replicas: 1
-        requests:
-          cpu: 2
-          memory: 8G
-          nvidia.com/gpu: 0
-        limits:
-          cpu: 2
-          memory: 8G
-          nvidia.com/gpu: 0
-      - replicas: 3
-        requests:
-          cpu: 2
-          memory: 12G
-          nvidia.com/gpu: 1
-        limits:
-          cpu: 2
-          memory: 12G
-          nvidia.com/gpu: 1
       generictemplate:
         # This config demonstrates KubeRay's Ray autoscaler integration.
         # The resource requests and limits in this config are too small for production!

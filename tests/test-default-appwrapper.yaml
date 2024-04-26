@@ -6,26 +6,7 @@ metadata:
 spec:
   resources:
     GenericItems:
-    - custompodresources:
-      - limits:
-          cpu: 2
-          memory: 8G
-          nvidia.com/gpu: 0
-        replicas: 1
-        requests:
-          cpu: 2
-          memory: 8G
-          nvidia.com/gpu: 0
-      - limits:
-          cpu: 1
-          memory: 2G
-          nvidia.com/gpu: 0
-        replicas: 1
-        requests:
-          cpu: 1
-          memory: 2G
-          nvidia.com/gpu: 0
-      generictemplate:
+    - generictemplate:
         apiVersion: ray.io/v1
         kind: RayCluster
         metadata:
@@ -177,4 +158,3 @@ spec:
                     optional: true
                   name: odh-ca-cert
       replicas: 1
-    Items: []

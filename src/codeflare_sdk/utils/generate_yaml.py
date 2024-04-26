@@ -87,56 +87,6 @@ def update_names(yaml, item, appwrapper_name, cluster_name, namespace):
     lower_meta["namespace"] = namespace
 
 
-def update_custompodresources(
-    item,
-    min_cpu,
-    max_cpu,
-    min_memory,
-    max_memory,
-    gpu,
-    workers,
-    head_cpus,
-    head_memory,
-    head_gpus,
-):
-    if "custompodresources" in item.keys():
-        custompodresources = item.get("custompodresources")
-        for i in range(len(custompodresources)):
-            resource = custompodresources[i]
-            if i == 0:
-                # Leave head node resources as template default
-                resource["requests"]["cpu"] = head_cpus
-                resource["limits"]["cpu"] = head_cpus
-                resource["requests"]["memory"] = head_memory
-                resource["limits"]["memory"] = head_memory
-                resource["requests"]["nvidia.com/gpu"] = head_gpus
-                resource["limits"]["nvidia.com/gpu"] = head_gpus
-
-            else:
-                for k, v in resource.items():
-                    if k == "replicas" and i == 1:
-                        resource[k] = workers
-                    if k == "requests" or k == "limits":
-                        for spec, _ in v.items():
-                            if spec == "cpu":
-                                if k == "limits":
-                                    resource[k][spec] = max_cpu
-                                else:
-                                    resource[k][spec] = min_cpu
-                            if spec == "memory":
-                                if k == "limits":
-                                    resource[k][spec] = max_memory
-                                else:
-                                    resource[k][spec] = min_memory
-                            if spec == "nvidia.com/gpu":
-                                if i == 0:
-                                    resource[k][spec] = 0
-                                else:
-                                    resource[k][spec] = gpu
-    else:
-        sys.exit("Error: malformed template")
-
-
 def update_image(spec, image):
     containers = spec.get("containers")
     for container in containers:
@@ -395,18 +345,6 @@ def generate_appwrapper(
         appwrapper_name,
         cluster_name,
         namespace,
-    )
-    update_custompodresources(
-        item,
-        min_cpu,
-        max_cpu,
-        min_memory,
-        max_memory,
-        gpu,
-        workers,
-        head_cpus,
-        head_memory,
-        head_gpus,
     )
     update_nodes(
         item,

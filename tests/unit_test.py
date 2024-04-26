@@ -992,7 +992,6 @@ def get_ray_obj(group, version, namespace, plural, cls=None):
                     "creationTimestamp": "2024-03-05T09:55:37Z",
                     "generation": 1,
                     "labels": {
-                        "appwrapper.mcad.ibm.com": "quicktest",
                         "controller-tools.k8s.io": "1.0",
                         "resourceName": "quicktest",
                         "workload.codeflare.dev/appwrapper": "quicktest",
@@ -1308,93 +1307,6 @@ def get_ray_obj(group, version, namespace, plural, cls=None):
                         "resourceName": "quicktest2",
                         "orderedinstance": "m4.xlarge_g4dn.xlarge",
                     },
-                    "managedFields": [
-                        {
-                            "apiVersion": "ray.io/v1",
-                            "fieldsType": "FieldsV1",
-                            "fieldsV1": {
-                                "f:metadata": {
-                                    "f:labels": {
-                                        ".": {},
-                                        "f:workload.codeflare.dev/appwrapper": {},
-                                        "f:controller-tools.k8s.io": {},
-                                        "f:resourceName": {},
-                                    },
-                                    "f:ownerReferences": {
-                                        ".": {},
-                                        'k:{"uid":"6334fc1b-471e-4876-8e7b-0b2277679235"}': {},
-                                    },
-                                },
-                                "f:spec": {
-                                    ".": {},
-                                    "f:autoscalerOptions": {
-                                        ".": {},
-                                        "f:idleTimeoutSeconds": {},
-                                        "f:imagePullPolicy": {},
-                                        "f:resources": {
-                                            ".": {},
-                                            "f:limits": {
-                                                ".": {},
-                                                "f:cpu": {},
-                                                "f:memory": {},
-                                            },
-                                            "f:requests": {
-                                                ".": {},
-                                                "f:cpu": {},
-                                                "f:memory": {},
-                                            },
-                                        },
-                                        "f:upscalingMode": {},
-                                    },
-                                    "f:enableInTreeAutoscaling": {},
-                                    "f:headGroupSpec": {
-                                        ".": {},
-                                        "f:rayStartParams": {
-                                            ".": {},
-                                            "f:block": {},
-                                            "f:dashboard-host": {},
-                                            "f:num-gpus": {},
-                                        },
-                                        "f:serviceType": {},
-                                        "f:template": {
-                                            ".": {},
-                                            "f:spec": {".": {}, "f:containers": {}},
-                                        },
-                                    },
-                                    "f:rayVersion": {},
-                                    "f:workerGroupSpecs": {},
-                                },
-                            },
-                            "manager": "mcad-controller",
-                            "operation": "Update",
-                            "time": "2023-02-22T16:26:07Z",
-                        },
-                        {
-                            "apiVersion": "ray.io/v1",
-                            "fieldsType": "FieldsV1",
-                            "fieldsV1": {
-                                "f:status": {
-                                    ".": {},
-                                    "f:availableWorkerReplicas": {},
-                                    "f:desiredWorkerReplicas": {},
-                                    "f:endpoints": {
-                                        ".": {},
-                                        "f:client": {},
-                                        "f:dashboard": {},
-                                        "f:gcs": {},
-                                    },
-                                    "f:lastUpdateTime": {},
-                                    "f:maxWorkerReplicas": {},
-                                    "f:minWorkerReplicas": {},
-                                    "f:state": {},
-                                }
-                            },
-                            "manager": "manager",
-                            "operation": "Update",
-                            "subresource": "status",
-                            "time": "2023-02-22T16:26:16Z",
-                        },
-                    ],
                     "name": "quicktest2",
                     "namespace": "ns",
                     "ownerReferences": [
@@ -1576,35 +1488,6 @@ def get_aw_obj(group, version, namespace, plural):
                     "resources": {
                         "GenericItems": [
                             {
-                                "allocated": 0,
-                                "custompodresources": [
-                                    {
-                                        "limits": {
-                                            "cpu": "2",
-                                            "memory": "8G",
-                                            "nvidia.com/gpu": "0",
-                                        },
-                                        "replicas": 1,
-                                        "requests": {
-                                            "cpu": "2",
-                                            "memory": "8G",
-                                            "nvidia.com/gpu": "0",
-                                        },
-                                    },
-                                    {
-                                        "limits": {
-                                            "cpu": "1",
-                                            "memory": "2G",
-                                            "nvidia.com/gpu": "0",
-                                        },
-                                        "replicas": 1,
-                                        "requests": {
-                                            "cpu": "1",
-                                            "memory": "2G",
-                                            "nvidia.com/gpu": "0",
-                                        },
-                                    },
-                                ],
                                 "generictemplate": {
                                     "apiVersion": "ray.io/v1",
                                     "kind": "RayCluster",
@@ -1752,12 +1635,9 @@ def get_aw_obj(group, version, namespace, plural):
                                     },
                                 },
                                 "metadata": {},
-                                "priority": 0,
-                                "priorityslope": 0,
                                 "replicas": 1,
                             },
                             {
-                                "allocated": 0,
                                 "generictemplate": {
                                     "apiVersion": "networking.k8s.io/v1",
                                     "kind": "Ingress",
@@ -1792,46 +1672,13 @@ def get_aw_obj(group, version, namespace, plural):
                                     },
                                 },
                                 "metadata": {},
-                                "priority": 0,
-                                "priorityslope": 0,
                             },
                         ],
-                        "Items": [],
                         "metadata": {},
                     },
-                    "schedulingSpec": {},
-                    "service": {"spec": {}},
                 },
                 "status": {
-                    "canrun": True,
-                    "conditions": [
-                        {
-                            "lastTransitionMicroTime": "2023-02-22T16:26:07.559447Z",
-                            "lastUpdateMicroTime": "2023-02-22T16:26:07.559447Z",
-                            "status": "True",
-                            "type": "Init",
-                        },
-                        {
-                            "lastTransitionMicroTime": "2023-02-22T16:26:07.559551Z",
-                            "lastUpdateMicroTime": "2023-02-22T16:26:07.559551Z",
-                            "reason": "AwaitingHeadOfLine",
-                            "status": "True",
-                            "type": "Queueing",
-                        },
-                        {
-                            "lastTransitionMicroTime": "2023-02-22T16:26:13.220564Z",
-                            "lastUpdateMicroTime": "2023-02-22T16:26:13.220564Z",
-                            "reason": "AppWrapperRunnable",
-                            "status": "True",
-                            "type": "Dispatched",
-                        },
-                    ],
-                    "controllerfirsttimestamp": "2023-02-22T16:26:07.559447Z",
-                    "filterignore": True,
-                    "queuejobstate": "Dispatched",
-                    "sender": "before manageQueueJob - afterEtcdDispatching",
                     "state": "Running",
-                    "systempriority": 9,
                 },
             },
             {
@@ -1845,35 +1692,6 @@ def get_aw_obj(group, version, namespace, plural):
                     "resources": {
                         "GenericItems": [
                             {
-                                "allocated": 0,
-                                "custompodresources": [
-                                    {
-                                        "limits": {
-                                            "cpu": "2",
-                                            "memory": "8G",
-                                            "nvidia.com/gpu": "0",
-                                        },
-                                        "replicas": 1,
-                                        "requests": {
-                                            "cpu": "2",
-                                            "memory": "8G",
-                                            "nvidia.com/gpu": "0",
-                                        },
-                                    },
-                                    {
-                                        "limits": {
-                                            "cpu": "1",
-                                            "memory": "2G",
-                                            "nvidia.com/gpu": "0",
-                                        },
-                                        "replicas": 1,
-                                        "requests": {
-                                            "cpu": "1",
-                                            "memory": "2G",
-                                            "nvidia.com/gpu": "0",
-                                        },
-                                    },
-                                ],
                                 "generictemplate": {
                                     "apiVersion": "ray.io/v1",
                                     "kind": "RayCluster",
@@ -2021,8 +1839,6 @@ def get_aw_obj(group, version, namespace, plural):
                                     },
                                 },
                                 "metadata": {},
-                                "priority": 0,
-                                "priorityslope": 0,
                                 "replicas": 1,
                             },
                             {
@@ -2046,46 +1862,13 @@ def get_aw_obj(group, version, namespace, plural):
                                     },
                                 },
                                 "metadata": {},
-                                "priority": 0,
-                                "priorityslope": 0,
                             },
                         ],
-                        "Items": [],
                         "metadata": {},
                     },
-                    "schedulingSpec": {},
-                    "service": {"spec": {}},
                 },
                 "status": {
-                    "canrun": True,
-                    "conditions": [
-                        {
-                            "lastTransitionMicroTime": "2023-02-22T16:26:07.559447Z",
-                            "lastUpdateMicroTime": "2023-02-22T16:26:07.559447Z",
-                            "status": "True",
-                            "type": "Init",
-                        },
-                        {
-                            "lastTransitionMicroTime": "2023-02-22T16:26:07.559551Z",
-                            "lastUpdateMicroTime": "2023-02-22T16:26:07.559551Z",
-                            "reason": "AwaitingHeadOfLine",
-                            "status": "True",
-                            "type": "Queueing",
-                        },
-                        {
-                            "lastTransitionMicroTime": "2023-02-22T16:26:13.220564Z",
-                            "lastUpdateMicroTime": "2023-02-22T16:26:13.220564Z",
-                            "reason": "AppWrapperRunnable",
-                            "status": "True",
-                            "type": "Dispatched",
-                        },
-                    ],
-                    "controllerfirsttimestamp": "2023-02-22T16:26:07.559447Z",
-                    "filterignore": True,
-                    "queuejobstate": "Dispatched",
-                    "sender": "before manageQueueJob - afterEtcdDispatching",
                     "state": "Suspended",
-                    "systempriority": 9,
                 },
             },
         ]
