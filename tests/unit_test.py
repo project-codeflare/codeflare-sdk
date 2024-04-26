@@ -508,6 +508,7 @@ def arg_check_del_effect(group, version, namespace, plural, name, *args):
 def test_cluster_up_down(mocker):
     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+    mocker.patch("codeflare_sdk.cluster.cluster.Cluster._throw_for_no_raycluster")
     mocker.patch(
         "kubernetes.client.CustomObjectsApi.get_cluster_custom_object",
         return_value={"spec": {"domain": ""}},
@@ -530,6 +531,7 @@ def test_cluster_up_down(mocker):
 
 
 def test_cluster_up_down_no_mcad(mocker):
+    mocker.patch("codeflare_sdk.cluster.cluster.Cluster._throw_for_no_raycluster")
     mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch(
@@ -2998,6 +3000,37 @@ def test_export_env():
     assert os.environ["RAY_TLS_CA_CERT"] == os.path.join(
         os.getcwd(), f"tls-{tls_dir}-{ns}", "ca.crt"
     )
+
+
+def test_cluster_throw_for_no_raycluster(mocker: MockerFixture):
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch(
+        "codeflare_sdk.cluster.cluster.get_current_namespace",
+        return_value="opendatahub",
+    )
+    mocker.patch(
+        "codeflare_sdk.utils.generate_yaml.get_default_kueue_name",
+        return_value="default",
+    )
+
+    def throw_if_getting_raycluster(group, version, namespace, plural):
+        if plural == "rayclusters":
+            raise client.ApiException(status=404)
+        return
+
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
+        side_effect=throw_if_getting_raycluster,
+    )
+    cluster = Cluster(
+        ClusterConfiguration(
+            "test_cluster",
+            image="quay.io/project-codeflare/ray:latest-py39-cu118",
+            write_to_file=False,
+        )
+    )
+    with pytest.raises(RuntimeError):
+        cluster.up()
 
 
 """
