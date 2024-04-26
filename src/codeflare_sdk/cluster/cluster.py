@@ -560,10 +560,10 @@ class Cluster:
                         .get("headGroupSpec", {})
                         .get("enableIngress")
                     )
-                    if resource["kind"] == "RayCluster" and enable_ingress is not False:
+                    if resource["kind"] == "RayCluster" and enable_ingress is True:
                         name = resource["metadata"]["name"]
                         print(
-                            f"Forbidden: RayCluster '{name}' has 'enableIngress' set to 'True' or is unset."
+                            f"Forbidden: RayCluster '{name}' has 'enableIngress' set to 'True'."
                         )
                         return
                 _create_resources(yamls, namespace, api_instance)
