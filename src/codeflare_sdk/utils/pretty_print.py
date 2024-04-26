@@ -136,7 +136,7 @@ def print_clusters(clusters: List[RayCluster]):
         name = cluster.name
         dashboard = cluster.dashboard
         workers = str(cluster.workers)
-        memory = str(cluster.worker_mem_min) + "~" + str(cluster.worker_mem_max)
+        memory = f"{cluster.worker_mem_min}~{cluster.worker_mem_max}"
         cpu = str(cluster.worker_cpu)
         gpu = str(cluster.worker_gpu)
 
