@@ -265,7 +265,6 @@ def test_config_creation():
     assert config.num_gpus == 7
     assert config.image == "quay.io/project-codeflare/ray:latest-py39-cu118"
     assert config.template == f"{parent}/src/codeflare_sdk/templates/base-template.yaml"
-    assert config.instascale
     assert config.machine_types == ["cpu.small", "gpu.large"]
     assert config.image_pull_secrets == ["unit-test-pull-secret"]
     assert config.appwrapper == True
@@ -393,7 +392,6 @@ def test_cluster_creation_no_mcad_local_queue(mocker):
         min_memory=5,
         max_memory=6,
         num_gpus=7,
-        instascale=True,
         machine_types=["cpu.small", "gpu.large"],
         image_pull_secrets=["unit-test-pull-secret"],
         image="quay.io/project-codeflare/ray:latest-py39-cu118",
@@ -2477,7 +2475,6 @@ def test_get_cluster(mocker):
     assert cluster_config.min_cpus == 1 and cluster_config.max_cpus == 1
     assert cluster_config.min_memory == "2G" and cluster_config.max_memory == "2G"
     assert cluster_config.num_gpus == 0
-    assert cluster_config.instascale
     assert (
         cluster_config.image
         == "ghcr.io/foundation-model-stack/base:ray2.1.0-py38-gpu-pytorch1.12.0cu116-20221213-193103"

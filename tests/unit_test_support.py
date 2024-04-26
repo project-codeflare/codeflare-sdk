@@ -15,7 +15,6 @@ def createClusterConfig():
         max_memory=6,
         num_gpus=7,
         appwrapper=True,
-        instascale=True,
         machine_types=["cpu.small", "gpu.large"],
         image_pull_secrets=["unit-test-pull-secret"],
         image="quay.io/project-codeflare/ray:latest-py39-cu118",

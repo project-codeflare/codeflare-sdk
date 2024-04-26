@@ -146,7 +146,6 @@ class Cluster:
         workers = self.config.num_workers
         template = self.config.template
         image = self.config.image
-        instascale = self.config.instascale
         appwrapper = self.config.appwrapper
         instance_types = self.config.machine_types
         env = self.config.envs
@@ -169,7 +168,6 @@ class Cluster:
             workers=workers,
             template=template,
             image=image,
-            instascale=instascale,
             appwrapper=appwrapper,
             instance_types=instance_types,
             env=env,
@@ -499,7 +497,6 @@ class Cluster:
                     "resources"
                 ]["limits"]["nvidia.com/gpu"]
             ),
-            instascale=True if machine_types else False,
             image=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"]["containers"][
                 0
             ]["image"],

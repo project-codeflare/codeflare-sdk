@@ -87,20 +87,9 @@ def update_names(yaml, item, appwrapper_name, cluster_name, namespace):
     lower_meta["namespace"] = namespace
 
 
-def update_labels(yaml, instascale, instance_types):
+def update_labels(yaml, instance_types):
     metadata = yaml.get("metadata")
-    if instascale:
-        if not len(instance_types) > 0:
-            sys.exit(
-                "If instascale is set to true, must provide at least one instance type"
-            )
-        type_str = ""
-        for type in instance_types:
-            type_str += type + "_"
-        type_str = type_str[:-1]
-        metadata["labels"]["orderedinstance"] = type_str
-    else:
-        metadata.pop("labels")
+    metadata.pop("labels")
 
 
 def update_priority(yaml, item):
@@ -158,18 +147,8 @@ def update_custompodresources(
         sys.exit("Error: malformed template")
 
 
-def update_affinity(spec, appwrapper_name, instascale):
-    if instascale:
-        node_selector_terms = (
-            spec.get("affinity")
-            .get("nodeAffinity")
-            .get("requiredDuringSchedulingIgnoredDuringExecution")
-            .get("nodeSelectorTerms")
-        )
-        node_selector_terms[0]["matchExpressions"][0]["values"][0] = appwrapper_name
-        node_selector_terms[0]["matchExpressions"][0]["key"] = appwrapper_name
-    else:
-        spec.pop("affinity")
+def update_affinity(spec, appwrapper_name):
+    spec.pop("affinity")
 
 
 def update_image(spec, image):
@@ -220,7 +199,6 @@ def update_nodes(
     gpu,
     workers,
     image,
-    instascale,
     env,
     image_pull_secrets,
     head_cpus,
@@ -241,7 +219,7 @@ def update_nodes(
 
         for comp in [head, worker]:
             spec = comp.get("template").get("spec")
-            update_affinity(spec, appwrapper_name, instascale)
+            update_affinity(spec, appwrapper_name)
             update_image_pull_secrets(spec, image_pull_secrets)
             update_image(spec, image)
             update_env(spec, env)
@@ -413,7 +391,6 @@ def generate_appwrapper(
     workers: int,
     template: str,
     image: str,
-    instascale: bool,
     appwrapper: bool,
     instance_types: list,
     env,
@@ -434,7 +411,7 @@ def generate_appwrapper(
         cluster_name,
         namespace,
     )
-    update_labels(user_yaml, instascale, instance_types)
+    update_labels(user_yaml, instance_types)
     update_priority(user_yaml, item)
     update_custompodresources(
         item,
@@ -458,7 +435,6 @@ def generate_appwrapper(
         gpu,
         workers,
         image,
-        instascale,
         env,
         image_pull_secrets,
         head_cpus,

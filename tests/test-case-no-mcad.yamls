@@ -31,15 +31,6 @@ spec:
     serviceType: ClusterIP
     template:
       spec:
-        affinity:
-          nodeAffinity:
-            requiredDuringSchedulingIgnoredDuringExecution:
-              nodeSelectorTerms:
-              - matchExpressions:
-                - key: unit-test-cluster-ray
-                  operator: In
-                  values:
-                  - unit-test-cluster-ray
         containers:
         - image: quay.io/project-codeflare/ray:latest-py39-cu118
           imagePullPolicy: Always
@@ -113,15 +104,6 @@ spec:
         labels:
           key: value
       spec:
-        affinity:
-          nodeAffinity:
-            requiredDuringSchedulingIgnoredDuringExecution:
-              nodeSelectorTerms:
-              - matchExpressions:
-                - key: unit-test-cluster-ray
-                  operator: In
-                  values:
-                  - unit-test-cluster-ray
         containers:
         - image: quay.io/project-codeflare/ray:latest-py39-cu118
           lifecycle:

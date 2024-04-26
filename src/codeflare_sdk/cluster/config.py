@@ -46,7 +46,6 @@ class ClusterConfiguration:
     max_memory: typing.Union[int, str] = 2
     num_gpus: int = 0
     template: str = f"{dir}/templates/base-template.yaml"
-    instascale: bool = False
     appwrapper: bool = False
     envs: dict = field(default_factory=dict)
     image: str = ""
