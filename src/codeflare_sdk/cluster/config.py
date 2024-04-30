@@ -54,6 +54,7 @@ class ClusterConfiguration:
     dispatch_priority: str = None
     write_to_file: bool = False
     verify_tls: bool = True
+    user_labels: dict = field(default_factory=dict)
 
     def __post_init__(self):
         if not self.verify_tls:
