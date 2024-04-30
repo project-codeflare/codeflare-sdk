@@ -324,7 +324,6 @@ def test_cluster_creation_no_mcad(mocker):
     config.name = "unit-test-cluster-ray"
     config.write_to_file = True
     config.mcad = False
-    config.user_labels = {"testlabel": "test", "testlabel2": "test"}
     cluster = Cluster(config)
 
     assert cluster.app_wrapper_yaml == f"{aw_dir}unit-test-cluster-ray.yaml"
@@ -349,7 +348,6 @@ def test_cluster_creation_no_mcad_local_queue(mocker):
     config.mcad = False
     config.write_to_file = True
     config.local_queue = "local-queue-default"
-    config.user_labels = {"testlabel": "test", "testlabel2": "test"}
     cluster = Cluster(config)
     assert cluster.app_wrapper_yaml == f"{aw_dir}unit-test-cluster-ray.yaml"
     assert cluster.app_wrapper_name == "unit-test-cluster-ray"
@@ -375,7 +373,6 @@ def test_cluster_creation_no_mcad_local_queue(mocker):
         write_to_file=True,
         mcad=False,
         local_queue="local-queue-default",
-        user_labels={"testlabel": "test", "testlabel2": "test"},
     )
     cluster = Cluster(config)
     assert cluster.app_wrapper_yaml == f"{aw_dir}unit-test-cluster-ray.yaml"
