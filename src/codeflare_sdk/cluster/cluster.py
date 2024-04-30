@@ -187,6 +187,7 @@ class Cluster:
         write_to_file = self.config.write_to_file
         verify_tls = self.config.verify_tls
         local_queue = self.config.local_queue
+        labels = self.config.labels
         return generate_appwrapper(
             name=name,
             namespace=namespace,
@@ -211,6 +212,7 @@ class Cluster:
             write_to_file=write_to_file,
             verify_tls=verify_tls,
             local_queue=local_queue,
+            labels=labels,
         )
 
     # creates a new cluster with the provided or default spec
