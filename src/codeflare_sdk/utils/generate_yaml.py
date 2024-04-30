@@ -309,11 +309,7 @@ def get_default_kueue_name(namespace: str):
 
 
 def write_components(
-    user_yaml: dict,
-    output_file_name: str,
-    namespace: str,
-    local_queue: Optional[str],
-    user_labels: dict,
+    user_yaml: dict, output_file_name: str, namespace: str, local_queue: Optional[str]
 ):
     # Create the directory if it doesn't exist
     directory_path = os.path.dirname(output_file_name)
@@ -335,8 +331,6 @@ def write_components(
                     ]
                     labels = component["generictemplate"]["metadata"]["labels"]
                     labels.update({"kueue.x-k8s.io/queue-name": lq_name})
-                    for key in user_labels:
-                        labels.update({key: user_labels[key]})
                 outfile.write("---\n")
                 yaml.dump(
                     component["generictemplate"], outfile, default_flow_style=False
@@ -345,11 +339,7 @@ def write_components(
 
 
 def load_components(
-    user_yaml: dict,
-    name: str,
-    namespace: str,
-    local_queue: Optional[str],
-    user_labels: dict,
+    user_yaml: dict, name: str, namespace: str, local_queue: Optional[str]
 ):
     component_list = []
     components = user_yaml.get("spec", "resources")["resources"].get("GenericItems")
@@ -365,8 +355,6 @@ def load_components(
                 ]
                 labels = component["generictemplate"]["metadata"]["labels"]
                 labels.update({"kueue.x-k8s.io/queue-name": lq_name})
-                for key in user_labels:
-                    labels.update({key: user_labels[key]})
             component_list.append(component["generictemplate"])
 
     resources = "---\n" + "---\n".join(
@@ -407,7 +395,6 @@ def generate_appwrapper(
     write_to_file: bool,
     verify_tls: bool,
     local_queue: Optional[str],
-    user_labels,
 ):
     user_yaml = read_template(template)
     appwrapper_name, cluster_name = gen_names(name)
@@ -459,13 +446,11 @@ def generate_appwrapper(
         if mcad:
             write_user_appwrapper(user_yaml, outfile)
         else:
-            write_components(user_yaml, outfile, namespace, local_queue, user_labels)
+            write_components(user_yaml, outfile, namespace, local_queue)
         return outfile
     else:
         if mcad:
             user_yaml = load_appwrapper(user_yaml, name)
         else:
-            user_yaml = load_components(
-                user_yaml, name, namespace, local_queue, user_labels
-            )
+            user_yaml = load_components(user_yaml, name, namespace, local_queue)
         return user_yaml
