@@ -994,7 +994,6 @@ def get_ray_obj(group, version, namespace, plural, cls=None):
                     "labels": {
                         "controller-tools.k8s.io": "1.0",
                         "resourceName": "quicktest",
-                        "workload.codeflare.dev/appwrapper": "quicktest",
                         "orderedinstance": "m4.xlarge_g4dn.xlarge",
                         "kueue.x-k8s.io/queue-name": "team-a-queue",
                     },
@@ -1302,7 +1301,6 @@ def get_ray_obj(group, version, namespace, plural, cls=None):
                     "creationTimestamp": "2023-02-22T16:26:07Z",
                     "generation": 1,
                     "labels": {
-                        "workload.codeflare.dev/appwrapper": "quicktest2",
                         "controller-tools.k8s.io": "1.0",
                         "resourceName": "quicktest2",
                         "orderedinstance": "m4.xlarge_g4dn.xlarge",
@@ -1493,7 +1491,6 @@ def get_aw_obj(group, version, namespace, plural):
                                     "kind": "RayCluster",
                                     "metadata": {
                                         "labels": {
-                                            "workload.codeflare.dev/appwrapper": "quicktest1",
                                             "controller-tools.k8s.io": "1.0",
                                         },
                                         "name": "quicktest1",
@@ -1697,7 +1694,6 @@ def get_aw_obj(group, version, namespace, plural):
                                     "kind": "RayCluster",
                                     "metadata": {
                                         "labels": {
-                                            "workload.codeflare.dev/appwrapper": "quicktest2",
                                             "controller-tools.k8s.io": "1.0",
                                         },
                                         "name": "quicktest2",

@@ -82,7 +82,6 @@ def update_names(yaml, item, appwrapper_name, cluster_name, namespace):
     metadata["name"] = appwrapper_name
     metadata["namespace"] = namespace
     lower_meta = item.get("generictemplate", {}).get("metadata")
-    lower_meta["labels"]["workload.codeflare.dev/appwrapper"] = appwrapper_name
     lower_meta["name"] = cluster_name
     lower_meta["namespace"] = namespace
 
@@ -252,16 +251,9 @@ def write_components(
     with open(output_file_name, "a") as outfile:
         for component in components:
             if "generictemplate" in component:
-                if (
-                    "workload.codeflare.dev/appwrapper"
-                    in component["generictemplate"]["metadata"]["labels"]
-                ):
-                    del component["generictemplate"]["metadata"]["labels"][
-                        "workload.codeflare.dev/appwrapper"
-                    ]
-                    labels = component["generictemplate"]["metadata"]["labels"]
-                    labels.update({"kueue.x-k8s.io/queue-name": lq_name})
-                    labels.update(cluster_labels)
+                labels = component["generictemplate"]["metadata"]["labels"]
+                labels.update({"kueue.x-k8s.io/queue-name": lq_name})
+                labels.update(cluster_labels)
                 outfile.write("---\n")
                 yaml.dump(
                     component["generictemplate"], outfile, default_flow_style=False
@@ -286,16 +278,9 @@ def load_components(
         )
     for component in components:
         if "generictemplate" in component:
-            if (
-                "workload.codeflare.dev/appwrapper"
-                in component["generictemplate"]["metadata"]["labels"]
-            ):
-                del component["generictemplate"]["metadata"]["labels"][
-                    "workload.codeflare.dev/appwrapper"
-                ]
-                labels = component["generictemplate"]["metadata"]["labels"]
-                labels.update({"kueue.x-k8s.io/queue-name": lq_name})
-                labels.update(cluster_labels)
+            labels = component["generictemplate"]["metadata"]["labels"]
+            labels.update({"kueue.x-k8s.io/queue-name": lq_name})
+            labels.update(cluster_labels)
             component_list.append(component["generictemplate"])
 
     resources = "---\n" + "---\n".join(
