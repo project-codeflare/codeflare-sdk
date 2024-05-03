@@ -62,7 +62,7 @@ class AWManager:
             api_instance = client.CustomObjectsApi(api_config_handler())
             api_instance.create_namespaced_custom_object(
                 group="workload.codeflare.dev",
-                version="v1beta1",
+                version="v1beta2",
                 namespace=self.namespace,
                 plural="appwrappers",
                 body=self.awyaml,
@@ -87,7 +87,7 @@ class AWManager:
             api_instance = client.CustomObjectsApi(api_config_handler())
             api_instance.delete_namespaced_custom_object(
                 group="workload.codeflare.dev",
-                version="v1beta1",
+                version="v1beta2",
                 namespace=self.namespace,
                 plural="appwrappers",
                 name=self.name,

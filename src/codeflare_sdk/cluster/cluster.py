@@ -199,7 +199,7 @@ class Cluster:
                         aw = yaml.load(f, Loader=yaml.FullLoader)
                         api_instance.create_namespaced_custom_object(
                             group="workload.codeflare.dev",
-                            version="v1beta1",
+                            version="v1beta2",
                             namespace=namespace,
                             plural="appwrappers",
                             body=aw,
@@ -208,7 +208,7 @@ class Cluster:
                     aw = yaml.safe_load(self.app_wrapper_yaml)
                     api_instance.create_namespaced_custom_object(
                         group="workload.codeflare.dev",
-                        version="v1beta1",
+                        version="v1beta2",
                         namespace=namespace,
                         plural="appwrappers",
                         body=aw,
@@ -250,7 +250,7 @@ class Cluster:
             if self.config.appwrapper:
                 api_instance.delete_namespaced_custom_object(
                     group="workload.codeflare.dev",
-                    version="v1beta1",
+                    version="v1beta2",
                     namespace=namespace,
                     plural="appwrappers",
                     name=self.app_wrapper_name,
@@ -681,7 +681,7 @@ def _check_aw_exists(name: str, namespace: str) -> bool:
         api_instance = client.CustomObjectsApi(api_config_handler())
         aws = api_instance.list_namespaced_custom_object(
             group="workload.codeflare.dev",
-            version="v1beta1",
+            version="v1beta2",
             namespace=namespace,
             plural="appwrappers",
         )
@@ -741,7 +741,7 @@ def _app_wrapper_status(name, namespace="default") -> Optional[AppWrapper]:
         api_instance = client.CustomObjectsApi(api_config_handler())
         aws = api_instance.list_namespaced_custom_object(
             group="workload.codeflare.dev",
-            version="v1beta1",
+            version="v1beta2",
             namespace=namespace,
             plural="appwrappers",
         )
@@ -811,7 +811,7 @@ def _get_app_wrappers(
         api_instance = client.CustomObjectsApi(api_config_handler())
         aws = api_instance.list_namespaced_custom_object(
             group="workload.codeflare.dev",
-            version="v1beta1",
+            version="v1beta2",
             namespace=namespace,
             plural="appwrappers",
         )
@@ -908,7 +908,7 @@ def _map_to_app_wrapper(aw) -> AppWrapper:
     if "status" in aw:
         return AppWrapper(
             name=aw["metadata"]["name"],
-            status=AppWrapperStatus(aw["status"]["state"].lower()),
+            status=AppWrapperStatus(aw["status"]["phase"].lower()),
         )
     return AppWrapper(
         name=aw["metadata"]["name"],

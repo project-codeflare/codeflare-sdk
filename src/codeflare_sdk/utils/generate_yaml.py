@@ -81,7 +81,7 @@ def update_names(yaml, item, appwrapper_name, cluster_name, namespace):
     metadata = yaml.get("metadata")
     metadata["name"] = appwrapper_name
     metadata["namespace"] = namespace
-    lower_meta = item.get("generictemplate", {}).get("metadata")
+    lower_meta = item.get("template", {}).get("metadata")
     lower_meta["name"] = cluster_name
     lower_meta["namespace"] = namespace
 
@@ -140,11 +140,11 @@ def update_nodes(
     head_memory,
     head_gpus,
 ):
-    if "generictemplate" in item.keys():
-        head = item.get("generictemplate").get("spec").get("headGroupSpec")
+    if "template" in item.keys():
+        head = item.get("template").get("spec").get("headGroupSpec")
         head["rayStartParams"]["num-gpus"] = str(int(head_gpus))
 
-        worker = item.get("generictemplate").get("spec").get("workerGroupSpecs")[0]
+        worker = item.get("template").get("spec").get("workerGroupSpecs")[0]
         # Head counts as first worker
         worker["replicas"] = workers
         worker["minReplicas"] = workers
@@ -240,7 +240,7 @@ def write_components(
     if not os.path.exists(directory_path):
         os.makedirs(directory_path)
 
-    components = user_yaml.get("spec", "resources")["resources"].get("GenericItems")
+    components = user_yaml.get("spec", "resources").get("components")
     open(output_file_name, "w").close()
     lq_name = local_queue or get_default_kueue_name(namespace)
     cluster_labels = labels
@@ -250,14 +250,12 @@ def write_components(
         )
     with open(output_file_name, "a") as outfile:
         for component in components:
-            if "generictemplate" in component:
+            if "template" in component:
                 labels = component["generictemplate"]["metadata"]["labels"]
                 labels.update({"kueue.x-k8s.io/queue-name": lq_name})
                 labels.update(cluster_labels)
                 outfile.write("---\n")
-                yaml.dump(
-                    component["generictemplate"], outfile, default_flow_style=False
-                )
+                yaml.dump(component["template"], outfile, default_flow_style=False)
     print(f"Written to: {output_file_name}")
 
 
@@ -269,7 +267,7 @@ def load_components(
     labels: dict,
 ):
     component_list = []
-    components = user_yaml.get("spec", "resources")["resources"].get("GenericItems")
+    components = user_yaml.get("spec", "resources").get("components")
     lq_name = local_queue or get_default_kueue_name(namespace)
     cluster_labels = labels
     if not local_queue_exists(namespace, lq_name):
@@ -277,11 +275,11 @@ def load_components(
             "local_queue provided does not exist or is not in this namespace. Please provide the correct local_queue name in Cluster Configuration"
         )
     for component in components:
-        if "generictemplate" in component:
-            labels = component["generictemplate"]["metadata"]["labels"]
+        if "template" in component:
+            labels = component["template"]["metadata"]["labels"]
             labels.update({"kueue.x-k8s.io/queue-name": lq_name})
             labels.update(cluster_labels)
-            component_list.append(component["generictemplate"])
+            component_list.append(component["template"])
 
     resources = "---\n" + "---\n".join(
         [yaml.dump(component) for component in component_list]
@@ -323,7 +321,7 @@ def generate_appwrapper(
     user_yaml = read_template(template)
     appwrapper_name, cluster_name = gen_names(name)
     resources = user_yaml.get("spec", "resources")
-    item = resources["resources"].get("GenericItems")[0]
+    item = resources.get("components")[0]
     update_names(
         user_yaml,
         item,

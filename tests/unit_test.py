@@ -458,7 +458,7 @@ def arg_check_apply_effect(group, version, namespace, plural, body, *args):
     assert args == tuple()
     if plural == "appwrappers":
         assert group == "workload.codeflare.dev"
-        assert version == "v1beta1"
+        assert version == "v1beta2"
         with open(f"{aw_dir}unit-test-cluster.yaml") as f:
             aw = yaml.load(f, Loader=yaml.FullLoader)
         assert body == aw
@@ -495,7 +495,7 @@ def arg_check_del_effect(group, version, namespace, plural, name, *args):
     assert args == tuple()
     if plural == "appwrappers":
         assert group == "workload.codeflare.dev"
-        assert version == "v1beta1"
+        assert version == "v1beta2"
         assert name == "unit-test-cluster"
     elif plural == "rayclusters":
         assert group == "ray.io"
@@ -589,7 +589,7 @@ def test_get_ingress_domain(mocker):
 
 def aw_status_fields(group, version, namespace, plural, *args):
     assert group == "workload.codeflare.dev"
-    assert version == "v1beta1"
+    assert version == "v1beta2"
     assert namespace == "test-ns"
     assert plural == "appwrappers"
     assert args == tuple()
@@ -1001,7 +1001,7 @@ def get_ray_obj(group, version, namespace, plural, cls=None):
                     "namespace": "ns",
                     "ownerReferences": [
                         {
-                            "apiVersion": "workload.codeflare.dev/v1beta1",
+                            "apiVersion": "workload.codeflare.dev/v1beta2",
                             "blockOwnerDeletion": True,
                             "controller": True,
                             "kind": "AppWrapper",
@@ -1309,7 +1309,7 @@ def get_ray_obj(group, version, namespace, plural, cls=None):
                     "namespace": "ns",
                     "ownerReferences": [
                         {
-                            "apiVersion": "workload.codeflare.dev/v1beta1",
+                            "apiVersion": "workload.codeflare.dev/v1beta2",
                             "blockOwnerDeletion": True,
                             "controller": True,
                             "kind": "AppWrapper",
@@ -1468,7 +1468,7 @@ def get_ray_obj(group, version, namespace, plural, cls=None):
 
 
 def get_named_aw(group, version, namespace, plural, name):
-    aws = get_aw_obj("workload.codeflare.dev", "v1beta1", "ns", "appwrappers")
+    aws = get_aw_obj("workload.codeflare.dev", "v1beta2", "ns", "appwrappers")
     return aws["items"][0]
 
 
@@ -1476,56 +1476,128 @@ def get_aw_obj(group, version, namespace, plural):
     api_obj1 = {
         "items": [
             {
-                "apiVersion": "workload.codeflare.dev/v1beta1",
+                "apiVersion": "workload.codeflare.dev/v1beta2",
                 "kind": "AppWrapper",
                 "metadata": {
                     "name": "quicktest1",
                     "namespace": "ns",
                 },
                 "spec": {
-                    "resources": {
-                        "GenericItems": [
-                            {
-                                "generictemplate": {
-                                    "apiVersion": "ray.io/v1",
-                                    "kind": "RayCluster",
-                                    "metadata": {
-                                        "labels": {
-                                            "controller-tools.k8s.io": "1.0",
-                                        },
-                                        "name": "quicktest1",
-                                        "namespace": "ns",
+                    "components": [
+                        {
+                            "template": {
+                                "apiVersion": "ray.io/v1",
+                                "kind": "RayCluster",
+                                "metadata": {
+                                    "labels": {
+                                        "controller-tools.k8s.io": "1.0",
                                     },
-                                    "spec": {
-                                        "autoscalerOptions": {
-                                            "idleTimeoutSeconds": 60,
-                                            "imagePullPolicy": "Always",
-                                            "resources": {
-                                                "limits": {
-                                                    "cpu": "500m",
-                                                    "memory": "512Mi",
-                                                },
-                                                "requests": {
-                                                    "cpu": "500m",
-                                                    "memory": "512Mi",
-                                                },
+                                    "name": "quicktest1",
+                                    "namespace": "ns",
+                                },
+                                "spec": {
+                                    "autoscalerOptions": {
+                                        "idleTimeoutSeconds": 60,
+                                        "imagePullPolicy": "Always",
+                                        "resources": {
+                                            "limits": {
+                                                "cpu": "500m",
+                                                "memory": "512Mi",
                                             },
-                                            "upscalingMode": "Default",
+                                            "requests": {
+                                                "cpu": "500m",
+                                                "memory": "512Mi",
+                                            },
                                         },
-                                        "enableInTreeAutoscaling": False,
-                                        "headGroupSpec": {
+                                        "upscalingMode": "Default",
+                                    },
+                                    "enableInTreeAutoscaling": False,
+                                    "headGroupSpec": {
+                                        "rayStartParams": {
+                                            "block": "true",
+                                            "dashboard-host": "0.0.0.0",
+                                            "num-gpus": "0",
+                                        },
+                                        "serviceType": "ClusterIP",
+                                        "template": {
+                                            "spec": {
+                                                "containers": [
+                                                    {
+                                                        "image": "ghcr.io/foundation-model-stack/base:ray2.1.0-py38-gpu-pytorch1.12.0cu116-20221213-193103",
+                                                        "imagePullPolicy": "Always",
+                                                        "lifecycle": {
+                                                            "preStop": {
+                                                                "exec": {
+                                                                    "command": [
+                                                                        "/bin/sh",
+                                                                        "-c",
+                                                                        "ray stop",
+                                                                    ]
+                                                                }
+                                                            }
+                                                        },
+                                                        "name": "ray-head",
+                                                        "ports": [
+                                                            {
+                                                                "containerPort": 6379,
+                                                                "name": "gcs",
+                                                            },
+                                                            {
+                                                                "containerPort": 8265,
+                                                                "name": "dashboard",
+                                                            },
+                                                            {
+                                                                "containerPort": 10001,
+                                                                "name": "client",
+                                                            },
+                                                        ],
+                                                        "resources": {
+                                                            "limits": {
+                                                                "cpu": 2,
+                                                                "memory": "8G",
+                                                                "nvidia.com/gpu": 0,
+                                                            },
+                                                            "requests": {
+                                                                "cpu": 2,
+                                                                "memory": "8G",
+                                                                "nvidia.com/gpu": 0,
+                                                            },
+                                                        },
+                                                    }
+                                                ]
+                                            }
+                                        },
+                                    },
+                                    "rayVersion": "1.12.0",
+                                    "workerGroupSpecs": [
+                                        {
+                                            "groupName": "small-group-quicktest",
+                                            "maxReplicas": 1,
+                                            "minReplicas": 1,
                                             "rayStartParams": {
                                                 "block": "true",
-                                                "dashboard-host": "0.0.0.0",
                                                 "num-gpus": "0",
                                             },
-                                            "serviceType": "ClusterIP",
+                                            "replicas": 1,
                                             "template": {
+                                                "metadata": {
+                                                    "annotations": {"key": "value"},
+                                                    "labels": {"key": "value"},
+                                                },
                                                 "spec": {
                                                     "containers": [
                                                         {
+                                                            "env": [
+                                                                {
+                                                                    "name": "MY_POD_IP",
+                                                                    "valueFrom": {
+                                                                        "fieldRef": {
+                                                                            "fieldPath": "status.podIP"
+                                                                        }
+                                                                    },
+                                                                }
+                                                            ],
                                                             "image": "ghcr.io/foundation-model-stack/base:ray2.1.0-py38-gpu-pytorch1.12.0cu116-20221213-193103",
-                                                            "imagePullPolicy": "Always",
                                                             "lifecycle": {
                                                                 "preStop": {
                                                                     "exec": {
@@ -1537,198 +1609,190 @@ def get_aw_obj(group, version, namespace, plural):
                                                                     }
                                                                 }
                                                             },
-                                                            "name": "ray-head",
-                                                            "ports": [
-                                                                {
-                                                                    "containerPort": 6379,
-                                                                    "name": "gcs",
-                                                                },
-                                                                {
-                                                                    "containerPort": 8265,
-                                                                    "name": "dashboard",
-                                                                },
-                                                                {
-                                                                    "containerPort": 10001,
-                                                                    "name": "client",
-                                                                },
-                                                            ],
+                                                            "name": "machine-learning",
                                                             "resources": {
                                                                 "limits": {
-                                                                    "cpu": 2,
-                                                                    "memory": "8G",
+                                                                    "cpu": 1,
+                                                                    "memory": "2G",
                                                                     "nvidia.com/gpu": 0,
                                                                 },
                                                                 "requests": {
-                                                                    "cpu": 2,
-                                                                    "memory": "8G",
+                                                                    "cpu": 1,
+                                                                    "memory": "2G",
                                                                     "nvidia.com/gpu": 0,
                                                                 },
                                                             },
                                                         }
-                                                    ]
-                                                }
+                                                    ],
+                                                },
                                             },
-                                        },
-                                        "rayVersion": "1.12.0",
-                                        "workerGroupSpecs": [
-                                            {
-                                                "groupName": "small-group-quicktest",
-                                                "maxReplicas": 1,
-                                                "minReplicas": 1,
-                                                "rayStartParams": {
-                                                    "block": "true",
-                                                    "num-gpus": "0",
-                                                },
-                                                "replicas": 1,
-                                                "template": {
-                                                    "metadata": {
-                                                        "annotations": {"key": "value"},
-                                                        "labels": {"key": "value"},
-                                                    },
-                                                    "spec": {
-                                                        "containers": [
-                                                            {
-                                                                "env": [
-                                                                    {
-                                                                        "name": "MY_POD_IP",
-                                                                        "valueFrom": {
-                                                                            "fieldRef": {
-                                                                                "fieldPath": "status.podIP"
-                                                                            }
-                                                                        },
-                                                                    }
-                                                                ],
-                                                                "image": "ghcr.io/foundation-model-stack/base:ray2.1.0-py38-gpu-pytorch1.12.0cu116-20221213-193103",
-                                                                "lifecycle": {
-                                                                    "preStop": {
-                                                                        "exec": {
-                                                                            "command": [
-                                                                                "/bin/sh",
-                                                                                "-c",
-                                                                                "ray stop",
-                                                                            ]
-                                                                        }
-                                                                    }
-                                                                },
-                                                                "name": "machine-learning",
-                                                                "resources": {
-                                                                    "limits": {
-                                                                        "cpu": 1,
-                                                                        "memory": "2G",
-                                                                        "nvidia.com/gpu": 0,
-                                                                    },
-                                                                    "requests": {
-                                                                        "cpu": 1,
-                                                                        "memory": "2G",
-                                                                        "nvidia.com/gpu": 0,
-                                                                    },
-                                                                },
-                                                            }
-                                                        ],
-                                                    },
-                                                },
-                                            }
-                                        ],
-                                    },
+                                        }
+                                    ],
                                 },
-                                "metadata": {},
-                                "replicas": 1,
                             },
-                            {
-                                "generictemplate": {
-                                    "apiVersion": "networking.k8s.io/v1",
-                                    "kind": "Ingress",
-                                    "metadata": {
-                                        "labels": {
-                                            "ingress-owner": "appwrapper-name",
-                                        },
-                                        "name": "ray-dashboard-quicktest",
-                                        "namespace": "default",
+                        },
+                        {
+                            "template": {
+                                "apiVersion": "networking.k8s.io/v1",
+                                "kind": "Ingress",
+                                "metadata": {
+                                    "labels": {
+                                        "ingress-owner": "appwrapper-name",
                                     },
-                                    "spec": {
-                                        "ingressClassName": "nginx",
-                                        "rules": [
-                                            {
-                                                "http": {
-                                                    "paths": {
-                                                        "backend": {
-                                                            "service": {
-                                                                "name": "quicktest-head-svc",
-                                                                "port": {
-                                                                    "number": 8265
-                                                                },
-                                                            },
+                                    "name": "ray-dashboard-quicktest",
+                                    "namespace": "default",
+                                },
+                                "spec": {
+                                    "ingressClassName": "nginx",
+                                    "rules": [
+                                        {
+                                            "http": {
+                                                "paths": {
+                                                    "backend": {
+                                                        "service": {
+                                                            "name": "quicktest-head-svc",
+                                                            "port": {"number": 8265},
                                                         },
-                                                        "pathType": "Prefix",
-                                                        "path": "/",
                                                     },
+                                                    "pathType": "Prefix",
+                                                    "path": "/",
                                                 },
-                                                "host": "quicktest.awsroute.com",
-                                            }
-                                        ],
-                                    },
+                                            },
+                                            "host": "quicktest.awsroute.com",
+                                        }
+                                    ],
                                 },
-                                "metadata": {},
                             },
-                        ],
-                        "metadata": {},
-                    },
+                        },
+                    ],
                 },
                 "status": {
-                    "state": "Running",
+                    "phase": "Running",
                 },
             },
             {
-                "apiVersion": "workload.codeflare.dev/v1beta1",
+                "apiVersion": "workload.codeflare.dev/v1beta2",
                 "kind": "AppWrapper",
                 "metadata": {
                     "name": "quicktest2",
                     "namespace": "ns",
                 },
                 "spec": {
-                    "resources": {
-                        "GenericItems": [
-                            {
-                                "generictemplate": {
-                                    "apiVersion": "ray.io/v1",
-                                    "kind": "RayCluster",
-                                    "metadata": {
-                                        "labels": {
-                                            "controller-tools.k8s.io": "1.0",
-                                        },
-                                        "name": "quicktest2",
-                                        "namespace": "ns",
+                    "components": [
+                        {
+                            "template": {
+                                "apiVersion": "ray.io/v1",
+                                "kind": "RayCluster",
+                                "metadata": {
+                                    "labels": {
+                                        "controller-tools.k8s.io": "1.0",
                                     },
-                                    "spec": {
-                                        "autoscalerOptions": {
-                                            "idleTimeoutSeconds": 60,
-                                            "imagePullPolicy": "Always",
-                                            "resources": {
-                                                "limits": {
-                                                    "cpu": "500m",
-                                                    "memory": "512Mi",
-                                                },
-                                                "requests": {
-                                                    "cpu": "500m",
-                                                    "memory": "512Mi",
-                                                },
+                                    "name": "quicktest2",
+                                    "namespace": "ns",
+                                },
+                                "spec": {
+                                    "autoscalerOptions": {
+                                        "idleTimeoutSeconds": 60,
+                                        "imagePullPolicy": "Always",
+                                        "resources": {
+                                            "limits": {
+                                                "cpu": "500m",
+                                                "memory": "512Mi",
                                             },
-                                            "upscalingMode": "Default",
+                                            "requests": {
+                                                "cpu": "500m",
+                                                "memory": "512Mi",
+                                            },
                                         },
-                                        "enableInTreeAutoscaling": False,
-                                        "headGroupSpec": {
+                                        "upscalingMode": "Default",
+                                    },
+                                    "enableInTreeAutoscaling": False,
+                                    "headGroupSpec": {
+                                        "rayStartParams": {
+                                            "block": "true",
+                                            "dashboard-host": "0.0.0.0",
+                                            "num-gpus": "0",
+                                        },
+                                        "serviceType": "ClusterIP",
+                                        "template": {
+                                            "spec": {
+                                                "containers": [
+                                                    {
+                                                        "image": "ghcr.io/foundation-model-stack/base:ray2.1.0-py38-gpu-pytorch1.12.0cu116-20221213-193103",
+                                                        "imagePullPolicy": "Always",
+                                                        "lifecycle": {
+                                                            "preStop": {
+                                                                "exec": {
+                                                                    "command": [
+                                                                        "/bin/sh",
+                                                                        "-c",
+                                                                        "ray stop",
+                                                                    ]
+                                                                }
+                                                            }
+                                                        },
+                                                        "name": "ray-head",
+                                                        "ports": [
+                                                            {
+                                                                "containerPort": 6379,
+                                                                "name": "gcs",
+                                                            },
+                                                            {
+                                                                "containerPort": 8265,
+                                                                "name": "dashboard",
+                                                            },
+                                                            {
+                                                                "containerPort": 10001,
+                                                                "name": "client",
+                                                            },
+                                                        ],
+                                                        "resources": {
+                                                            "limits": {
+                                                                "cpu": 2,
+                                                                "memory": "8G",
+                                                                "nvidia.com/gpu": 0,
+                                                            },
+                                                            "requests": {
+                                                                "cpu": 2,
+                                                                "memory": "8G",
+                                                                "nvidia.com/gpu": 0,
+                                                            },
+                                                        },
+                                                    }
+                                                ]
+                                            }
+                                        },
+                                    },
+                                    "rayVersion": "1.12.0",
+                                    "workerGroupSpecs": [
+                                        {
+                                            "groupName": "small-group-quicktest",
+                                            "maxReplicas": 1,
+                                            "minReplicas": 1,
                                             "rayStartParams": {
                                                 "block": "true",
-                                                "dashboard-host": "0.0.0.0",
                                                 "num-gpus": "0",
                                             },
-                                            "serviceType": "ClusterIP",
+                                            "replicas": 1,
                                             "template": {
+                                                "metadata": {
+                                                    "annotations": {"key": "value"},
+                                                    "labels": {"key": "value"},
+                                                },
                                                 "spec": {
                                                     "containers": [
                                                         {
+                                                            "env": [
+                                                                {
+                                                                    "name": "MY_POD_IP",
+                                                                    "valueFrom": {
+                                                                        "fieldRef": {
+                                                                            "fieldPath": "status.podIP"
+                                                                        }
+                                                                    },
+                                                                }
+                                                            ],
                                                             "image": "ghcr.io/foundation-model-stack/base:ray2.1.0-py38-gpu-pytorch1.12.0cu116-20221213-193103",
-                                                            "imagePullPolicy": "Always",
                                                             "lifecycle": {
                                                                 "preStop": {
                                                                     "exec": {
@@ -1740,131 +1804,52 @@ def get_aw_obj(group, version, namespace, plural):
                                                                     }
                                                                 }
                                                             },
-                                                            "name": "ray-head",
-                                                            "ports": [
-                                                                {
-                                                                    "containerPort": 6379,
-                                                                    "name": "gcs",
-                                                                },
-                                                                {
-                                                                    "containerPort": 8265,
-                                                                    "name": "dashboard",
-                                                                },
-                                                                {
-                                                                    "containerPort": 10001,
-                                                                    "name": "client",
-                                                                },
-                                                            ],
+                                                            "name": "machine-learning",
                                                             "resources": {
                                                                 "limits": {
-                                                                    "cpu": 2,
-                                                                    "memory": "8G",
+                                                                    "cpu": 1,
+                                                                    "memory": "2G",
                                                                     "nvidia.com/gpu": 0,
                                                                 },
                                                                 "requests": {
-                                                                    "cpu": 2,
-                                                                    "memory": "8G",
+                                                                    "cpu": 1,
+                                                                    "memory": "2G",
                                                                     "nvidia.com/gpu": 0,
                                                                 },
                                                             },
                                                         }
-                                                    ]
-                                                }
+                                                    ],
+                                                },
                                             },
-                                        },
-                                        "rayVersion": "1.12.0",
-                                        "workerGroupSpecs": [
-                                            {
-                                                "groupName": "small-group-quicktest",
-                                                "maxReplicas": 1,
-                                                "minReplicas": 1,
-                                                "rayStartParams": {
-                                                    "block": "true",
-                                                    "num-gpus": "0",
-                                                },
-                                                "replicas": 1,
-                                                "template": {
-                                                    "metadata": {
-                                                        "annotations": {"key": "value"},
-                                                        "labels": {"key": "value"},
-                                                    },
-                                                    "spec": {
-                                                        "containers": [
-                                                            {
-                                                                "env": [
-                                                                    {
-                                                                        "name": "MY_POD_IP",
-                                                                        "valueFrom": {
-                                                                            "fieldRef": {
-                                                                                "fieldPath": "status.podIP"
-                                                                            }
-                                                                        },
-                                                                    }
-                                                                ],
-                                                                "image": "ghcr.io/foundation-model-stack/base:ray2.1.0-py38-gpu-pytorch1.12.0cu116-20221213-193103",
-                                                                "lifecycle": {
-                                                                    "preStop": {
-                                                                        "exec": {
-                                                                            "command": [
-                                                                                "/bin/sh",
-                                                                                "-c",
-                                                                                "ray stop",
-                                                                            ]
-                                                                        }
-                                                                    }
-                                                                },
-                                                                "name": "machine-learning",
-                                                                "resources": {
-                                                                    "limits": {
-                                                                        "cpu": 1,
-                                                                        "memory": "2G",
-                                                                        "nvidia.com/gpu": 0,
-                                                                    },
-                                                                    "requests": {
-                                                                        "cpu": 1,
-                                                                        "memory": "2G",
-                                                                        "nvidia.com/gpu": 0,
-                                                                    },
-                                                                },
-                                                            }
-                                                        ],
-                                                    },
-                                                },
-                                            }
-                                        ],
+                                        }
+                                    ],
+                                },
+                            },
+                        },
+                        {
+                            "template": {
+                                "apiVersion": "route.openshift.io/v1",
+                                "kind": "Route",
+                                "metadata": {
+                                    "labels": {
+                                        "odh-ray-cluster-service": "quicktest-head-svc"
+                                    },
+                                    "name": "ray-dashboard-quicktest",
+                                    "namespace": "default",
+                                },
+                                "spec": {
+                                    "port": {"targetPort": "dashboard"},
+                                    "to": {
+                                        "kind": "Service",
+                                        "name": "quicktest-head-svc",
                                     },
                                 },
-                                "metadata": {},
-                                "replicas": 1,
                             },
-                            {
-                                "allocated": 0,
-                                "generictemplate": {
-                                    "apiVersion": "route.openshift.io/v1",
-                                    "kind": "Route",
-                                    "metadata": {
-                                        "labels": {
-                                            "odh-ray-cluster-service": "quicktest-head-svc"
-                                        },
-                                        "name": "ray-dashboard-quicktest",
-                                        "namespace": "default",
-                                    },
-                                    "spec": {
-                                        "port": {"targetPort": "dashboard"},
-                                        "to": {
-                                            "kind": "Service",
-                                            "name": "quicktest-head-svc",
-                                        },
-                                    },
-                                },
-                                "metadata": {},
-                            },
-                        ],
-                        "metadata": {},
-                    },
+                        },
+                    ],
                 },
                 "status": {
-                    "state": "Suspended",
+                    "phase": "Suspended",
                 },
             },
         ]
@@ -1935,7 +1920,7 @@ def test_get_cluster_openshift(mocker):
         elif plural == "rayclusters":
             return get_ray_obj("ray.io", "v1", "ns", "rayclusters")
         elif plural == "appwrappers":
-            return get_aw_obj("workload.codeflare.dev", "v1beta1", "ns", "appwrappers")
+            return get_aw_obj("workload.codeflare.dev", "v1beta2", "ns", "appwrappers")
         elif plural == "localqueues":
             return get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues")
 
@@ -2427,7 +2412,7 @@ def test_AWManager_creation(mocker):
 
 def arg_check_aw_apply_effect(group, version, namespace, plural, body, *args):
     assert group == "workload.codeflare.dev"
-    assert version == "v1beta1"
+    assert version == "v1beta2"
     assert namespace == "ns"
     assert plural == "appwrappers"
     with open(f"{aw_dir}test.yaml") as f:
@@ -2438,7 +2423,7 @@ def arg_check_aw_apply_effect(group, version, namespace, plural, body, *args):
 
 def arg_check_aw_del_effect(group, version, namespace, plural, name, *args):
     assert group == "workload.codeflare.dev"
-    assert version == "v1beta1"
+    assert version == "v1beta2"
     assert namespace == "ns"
     assert plural == "appwrappers"
     assert name == "test"
