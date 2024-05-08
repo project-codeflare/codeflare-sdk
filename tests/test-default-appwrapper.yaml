@@ -93,7 +93,7 @@ spec:
                   name: odh-trusted-ca-bundle
                   optional: true
                 name: odh-ca-cert
-        rayVersion: 2.7.0
+        rayVersion: 2.20.0
         workerGroupSpecs:
         - groupName: small-group-unit-test-default-cluster
           maxReplicas: 1
