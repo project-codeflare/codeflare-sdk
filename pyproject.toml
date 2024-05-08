@@ -20,10 +20,10 @@ homepage = "https://github.com/project-codeflare/codeflare-sdk"
 keywords = ['codeflare', 'python', 'sdk', 'client', 'batch', 'scale']
 
 [tool.poetry.dependencies]
-python = "^3.8"
+python = "^3.9"
 openshift-client = "1.0.18"
 rich = "^12.5"
-ray = {version = "2.7.0", extras = ["data", "default"]}
+ray = {version = "2.20.0", extras = ["data", "default"]}
 kubernetes = ">= 25.3.0, < 27"
 codeflare-torchx = "0.6.0.dev2"
 cryptography = "40.0.2"
