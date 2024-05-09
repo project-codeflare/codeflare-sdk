@@ -25,6 +25,7 @@ class TestRayClusterSDKKind:
         create_namespace(self)
         create_kueue_resources(self)
         self.run_mnist_raycluster_sdk_kind()
+        self.teardown_method()
 
     def run_mnist_raycluster_sdk_kind(self):
         ray_image = get_ray_image()
