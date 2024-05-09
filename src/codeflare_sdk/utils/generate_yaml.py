@@ -321,6 +321,10 @@ def write_components(
         os.makedirs(directory_path)
 
     components = user_yaml.get("spec", "resources")["resources"].get("GenericItems")
+    if local_queue is None:
+        print(
+            "Kueue is not installed or won't be used. The absence of CRDs may lack the necessary functionality."
+        )
     open(output_file_name, "w").close()
     lq_name = local_queue or get_default_kueue_name(namespace)
     cluster_labels = labels
@@ -355,6 +359,10 @@ def load_components(
     components = user_yaml.get("spec", "resources")["resources"].get("GenericItems")
     lq_name = local_queue or get_default_kueue_name(namespace)
     cluster_labels = labels
+    if local_queue is None:
+        print(
+            "Kueue is not installed or won't be used. The absence of CRDs may lack the necessary functionality."
+        )
     for component in components:
         if "generictemplate" in component:
             if (
