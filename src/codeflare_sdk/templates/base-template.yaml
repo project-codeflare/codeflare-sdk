@@ -86,11 +86,9 @@ spec:
             limits:
               cpu: 2
               memory: "8G"
-              nvidia.com/gpu: 0
             requests:
               cpu: 2
               memory: "8G"
-              nvidia.com/gpu: 0
           volumeMounts:
           - mountPath: /etc/pki/tls/certs/odh-trusted-ca-bundle.crt
             name: odh-trusted-ca-cert
@@ -163,11 +161,9 @@ spec:
             limits:
               cpu: "2"
               memory: "12G"
-              nvidia.com/gpu: "1"
             requests:
               cpu: "2"
               memory: "12G"
-              nvidia.com/gpu: "1"
           volumeMounts:
           - mountPath: /etc/pki/tls/certs/odh-trusted-ca-bundle.crt
             name: odh-trusted-ca-cert

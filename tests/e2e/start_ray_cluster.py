@@ -19,7 +19,6 @@ cluster = Cluster(
         worker_cpu_limits=1,
         worker_memory_requests=1,
         worker_memory_limits=2,
-        num_worker_gpus=0,
         image=ray_image,
         appwrapper=True,
     )

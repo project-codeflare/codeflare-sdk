@@ -13,7 +13,7 @@ def createClusterConfig():
         worker_cpu_limits=4,
         worker_memory_requests=5,
         worker_memory_limits=6,
-        num_worker_gpus=7,
+        worker_extended_resource_requests={"nvidia.com/gpu": 7},
         appwrapper=True,
         machine_types=["cpu.small", "gpu.large"],
         image_pull_secrets=["unit-test-pull-secret"],

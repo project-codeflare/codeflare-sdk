@@ -54,7 +54,6 @@ class TestMNISTRayClusterUp:
                 worker_cpu_limits=1,
                 worker_memory_requests=1,
                 worker_memory_limits=2,
-                num_worker_gpus=0,
                 image=ray_image,
                 write_to_file=True,
                 verify_tls=False,
