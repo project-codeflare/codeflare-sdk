@@ -874,12 +874,10 @@ def test_ray_details(mocker, capsys):
         worker_mem_min="2G",
         worker_mem_max="2G",
         worker_cpu=1,
-        worker_gpu=0,
         namespace="ns",
         dashboard="fake-uri",
         head_cpus=2,
         head_mem=8,
-        head_gpu=0,
     )
     mocker.patch(
         "codeflare_sdk.cluster.cluster.Cluster.status",
@@ -913,7 +911,7 @@ def test_ray_details(mocker, capsys):
     assert ray1.worker_mem_min == ray2.worker_mem_min
     assert ray1.worker_mem_max == ray2.worker_mem_max
     assert ray1.worker_cpu == ray2.worker_cpu
-    assert ray1.worker_gpu == ray2.worker_gpu
+    assert ray1.worker_extended_resources == ray2.worker_extended_resources
     try:
         print_clusters([ray1, ray2])
         print_cluster_status(ray1)
@@ -1120,12 +1118,10 @@ def get_ray_obj(group, version, namespace, plural, cls=None):
                                             "limits": {
                                                 "cpu": 2,
                                                 "memory": "8G",
-                                                "nvidia.com/gpu": 0,
                                             },
                                             "requests": {
                                                 "cpu": 2,
                                                 "memory": "8G",
-                                                "nvidia.com/gpu": 0,
                                             },
                                         },
                                         "volumeMounts": [
@@ -1189,7 +1185,10 @@ def get_ray_obj(group, version, namespace, plural, cls=None):
                             "groupName": "small-group-quicktest",
                             "maxReplicas": 1,
                             "minReplicas": 1,
-                            "rayStartParams": {"block": "true", "num-gpus": "0"},
+                            "rayStartParams": {
+                                "block": "true",
+                                "num-gpus": "0",
+                            },
                             "replicas": 1,
                             "scaleStrategy": {},
                             "template": {
@@ -1240,12 +1239,10 @@ def get_ray_obj(group, version, namespace, plural, cls=None):
                                                 "limits": {
                                                     "cpu": 1,
                                                     "memory": "2G",
-                                                    "nvidia.com/gpu": 0,
                                                 },
                                                 "requests": {
                                                     "cpu": 1,
                                                     "memory": "2G",
-                                                    "nvidia.com/gpu": 0,
                                                 },
                                             },
                                             "volumeMounts": [
@@ -1404,12 +1401,10 @@ def get_ray_obj(group, version, namespace, plural, cls=None):
                                             "limits": {
                                                 "cpu": 2,
                                                 "memory": "8G",
-                                                "nvidia.com/gpu": 0,
                                             },
                                             "requests": {
                                                 "cpu": 2,
                                                 "memory": "8G",
-                                                "nvidia.com/gpu": 0,
                                             },
                                         },
                                     }
@@ -1423,7 +1418,10 @@ def get_ray_obj(group, version, namespace, plural, cls=None):
                             "groupName": "small-group-quicktest2",
                             "maxReplicas": 1,
                             "minReplicas": 1,
-                            "rayStartParams": {"block": "true", "num-gpus": "0"},
+                            "rayStartParams": {
+                                "block": "true",
+                                "num-gpus": "0",
+                            },
                             "replicas": 1,
                             "template": {
                                 "metadata": {
@@ -1460,12 +1458,10 @@ def get_ray_obj(group, version, namespace, plural, cls=None):
                                                 "limits": {
                                                     "cpu": 1,
                                                     "memory": "2G",
-                                                    "nvidia.com/gpu": 0,
                                                 },
                                                 "requests": {
                                                     "cpu": 1,
                                                     "memory": "2G",
-                                                    "nvidia.com/gpu": 0,
                                                 },
                                             },
                                         }
@@ -1582,12 +1578,10 @@ def get_aw_obj(group, version, namespace, plural):
                                                             "limits": {
                                                                 "cpu": 2,
                                                                 "memory": "8G",
-                                                                "nvidia.com/gpu": 0,
                                                             },
                                                             "requests": {
                                                                 "cpu": 2,
                                                                 "memory": "8G",
-                                                                "nvidia.com/gpu": 0,
                                                             },
                                                         },
                                                     }
@@ -1641,12 +1635,10 @@ def get_aw_obj(group, version, namespace, plural):
                                                                 "limits": {
                                                                     "cpu": 1,
                                                                     "memory": "2G",
-                                                                    "nvidia.com/gpu": 0,
                                                                 },
                                                                 "requests": {
                                                                     "cpu": 1,
                                                                     "memory": "2G",
-                                                                    "nvidia.com/gpu": 0,
                                                                 },
                                                             },
                                                         }
@@ -1777,12 +1769,10 @@ def get_aw_obj(group, version, namespace, plural):
                                                             "limits": {
                                                                 "cpu": 2,
                                                                 "memory": "8G",
-                                                                "nvidia.com/gpu": 0,
                                                             },
                                                             "requests": {
                                                                 "cpu": 2,
                                                                 "memory": "8G",
-                                                                "nvidia.com/gpu": 0,
                                                             },
                                                         },
                                                     }
@@ -1836,12 +1826,10 @@ def get_aw_obj(group, version, namespace, plural):
                                                                 "limits": {
                                                                     "cpu": 1,
                                                                     "memory": "2G",
-                                                                    "nvidia.com/gpu": 0,
                                                                 },
                                                                 "requests": {
                                                                     "cpu": 1,
                                                                     "memory": "2G",
-                                                                    "nvidia.com/gpu": 0,
                                                                 },
                                                             },
                                                         }
@@ -2283,12 +2271,10 @@ def test_cluster_status(mocker):
         worker_mem_min=2,
         worker_mem_max=2,
         worker_cpu=1,
-        worker_gpu=0,
         namespace="ns",
         dashboard="fake-uri",
         head_cpus=2,
         head_mem=8,
-        head_gpu=0,
     )
     cf = Cluster(
         ClusterConfiguration(
