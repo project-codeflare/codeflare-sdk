@@ -251,7 +251,7 @@ def write_components(
     with open(output_file_name, "a") as outfile:
         for component in components:
             if "template" in component:
-                labels = component["generictemplate"]["metadata"]["labels"]
+                labels = component["template"]["metadata"]["labels"]
                 labels.update({"kueue.x-k8s.io/queue-name": lq_name})
                 labels.update(cluster_labels)
                 outfile.write("---\n")
