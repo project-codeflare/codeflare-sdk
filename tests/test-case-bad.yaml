@@ -33,6 +33,7 @@ spec:
             block: 'true'
             dashboard-host: 0.0.0.0
             num-gpus: '0'
+            resources: '"{}"'
           serviceType: ClusterIP
           template:
             spec:
@@ -63,11 +64,9 @@ spec:
                   limits:
                     cpu: 2
                     memory: 8G
-                    nvidia.com/gpu: 0
                   requests:
                     cpu: 2
                     memory: 8G
-                    nvidia.com/gpu: 0
         rayVersion: 2.23.0
         workerGroupSpecs:
         - groupName: small-group-unit-test-cluster
@@ -76,6 +75,7 @@ spec:
           rayStartParams:
             block: 'true'
             num-gpus: '7'
+            resources: '"{}"'
           replicas: 2
           template:
             metadata:

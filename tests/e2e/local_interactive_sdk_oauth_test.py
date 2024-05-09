@@ -48,7 +48,6 @@ class TestRayLocalInteractiveOauth:
                 worker_cpu_limits=1,
                 worker_memory_requests=4,
                 worker_memory_limits=4,
-                num_worker_gpus=0,
                 image=ray_image,
                 verify_tls=False,
             )
