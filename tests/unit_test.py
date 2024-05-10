@@ -344,6 +344,10 @@ def test_cluster_creation_no_mcad_local_queue(mocker):
         "kubernetes.client.CustomObjectsApi.get_cluster_custom_object",
         return_value={"spec": {"domain": "apps.cluster.awsroute.org"}},
     )
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
+        return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
+    )
     config = createClusterConfig()
     config.name = "unit-test-cluster-ray"
     config.mcad = False
@@ -3014,6 +3018,10 @@ def test_cluster_throw_for_no_raycluster(mocker: MockerFixture):
     mocker.patch(
         "codeflare_sdk.utils.generate_yaml.get_default_kueue_name",
         return_value="default",
+    )
+    mocker.patch(
+        "codeflare_sdk.utils.generate_yaml.local_queue_exists",
+        return_value="true",
     )
 
     def throw_if_getting_raycluster(group, version, namespace, plural):
