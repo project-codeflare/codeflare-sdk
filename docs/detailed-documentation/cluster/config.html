@@ -52,6 +52,7 @@ Cluster object.
 
 from dataclasses import dataclass, field
 import pathlib
+import typing
 
 dir = pathlib.Path(__file__).parent.parent.resolve()
 
@@ -66,15 +67,15 @@ class ClusterConfiguration:
     name: str
     namespace: str = None
     head_info: list = field(default_factory=list)
-    head_cpus: int = 2
-    head_memory: int = 8
+    head_cpus: typing.Union[int, str] = 2
+    head_memory: typing.Union[int, str] = 8
     head_gpus: int = 0
     machine_types: list = field(default_factory=list)  # [&#34;m4.xlarge&#34;, &#34;g4dn.xlarge&#34;]
-    min_cpus: int = 1
-    max_cpus: int = 1
+    min_cpus: typing.Union[int, str] = 1
+    max_cpus: typing.Union[int, str] = 1
     num_workers: int = 1
-    min_memory: int = 2
-    max_memory: int = 2
+    min_memory: typing.Union[int, str] = 2
+    max_memory: typing.Union[int, str] = 2
     num_gpus: int = 0
     template: str = f&#34;{dir}/templates/base-template.yaml&#34;
     instascale: bool = False
@@ -85,12 +86,31 @@ class ClusterConfiguration:
     dispatch_priority: str = None
     write_to_file: bool = False
     verify_tls: bool = True
+    labels: dict = field(default_factory=dict)
 
     def __post_init__(self):
         if not self.verify_tls:
             print(
                 &#34;Warning: TLS verification has been disabled - Endpoint checks will be bypassed&#34;
             )
+        self._memory_to_string()
+        self._str_mem_no_unit_add_GB()
+
+    def _str_mem_no_unit_add_GB(self):
+        if isinstance(self.head_memory, str) and self.head_memory.isdecimal():
+            self.head_memory = f&#34;{self.head_memory}G&#34;
+        if isinstance(self.min_memory, str) and self.min_memory.isdecimal():
+            self.min_memory = f&#34;{self.min_memory}G&#34;
+        if isinstance(self.max_memory, str) and self.max_memory.isdecimal():
+            self.max_memory = f&#34;{self.max_memory}G&#34;
+
+    def _memory_to_string(self):
+        if isinstance(self.head_memory, int):
+            self.head_memory = f&#34;{self.head_memory}G&#34;
+        if isinstance(self.min_memory, int):
+            self.min_memory = f&#34;{self.min_memory}G&#34;
+        if isinstance(self.max_memory, int):
+            self.max_memory = f&#34;{self.max_memory}G&#34;
 
     local_queue: str = None</code></pre>
 </details>
@@ -106,7 +126,7 @@ class ClusterConfiguration:
 <dl>
 <dt id="codeflare_sdk.cluster.config.ClusterConfiguration"><code class="flex name class">
 <span>class <span class="ident">ClusterConfiguration</span></span>
-<span>(</span><span>name: str, namespace: str = None, head_info: list = &lt;factory&gt;, head_cpus: int = 2, head_memory: int = 8, head_gpus: int = 0, machine_types: list = &lt;factory&gt;, min_cpus: int = 1, max_cpus: int = 1, num_workers: int = 1, min_memory: int = 2, max_memory: int = 2, num_gpus: int = 0, template: str = '/home/runner/work/codeflare-sdk/codeflare-sdk/src/codeflare_sdk/templates/base-template.yaml', instascale: bool = False, mcad: bool = False, envs: dict = &lt;factory&gt;, image: str = '', image_pull_secrets: list = &lt;factory&gt;, dispatch_priority: str = None, write_to_file: bool = False, verify_tls: bool = True, local_queue: str = None)</span>
+<span>(</span><span>name: str, namespace: str = None, head_info: list = &lt;factory&gt;, head_cpus: Union[int, str] = 2, head_memory: Union[int, str] = 8, head_gpus: int = 0, machine_types: list = &lt;factory&gt;, min_cpus: Union[int, str] = 1, max_cpus: Union[int, str] = 1, num_workers: int = 1, min_memory: Union[int, str] = 2, max_memory: Union[int, str] = 2, num_gpus: int = 0, template: str = '/home/runner/work/codeflare-sdk/codeflare-sdk/src/codeflare_sdk/templates/base-template.yaml', instascale: bool = False, mcad: bool = False, envs: dict = &lt;factory&gt;, image: str = '', image_pull_secrets: list = &lt;factory&gt;, dispatch_priority: str = None, write_to_file: bool = False, verify_tls: bool = True, labels: dict = &lt;factory&gt;, local_queue: str = None)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>This dataclass is used to specify resource requirements and other details, and
@@ -124,15 +144,15 @@ is passed in as an argument when creating a Cluster object.</p></div>
     name: str
     namespace: str = None
     head_info: list = field(default_factory=list)
-    head_cpus: int = 2
-    head_memory: int = 8
+    head_cpus: typing.Union[int, str] = 2
+    head_memory: typing.Union[int, str] = 8
     head_gpus: int = 0
     machine_types: list = field(default_factory=list)  # [&#34;m4.xlarge&#34;, &#34;g4dn.xlarge&#34;]
-    min_cpus: int = 1
-    max_cpus: int = 1
+    min_cpus: typing.Union[int, str] = 1
+    max_cpus: typing.Union[int, str] = 1
     num_workers: int = 1
-    min_memory: int = 2
-    max_memory: int = 2
+    min_memory: typing.Union[int, str] = 2
+    max_memory: typing.Union[int, str] = 2
     num_gpus: int = 0
     template: str = f&#34;{dir}/templates/base-template.yaml&#34;
     instascale: bool = False
@@ -143,12 +163,31 @@ is passed in as an argument when creating a Cluster object.</p></div>
     dispatch_priority: str = None
     write_to_file: bool = False
     verify_tls: bool = True
+    labels: dict = field(default_factory=dict)
 
     def __post_init__(self):
         if not self.verify_tls:
             print(
                 &#34;Warning: TLS verification has been disabled - Endpoint checks will be bypassed&#34;
             )
+        self._memory_to_string()
+        self._str_mem_no_unit_add_GB()
+
+    def _str_mem_no_unit_add_GB(self):
+        if isinstance(self.head_memory, str) and self.head_memory.isdecimal():
+            self.head_memory = f&#34;{self.head_memory}G&#34;
+        if isinstance(self.min_memory, str) and self.min_memory.isdecimal():
+            self.min_memory = f&#34;{self.min_memory}G&#34;
+        if isinstance(self.max_memory, str) and self.max_memory.isdecimal():
+            self.max_memory = f&#34;{self.max_memory}G&#34;
+
+    def _memory_to_string(self):
+        if isinstance(self.head_memory, int):
+            self.head_memory = f&#34;{self.head_memory}G&#34;
+        if isinstance(self.min_memory, int):
+            self.min_memory = f&#34;{self.min_memory}G&#34;
+        if isinstance(self.max_memory, int):
+            self.max_memory = f&#34;{self.max_memory}G&#34;
 
     local_queue: str = None</code></pre>
 </details>
@@ -162,7 +201,7 @@ is passed in as an argument when creating a Cluster object.</p></div>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="codeflare_sdk.cluster.config.ClusterConfiguration.head_cpus"><code class="name">var <span class="ident">head_cpus</span> : int</code></dt>
+<dt id="codeflare_sdk.cluster.config.ClusterConfiguration.head_cpus"><code class="name">var <span class="ident">head_cpus</span> : Union[int, str]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -174,7 +213,7 @@ is passed in as an argument when creating a Cluster object.</p></div>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="codeflare_sdk.cluster.config.ClusterConfiguration.head_memory"><code class="name">var <span class="ident">head_memory</span> : int</code></dt>
+<dt id="codeflare_sdk.cluster.config.ClusterConfiguration.head_memory"><code class="name">var <span class="ident">head_memory</span> : Union[int, str]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -190,6 +229,10 @@ is passed in as an argument when creating a Cluster object.</p></div>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="codeflare_sdk.cluster.config.ClusterConfiguration.labels"><code class="name">var <span class="ident">labels</span> : dict</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="codeflare_sdk.cluster.config.ClusterConfiguration.local_queue"><code class="name">var <span class="ident">local_queue</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
@@ -198,11 +241,11 @@ is passed in as an argument when creating a Cluster object.</p></div>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="codeflare_sdk.cluster.config.ClusterConfiguration.max_cpus"><code class="name">var <span class="ident">max_cpus</span> : int</code></dt>
+<dt id="codeflare_sdk.cluster.config.ClusterConfiguration.max_cpus"><code class="name">var <span class="ident">max_cpus</span> : Union[int, str]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="codeflare_sdk.cluster.config.ClusterConfiguration.max_memory"><code class="name">var <span class="ident">max_memory</span> : int</code></dt>
+<dt id="codeflare_sdk.cluster.config.ClusterConfiguration.max_memory"><code class="name">var <span class="ident">max_memory</span> : Union[int, str]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -210,11 +253,11 @@ is passed in as an argument when creating a Cluster object.</p></div>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="codeflare_sdk.cluster.config.ClusterConfiguration.min_cpus"><code class="name">var <span class="ident">min_cpus</span> : int</code></dt>
+<dt id="codeflare_sdk.cluster.config.ClusterConfiguration.min_cpus"><code class="name">var <span class="ident">min_cpus</span> : Union[int, str]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="codeflare_sdk.cluster.config.ClusterConfiguration.min_memory"><code class="name">var <span class="ident">min_memory</span> : int</code></dt>
+<dt id="codeflare_sdk.cluster.config.ClusterConfiguration.min_memory"><code class="name">var <span class="ident">min_memory</span> : Union[int, str]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -276,6 +319,7 @@ is passed in as an argument when creating a Cluster object.</p></div>
 <li><code><a title="codeflare_sdk.cluster.config.ClusterConfiguration.image" href="#codeflare_sdk.cluster.config.ClusterConfiguration.image">image</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.config.ClusterConfiguration.image_pull_secrets" href="#codeflare_sdk.cluster.config.ClusterConfiguration.image_pull_secrets">image_pull_secrets</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.config.ClusterConfiguration.instascale" href="#codeflare_sdk.cluster.config.ClusterConfiguration.instascale">instascale</a></code></li>
+<li><code><a title="codeflare_sdk.cluster.config.ClusterConfiguration.labels" href="#codeflare_sdk.cluster.config.ClusterConfiguration.labels">labels</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.config.ClusterConfiguration.local_queue" href="#codeflare_sdk.cluster.config.ClusterConfiguration.local_queue">local_queue</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.config.ClusterConfiguration.machine_types" href="#codeflare_sdk.cluster.config.ClusterConfiguration.machine_types">machine_types</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.config.ClusterConfiguration.max_cpus" href="#codeflare_sdk.cluster.config.ClusterConfiguration.max_cpus">max_cpus</a></code></li>

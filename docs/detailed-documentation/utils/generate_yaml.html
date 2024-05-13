@@ -171,8 +171,8 @@ def update_custompodresources(
                 # Leave head node resources as template default
                 resource[&#34;requests&#34;][&#34;cpu&#34;] = head_cpus
                 resource[&#34;limits&#34;][&#34;cpu&#34;] = head_cpus
-                resource[&#34;requests&#34;][&#34;memory&#34;] = str(head_memory) + &#34;G&#34;
-                resource[&#34;limits&#34;][&#34;memory&#34;] = str(head_memory) + &#34;G&#34;
+                resource[&#34;requests&#34;][&#34;memory&#34;] = head_memory
+                resource[&#34;limits&#34;][&#34;memory&#34;] = head_memory
                 resource[&#34;requests&#34;][&#34;nvidia.com/gpu&#34;] = head_gpus
                 resource[&#34;limits&#34;][&#34;nvidia.com/gpu&#34;] = head_gpus
 
@@ -189,9 +189,9 @@ def update_custompodresources(
                                     resource[k][spec] = min_cpu
                             if spec == &#34;memory&#34;:
                                 if k == &#34;limits&#34;:
-                                    resource[k][spec] = str(max_memory) + &#34;G&#34;
+                                    resource[k][spec] = max_memory
                                 else:
-                                    resource[k][spec] = str(min_memory) + &#34;G&#34;
+                                    resource[k][spec] = min_memory
                             if spec == &#34;nvidia.com/gpu&#34;:
                                 if i == 0:
                                     resource[k][spec] = 0
@@ -244,12 +244,12 @@ def update_resources(spec, min_cpu, max_cpu, min_memory, max_memory, gpu):
         requests = resource.get(&#34;resources&#34;).get(&#34;requests&#34;)
         if requests is not None:
             requests[&#34;cpu&#34;] = min_cpu
-            requests[&#34;memory&#34;] = str(min_memory) + &#34;G&#34;
+            requests[&#34;memory&#34;] = min_memory
             requests[&#34;nvidia.com/gpu&#34;] = gpu
         limits = resource.get(&#34;resources&#34;).get(&#34;limits&#34;)
         if limits is not None:
             limits[&#34;cpu&#34;] = max_cpu
-            limits[&#34;memory&#34;] = str(max_memory) + &#34;G&#34;
+            limits[&#34;memory&#34;] = max_memory
             limits[&#34;nvidia.com/gpu&#34;] = gpu
 
 
@@ -340,7 +340,11 @@ def get_default_kueue_name(namespace: str):
 
 
 def write_components(
-    user_yaml: dict, output_file_name: str, namespace: str, local_queue: Optional[str]
+    user_yaml: dict,
+    output_file_name: str,
+    namespace: str,
+    local_queue: Optional[str],
+    labels: dict,
 ):
     # Create the directory if it doesn&#39;t exist
     directory_path = os.path.dirname(output_file_name)
@@ -350,6 +354,7 @@ def write_components(
     components = user_yaml.get(&#34;spec&#34;, &#34;resources&#34;)[&#34;resources&#34;].get(&#34;GenericItems&#34;)
     open(output_file_name, &#34;w&#34;).close()
     lq_name = local_queue or get_default_kueue_name(namespace)
+    cluster_labels = labels
     with open(output_file_name, &#34;a&#34;) as outfile:
         for component in components:
             if &#34;generictemplate&#34; in component:
@@ -362,6 +367,7 @@ def write_components(
                     ]
                     labels = component[&#34;generictemplate&#34;][&#34;metadata&#34;][&#34;labels&#34;]
                     labels.update({&#34;kueue.x-k8s.io/queue-name&#34;: lq_name})
+                    labels.update(cluster_labels)
                 outfile.write(&#34;---\n&#34;)
                 yaml.dump(
                     component[&#34;generictemplate&#34;], outfile, default_flow_style=False
@@ -370,11 +376,16 @@ def write_components(
 
 
 def load_components(
-    user_yaml: dict, name: str, namespace: str, local_queue: Optional[str]
+    user_yaml: dict,
+    name: str,
+    namespace: str,
+    local_queue: Optional[str],
+    labels: dict,
 ):
     component_list = []
     components = user_yaml.get(&#34;spec&#34;, &#34;resources&#34;)[&#34;resources&#34;].get(&#34;GenericItems&#34;)
     lq_name = local_queue or get_default_kueue_name(namespace)
+    cluster_labels = labels
     for component in components:
         if &#34;generictemplate&#34; in component:
             if (
@@ -386,6 +397,7 @@ def load_components(
                 ]
                 labels = component[&#34;generictemplate&#34;][&#34;metadata&#34;][&#34;labels&#34;]
                 labels.update({&#34;kueue.x-k8s.io/queue-name&#34;: lq_name})
+                labels.update(cluster_labels)
             component_list.append(component[&#34;generictemplate&#34;])
 
     resources = &#34;---\n&#34; + &#34;---\n&#34;.join(
@@ -426,6 +438,7 @@ def generate_appwrapper(
     write_to_file: bool,
     verify_tls: bool,
     local_queue: Optional[str],
+    labels,
 ):
     user_yaml = read_template(template)
     appwrapper_name, cluster_name = gen_names(name)
@@ -477,13 +490,13 @@ def generate_appwrapper(
         if mcad:
             write_user_appwrapper(user_yaml, outfile)
         else:
-            write_components(user_yaml, outfile, namespace, local_queue)
+            write_components(user_yaml, outfile, namespace, local_queue, labels)
         return outfile
     else:
         if mcad:
             user_yaml = load_appwrapper(user_yaml, name)
         else:
-            user_yaml = load_components(user_yaml, name, namespace, local_queue)
+            user_yaml = load_components(user_yaml, name, namespace, local_queue, labels)
         return user_yaml</code></pre>
 </details>
 </section>
@@ -527,7 +540,7 @@ def generate_appwrapper(
 </details>
 </dd>
 <dt id="codeflare_sdk.utils.generate_yaml.generate_appwrapper"><code class="name flex">
-<span>def <span class="ident">generate_appwrapper</span></span>(<span>name: str, namespace: str, head_cpus: int, head_memory: int, head_gpus: int, min_cpu: int, max_cpu: int, min_memory: int, max_memory: int, gpu: int, workers: int, template: str, image: str, instascale: bool, mcad: bool, instance_types: list, env, image_pull_secrets: list, dispatch_priority: str, priority_val: int, write_to_file: bool, verify_tls: bool, local_queue: Optional[str])</span>
+<span>def <span class="ident">generate_appwrapper</span></span>(<span>name: str, namespace: str, head_cpus: int, head_memory: int, head_gpus: int, min_cpu: int, max_cpu: int, min_memory: int, max_memory: int, gpu: int, workers: int, template: str, image: str, instascale: bool, mcad: bool, instance_types: list, env, image_pull_secrets: list, dispatch_priority: str, priority_val: int, write_to_file: bool, verify_tls: bool, local_queue: Optional[str], labels)</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -559,6 +572,7 @@ def generate_appwrapper(
     write_to_file: bool,
     verify_tls: bool,
     local_queue: Optional[str],
+    labels,
 ):
     user_yaml = read_template(template)
     appwrapper_name, cluster_name = gen_names(name)
@@ -610,13 +624,13 @@ def generate_appwrapper(
         if mcad:
             write_user_appwrapper(user_yaml, outfile)
         else:
-            write_components(user_yaml, outfile, namespace, local_queue)
+            write_components(user_yaml, outfile, namespace, local_queue, labels)
         return outfile
     else:
         if mcad:
             user_yaml = load_appwrapper(user_yaml, name)
         else:
-            user_yaml = load_components(user_yaml, name, namespace, local_queue)
+            user_yaml = load_components(user_yaml, name, namespace, local_queue, labels)
         return user_yaml</code></pre>
 </details>
 </dd>
@@ -715,7 +729,7 @@ def generate_appwrapper(
 </details>
 </dd>
 <dt id="codeflare_sdk.utils.generate_yaml.load_components"><code class="name flex">
-<span>def <span class="ident">load_components</span></span>(<span>user_yaml: dict, name: str, namespace: str, local_queue: Optional[str])</span>
+<span>def <span class="ident">load_components</span></span>(<span>user_yaml: dict, name: str, namespace: str, local_queue: Optional[str], labels: dict)</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -724,11 +738,16 @@ def generate_appwrapper(
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def load_components(
-    user_yaml: dict, name: str, namespace: str, local_queue: Optional[str]
+    user_yaml: dict,
+    name: str,
+    namespace: str,
+    local_queue: Optional[str],
+    labels: dict,
 ):
     component_list = []
     components = user_yaml.get(&#34;spec&#34;, &#34;resources&#34;)[&#34;resources&#34;].get(&#34;GenericItems&#34;)
     lq_name = local_queue or get_default_kueue_name(namespace)
+    cluster_labels = labels
     for component in components:
         if &#34;generictemplate&#34; in component:
             if (
@@ -740,6 +759,7 @@ def generate_appwrapper(
                 ]
                 labels = component[&#34;generictemplate&#34;][&#34;metadata&#34;][&#34;labels&#34;]
                 labels.update({&#34;kueue.x-k8s.io/queue-name&#34;: lq_name})
+                labels.update(cluster_labels)
             component_list.append(component[&#34;generictemplate&#34;])
 
     resources = &#34;---\n&#34; + &#34;---\n&#34;.join(
@@ -819,8 +839,8 @@ def generate_appwrapper(
                 # Leave head node resources as template default
                 resource[&#34;requests&#34;][&#34;cpu&#34;] = head_cpus
                 resource[&#34;limits&#34;][&#34;cpu&#34;] = head_cpus
-                resource[&#34;requests&#34;][&#34;memory&#34;] = str(head_memory) + &#34;G&#34;
-                resource[&#34;limits&#34;][&#34;memory&#34;] = str(head_memory) + &#34;G&#34;
+                resource[&#34;requests&#34;][&#34;memory&#34;] = head_memory
+                resource[&#34;limits&#34;][&#34;memory&#34;] = head_memory
                 resource[&#34;requests&#34;][&#34;nvidia.com/gpu&#34;] = head_gpus
                 resource[&#34;limits&#34;][&#34;nvidia.com/gpu&#34;] = head_gpus
 
@@ -837,9 +857,9 @@ def generate_appwrapper(
                                     resource[k][spec] = min_cpu
                             if spec == &#34;memory&#34;:
                                 if k == &#34;limits&#34;:
-                                    resource[k][spec] = str(max_memory) + &#34;G&#34;
+                                    resource[k][spec] = max_memory
                                 else:
-                                    resource[k][spec] = str(min_memory) + &#34;G&#34;
+                                    resource[k][spec] = min_memory
                             if spec == &#34;nvidia.com/gpu&#34;:
                                 if i == 0:
                                     resource[k][spec] = 0
@@ -1037,17 +1057,17 @@ def generate_appwrapper(
         requests = resource.get(&#34;resources&#34;).get(&#34;requests&#34;)
         if requests is not None:
             requests[&#34;cpu&#34;] = min_cpu
-            requests[&#34;memory&#34;] = str(min_memory) + &#34;G&#34;
+            requests[&#34;memory&#34;] = min_memory
             requests[&#34;nvidia.com/gpu&#34;] = gpu
         limits = resource.get(&#34;resources&#34;).get(&#34;limits&#34;)
         if limits is not None:
             limits[&#34;cpu&#34;] = max_cpu
-            limits[&#34;memory&#34;] = str(max_memory) + &#34;G&#34;
+            limits[&#34;memory&#34;] = max_memory
             limits[&#34;nvidia.com/gpu&#34;] = gpu</code></pre>
 </details>
 </dd>
 <dt id="codeflare_sdk.utils.generate_yaml.write_components"><code class="name flex">
-<span>def <span class="ident">write_components</span></span>(<span>user_yaml: dict, output_file_name: str, namespace: str, local_queue: Optional[str])</span>
+<span>def <span class="ident">write_components</span></span>(<span>user_yaml: dict, output_file_name: str, namespace: str, local_queue: Optional[str], labels: dict)</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -1056,7 +1076,11 @@ def generate_appwrapper(
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def write_components(
-    user_yaml: dict, output_file_name: str, namespace: str, local_queue: Optional[str]
+    user_yaml: dict,
+    output_file_name: str,
+    namespace: str,
+    local_queue: Optional[str],
+    labels: dict,
 ):
     # Create the directory if it doesn&#39;t exist
     directory_path = os.path.dirname(output_file_name)
@@ -1066,6 +1090,7 @@ def generate_appwrapper(
     components = user_yaml.get(&#34;spec&#34;, &#34;resources&#34;)[&#34;resources&#34;].get(&#34;GenericItems&#34;)
     open(output_file_name, &#34;w&#34;).close()
     lq_name = local_queue or get_default_kueue_name(namespace)
+    cluster_labels = labels
     with open(output_file_name, &#34;a&#34;) as outfile:
         for component in components:
             if &#34;generictemplate&#34; in component:
@@ -1078,6 +1103,7 @@ def generate_appwrapper(
                     ]
                     labels = component[&#34;generictemplate&#34;][&#34;metadata&#34;][&#34;labels&#34;]
                     labels.update({&#34;kueue.x-k8s.io/queue-name&#34;: lq_name})
+                    labels.update(cluster_labels)
                 outfile.write(&#34;---\n&#34;)
                 yaml.dump(
                     component[&#34;generictemplate&#34;], outfile, default_flow_style=False
