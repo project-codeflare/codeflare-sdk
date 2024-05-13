@@ -81,7 +81,7 @@ class TokenAuthentication(Authentication):
         token: str,
         server: str,
         skip_tls: bool = False,
-        ca_cert_path: str = None,
+        ca_cert_path: str = "/etc/pki/tls/custom-certs/ca-bundle.crt",
     ):
         """
         Initialize a TokenAuthentication object that requires a value for `token`, the API Token
@@ -101,19 +101,29 @@ class TokenAuthentication(Authentication):
         """
         global config_path
         global api_client
-        odh_ca_path = "/etc/pki/tls/custom-certs/ca-bundle.crt"
         try:
             configuration = client.Configuration()
             configuration.api_key_prefix["authorization"] = "Bearer"
             configuration.host = self.server
             configuration.api_key["authorization"] = self.token
-            if self.skip_tls == False and self.ca_cert_path == None:
-                if os.path.isfile(odh_ca_path):
-                    print(f"Authenticated with certificate located at {odh_ca_path}")
-                    configuration.ssl_ca_cert = odh_ca_path
+            ca_path_env = os.environ.get("CA_CERT_PATH")
+
+            if self.skip_tls == False:
+                if ca_path_env != None:
+                    self.ca_cert_path = ca_path_env
+
+                if self.ca_cert_path == None:
+                    configuration.ssl_ca_cert = None
+                elif os.path.isfile(self.ca_cert_path):
+                    print(
+                        f"Authenticated with certificate located at {self.ca_cert_path}"
+                    )
+                    configuration.ssl_ca_cert = self.ca_cert_path
+                else:
+                    raise FileNotFoundError(
+                        f"Certificate file not found at {self.ca_cert_path}"
+                    )
                 configuration.verify_ssl = True
-            elif self.skip_tls == False:
-                configuration.ssl_ca_cert = self.ca_cert_path
             else:
                 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
                 print("Insecure request warnings have been disabled")
