@@ -50,6 +50,7 @@ the resources requested by the user. It also contains functions for checking the
 cluster setup queue, a list of all existing clusters, and the user&#39;s working namespace.
 &#34;&#34;&#34;
 
+import re
 from time import sleep
 from typing import List, Optional, Tuple, Dict
 
@@ -73,11 +74,13 @@ from .model import (
     RayClusterStatus,
 )
 from kubernetes import client, config
+from kubernetes.utils import parse_quantity
 import yaml
 import os
 import requests
 
 from kubernetes import config
+from kubernetes.client.rest import ApiException
 
 
 class Cluster:
@@ -216,6 +219,7 @@ class Cluster:
         write_to_file = self.config.write_to_file
         verify_tls = self.config.verify_tls
         local_queue = self.config.local_queue
+        labels = self.config.labels
         return generate_appwrapper(
             name=name,
             namespace=namespace,
@@ -240,6 +244,7 @@ class Cluster:
             write_to_file=write_to_file,
             verify_tls=verify_tls,
             local_queue=local_queue,
+            labels=labels,
         )
 
     # creates a new cluster with the provided or default spec
@@ -248,6 +253,10 @@ class Cluster:
         Applies the AppWrapper yaml, pushing the resource request onto
         the MCAD queue.
         &#34;&#34;&#34;
+
+        # check if RayCluster CustomResourceDefinition exists if not throw RuntimeError
+        self._throw_for_no_raycluster()
+
         namespace = self.config.namespace
 
         try:
@@ -278,12 +287,32 @@ class Cluster:
         except Exception as e:  # pragma: no cover
             return _kube_api_error_handling(e)
 
+    def _throw_for_no_raycluster(self):
+        api_instance = client.CustomObjectsApi(api_config_handler())
+        try:
+            api_instance.list_namespaced_custom_object(
+                group=&#34;ray.io&#34;,
+                version=&#34;v1&#34;,
+                namespace=self.config.namespace,
+                plural=&#34;rayclusters&#34;,
+            )
+        except ApiException as e:
+            if e.status == 404:
+                raise RuntimeError(
+                    &#34;RayCluster CustomResourceDefinition unavailable contact your administrator.&#34;
+                )
+            else:
+                raise RuntimeError(
+                    &#34;Failed to get RayCluster CustomResourceDefinition: &#34; + str(e)
+                )
+
     def down(self):
         &#34;&#34;&#34;
         Deletes the AppWrapper yaml, scaling-down and deleting all resources
         associated with the cluster.
         &#34;&#34;&#34;
         namespace = self.config.namespace
+        self._throw_for_no_raycluster()
         try:
             config_check()
             api_instance = client.CustomObjectsApi(api_config_handler())
@@ -520,26 +549,18 @@ class Cluster:
             namespace=rc[&#34;metadata&#34;][&#34;namespace&#34;],
             machine_types=machine_types,
             num_workers=rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;minReplicas&#34;],
-            min_cpus=int(
-                rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][&#34;containers&#34;][0][
-                    &#34;resources&#34;
-                ][&#34;requests&#34;][&#34;cpu&#34;]
-            ),
-            max_cpus=int(
-                rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][&#34;containers&#34;][0][
-                    &#34;resources&#34;
-                ][&#34;limits&#34;][&#34;cpu&#34;]
-            ),
-            min_memory=int(
-                rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][&#34;containers&#34;][0][
-                    &#34;resources&#34;
-                ][&#34;requests&#34;][&#34;memory&#34;][:-1]
-            ),
-            max_memory=int(
-                rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][&#34;containers&#34;][0][
-                    &#34;resources&#34;
-                ][&#34;limits&#34;][&#34;memory&#34;][:-1]
-            ),
+            min_cpus=rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][
+                &#34;containers&#34;
+            ][0][&#34;resources&#34;][&#34;requests&#34;][&#34;cpu&#34;],
+            max_cpus=rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][
+                &#34;containers&#34;
+            ][0][&#34;resources&#34;][&#34;limits&#34;][&#34;cpu&#34;],
+            min_memory=rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][
+                &#34;containers&#34;
+            ][0][&#34;resources&#34;][&#34;requests&#34;][&#34;memory&#34;],
+            max_memory=rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][
+                &#34;containers&#34;
+            ][0][&#34;resources&#34;][&#34;limits&#34;][&#34;memory&#34;],
             num_gpus=int(
                 rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][&#34;containers&#34;][0][
                     &#34;resources&#34;
@@ -1265,6 +1286,7 @@ request.</p></div>
         write_to_file = self.config.write_to_file
         verify_tls = self.config.verify_tls
         local_queue = self.config.local_queue
+        labels = self.config.labels
         return generate_appwrapper(
             name=name,
             namespace=namespace,
@@ -1289,6 +1311,7 @@ request.</p></div>
             write_to_file=write_to_file,
             verify_tls=verify_tls,
             local_queue=local_queue,
+            labels=labels,
         )
 
     # creates a new cluster with the provided or default spec
@@ -1297,6 +1320,10 @@ request.</p></div>
         Applies the AppWrapper yaml, pushing the resource request onto
         the MCAD queue.
         &#34;&#34;&#34;
+
+        # check if RayCluster CustomResourceDefinition exists if not throw RuntimeError
+        self._throw_for_no_raycluster()
+
         namespace = self.config.namespace
 
         try:
@@ -1327,12 +1354,32 @@ request.</p></div>
         except Exception as e:  # pragma: no cover
             return _kube_api_error_handling(e)
 
+    def _throw_for_no_raycluster(self):
+        api_instance = client.CustomObjectsApi(api_config_handler())
+        try:
+            api_instance.list_namespaced_custom_object(
+                group=&#34;ray.io&#34;,
+                version=&#34;v1&#34;,
+                namespace=self.config.namespace,
+                plural=&#34;rayclusters&#34;,
+            )
+        except ApiException as e:
+            if e.status == 404:
+                raise RuntimeError(
+                    &#34;RayCluster CustomResourceDefinition unavailable contact your administrator.&#34;
+                )
+            else:
+                raise RuntimeError(
+                    &#34;Failed to get RayCluster CustomResourceDefinition: &#34; + str(e)
+                )
+
     def down(self):
         &#34;&#34;&#34;
         Deletes the AppWrapper yaml, scaling-down and deleting all resources
         associated with the cluster.
         &#34;&#34;&#34;
         namespace = self.config.namespace
+        self._throw_for_no_raycluster()
         try:
             config_check()
             api_instance = client.CustomObjectsApi(api_config_handler())
@@ -1569,26 +1616,18 @@ request.</p></div>
             namespace=rc[&#34;metadata&#34;][&#34;namespace&#34;],
             machine_types=machine_types,
             num_workers=rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;minReplicas&#34;],
-            min_cpus=int(
-                rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][&#34;containers&#34;][0][
-                    &#34;resources&#34;
-                ][&#34;requests&#34;][&#34;cpu&#34;]
-            ),
-            max_cpus=int(
-                rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][&#34;containers&#34;][0][
-                    &#34;resources&#34;
-                ][&#34;limits&#34;][&#34;cpu&#34;]
-            ),
-            min_memory=int(
-                rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][&#34;containers&#34;][0][
-                    &#34;resources&#34;
-                ][&#34;requests&#34;][&#34;memory&#34;][:-1]
-            ),
-            max_memory=int(
-                rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][&#34;containers&#34;][0][
-                    &#34;resources&#34;
-                ][&#34;limits&#34;][&#34;memory&#34;][:-1]
-            ),
+            min_cpus=rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][
+                &#34;containers&#34;
+            ][0][&#34;resources&#34;][&#34;requests&#34;][&#34;cpu&#34;],
+            max_cpus=rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][
+                &#34;containers&#34;
+            ][0][&#34;resources&#34;][&#34;limits&#34;][&#34;cpu&#34;],
+            min_memory=rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][
+                &#34;containers&#34;
+            ][0][&#34;resources&#34;][&#34;requests&#34;][&#34;memory&#34;],
+            max_memory=rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][
+                &#34;containers&#34;
+            ][0][&#34;resources&#34;][&#34;limits&#34;][&#34;memory&#34;],
             num_gpus=int(
                 rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][&#34;containers&#34;][0][
                     &#34;resources&#34;
@@ -1811,6 +1850,7 @@ the specifications of the ClusterConfiguration.</p></div>
     write_to_file = self.config.write_to_file
     verify_tls = self.config.verify_tls
     local_queue = self.config.local_queue
+    labels = self.config.labels
     return generate_appwrapper(
         name=name,
         namespace=namespace,
@@ -1835,6 +1875,7 @@ the specifications of the ClusterConfiguration.</p></div>
         write_to_file=write_to_file,
         verify_tls=verify_tls,
         local_queue=local_queue,
+        labels=labels,
     )</code></pre>
 </details>
 </dd>
@@ -1870,6 +1911,7 @@ associated with the cluster.</p></div>
     associated with the cluster.
     &#34;&#34;&#34;
     namespace = self.config.namespace
+    self._throw_for_no_raycluster()
     try:
         config_check()
         api_instance = client.CustomObjectsApi(api_config_handler())
@@ -1944,26 +1986,18 @@ associated with the cluster.</p></div>
         namespace=rc[&#34;metadata&#34;][&#34;namespace&#34;],
         machine_types=machine_types,
         num_workers=rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;minReplicas&#34;],
-        min_cpus=int(
-            rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][&#34;containers&#34;][0][
-                &#34;resources&#34;
-            ][&#34;requests&#34;][&#34;cpu&#34;]
-        ),
-        max_cpus=int(
-            rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][&#34;containers&#34;][0][
-                &#34;resources&#34;
-            ][&#34;limits&#34;][&#34;cpu&#34;]
-        ),
-        min_memory=int(
-            rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][&#34;containers&#34;][0][
-                &#34;resources&#34;
-            ][&#34;requests&#34;][&#34;memory&#34;][:-1]
-        ),
-        max_memory=int(
-            rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][&#34;containers&#34;][0][
-                &#34;resources&#34;
-            ][&#34;limits&#34;][&#34;memory&#34;][:-1]
-        ),
+        min_cpus=rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][
+            &#34;containers&#34;
+        ][0][&#34;resources&#34;][&#34;requests&#34;][&#34;cpu&#34;],
+        max_cpus=rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][
+            &#34;containers&#34;
+        ][0][&#34;resources&#34;][&#34;limits&#34;][&#34;cpu&#34;],
+        min_memory=rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][
+            &#34;containers&#34;
+        ][0][&#34;resources&#34;][&#34;requests&#34;][&#34;memory&#34;],
+        max_memory=rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][
+            &#34;containers&#34;
+        ][0][&#34;resources&#34;][&#34;limits&#34;][&#34;memory&#34;],
         num_gpus=int(
             rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][&#34;containers&#34;][0][
                 &#34;resources&#34;
@@ -2168,6 +2202,10 @@ the MCAD queue.</p></div>
     Applies the AppWrapper yaml, pushing the resource request onto
     the MCAD queue.
     &#34;&#34;&#34;
+
+    # check if RayCluster CustomResourceDefinition exists if not throw RuntimeError
+    self._throw_for_no_raycluster()
+
     namespace = self.config.namespace
 
     try:
