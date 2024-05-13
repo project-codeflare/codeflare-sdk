@@ -123,27 +123,30 @@ def test_token_auth_creation():
         assert token_auth.token == "token"
         assert token_auth.server == "server"
         assert token_auth.skip_tls == False
-        assert token_auth.ca_cert_path == None
+        assert token_auth.ca_cert_path == "/etc/pki/tls/custom-certs/ca-bundle.crt"
 
         token_auth = TokenAuthentication(token="token", server="server", skip_tls=True)
         assert token_auth.token == "token"
         assert token_auth.server == "server"
         assert token_auth.skip_tls == True
-        assert token_auth.ca_cert_path == None
+        assert token_auth.ca_cert_path == "/etc/pki/tls/custom-certs/ca-bundle.crt"
 
         token_auth = TokenAuthentication(token="token", server="server", skip_tls=False)
         assert token_auth.token == "token"
         assert token_auth.server == "server"
         assert token_auth.skip_tls == False
-        assert token_auth.ca_cert_path == None
+        assert token_auth.ca_cert_path == "/etc/pki/tls/custom-certs/ca-bundle.crt"
 
         token_auth = TokenAuthentication(
-            token="token", server="server", skip_tls=False, ca_cert_path="path/to/cert"
+            token="token",
+            server="server",
+            skip_tls=False,
+            ca_cert_path=f"{parent}/tests/auth-test.crt",
         )
         assert token_auth.token == "token"
         assert token_auth.server == "server"
         assert token_auth.skip_tls == False
-        assert token_auth.ca_cert_path == "path/to/cert"
+        assert token_auth.ca_cert_path == f"{parent}/tests/auth-test.crt"
 
     except Exception:
         assert 0 == 1
@@ -174,7 +177,15 @@ def test_token_auth_login_tls(mocker):
         token="testtoken",
         server="testserver:6443",
         skip_tls=False,
-        ca_cert_path="path/to/cert",
+        ca_cert_path=f"{parent}/tests/auth-test.crt",
+    )
+    assert token_auth.login() == ("Logged into testserver:6443")
+
+    os.environ["CA_CERT_PATH"] = f"{parent}/tests/auth-test.crt"
+    token_auth = TokenAuthentication(
+        token="testtoken",
+        server="testserver:6443",
+        skip_tls=False,
     )
     assert token_auth.login() == ("Logged into testserver:6443")
 
