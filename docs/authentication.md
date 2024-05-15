@@ -17,7 +17,7 @@ auth.login()
 # log out with auth.logout()
 ```
 Setting `skip_tls=True` allows interaction with an HTTPS server bypassing the server certificate checks although this is not secure.<br>
-You can pass a custom certificate to `TokenAuthentication` by using `ca_cert_path="/path/to/cert"` when authenticating provided `skip_tls=False`.
+You can pass a custom certificate to `TokenAuthentication` by using `ca_cert_path="/path/to/cert"` when authenticating provided `skip_tls=False`. Alternatively you can set the environment variable `CF_SDK_CA_CERT_PATH` to the path of your custom certificate.
 
 ## Method 2 Kubernetes Config File Authentication (Default location)
 If a user has authenticated to their cluster by alternate means e.g. run a login command like `oc login --token=<token> --server=<server>` their kubernetes config file should have updated.<br>

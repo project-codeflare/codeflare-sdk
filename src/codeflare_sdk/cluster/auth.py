@@ -106,10 +106,10 @@ class TokenAuthentication(Authentication):
             configuration.api_key_prefix["authorization"] = "Bearer"
             configuration.host = self.server
             configuration.api_key["authorization"] = self.token
-            ca_path_env = os.environ.get("CA_CERT_PATH")
+            ca_path_env = os.environ.get("CF_SDK_CA_CERT_PATH", self.ca_cert_path)
 
             if self.skip_tls == False:
-                if ca_path_env != None:
+                if ca_path_env != self.ca_cert_path:
                     self.ca_cert_path = ca_path_env
 
                 if self.ca_cert_path == None:
