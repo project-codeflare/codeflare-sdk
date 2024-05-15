@@ -181,7 +181,7 @@ def test_token_auth_login_tls(mocker):
     )
     assert token_auth.login() == ("Logged into testserver:6443")
 
-    os.environ["CA_CERT_PATH"] = f"{parent}/tests/auth-test.crt"
+    os.environ["CF_SDK_CA_CERT_PATH"] = f"{parent}/tests/auth-test.crt"
     token_auth = TokenAuthentication(
         token="testtoken",
         server="testserver:6443",
