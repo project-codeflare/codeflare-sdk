@@ -630,14 +630,29 @@ def get_current_namespace():  # pragma: no cover
             print("Unable to find current namespace")
             return None
     else:
-        try:
-            _, active_context = config.list_kube_config_contexts(config_check())
-        except Exception as e:
-            return _kube_api_error_handling(e)
-        try:
-            return active_context["context"]["namespace"]
-        except KeyError:
-            return None
+        if "KUBERNETES_PORT" in os.environ:
+            if os.path.isfile(
+                "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
+            ):
+                try:
+                    file = open(
+                        "/var/run/secrets/kubernetes.io/serviceaccount/namespace", "r"
+                    )
+                    active_context = file.readline().strip("\n")
+                    return active_context
+                except Exception as e:
+                    print(
+                        "unable to gather namespace from /var/run/secrets/kubernetes.io/serviceaccount/namespace trying to gather from current context"
+                    )
+        else:
+            try:
+                _, active_context = config.list_kube_config_contexts(config_check())
+            except Exception as e:
+                return _kube_api_error_handling(e)
+            try:
+                return active_context["context"]["namespace"]
+            except KeyError:
+                return None
 
 
 def get_cluster(
