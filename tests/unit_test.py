@@ -1002,6 +1002,7 @@ def get_ray_obj(group, version, namespace, plural, cls=None):
                         "resourceName": "quicktest",
                         "workload.codeflare.dev/appwrapper": "quicktest",
                         "orderedinstance": "m4.xlarge_g4dn.xlarge",
+                        "kueue.x-k8s.io/queue-name": "team-a-queue",
                     },
                     "managedFields": [
                         {
@@ -2481,6 +2482,36 @@ def test_get_cluster(mocker):
         == "ghcr.io/foundation-model-stack/base:ray2.1.0-py38-gpu-pytorch1.12.0cu116-20221213-193103"
     )
     assert cluster_config.num_workers == 1
+
+
+def test_get_cluster_no_mcad(mocker):
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
+        side_effect=get_ray_obj,
+    )
+    mocker.patch(
+        "kubernetes.client.NetworkingV1Api.list_namespaced_ingress",
+        return_value=ingress_retrieval(cluster_name="quicktest", client_ing=True),
+    )
+    cluster = get_cluster("quicktest")
+    cluster_config = cluster.config
+    assert cluster_config.name == "quicktest" and cluster_config.namespace == "ns"
+    assert (
+        "m4.xlarge" in cluster_config.machine_types
+        and "g4dn.xlarge" in cluster_config.machine_types
+    )
+    assert cluster_config.min_cpus == 1 and cluster_config.max_cpus == 1
+    assert cluster_config.min_memory == "2G" and cluster_config.max_memory == "2G"
+    assert cluster_config.num_gpus == 0
+    assert cluster_config.instascale
+    assert (
+        cluster_config.image
+        == "ghcr.io/foundation-model-stack/base:ray2.1.0-py38-gpu-pytorch1.12.0cu116-20221213-193103"
+    )
+    assert cluster_config.num_workers == 1
+    assert cluster_config.local_queue == "team-a-queue"
 
 
 def route_retrieval(group, version, namespace, plural, name):
