@@ -541,6 +541,9 @@ class Cluster:
             mcad=mcad,
             write_to_file=write_to_file,
             verify_tls=verify_tls,
+            local_queue=rc["metadata"]
+            .get("labels", dict())
+            .get("kueue.x-k8s.io/queue-name", None),
         )
         return Cluster(cluster_config)
 
