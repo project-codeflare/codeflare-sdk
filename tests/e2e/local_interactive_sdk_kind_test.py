@@ -1,4 +1,4 @@
-from codeflare_sdk import Cluster, ClusterConfiguration, TokenAuthentication
+from codeflare_sdk import Cluster, ClusterConfiguration, TokenAuthentication, generate_cert
 
 import pytest
 import ray
@@ -47,6 +47,10 @@ class TestRayLocalInteractiveOauth:
         cluster.up()
         cluster.wait_ready()
 
+        generate_cert.generate_tls_cert(cluster_name, self.namespace)
+        generate_cert.export_env(cluster_name, self.namespace)
+
+        print(cluster.local_client_url())
         ray.shutdown()
         ray.init(address=cluster.local_client_url(), logging_level="DEBUG")
 
