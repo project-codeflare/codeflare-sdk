@@ -68,7 +68,8 @@ jobs:
       - name: Set Go
         uses: actions/setup-go@v5
         with:
-          go-version: v1.20
+          go-version-file: './codeflare-operator/go.mod'
+          cache-dependency-path: "./codeflare-operator/go.sum"
 
       - name: Set up gotestfmt
         uses: gotesttools/gotestfmt-action@v2
