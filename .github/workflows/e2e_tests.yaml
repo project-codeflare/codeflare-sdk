@@ -76,6 +76,12 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Set up specific Python version
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+          cache: 'pip' # caching pip dependencies
+
       - name: Setup and start KinD cluster
         uses: ./common/github-actions/kind
 
@@ -114,6 +120,8 @@ jobs:
           kubectl create clusterrolebinding sdk-user-clusterqueue-creator --clusterrole=clusterqueue-creator --user=sdk-user
           kubectl create clusterrole localqueue-creator --verb=get,list,create,delete,patch --resource=localqueues
           kubectl create clusterrolebinding sdk-user-localqueue-creator --clusterrole=localqueue-creator --user=sdk-user
+          kubectl create clusterrole list-secrets --verb=get,list --resource=secrets
+          kubectl create clusterrolebinding sdk-user-list-secrets --clusterrole=list-secrets --user=sdk-user
           kubectl config use-context sdk-user
 
       - name: Run e2e tests
@@ -126,6 +134,8 @@ jobs:
           poetry install --with test,docs
           echo "Running e2e tests..."
           poetry run pytest -v -s ./tests/e2e -m kind > ${CODEFLARE_TEST_OUTPUT_DIR}/pytest_output.log 2>&1
+        env:
+          GRPC_DNS_RESOLVER: "native"
 
       - name: Switch to kind-cluster context to print logs
         if: always() && steps.deploy.outcome == 'success'
