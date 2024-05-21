@@ -123,19 +123,21 @@ def test_token_auth_creation():
         assert token_auth.token == "token"
         assert token_auth.server == "server"
         assert token_auth.skip_tls == False
-        assert token_auth.ca_cert_path == "/etc/pki/tls/custom-certs/ca-bundle.crt"
+        assert token_auth.ca_cert_path == None
 
         token_auth = TokenAuthentication(token="token", server="server", skip_tls=True)
         assert token_auth.token == "token"
         assert token_auth.server == "server"
         assert token_auth.skip_tls == True
-        assert token_auth.ca_cert_path == "/etc/pki/tls/custom-certs/ca-bundle.crt"
+        assert token_auth.ca_cert_path == None
 
+        os.environ["CF_SDK_CA_CERT_PATH"] = f"/etc/pki/tls/custom-certs/ca-bundle.crt"
         token_auth = TokenAuthentication(token="token", server="server", skip_tls=False)
         assert token_auth.token == "token"
         assert token_auth.server == "server"
         assert token_auth.skip_tls == False
         assert token_auth.ca_cert_path == "/etc/pki/tls/custom-certs/ca-bundle.crt"
+        os.environ.pop("CF_SDK_CA_CERT_PATH")
 
         token_auth = TokenAuthentication(
             token="token",
