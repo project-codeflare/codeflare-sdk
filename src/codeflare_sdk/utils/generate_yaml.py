@@ -228,11 +228,20 @@ def local_queue_exists(namespace: str, local_queue_name: str):
     return False
 
 
+def add_queue_label(item: dict, namespace: str, local_queue: Optional[str]):
+    lq_name = local_queue or get_default_kueue_name(namespace)
+    if not local_queue_exists(namespace, lq_name):
+        raise ValueError(
+            "local_queue provided does not exist or is not in this namespace. Please provide the correct local_queue name in Cluster Configuration"
+        )
+    if not "labels" in item["metadata"]:
+        item["metadata"]["labels"] = {}
+    item["metadata"]["labels"].update({"kueue.x-k8s.io/queue-name": lq_name})
+
+
 def write_components(
     user_yaml: dict,
     output_file_name: str,
-    namespace: str,
-    local_queue: Optional[str],
     labels: dict,
 ):
     # Create the directory if it doesn't exist
@@ -242,17 +251,11 @@ def write_components(
 
     components = user_yaml.get("spec", "resources").get("components")
     open(output_file_name, "w").close()
-    lq_name = local_queue or get_default_kueue_name(namespace)
     cluster_labels = labels
-    if not local_queue_exists(namespace, lq_name):
-        raise ValueError(
-            "local_queue provided does not exist or is not in this namespace. Please provide the correct local_queue name in Cluster Configuration"
-        )
     with open(output_file_name, "a") as outfile:
         for component in components:
             if "template" in component:
                 labels = component["template"]["metadata"]["labels"]
-                labels.update({"kueue.x-k8s.io/queue-name": lq_name})
                 labels.update(cluster_labels)
                 outfile.write("---\n")
                 yaml.dump(component["template"], outfile, default_flow_style=False)
@@ -262,22 +265,14 @@ def write_components(
 def load_components(
     user_yaml: dict,
     name: str,
-    namespace: str,
-    local_queue: Optional[str],
     labels: dict,
 ):
     component_list = []
     components = user_yaml.get("spec", "resources").get("components")
-    lq_name = local_queue or get_default_kueue_name(namespace)
     cluster_labels = labels
-    if not local_queue_exists(namespace, lq_name):
-        raise ValueError(
-            "local_queue provided does not exist or is not in this namespace. Please provide the correct local_queue name in Cluster Configuration"
-        )
     for component in components:
         if "template" in component:
             labels = component["template"]["metadata"]["labels"]
-            labels.update({"kueue.x-k8s.io/queue-name": lq_name})
             labels.update(cluster_labels)
             component_list.append(component["template"])
 
@@ -346,6 +341,12 @@ def generate_appwrapper(
         head_gpus,
     )
 
+    if appwrapper:
+        add_queue_label(user_yaml, namespace, local_queue)
+    else:
+        if "template" in item:
+            add_queue_label(item["template"], namespace, local_queue)
+
     directory_path = os.path.expanduser("~/.codeflare/resources/")
     outfile = os.path.join(directory_path, appwrapper_name + ".yaml")
 
@@ -353,11 +354,11 @@ def generate_appwrapper(
         if appwrapper:
             write_user_appwrapper(user_yaml, outfile)
         else:
-            write_components(user_yaml, outfile, namespace, local_queue, labels)
+            write_components(user_yaml, outfile, labels)
         return outfile
     else:
         if appwrapper:
             user_yaml = load_appwrapper(user_yaml, name)
         else:
-            user_yaml = load_components(user_yaml, name, namespace, local_queue, labels)
+            user_yaml = load_components(user_yaml, name, labels)
         return user_yaml

@@ -271,7 +271,12 @@ def test_config_creation():
 
 
 def test_cluster_creation(mocker):
+    # Create AppWrapper containing a Ray Cluster with no local queue specified
     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
+        return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
+    )
     cluster = createClusterWithConfig(mocker)
     assert cluster.app_wrapper_yaml == f"{aw_dir}unit-test-cluster.yaml"
     assert cluster.app_wrapper_name == "unit-test-cluster"
@@ -416,6 +421,10 @@ def test_default_cluster_creation(mocker):
         "codeflare_sdk.cluster.cluster.get_current_namespace",
         return_value="opendatahub",
     )
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
+        return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
+    )
     default_config = ClusterConfiguration(
         name="unit-test-default-cluster",
         image="quay.io/project-codeflare/ray:latest-py39-cu118",
@@ -527,6 +536,10 @@ def test_cluster_up_down(mocker):
         "kubernetes.client.CustomObjectsApi.list_cluster_custom_object",
         return_value={"items": []},
     )
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
+        return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
+    )
     cluster = cluster = createClusterWithConfig(mocker)
     cluster.up()
     cluster.down()
@@ -631,6 +644,10 @@ def test_cluster_uris(mocker):
     mocker.patch(
         "codeflare_sdk.cluster.cluster._get_ingress_domain",
         return_value="apps.cluster.awsroute.org",
+    )
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
+        return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
     )
     cluster = cluster = createClusterWithConfig(mocker)
     mocker.patch(
@@ -754,6 +771,10 @@ def ingress_retrieval(
 
 def test_ray_job_wrapping(mocker):
     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
+        return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
+    )
     cluster = cluster = createClusterWithConfig(mocker)
     cluster.config.image = "quay.io/project-codeflare/ray:latest-py39-cu118"
     mocker.patch(
@@ -874,6 +895,7 @@ def test_ray_details(mocker, capsys):
             image="quay.io/project-codeflare/ray:latest-py39-cu118",
             write_to_file=True,
             appwrapper=True,
+            local_queue="local_default_queue",
         )
     )
     captured = capsys.readouterr()
@@ -2250,6 +2272,7 @@ def test_cluster_status(mocker):
             image="quay.io/project-codeflare/ray:latest-py39-cu118",
             write_to_file=True,
             appwrapper=True,
+            local_queue="local_default_queue",
         )
     )
     mocker.patch("codeflare_sdk.cluster.cluster._app_wrapper_status", return_value=None)
@@ -2340,6 +2363,7 @@ def test_wait_ready(mocker, capsys):
             image="quay.io/project-codeflare/ray:latest-py39-cu118",
             write_to_file=True,
             appwrapper=True,
+            local_queue="local-queue-default",
         )
     )
     try:

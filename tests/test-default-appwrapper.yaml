@@ -1,6 +1,8 @@
 apiVersion: workload.codeflare.dev/v1beta2
 kind: AppWrapper
 metadata:
+  labels:
+    kueue.x-k8s.io/queue-name: local-queue-default
   name: unit-test-default-cluster
   namespace: opendatahub
 spec:
