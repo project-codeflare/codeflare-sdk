@@ -239,10 +239,16 @@ def add_queue_label(item: dict, namespace: str, local_queue: Optional[str]):
     item["metadata"]["labels"].update({"kueue.x-k8s.io/queue-name": lq_name})
 
 
+def augment_labels(item: dict, labels: dict):
+    if "template" in item:
+        if not "labels" in item["template"]["metadata"]:
+            item["template"]["metadata"]["labels"] = {}
+    item["template"]["metadata"]["labels"].update(labels)
+
+
 def write_components(
     user_yaml: dict,
     output_file_name: str,
-    labels: dict,
 ):
     # Create the directory if it doesn't exist
     directory_path = os.path.dirname(output_file_name)
@@ -251,12 +257,9 @@ def write_components(
 
     components = user_yaml.get("spec", "resources").get("components")
     open(output_file_name, "w").close()
-    cluster_labels = labels
     with open(output_file_name, "a") as outfile:
         for component in components:
             if "template" in component:
-                labels = component["template"]["metadata"]["labels"]
-                labels.update(cluster_labels)
                 outfile.write("---\n")
                 yaml.dump(component["template"], outfile, default_flow_style=False)
     print(f"Written to: {output_file_name}")
@@ -265,15 +268,11 @@ def write_components(
 def load_components(
     user_yaml: dict,
     name: str,
-    labels: dict,
 ):
     component_list = []
     components = user_yaml.get("spec", "resources").get("components")
-    cluster_labels = labels
     for component in components:
         if "template" in component:
-            labels = component["template"]["metadata"]["labels"]
-            labels.update(cluster_labels)
             component_list.append(component["template"])
 
     resources = "---\n" + "---\n".join(
@@ -341,11 +340,12 @@ def generate_appwrapper(
         head_gpus,
     )
 
+    augment_labels(item, labels)
+
     if appwrapper:
         add_queue_label(user_yaml, namespace, local_queue)
     else:
-        if "template" in item:
-            add_queue_label(item["template"], namespace, local_queue)
+        add_queue_label(item["template"], namespace, local_queue)
 
     directory_path = os.path.expanduser("~/.codeflare/resources/")
     outfile = os.path.join(directory_path, appwrapper_name + ".yaml")
@@ -354,11 +354,11 @@ def generate_appwrapper(
         if appwrapper:
             write_user_appwrapper(user_yaml, outfile)
         else:
-            write_components(user_yaml, outfile, labels)
+            write_components(user_yaml, outfile)
         return outfile
     else:
         if appwrapper:
             user_yaml = load_appwrapper(user_yaml, name)
         else:
-            user_yaml = load_components(user_yaml, name, labels)
+            user_yaml = load_components(user_yaml, name)
         return user_yaml
