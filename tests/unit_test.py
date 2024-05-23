@@ -888,6 +888,10 @@ def test_ray_details(mocker, capsys):
         "codeflare_sdk.cluster.cluster.Cluster.cluster_dashboard_uri",
         return_value="",
     )
+    mocker.patch(
+        "codeflare_sdk.utils.generate_yaml.local_queue_exists",
+        return_value="true",
+    )
     cf = Cluster(
         ClusterConfiguration(
             name="raytest2",
@@ -1933,6 +1937,10 @@ def test_get_cluster_openshift(mocker):
         MagicMock(versions=[MagicMock(group_version="route.openshift.io/v1")])
     ]
     mocker.patch("kubernetes.client.ApisApi", return_value=mock_api)
+    mocker.patch(
+        "codeflare_sdk.utils.generate_yaml.local_queue_exists",
+        return_value="true",
+    )
 
     assert is_openshift_cluster()
 
@@ -1997,6 +2005,10 @@ def test_get_cluster(mocker):
         "kubernetes.client.NetworkingV1Api.list_namespaced_ingress",
         return_value=ingress_retrieval(cluster_name="quicktest", client_ing=True),
     )
+    mocker.patch(
+        "codeflare_sdk.utils.generate_yaml.local_queue_exists",
+        return_value="true",
+    )
     cluster = get_cluster("quicktest")
     cluster_config = cluster.config
     assert cluster_config.name == "quicktest" and cluster_config.namespace == "ns"
@@ -2024,6 +2036,10 @@ def test_get_cluster_no_mcad(mocker):
     mocker.patch(
         "kubernetes.client.NetworkingV1Api.list_namespaced_ingress",
         return_value=ingress_retrieval(cluster_name="quicktest", client_ing=True),
+    )
+    mocker.patch(
+        "codeflare_sdk.utils.generate_yaml.local_queue_exists",
+        return_value="true",
     )
     cluster = get_cluster("quicktest")
     cluster_config = cluster.config
@@ -2250,6 +2266,10 @@ def test_list_queue_rayclusters(mocker, capsys):
 def test_cluster_status(mocker):
     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+    mocker.patch(
+        "codeflare_sdk.utils.generate_yaml.local_queue_exists",
+        return_value="true",
+    )
     fake_aw = AppWrapper("test", AppWrapperStatus.FAILED)
     fake_ray = RayCluster(
         name="test",
@@ -2341,6 +2361,10 @@ def test_wait_ready(mocker, capsys):
     mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
     mocker.patch("codeflare_sdk.cluster.cluster._app_wrapper_status", return_value=None)
     mocker.patch("codeflare_sdk.cluster.cluster._ray_cluster_status", return_value=None)
+    mocker.patch(
+        "codeflare_sdk.utils.generate_yaml.local_queue_exists",
+        return_value="true",
+    )
     mocker.patch.object(
         client.CustomObjectsApi,
         "list_namespaced_custom_object",
