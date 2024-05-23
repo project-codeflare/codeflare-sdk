@@ -114,6 +114,8 @@ jobs:
           kubectl create clusterrolebinding sdk-user-namespace-creator --clusterrole=namespace-creator --user=sdk-user
           kubectl create clusterrole raycluster-creator --verb=get,list,create,delete,patch --resource=rayclusters
           kubectl create clusterrolebinding sdk-user-raycluster-creator --clusterrole=raycluster-creator --user=sdk-user
+          kubectl create clusterrole appwrapper-creator --verb=get,list,create,delete,patch --resource=appwrappers
+          kubectl create clusterrolebinding sdk-user-appwrapper-creator --clusterrole=appwrapper-creator --user=sdk-user
           kubectl create clusterrole resourceflavor-creator --verb=get,list,create,delete --resource=resourceflavors
           kubectl create clusterrolebinding sdk-user-resourceflavor-creator --clusterrole=resourceflavor-creator --user=sdk-user
           kubectl create clusterrole clusterqueue-creator --verb=get,list,create,delete,patch --resource=clusterqueues
