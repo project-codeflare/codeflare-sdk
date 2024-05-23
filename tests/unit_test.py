@@ -314,7 +314,16 @@ def get_local_queue(group, version, namespace, plural):
                     "namespace": "ns",
                 },
                 "spec": {"clusterQueue": "cluster-queue"},
-            }
+            },
+            {
+                "apiVersion": "kueue.x-k8s.io/v1beta1",
+                "kind": "LocalQueue",
+                "metadata": {
+                    "name": "team-a-queue",
+                    "namespace": "ns",
+                },
+                "spec": {"clusterQueue": "team-a-queue"},
+            },
         ],
         "kind": "LocalQueueList",
         "metadata": {"continue": "", "resourceVersion": "2266811"},
