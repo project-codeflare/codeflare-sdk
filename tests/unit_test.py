@@ -2035,6 +2035,10 @@ def test_get_cluster_openshift(mocker):
             "items"
         ],
     )
+    mocker.patch(
+        "codeflare_sdk.utils.generate_yaml.local_queue_exists",
+        return_value="true",
+    )
 
     cluster = get_cluster("quicktest")
     cluster_config = cluster.config
