@@ -573,6 +573,9 @@ class Cluster:
             mcad=mcad,
             write_to_file=write_to_file,
             verify_tls=verify_tls,
+            local_queue=rc[&#34;metadata&#34;]
+            .get(&#34;labels&#34;, dict())
+            .get(&#34;kueue.x-k8s.io/queue-name&#34;, None),
         )
         return Cluster(cluster_config)
 
@@ -592,10 +595,10 @@ class Cluster:
                         .get(&#34;headGroupSpec&#34;, {})
                         .get(&#34;enableIngress&#34;)
                     )
-                    if resource[&#34;kind&#34;] == &#34;RayCluster&#34; and enable_ingress is not False:
+                    if resource[&#34;kind&#34;] == &#34;RayCluster&#34; and enable_ingress is True:
                         name = resource[&#34;metadata&#34;][&#34;name&#34;]
                         print(
-                            f&#34;Forbidden: RayCluster &#39;{name}&#39; has &#39;enableIngress&#39; set to &#39;True&#39; or is unset.&#34;
+                            f&#34;Forbidden: RayCluster &#39;{name}&#39; has &#39;enableIngress&#39; set to &#39;True&#39;.&#34;
                         )
                         return
                 _create_resources(yamls, namespace, api_instance)
@@ -662,14 +665,26 @@ def get_current_namespace():  # pragma: no cover
             print(&#34;Unable to find current namespace&#34;)
             return None
     else:
-        try:
-            _, active_context = config.list_kube_config_contexts(config_check())
-        except Exception as e:
-            return _kube_api_error_handling(e)
-        try:
-            return active_context[&#34;context&#34;][&#34;namespace&#34;]
-        except KeyError:
-            return None
+        if os.path.isfile(&#34;/var/run/secrets/kubernetes.io/serviceaccount/namespace&#34;):
+            try:
+                file = open(
+                    &#34;/var/run/secrets/kubernetes.io/serviceaccount/namespace&#34;, &#34;r&#34;
+                )
+                active_context = file.readline().strip(&#34;\n&#34;)
+                return active_context
+            except Exception as e:
+                print(
+                    &#34;unable to gather namespace from /var/run/secrets/kubernetes.io/serviceaccount/namespace trying to gather from current context&#34;
+                )
+        else:
+            try:
+                _, active_context = config.list_kube_config_contexts(config_check())
+            except Exception as e:
+                return _kube_api_error_handling(e)
+            try:
+                return active_context[&#34;context&#34;][&#34;namespace&#34;]
+            except KeyError:
+                return None
 
 
 def get_cluster(
@@ -1070,14 +1085,26 @@ def _copy_to_ray(cluster: Cluster) -&gt; RayCluster:
             print(&#34;Unable to find current namespace&#34;)
             return None
     else:
-        try:
-            _, active_context = config.list_kube_config_contexts(config_check())
-        except Exception as e:
-            return _kube_api_error_handling(e)
-        try:
-            return active_context[&#34;context&#34;][&#34;namespace&#34;]
-        except KeyError:
-            return None</code></pre>
+        if os.path.isfile(&#34;/var/run/secrets/kubernetes.io/serviceaccount/namespace&#34;):
+            try:
+                file = open(
+                    &#34;/var/run/secrets/kubernetes.io/serviceaccount/namespace&#34;, &#34;r&#34;
+                )
+                active_context = file.readline().strip(&#34;\n&#34;)
+                return active_context
+            except Exception as e:
+                print(
+                    &#34;unable to gather namespace from /var/run/secrets/kubernetes.io/serviceaccount/namespace trying to gather from current context&#34;
+                )
+        else:
+            try:
+                _, active_context = config.list_kube_config_contexts(config_check())
+            except Exception as e:
+                return _kube_api_error_handling(e)
+            try:
+                return active_context[&#34;context&#34;][&#34;namespace&#34;]
+            except KeyError:
+                return None</code></pre>
 </details>
 </dd>
 <dt id="codeflare_sdk.cluster.cluster.list_all_clusters"><code class="name flex">
@@ -1640,6 +1667,9 @@ request.</p></div>
             mcad=mcad,
             write_to_file=write_to_file,
             verify_tls=verify_tls,
+            local_queue=rc[&#34;metadata&#34;]
+            .get(&#34;labels&#34;, dict())
+            .get(&#34;kueue.x-k8s.io/queue-name&#34;, None),
         )
         return Cluster(cluster_config)
 
@@ -1659,10 +1689,10 @@ request.</p></div>
                         .get(&#34;headGroupSpec&#34;, {})
                         .get(&#34;enableIngress&#34;)
                     )
-                    if resource[&#34;kind&#34;] == &#34;RayCluster&#34; and enable_ingress is not False:
+                    if resource[&#34;kind&#34;] == &#34;RayCluster&#34; and enable_ingress is True:
                         name = resource[&#34;metadata&#34;][&#34;name&#34;]
                         print(
-                            f&#34;Forbidden: RayCluster &#39;{name}&#39; has &#39;enableIngress&#39; set to &#39;True&#39; or is unset.&#34;
+                            f&#34;Forbidden: RayCluster &#39;{name}&#39; has &#39;enableIngress&#39; set to &#39;True&#39;.&#34;
                         )
                         return
                 _create_resources(yamls, namespace, api_instance)
@@ -2010,6 +2040,9 @@ associated with the cluster.</p></div>
         mcad=mcad,
         write_to_file=write_to_file,
         verify_tls=verify_tls,
+        local_queue=rc[&#34;metadata&#34;]
+        .get(&#34;labels&#34;, dict())
+        .get(&#34;kueue.x-k8s.io/queue-name&#34;, None),
     )
     return Cluster(cluster_config)</code></pre>
 </details>

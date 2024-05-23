@@ -65,6 +65,8 @@ api_client = None
 global config_path
 config_path = None
 
+WORKBENCH_CA_CERT_PATH = &#34;/etc/pki/tls/custom-certs/ca-bundle.crt&#34;
+
 
 class Authentication(metaclass=abc.ABCMeta):
     &#34;&#34;&#34;
@@ -124,7 +126,17 @@ class TokenAuthentication(Authentication):
         self.token = token
         self.server = server
         self.skip_tls = skip_tls
-        self.ca_cert_path = ca_cert_path
+        self.ca_cert_path = self._gen_ca_cert_path(ca_cert_path)
+
+    def _gen_ca_cert_path(self, ca_cert_path: str):
+        if ca_cert_path is not None:
+            return ca_cert_path
+        elif &#34;CF_SDK_CA_CERT_PATH&#34; in os.environ:
+            return os.environ.get(&#34;CF_SDK_CA_CERT_PATH&#34;)
+        elif os.path.exists(WORKBENCH_CA_CERT_PATH):
+            return WORKBENCH_CA_CERT_PATH
+        else:
+            return None
 
     def login(self) -&gt; str:
         &#34;&#34;&#34;
@@ -139,10 +151,20 @@ class TokenAuthentication(Authentication):
             configuration.api_key_prefix[&#34;authorization&#34;] = &#34;Bearer&#34;
             configuration.host = self.server
             configuration.api_key[&#34;authorization&#34;] = self.token
-            if self.skip_tls == False and self.ca_cert_path == None:
+
+            if not self.skip_tls:
+                if self.ca_cert_path is None:
+                    configuration.ssl_ca_cert = None
+                elif os.path.isfile(self.ca_cert_path):
+                    print(
+                        f&#34;Authenticated with certificate located at {self.ca_cert_path}&#34;
+                    )
+                    configuration.ssl_ca_cert = self.ca_cert_path
+                else:
+                    raise FileNotFoundError(
+                        f&#34;Certificate file not found at {self.ca_cert_path}&#34;
+                    )
                 configuration.verify_ssl = True
-            elif self.skip_tls == False:
-                configuration.ssl_ca_cert = self.ca_cert_path
             else:
                 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
                 print(&#34;Insecure request warnings have been disabled&#34;)
@@ -551,7 +573,17 @@ and <code>server</code>, the API server address for authenticating to a Kubernet
         self.token = token
         self.server = server
         self.skip_tls = skip_tls
-        self.ca_cert_path = ca_cert_path
+        self.ca_cert_path = self._gen_ca_cert_path(ca_cert_path)
+
+    def _gen_ca_cert_path(self, ca_cert_path: str):
+        if ca_cert_path is not None:
+            return ca_cert_path
+        elif &#34;CF_SDK_CA_CERT_PATH&#34; in os.environ:
+            return os.environ.get(&#34;CF_SDK_CA_CERT_PATH&#34;)
+        elif os.path.exists(WORKBENCH_CA_CERT_PATH):
+            return WORKBENCH_CA_CERT_PATH
+        else:
+            return None
 
     def login(self) -&gt; str:
         &#34;&#34;&#34;
@@ -566,10 +598,20 @@ and <code>server</code>, the API server address for authenticating to a Kubernet
             configuration.api_key_prefix[&#34;authorization&#34;] = &#34;Bearer&#34;
             configuration.host = self.server
             configuration.api_key[&#34;authorization&#34;] = self.token
-            if self.skip_tls == False and self.ca_cert_path == None:
+
+            if not self.skip_tls:
+                if self.ca_cert_path is None:
+                    configuration.ssl_ca_cert = None
+                elif os.path.isfile(self.ca_cert_path):
+                    print(
+                        f&#34;Authenticated with certificate located at {self.ca_cert_path}&#34;
+                    )
+                    configuration.ssl_ca_cert = self.ca_cert_path
+                else:
+                    raise FileNotFoundError(
+                        f&#34;Certificate file not found at {self.ca_cert_path}&#34;
+                    )
                 configuration.verify_ssl = True
-            elif self.skip_tls == False:
-                configuration.ssl_ca_cert = self.ca_cert_path
             else:
                 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
                 print(&#34;Insecure request warnings have been disabled&#34;)
@@ -622,10 +664,20 @@ to <code>True</code> or <code>--certificate-authority</code> by setting <code>sk
         configuration.api_key_prefix[&#34;authorization&#34;] = &#34;Bearer&#34;
         configuration.host = self.server
         configuration.api_key[&#34;authorization&#34;] = self.token
-        if self.skip_tls == False and self.ca_cert_path == None:
+
+        if not self.skip_tls:
+            if self.ca_cert_path is None:
+                configuration.ssl_ca_cert = None
+            elif os.path.isfile(self.ca_cert_path):
+                print(
+                    f&#34;Authenticated with certificate located at {self.ca_cert_path}&#34;
+                )
+                configuration.ssl_ca_cert = self.ca_cert_path
+            else:
+                raise FileNotFoundError(
+                    f&#34;Certificate file not found at {self.ca_cert_path}&#34;
+                )
             configuration.verify_ssl = True
-        elif self.skip_tls == False:
-            configuration.ssl_ca_cert = self.ca_cert_path
         else:
             urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
             print(&#34;Insecure request warnings have been disabled&#34;)
