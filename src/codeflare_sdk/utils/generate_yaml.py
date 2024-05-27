@@ -106,39 +106,46 @@ def update_env(spec, env):
                 container["env"] = env
 
 
-def update_resources(spec, min_cpu, max_cpu, min_memory, max_memory, gpu):
+def update_resources(
+    spec,
+    worker_cpu_requests,
+    worker_cpu_limits,
+    worker_memory_requests,
+    worker_memory_limits,
+    num_worker_gpus,
+):
     container = spec.get("containers")
     for resource in container:
         requests = resource.get("resources").get("requests")
         if requests is not None:
-            requests["cpu"] = min_cpu
-            requests["memory"] = min_memory
-            requests["nvidia.com/gpu"] = gpu
+            requests["cpu"] = worker_cpu_requests
+            requests["memory"] = worker_memory_requests
+            requests["nvidia.com/gpu"] = num_worker_gpus
         limits = resource.get("resources").get("limits")
         if limits is not None:
-            limits["cpu"] = max_cpu
-            limits["memory"] = max_memory
-            limits["nvidia.com/gpu"] = gpu
+            limits["cpu"] = worker_cpu_limits
+            limits["memory"] = worker_memory_limits
+            limits["nvidia.com/gpu"] = num_worker_gpus
 
 
 def update_nodes(
     cluster_yaml,
     appwrapper_name,
-    min_cpu,
-    max_cpu,
-    min_memory,
-    max_memory,
-    gpu,
+    worker_cpu_requests,
+    worker_cpu_limits,
+    worker_memory_requests,
+    worker_memory_limits,
+    num_worker_gpus,
     workers,
     image,
     env,
     image_pull_secrets,
     head_cpus,
     head_memory,
-    head_gpus,
+    num_head_gpus,
 ):
     head = cluster_yaml.get("spec").get("headGroupSpec")
-    head["rayStartParams"]["num-gpus"] = str(int(head_gpus))
+    head["rayStartParams"]["num-gpus"] = str(int(num_head_gpus))
 
     worker = cluster_yaml.get("spec").get("workerGroupSpecs")[0]
     # Head counts as first worker
@@ -146,7 +153,7 @@ def update_nodes(
     worker["minReplicas"] = workers
     worker["maxReplicas"] = workers
     worker["groupName"] = "small-group-" + appwrapper_name
-    worker["rayStartParams"]["num-gpus"] = str(int(gpu))
+    worker["rayStartParams"]["num-gpus"] = str(int(num_worker_gpus))
 
     for comp in [head, worker]:
         spec = comp.get("template").get("spec")
@@ -156,10 +163,17 @@ def update_nodes(
         if comp == head:
             # TODO: Eventually add head node configuration outside of template
             update_resources(
-                spec, head_cpus, head_cpus, head_memory, head_memory, head_gpus
+                spec, head_cpus, head_cpus, head_memory, head_memory, num_head_gpus
             )
         else:
-            update_resources(spec, min_cpu, max_cpu, min_memory, max_memory, gpu)
+            update_resources(
+                spec,
+                worker_cpu_requests,
+                worker_cpu_limits,
+                worker_memory_requests,
+                worker_memory_limits,
+                num_worker_gpus,
+            )
 
 
 def del_from_list_by_name(l: list, target: typing.List[str]) -> list:
@@ -265,12 +279,12 @@ def generate_appwrapper(
     namespace: str,
     head_cpus: int,
     head_memory: int,
-    head_gpus: int,
-    min_cpu: int,
-    max_cpu: int,
-    min_memory: int,
-    max_memory: int,
-    gpu: int,
+    num_head_gpus: int,
+    worker_cpu_requests: int,
+    worker_cpu_limits: int,
+    worker_memory_requests: int,
+    worker_memory_limits: int,
+    num_worker_gpus: int,
     workers: int,
     template: str,
     image: str,
@@ -287,18 +301,18 @@ def generate_appwrapper(
     update_nodes(
         cluster_yaml,
         appwrapper_name,
-        min_cpu,
-        max_cpu,
-        min_memory,
-        max_memory,
-        gpu,
+        worker_cpu_requests,
+        worker_cpu_limits,
+        worker_memory_requests,
+        worker_memory_limits,
+        num_worker_gpus,
         workers,
         image,
         env,
         image_pull_secrets,
         head_cpus,
         head_memory,
-        head_gpus,
+        num_head_gpus,
     )
     augment_labels(cluster_yaml, labels)
     notebook_annotations(cluster_yaml)

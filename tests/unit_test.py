@@ -258,9 +258,9 @@ def test_config_creation():
 
     assert config.name == "unit-test-cluster" and config.namespace == "ns"
     assert config.num_workers == 2
-    assert config.min_cpus == 3 and config.max_cpus == 4
-    assert config.min_memory == "5G" and config.max_memory == "6G"
-    assert config.num_gpus == 7
+    assert config.worker_cpu_requests == 3 and config.worker_cpu_limits == 4
+    assert config.worker_memory_requests == "5G" and config.worker_memory_limits == "6G"
+    assert config.num_worker_gpus == 7
     assert config.image == "quay.io/rhoai/ray:2.23.0-py39-cu121"
     assert config.template == f"{parent}/src/codeflare_sdk/templates/base-template.yaml"
     assert config.machine_types == ["cpu.small", "gpu.large"]
@@ -393,11 +393,11 @@ def test_cluster_creation_no_mcad_local_queue(mocker):
         name="unit-test-cluster-ray",
         namespace="ns",
         num_workers=2,
-        min_cpus=3,
-        max_cpus=4,
-        min_memory=5,
-        max_memory=6,
-        num_gpus=7,
+        worker_cpu_requests=3,
+        worker_cpu_limits=4,
+        worker_memory_requests=5,
+        worker_memory_limits=6,
+        num_worker_gpus=7,
         machine_types=["cpu.small", "gpu.large"],
         image_pull_secrets=["unit-test-pull-secret"],
         image="quay.io/rhoai/ray:2.23.0-py39-cu121",
@@ -1985,9 +1985,15 @@ def test_get_cluster_openshift(mocker):
         "m4.xlarge" in cluster_config.machine_types
         and "g4dn.xlarge" in cluster_config.machine_types
     )
-    assert cluster_config.min_cpus == 1 and cluster_config.max_cpus == 1
-    assert cluster_config.min_memory == "2G" and cluster_config.max_memory == "2G"
-    assert cluster_config.num_gpus == 0
+    assert (
+        cluster_config.worker_cpu_requests == 1
+        and cluster_config.worker_cpu_limits == 1
+    )
+    assert (
+        cluster_config.worker_memory_requests == "2G"
+        and cluster_config.worker_memory_limits == "2G"
+    )
+    assert cluster_config.num_worker_gpus == 0
     assert (
         cluster_config.image
         == "ghcr.io/foundation-model-stack/base:ray2.1.0-py38-gpu-pytorch1.12.0cu116-20221213-193103"
@@ -2021,9 +2027,15 @@ def test_get_cluster(mocker):
         "m4.xlarge" in cluster_config.machine_types
         and "g4dn.xlarge" in cluster_config.machine_types
     )
-    assert cluster_config.min_cpus == 1 and cluster_config.max_cpus == 1
-    assert cluster_config.min_memory == "2G" and cluster_config.max_memory == "2G"
-    assert cluster_config.num_gpus == 0
+    assert (
+        cluster_config.worker_cpu_requests == 1
+        and cluster_config.worker_cpu_limits == 1
+    )
+    assert (
+        cluster_config.worker_memory_requests == "2G"
+        and cluster_config.worker_memory_limits == "2G"
+    )
+    assert cluster_config.num_worker_gpus == 0
     assert (
         cluster_config.image
         == "ghcr.io/foundation-model-stack/base:ray2.1.0-py38-gpu-pytorch1.12.0cu116-20221213-193103"
@@ -2053,9 +2065,15 @@ def test_get_cluster_no_mcad(mocker):
         "m4.xlarge" in cluster_config.machine_types
         and "g4dn.xlarge" in cluster_config.machine_types
     )
-    assert cluster_config.min_cpus == 1 and cluster_config.max_cpus == 1
-    assert cluster_config.min_memory == "2G" and cluster_config.max_memory == "2G"
-    assert cluster_config.num_gpus == 0
+    assert (
+        cluster_config.worker_cpu_requests == 1
+        and cluster_config.worker_cpu_limits == 1
+    )
+    assert (
+        cluster_config.worker_memory_requests == "2G"
+        and cluster_config.worker_memory_limits == "2G"
+    )
+    assert cluster_config.num_worker_gpus == 0
     assert (
         cluster_config.image
         == "ghcr.io/foundation-model-stack/base:ray2.1.0-py38-gpu-pytorch1.12.0cu116-20221213-193103"
