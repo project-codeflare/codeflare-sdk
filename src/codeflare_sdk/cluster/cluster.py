@@ -137,12 +137,12 @@ class Cluster:
         namespace = self.config.namespace
         head_cpus = self.config.head_cpus
         head_memory = self.config.head_memory
-        head_gpus = self.config.head_gpus
-        min_cpu = self.config.min_cpus
-        max_cpu = self.config.max_cpus
-        min_memory = self.config.min_memory
-        max_memory = self.config.max_memory
-        gpu = self.config.num_gpus
+        num_head_gpus = self.config.num_head_gpus
+        worker_cpu_requests = self.config.worker_cpu_requests
+        worker_cpu_limits = self.config.worker_cpu_limits
+        worker_memory_requests = self.config.worker_memory_requests
+        worker_memory_limits = self.config.worker_memory_limits
+        num_worker_gpus = self.config.num_worker_gpus
         workers = self.config.num_workers
         template = self.config.template
         image = self.config.image
@@ -157,12 +157,12 @@ class Cluster:
             namespace=namespace,
             head_cpus=head_cpus,
             head_memory=head_memory,
-            head_gpus=head_gpus,
-            min_cpu=min_cpu,
-            max_cpu=max_cpu,
-            min_memory=min_memory,
-            max_memory=max_memory,
-            gpu=gpu,
+            num_head_gpus=num_head_gpus,
+            worker_cpu_requests=worker_cpu_requests,
+            worker_cpu_limits=worker_cpu_limits,
+            worker_memory_requests=worker_memory_requests,
+            worker_memory_limits=worker_memory_limits,
+            num_worker_gpus=num_worker_gpus,
             workers=workers,
             template=template,
             image=image,
@@ -318,7 +318,7 @@ class Cluster:
 
             if print_to_console:
                 # overriding the number of gpus with requested
-                cluster.worker_gpu = self.config.num_gpus
+                cluster.worker_gpu = self.config.num_worker_gpus
                 pretty_print.print_cluster_status(cluster)
         elif print_to_console:
             if status == CodeFlareClusterStatus.UNKNOWN:
@@ -474,19 +474,19 @@ class Cluster:
             namespace=rc["metadata"]["namespace"],
             machine_types=machine_types,
             num_workers=rc["spec"]["workerGroupSpecs"][0]["minReplicas"],
-            min_cpus=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"][
+            worker_cpu_requests=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"][
                 "containers"
             ][0]["resources"]["requests"]["cpu"],
-            max_cpus=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"][
+            worker_cpu_limits=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"][
                 "containers"
             ][0]["resources"]["limits"]["cpu"],
-            min_memory=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"][
-                "containers"
-            ][0]["resources"]["requests"]["memory"],
-            max_memory=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"][
+            worker_memory_requests=rc["spec"]["workerGroupSpecs"][0]["template"][
+                "spec"
+            ]["containers"][0]["resources"]["requests"]["memory"],
+            worker_memory_limits=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"][
                 "containers"
             ][0]["resources"]["limits"]["memory"],
-            num_gpus=int(
+            num_worker_gpus=int(
                 rc["spec"]["workerGroupSpecs"][0]["template"]["spec"]["containers"][0][
                     "resources"
                 ]["limits"]["nvidia.com/gpu"]
@@ -917,15 +917,15 @@ def _copy_to_ray(cluster: Cluster) -> RayCluster:
         name=cluster.config.name,
         status=cluster.status(print_to_console=False)[0],
         workers=cluster.config.num_workers,
-        worker_mem_min=cluster.config.min_memory,
-        worker_mem_max=cluster.config.max_memory,
-        worker_cpu=cluster.config.min_cpus,
-        worker_gpu=cluster.config.num_gpus,
+        worker_mem_min=cluster.config.worker_memory_requests,
+        worker_mem_max=cluster.config.worker_memory_limits,
+        worker_cpu=cluster.config.worker_cpu_requests,
+        worker_gpu=cluster.config.num_worker_gpus,
         namespace=cluster.config.namespace,
         dashboard=cluster.cluster_dashboard_uri(),
         head_cpus=cluster.config.head_cpus,
         head_mem=cluster.config.head_memory,
-        head_gpu=cluster.config.head_gpus,
+        head_gpu=cluster.config.num_head_gpus,
     )
     if ray.status == CodeFlareClusterStatus.READY:
         ray.status = RayClusterStatus.READY
