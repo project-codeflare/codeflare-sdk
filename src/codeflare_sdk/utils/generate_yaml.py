@@ -308,6 +308,32 @@ def get_default_kueue_name(namespace: str):
         "Default Local Queue with kueue.x-k8s.io/default-queue: true annotation not found please create a default Local Queue or provide the local_queue name in Cluster Configuration"
     )
 
+# test function
+
+# def _throw_for_no_raycluster(    user_yaml: dict,
+#     output_file_name: str,
+#     namespace: str,
+#     local_queue: Optional[str],
+#     labels: dict,):
+#     api_instance = client.CustomObjectsApi(api_config_handler())
+#     print('hello')
+#     # try:
+#     #     api_instance.list_namespaced_custom_object(
+#     #         group="kueue.x-k8s.io",
+#     #         version="v1",
+#     #         namespace=namespace,
+#     #         plural="localqueues",
+#     #     )
+#     # except ApiException as e:
+#     #     if e.status == 404:
+#     #         raise RuntimeError(
+#     #             "RayCluster CustomResourceDefinition unavailable contact your administrator."
+#     #         )
+#     #     else:
+#     #         raise RuntimeError(
+#     #             "Failed to get RayCluster CustomResourceDefinition: " + str(e)
+#     #         )
+    
 
 def local_queue_exists(namespace: str, local_queue_name: str):
     # get all local queues in the namespace
@@ -344,10 +370,10 @@ def write_components(
     components = user_yaml.get("spec", "resources")["resources"].get("GenericItems")
      # check if RayCluster CustomResourceDefinition exists if not throw RuntimeError
     # _throw_for_no_raycluster()
-    if local_queue is None:
-        print(
-            "Kueue is not installed or won't be used. The absence of CRDs may lack the necessary functionality."
-        )
+    # if local_queue is None:
+    #     print(
+    #         "Kueue is not installed or won't be used. The absence of CRDs may lack the necessary functionality."
+    #     )
     open(output_file_name, "w").close()
     lq_name = local_queue or get_default_kueue_name(namespace)
     cluster_labels = labels
@@ -385,17 +411,20 @@ def load_components(
     components = user_yaml.get("spec", "resources")["resources"].get("GenericItems")
     lq_name = local_queue or get_default_kueue_name(namespace)
     cluster_labels = labels
+<<<<<<< HEAD
     if not local_queue_exists(namespace, lq_name):
         raise ValueError(
             "local_queue provided does not exist or is not in this namespace. Please provide the correct local_queue name in Cluster Configuration"
         )
+=======
        
     # _throw_for_no_raycluster()
 
-    if local_queue is None:
-        print(
-            "Kueue is not installed or won't be used. The absence of CRDs may lack the necessary functionality."
-        )
+    # if local_queue is None:
+    #     print(
+    #         "Kueue is not installed or won't be used. The absence of CRDs may lack the necessary functionality."
+    #     )
+>>>>>>> 1d38c8d (prep)
     for component in components:
         if "generictemplate" in component:
             if (
