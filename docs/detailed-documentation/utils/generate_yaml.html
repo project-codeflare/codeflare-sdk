@@ -339,26 +339,6 @@ def get_default_kueue_name(namespace: str):
     )
 
 
-def local_queue_exists(namespace: str, local_queue_name: str):
-    # get all local queues in the namespace
-    try:
-        config_check()
-        api_instance = client.CustomObjectsApi(api_config_handler())
-        local_queues = api_instance.list_namespaced_custom_object(
-            group=&#34;kueue.x-k8s.io&#34;,
-            version=&#34;v1beta1&#34;,
-            namespace=namespace,
-            plural=&#34;localqueues&#34;,
-        )
-    except Exception as e:  # pragma: no cover
-        return _kube_api_error_handling(e)
-    # check if local queue with the name provided in cluster config exists
-    for lq in local_queues[&#34;items&#34;]:
-        if lq[&#34;metadata&#34;][&#34;name&#34;] == local_queue_name:
-            return True
-    return False
-
-
 def write_components(
     user_yaml: dict,
     output_file_name: str,
@@ -375,10 +355,6 @@ def write_components(
     open(output_file_name, &#34;w&#34;).close()
     lq_name = local_queue or get_default_kueue_name(namespace)
     cluster_labels = labels
-    if not local_queue_exists(namespace, lq_name):
-        raise ValueError(
-            &#34;local_queue provided does not exist or is not in this namespace. Please provide the correct local_queue name in Cluster Configuration&#34;
-        )
     with open(output_file_name, &#34;a&#34;) as outfile:
         for component in components:
             if &#34;generictemplate&#34; in component:
@@ -410,10 +386,6 @@ def load_components(
     components = user_yaml.get(&#34;spec&#34;, &#34;resources&#34;)[&#34;resources&#34;].get(&#34;GenericItems&#34;)
     lq_name = local_queue or get_default_kueue_name(namespace)
     cluster_labels = labels
-    if not local_queue_exists(namespace, lq_name):
-        raise ValueError(
-            &#34;local_queue provided does not exist or is not in this namespace. Please provide the correct local_queue name in Cluster Configuration&#34;
-        )
     for component in components:
         if &#34;generictemplate&#34; in component:
             if (
@@ -776,10 +748,6 @@ def generate_appwrapper(
     components = user_yaml.get(&#34;spec&#34;, &#34;resources&#34;)[&#34;resources&#34;].get(&#34;GenericItems&#34;)
     lq_name = local_queue or get_default_kueue_name(namespace)
     cluster_labels = labels
-    if not local_queue_exists(namespace, lq_name):
-        raise ValueError(
-            &#34;local_queue provided does not exist or is not in this namespace. Please provide the correct local_queue name in Cluster Configuration&#34;
-        )
     for component in components:
         if &#34;generictemplate&#34; in component:
             if (
@@ -800,35 +768,6 @@ def generate_appwrapper(
     user_yaml = resources
     print(f&#34;Yaml resources loaded for {name}&#34;)
     return user_yaml</code></pre>
-</details>
-</dd>
-<dt id="codeflare_sdk.utils.generate_yaml.local_queue_exists"><code class="name flex">
-<span>def <span class="ident">local_queue_exists</span></span>(<span>namespace: str, local_queue_name: str)</span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def local_queue_exists(namespace: str, local_queue_name: str):
-    # get all local queues in the namespace
-    try:
-        config_check()
-        api_instance = client.CustomObjectsApi(api_config_handler())
-        local_queues = api_instance.list_namespaced_custom_object(
-            group=&#34;kueue.x-k8s.io&#34;,
-            version=&#34;v1beta1&#34;,
-            namespace=namespace,
-            plural=&#34;localqueues&#34;,
-        )
-    except Exception as e:  # pragma: no cover
-        return _kube_api_error_handling(e)
-    # check if local queue with the name provided in cluster config exists
-    for lq in local_queues[&#34;items&#34;]:
-        if lq[&#34;metadata&#34;][&#34;name&#34;] == local_queue_name:
-            return True
-    return False</code></pre>
 </details>
 </dd>
 <dt id="codeflare_sdk.utils.generate_yaml.read_template"><code class="name flex">
@@ -1152,10 +1091,6 @@ def generate_appwrapper(
     open(output_file_name, &#34;w&#34;).close()
     lq_name = local_queue or get_default_kueue_name(namespace)
     cluster_labels = labels
-    if not local_queue_exists(namespace, lq_name):
-        raise ValueError(
-            &#34;local_queue provided does not exist or is not in this namespace. Please provide the correct local_queue name in Cluster Configuration&#34;
-        )
     with open(output_file_name, &#34;a&#34;) as outfile:
         for component in components:
             if &#34;generictemplate&#34; in component:
@@ -1223,7 +1158,6 @@ def generate_appwrapper(
 <li><code><a title="codeflare_sdk.utils.generate_yaml.is_openshift_cluster" href="#codeflare_sdk.utils.generate_yaml.is_openshift_cluster">is_openshift_cluster</a></code></li>
 <li><code><a title="codeflare_sdk.utils.generate_yaml.load_appwrapper" href="#codeflare_sdk.utils.generate_yaml.load_appwrapper">load_appwrapper</a></code></li>
 <li><code><a title="codeflare_sdk.utils.generate_yaml.load_components" href="#codeflare_sdk.utils.generate_yaml.load_components">load_components</a></code></li>
-<li><code><a title="codeflare_sdk.utils.generate_yaml.local_queue_exists" href="#codeflare_sdk.utils.generate_yaml.local_queue_exists">local_queue_exists</a></code></li>
 <li><code><a title="codeflare_sdk.utils.generate_yaml.read_template" href="#codeflare_sdk.utils.generate_yaml.read_template">read_template</a></code></li>
 <li><code><a title="codeflare_sdk.utils.generate_yaml.update_affinity" href="#codeflare_sdk.utils.generate_yaml.update_affinity">update_affinity</a></code></li>
 <li><code><a title="codeflare_sdk.utils.generate_yaml.update_custompodresources" href="#codeflare_sdk.utils.generate_yaml.update_custompodresources">update_custompodresources</a></code></li>
