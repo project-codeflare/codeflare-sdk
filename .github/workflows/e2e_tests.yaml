@@ -43,7 +43,6 @@ jobs:
           sudo rm -rf /opt/ghc
           sudo rm -rf "/usr/local/share/boost"
           sudo rm -rf "$AGENT_TOOLSDIRECTORY"
-          sudo apt install python3.9
           docker rmi $(docker image ls -aq)
           echo "Final status:"
           df -h
