@@ -246,6 +246,17 @@ def augment_labels(item: dict, labels: dict):
     item["template"]["metadata"]["labels"].update(labels)
 
 
+def notebook_annotations(item: dict):
+    nb_prefix = os.environ.get("NB_PREFIX")
+    if nb_prefix:
+        if "template" in item:
+            if not "annotations" in item["template"]["metadata"]:
+                item["template"]["metadata"]["annotations"] = {}
+        item["template"]["metadata"]["annotations"].update(
+            {"app.kubernetes.io/managed-by": nb_prefix}
+        )
+
+
 def write_components(
     user_yaml: dict,
     output_file_name: str,
@@ -341,6 +352,7 @@ def generate_appwrapper(
     )
 
     augment_labels(item, labels)
+    notebook_annotations(item)
 
     if appwrapper:
         add_queue_label(user_yaml, namespace, local_queue)
