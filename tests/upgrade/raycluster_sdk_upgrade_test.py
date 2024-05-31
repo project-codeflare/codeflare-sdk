@@ -80,9 +80,6 @@ class TestMnistJobSubmit:
         if not self.cluster:
             raise RuntimeError("TestRayClusterUp needs to be run before this test")
 
-    def teardown_method(self):
-        delete_namespace(self)
-
     def test_mnist_job_submission(self):
         auth = TokenAuthentication(
             token=run_oc_command(["whoami", "--show-token=true"]),
