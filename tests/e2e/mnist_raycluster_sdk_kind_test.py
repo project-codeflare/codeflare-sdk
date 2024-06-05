@@ -19,6 +19,7 @@ class TestRayClusterSDKKind:
 
     def teardown_method(self):
         delete_namespace(self)
+        delete_kueue_resources(self)
 
     def test_mnist_ray_cluster_sdk_kind(self):
         self.setup_method()

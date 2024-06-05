@@ -21,6 +21,7 @@ class TestMNISTRayClusterUp:
             create_kueue_resources(self)
         except Exception as e:
             delete_namespace(self)
+            delete_kueue_resources(self)
             return _kube_api_error_handling(e)
 
     def test_mnist_ray_cluster_sdk_auth(self):

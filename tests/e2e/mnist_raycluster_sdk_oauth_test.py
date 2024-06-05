@@ -19,13 +19,13 @@ class TestRayClusterSDKOauth:
 
     def teardown_method(self):
         delete_namespace(self)
+        delete_kueue_resources(self)
 
     def test_mnist_ray_cluster_sdk_auth(self):
         self.setup_method()
         create_namespace(self)
         create_kueue_resources(self)
         self.run_mnist_raycluster_sdk_oauth()
-        self.teardown_method()
 
     def run_mnist_raycluster_sdk_oauth(self):
         ray_image = get_ray_image()
