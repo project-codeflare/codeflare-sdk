@@ -103,26 +103,6 @@ class Cluster:
             )
         return self._job_submission_client
 
-    def evaluate_dispatch_priority(self):
-        priority_class = self.config.dispatch_priority
-
-        try:
-            config_check()
-            api_instance = client.CustomObjectsApi(api_config_handler())
-            priority_classes = api_instance.list_cluster_custom_object(
-                group="scheduling.k8s.io",
-                version="v1",
-                plural="priorityclasses",
-            )
-        except Exception as e:  # pragma: no cover
-            return _kube_api_error_handling(e)
-
-        for pc in priority_classes["items"]:
-            if pc["metadata"]["name"] == priority_class:
-                return pc["value"]
-        print(f"Priority class {priority_class} is not available in the cluster")
-        return None
-
     def validate_image_config(self):
         """
         Validates that the image configuration is not empty.
@@ -152,18 +132,6 @@ class Cluster:
         self.validate_image_config()
 
         # Before attempting to create the cluster AW, let's evaluate the ClusterConfig
-        if self.config.dispatch_priority:
-            if not self.config.mcad:
-                raise ValueError(
-                    "Invalid Cluster Configuration, cannot have dispatch priority without MCAD"
-                )
-            priority_val = self.evaluate_dispatch_priority()
-            if priority_val == None:
-                raise ValueError(
-                    "Invalid Cluster Configuration, AppWrapper not generated"
-                )
-        else:
-            priority_val = None
 
         name = self.config.name
         namespace = self.config.namespace
@@ -178,12 +146,10 @@ class Cluster:
         workers = self.config.num_workers
         template = self.config.template
         image = self.config.image
-        instascale = self.config.instascale
-        mcad = self.config.mcad
+        appwrapper = self.config.appwrapper
         instance_types = self.config.machine_types
         env = self.config.envs
         image_pull_secrets = self.config.image_pull_secrets
-        dispatch_priority = self.config.dispatch_priority
         write_to_file = self.config.write_to_file
         verify_tls = self.config.verify_tls
         local_queue = self.config.local_queue
@@ -202,13 +168,10 @@ class Cluster:
             workers=workers,
             template=template,
             image=image,
-            instascale=instascale,
-            mcad=mcad,
+            appwrapper=appwrapper,
             instance_types=instance_types,
             env=env,
             image_pull_secrets=image_pull_secrets,
-            dispatch_priority=dispatch_priority,
-            priority_val=priority_val,
             write_to_file=write_to_file,
             verify_tls=verify_tls,
             local_queue=local_queue,
@@ -230,13 +193,13 @@ class Cluster:
         try:
             config_check()
             api_instance = client.CustomObjectsApi(api_config_handler())
-            if self.config.mcad:
+            if self.config.appwrapper:
                 if self.config.write_to_file:
                     with open(self.app_wrapper_yaml) as f:
                         aw = yaml.load(f, Loader=yaml.FullLoader)
                         api_instance.create_namespaced_custom_object(
                             group="workload.codeflare.dev",
-                            version="v1beta1",
+                            version="v1beta2",
                             namespace=namespace,
                             plural="appwrappers",
                             body=aw,
@@ -245,7 +208,7 @@ class Cluster:
                     aw = yaml.safe_load(self.app_wrapper_yaml)
                     api_instance.create_namespaced_custom_object(
                         group="workload.codeflare.dev",
-                        version="v1beta1",
+                        version="v1beta2",
                         namespace=namespace,
                         plural="appwrappers",
                         body=aw,
@@ -284,10 +247,10 @@ class Cluster:
         try:
             config_check()
             api_instance = client.CustomObjectsApi(api_config_handler())
-            if self.config.mcad:
+            if self.config.appwrapper:
                 api_instance.delete_namespaced_custom_object(
                     group="workload.codeflare.dev",
-                    version="v1beta1",
+                    version="v1beta2",
                     namespace=namespace,
                     plural="appwrappers",
                     name=self.app_wrapper_name,
@@ -306,30 +269,28 @@ class Cluster:
         """
         ready = False
         status = CodeFlareClusterStatus.UNKNOWN
-        if self.config.mcad:
+        if self.config.appwrapper:
             # check the app wrapper status
             appwrapper = _app_wrapper_status(self.config.name, self.config.namespace)
             if appwrapper:
                 if appwrapper.status in [
-                    AppWrapperStatus.RUNNING,
-                    AppWrapperStatus.COMPLETED,
-                    AppWrapperStatus.RUNNING_HOLD_COMPLETION,
+                    AppWrapperStatus.RESUMING,
+                    AppWrapperStatus.RESETTING,
                 ]:
                     ready = False
                     status = CodeFlareClusterStatus.STARTING
                 elif appwrapper.status in [
                     AppWrapperStatus.FAILED,
-                    AppWrapperStatus.DELETED,
                 ]:
                     ready = False
                     status = CodeFlareClusterStatus.FAILED  # should deleted be separate
                     return status, ready  # exit early, no need to check ray status
                 elif appwrapper.status in [
-                    AppWrapperStatus.PENDING,
-                    AppWrapperStatus.QUEUEING,
+                    AppWrapperStatus.SUSPENDED,
+                    AppWrapperStatus.SUSPENDING,
                 ]:
                     ready = False
-                    if appwrapper.status == AppWrapperStatus.PENDING:
+                    if appwrapper.status == AppWrapperStatus.SUSPENDED:
                         status = CodeFlareClusterStatus.QUEUED
                     else:
                         status = CodeFlareClusterStatus.QUEUEING
@@ -501,7 +462,7 @@ class Cluster:
 
     def from_k8_cluster_object(
         rc,
-        mcad=True,
+        appwrapper=True,
         write_to_file=False,
         verify_tls=True,
     ):
@@ -534,11 +495,10 @@ class Cluster:
                     "resources"
                 ]["limits"]["nvidia.com/gpu"]
             ),
-            instascale=True if machine_types else False,
             image=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"]["containers"][
                 0
             ]["image"],
-            mcad=mcad,
+            appwrapper=appwrapper,
             write_to_file=write_to_file,
             verify_tls=verify_tls,
             local_queue=rc["metadata"]
@@ -597,15 +557,15 @@ def list_all_clusters(namespace: str, print_to_console: bool = True):
     return clusters
 
 
-def list_all_queued(namespace: str, print_to_console: bool = True, mcad: bool = False):
+def list_all_queued(
+    namespace: str, print_to_console: bool = True, appwrapper: bool = False
+):
     """
     Returns (and prints by default) a list of all currently queued-up Ray Clusters
     in a given namespace.
     """
-    if mcad:
-        resources = _get_app_wrappers(
-            namespace, filter=[AppWrapperStatus.RUNNING, AppWrapperStatus.PENDING]
-        )
+    if appwrapper:
+        resources = _get_app_wrappers(namespace, filter=[AppWrapperStatus.SUSPENDED])
         if print_to_console:
             pretty_print.print_app_wrappers_status(resources)
     else:
@@ -675,10 +635,10 @@ def get_cluster(
 
     for rc in rcs["items"]:
         if rc["metadata"]["name"] == cluster_name:
-            mcad = _check_aw_exists(cluster_name, namespace)
+            appwrapper = _check_aw_exists(cluster_name, namespace)
             return Cluster.from_k8_cluster_object(
                 rc,
-                mcad=mcad,
+                appwrapper=appwrapper,
                 write_to_file=write_to_file,
                 verify_tls=verify_tls,
             )
@@ -721,7 +681,7 @@ def _check_aw_exists(name: str, namespace: str) -> bool:
         api_instance = client.CustomObjectsApi(api_config_handler())
         aws = api_instance.list_namespaced_custom_object(
             group="workload.codeflare.dev",
-            version="v1beta1",
+            version="v1beta2",
             namespace=namespace,
             plural="appwrappers",
         )
@@ -781,7 +741,7 @@ def _app_wrapper_status(name, namespace="default") -> Optional[AppWrapper]:
         api_instance = client.CustomObjectsApi(api_config_handler())
         aws = api_instance.list_namespaced_custom_object(
             group="workload.codeflare.dev",
-            version="v1beta1",
+            version="v1beta2",
             namespace=namespace,
             plural="appwrappers",
         )
@@ -851,7 +811,7 @@ def _get_app_wrappers(
         api_instance = client.CustomObjectsApi(api_config_handler())
         aws = api_instance.list_namespaced_custom_object(
             group="workload.codeflare.dev",
-            version="v1beta1",
+            version="v1beta2",
             namespace=namespace,
             plural="appwrappers",
         )
@@ -945,18 +905,14 @@ def _map_to_ray_cluster(rc) -> Optional[RayCluster]:
 
 
 def _map_to_app_wrapper(aw) -> AppWrapper:
-    if "status" in aw and "canrun" in aw["status"]:
+    if "status" in aw:
         return AppWrapper(
             name=aw["metadata"]["name"],
-            status=AppWrapperStatus(aw["status"]["state"].lower()),
-            can_run=aw["status"]["canrun"],
-            job_state=aw["status"]["queuejobstate"],
+            status=AppWrapperStatus(aw["status"]["phase"].lower()),
         )
     return AppWrapper(
         name=aw["metadata"]["name"],
-        status=AppWrapperStatus("queueing"),
-        can_run=False,
-        job_state="Still adding to queue",
+        status=AppWrapperStatus("suspended"),
     )
 
 

@@ -81,107 +81,9 @@ def update_names(yaml, item, appwrapper_name, cluster_name, namespace):
     metadata = yaml.get("metadata")
     metadata["name"] = appwrapper_name
     metadata["namespace"] = namespace
-    lower_meta = item.get("generictemplate", {}).get("metadata")
-    lower_meta["labels"]["workload.codeflare.dev/appwrapper"] = appwrapper_name
+    lower_meta = item.get("template", {}).get("metadata")
     lower_meta["name"] = cluster_name
     lower_meta["namespace"] = namespace
-
-
-def update_labels(yaml, instascale, instance_types):
-    metadata = yaml.get("metadata")
-    if instascale:
-        if not len(instance_types) > 0:
-            sys.exit(
-                "If instascale is set to true, must provide at least one instance type"
-            )
-        type_str = ""
-        for type in instance_types:
-            type_str += type + "_"
-        type_str = type_str[:-1]
-        metadata["labels"]["orderedinstance"] = type_str
-    else:
-        metadata.pop("labels")
-
-
-def update_priority(yaml, item, dispatch_priority, priority_val):
-    spec = yaml.get("spec")
-    if dispatch_priority is not None:
-        if priority_val:
-            spec["priority"] = priority_val
-        else:
-            raise ValueError(
-                "AW generation error: Priority value is None, while dispatch_priority is defined"
-            )
-        head = item.get("generictemplate").get("spec").get("headGroupSpec")
-        worker = item.get("generictemplate").get("spec").get("workerGroupSpecs")[0]
-        head["template"]["spec"]["priorityClassName"] = dispatch_priority
-        worker["template"]["spec"]["priorityClassName"] = dispatch_priority
-    else:
-        spec.pop("priority")
-
-
-def update_custompodresources(
-    item,
-    min_cpu,
-    max_cpu,
-    min_memory,
-    max_memory,
-    gpu,
-    workers,
-    head_cpus,
-    head_memory,
-    head_gpus,
-):
-    if "custompodresources" in item.keys():
-        custompodresources = item.get("custompodresources")
-        for i in range(len(custompodresources)):
-            resource = custompodresources[i]
-            if i == 0:
-                # Leave head node resources as template default
-                resource["requests"]["cpu"] = head_cpus
-                resource["limits"]["cpu"] = head_cpus
-                resource["requests"]["memory"] = head_memory
-                resource["limits"]["memory"] = head_memory
-                resource["requests"]["nvidia.com/gpu"] = head_gpus
-                resource["limits"]["nvidia.com/gpu"] = head_gpus
-
-            else:
-                for k, v in resource.items():
-                    if k == "replicas" and i == 1:
-                        resource[k] = workers
-                    if k == "requests" or k == "limits":
-                        for spec, _ in v.items():
-                            if spec == "cpu":
-                                if k == "limits":
-                                    resource[k][spec] = max_cpu
-                                else:
-                                    resource[k][spec] = min_cpu
-                            if spec == "memory":
-                                if k == "limits":
-                                    resource[k][spec] = max_memory
-                                else:
-                                    resource[k][spec] = min_memory
-                            if spec == "nvidia.com/gpu":
-                                if i == 0:
-                                    resource[k][spec] = 0
-                                else:
-                                    resource[k][spec] = gpu
-    else:
-        sys.exit("Error: malformed template")
-
-
-def update_affinity(spec, appwrapper_name, instascale):
-    if instascale:
-        node_selector_terms = (
-            spec.get("affinity")
-            .get("nodeAffinity")
-            .get("requiredDuringSchedulingIgnoredDuringExecution")
-            .get("nodeSelectorTerms")
-        )
-        node_selector_terms[0]["matchExpressions"][0]["values"][0] = appwrapper_name
-        node_selector_terms[0]["matchExpressions"][0]["key"] = appwrapper_name
-    else:
-        spec.pop("affinity")
 
 
 def update_image(spec, image):
@@ -232,18 +134,17 @@ def update_nodes(
     gpu,
     workers,
     image,
-    instascale,
     env,
     image_pull_secrets,
     head_cpus,
     head_memory,
     head_gpus,
 ):
-    if "generictemplate" in item.keys():
-        head = item.get("generictemplate").get("spec").get("headGroupSpec")
+    if "template" in item.keys():
+        head = item.get("template").get("spec").get("headGroupSpec")
         head["rayStartParams"]["num-gpus"] = str(int(head_gpus))
 
-        worker = item.get("generictemplate").get("spec").get("workerGroupSpecs")[0]
+        worker = item.get("template").get("spec").get("workerGroupSpecs")[0]
         # Head counts as first worker
         worker["replicas"] = workers
         worker["minReplicas"] = workers
@@ -253,7 +154,6 @@ def update_nodes(
 
         for comp in [head, worker]:
             spec = comp.get("template").get("spec")
-            update_affinity(spec, appwrapper_name, instascale)
             update_image_pull_secrets(spec, image_pull_secrets)
             update_image(spec, image)
             update_env(spec, env)
@@ -328,74 +228,52 @@ def local_queue_exists(namespace: str, local_queue_name: str):
     return False
 
 
+def add_queue_label(item: dict, namespace: str, local_queue: Optional[str]):
+    lq_name = local_queue or get_default_kueue_name(namespace)
+    if not local_queue_exists(namespace, lq_name):
+        raise ValueError(
+            "local_queue provided does not exist or is not in this namespace. Please provide the correct local_queue name in Cluster Configuration"
+        )
+    if not "labels" in item["metadata"]:
+        item["metadata"]["labels"] = {}
+    item["metadata"]["labels"].update({"kueue.x-k8s.io/queue-name": lq_name})
+
+
+def augment_labels(item: dict, labels: dict):
+    if "template" in item:
+        if not "labels" in item["template"]["metadata"]:
+            item["template"]["metadata"]["labels"] = {}
+    item["template"]["metadata"]["labels"].update(labels)
+
+
 def write_components(
     user_yaml: dict,
     output_file_name: str,
-    namespace: str,
-    local_queue: Optional[str],
-    labels: dict,
 ):
     # Create the directory if it doesn't exist
     directory_path = os.path.dirname(output_file_name)
     if not os.path.exists(directory_path):
         os.makedirs(directory_path)
 
-    components = user_yaml.get("spec", "resources")["resources"].get("GenericItems")
+    components = user_yaml.get("spec", "resources").get("components")
     open(output_file_name, "w").close()
-    lq_name = local_queue or get_default_kueue_name(namespace)
-    cluster_labels = labels
-    if not local_queue_exists(namespace, lq_name):
-        raise ValueError(
-            "local_queue provided does not exist or is not in this namespace. Please provide the correct local_queue name in Cluster Configuration"
-        )
     with open(output_file_name, "a") as outfile:
         for component in components:
-            if "generictemplate" in component:
-                if (
-                    "workload.codeflare.dev/appwrapper"
-                    in component["generictemplate"]["metadata"]["labels"]
-                ):
-                    del component["generictemplate"]["metadata"]["labels"][
-                        "workload.codeflare.dev/appwrapper"
-                    ]
-                    labels = component["generictemplate"]["metadata"]["labels"]
-                    labels.update({"kueue.x-k8s.io/queue-name": lq_name})
-                    labels.update(cluster_labels)
+            if "template" in component:
                 outfile.write("---\n")
-                yaml.dump(
-                    component["generictemplate"], outfile, default_flow_style=False
-                )
+                yaml.dump(component["template"], outfile, default_flow_style=False)
     print(f"Written to: {output_file_name}")
 
 
 def load_components(
     user_yaml: dict,
     name: str,
-    namespace: str,
-    local_queue: Optional[str],
-    labels: dict,
 ):
     component_list = []
-    components = user_yaml.get("spec", "resources")["resources"].get("GenericItems")
-    lq_name = local_queue or get_default_kueue_name(namespace)
-    cluster_labels = labels
-    if not local_queue_exists(namespace, lq_name):
-        raise ValueError(
-            "local_queue provided does not exist or is not in this namespace. Please provide the correct local_queue name in Cluster Configuration"
-        )
+    components = user_yaml.get("spec", "resources").get("components")
     for component in components:
-        if "generictemplate" in component:
-            if (
-                "workload.codeflare.dev/appwrapper"
-                in component["generictemplate"]["metadata"]["labels"]
-            ):
-                del component["generictemplate"]["metadata"]["labels"][
-                    "workload.codeflare.dev/appwrapper"
-                ]
-                labels = component["generictemplate"]["metadata"]["labels"]
-                labels.update({"kueue.x-k8s.io/queue-name": lq_name})
-                labels.update(cluster_labels)
-            component_list.append(component["generictemplate"])
+        if "template" in component:
+            component_list.append(component["template"])
 
     resources = "---\n" + "---\n".join(
         [yaml.dump(component) for component in component_list]
@@ -425,13 +303,10 @@ def generate_appwrapper(
     workers: int,
     template: str,
     image: str,
-    instascale: bool,
-    mcad: bool,
+    appwrapper: bool,
     instance_types: list,
     env,
     image_pull_secrets: list,
-    dispatch_priority: str,
-    priority_val: int,
     write_to_file: bool,
     verify_tls: bool,
     local_queue: Optional[str],
@@ -440,27 +315,13 @@ def generate_appwrapper(
     user_yaml = read_template(template)
     appwrapper_name, cluster_name = gen_names(name)
     resources = user_yaml.get("spec", "resources")
-    item = resources["resources"].get("GenericItems")[0]
+    item = resources.get("components")[0]
     update_names(
         user_yaml,
         item,
         appwrapper_name,
         cluster_name,
         namespace,
-    )
-    update_labels(user_yaml, instascale, instance_types)
-    update_priority(user_yaml, item, dispatch_priority, priority_val)
-    update_custompodresources(
-        item,
-        min_cpu,
-        max_cpu,
-        min_memory,
-        max_memory,
-        gpu,
-        workers,
-        head_cpus,
-        head_memory,
-        head_gpus,
     )
     update_nodes(
         item,
@@ -472,7 +333,6 @@ def generate_appwrapper(
         gpu,
         workers,
         image,
-        instascale,
         env,
         image_pull_secrets,
         head_cpus,
@@ -480,18 +340,25 @@ def generate_appwrapper(
         head_gpus,
     )
 
+    augment_labels(item, labels)
+
+    if appwrapper:
+        add_queue_label(user_yaml, namespace, local_queue)
+    else:
+        add_queue_label(item["template"], namespace, local_queue)
+
     directory_path = os.path.expanduser("~/.codeflare/resources/")
     outfile = os.path.join(directory_path, appwrapper_name + ".yaml")
 
     if write_to_file:
-        if mcad:
+        if appwrapper:
             write_user_appwrapper(user_yaml, outfile)
         else:
-            write_components(user_yaml, outfile, namespace, local_queue, labels)
+            write_components(user_yaml, outfile)
         return outfile
     else:
-        if mcad:
+        if appwrapper:
             user_yaml = load_appwrapper(user_yaml, name)
         else:
-            user_yaml = load_components(user_yaml, name, namespace, local_queue, labels)
+            user_yaml = load_components(user_yaml, name)
         return user_yaml
