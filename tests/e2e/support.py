@@ -59,11 +59,17 @@ def run_oc_command(args):
         return None
 
 
+# Global variables for kueue resources
+cluster_queue = "cluster-queue-mnist"
+flavor = "default-flavor-mnist"
+local_queue = "local-queue-mnist"
+
+
 def create_kueue_resources(
     self,
-    cluster_queue="cluster-queue-mnist",
-    flavor="default-flavor-mnist",
-    local_queue="local-queue-mnist",
+    cluster_queue=cluster_queue,
+    flavor=flavor,
+    local_queue=local_queue,
 ):
     print("creating Kueue resources ...")
     resource_flavor_json = {
@@ -163,3 +169,29 @@ def create_kueue_resources(
             body=local_queue_json,
         )
         print(f"'{local_queue}' created in namespace '{self.namespace}'")
+
+
+def delete_kueue_resources(self, cluster_queue=cluster_queue, flavor=flavor):
+    # Delete if given cluster-queue exists
+    try:
+        self.custom_api.delete_cluster_custom_object(
+            group="kueue.x-k8s.io",
+            plural="clusterqueues",
+            version="v1beta1",
+            name=cluster_queue,
+        )
+        print(f"\n'{cluster_queue}' cluster-queue deleted")
+    except Exception as e:
+        print(f"\nError deleting cluster-queue '{cluster_queue}' : {e}")
+
+    # Delete if given resource-flavor exists
+    try:
+        self.custom_api.delete_cluster_custom_object(
+            group="kueue.x-k8s.io",
+            plural="resourceflavors",
+            version="v1beta1",
+            name=flavor,
+        )
+        print(f"'{flavor}' resource-flavor deleted")
+    except Exception as e:
+        print(f"\nError deleting resource-flavor '{flavor}' : {e}")

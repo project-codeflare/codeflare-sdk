@@ -19,13 +19,13 @@ class TestRayLocalInteractiveOauth:
 
     def teardown_method(self):
         delete_namespace(self)
+        delete_kueue_resources(self)
 
     def test_local_interactives(self):
         self.setup_method()
         create_namespace(self)
         create_kueue_resources(self)
         self.run_local_interactives()
-        self.teardown_method()
 
     def run_local_interactives(self):
         ray_image = get_ray_image()
