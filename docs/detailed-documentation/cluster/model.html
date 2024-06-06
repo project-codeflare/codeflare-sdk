@@ -70,16 +70,17 @@ class RayClusterStatus(Enum):
 
 class AppWrapperStatus(Enum):
     &#34;&#34;&#34;
-    Defines the possible reportable states of an AppWrapper.
+    Defines the possible reportable phases of an AppWrapper.
     &#34;&#34;&#34;
 
-    QUEUEING = &#34;queueing&#34;
-    PENDING = &#34;pending&#34;
+    SUSPENDED = &#34;suspended&#34;
+    RESUMING = &#34;resuming&#34;
     RUNNING = &#34;running&#34;
+    RESETTING = &#34;resetting&#34;
+    SUSPENDING = &#34;suspending&#34;
+    SUCCEEDED = &#34;succeeded&#34;
     FAILED = &#34;failed&#34;
-    DELETED = &#34;deleted&#34;
-    COMPLETED = &#34;completed&#34;
-    RUNNING_HOLD_COMPLETION = &#34;runningholdcompletion&#34;
+    TERMINATING = &#34;terminating&#34;
 
 
 class CodeFlareClusterStatus(Enum):
@@ -123,9 +124,7 @@ class AppWrapper:
     &#34;&#34;&#34;
 
     name: str
-    status: AppWrapperStatus
-    can_run: bool
-    job_state: str</code></pre>
+    status: AppWrapperStatus</code></pre>
 </details>
 </section>
 <section>
@@ -139,7 +138,7 @@ class AppWrapper:
 <dl>
 <dt id="codeflare_sdk.cluster.model.AppWrapper"><code class="flex name class">
 <span>class <span class="ident">AppWrapper</span></span>
-<span>(</span><span>name: str, status: <a title="codeflare_sdk.cluster.model.AppWrapperStatus" href="#codeflare_sdk.cluster.model.AppWrapperStatus">AppWrapperStatus</a>, can_run: bool, job_state: str)</span>
+<span>(</span><span>name: str, status: <a title="codeflare_sdk.cluster.model.AppWrapperStatus" href="#codeflare_sdk.cluster.model.AppWrapperStatus">AppWrapperStatus</a>)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>For storing information about an AppWrapper.</p></div>
@@ -153,20 +152,10 @@ class AppWrapper:
     &#34;&#34;&#34;
 
     name: str
-    status: AppWrapperStatus
-    can_run: bool
-    job_state: str</code></pre>
+    status: AppWrapperStatus</code></pre>
 </details>
 <h3>Class variables</h3>
 <dl>
-<dt id="codeflare_sdk.cluster.model.AppWrapper.can_run"><code class="name">var <span class="ident">can_run</span> : bool</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="codeflare_sdk.cluster.model.AppWrapper.job_state"><code class="name">var <span class="ident">job_state</span> : str</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
 <dt id="codeflare_sdk.cluster.model.AppWrapper.name"><code class="name">var <span class="ident">name</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
@@ -182,23 +171,24 @@ class AppWrapper:
 <span>(</span><span>value, names=None, *, module=None, qualname=None, type=None, start=1)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Defines the possible reportable states of an AppWrapper.</p></div>
+<div class="desc"><p>Defines the possible reportable phases of an AppWrapper.</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class AppWrapperStatus(Enum):
     &#34;&#34;&#34;
-    Defines the possible reportable states of an AppWrapper.
+    Defines the possible reportable phases of an AppWrapper.
     &#34;&#34;&#34;
 
-    QUEUEING = &#34;queueing&#34;
-    PENDING = &#34;pending&#34;
+    SUSPENDED = &#34;suspended&#34;
+    RESUMING = &#34;resuming&#34;
     RUNNING = &#34;running&#34;
+    RESETTING = &#34;resetting&#34;
+    SUSPENDING = &#34;suspending&#34;
+    SUCCEEDED = &#34;succeeded&#34;
     FAILED = &#34;failed&#34;
-    DELETED = &#34;deleted&#34;
-    COMPLETED = &#34;completed&#34;
-    RUNNING_HOLD_COMPLETION = &#34;runningholdcompletion&#34;</code></pre>
+    TERMINATING = &#34;terminating&#34;</code></pre>
 </details>
 <h3>Ancestors</h3>
 <ul class="hlist">
@@ -206,23 +196,15 @@ class AppWrapper:
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="codeflare_sdk.cluster.model.AppWrapperStatus.COMPLETED"><code class="name">var <span class="ident">COMPLETED</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="codeflare_sdk.cluster.model.AppWrapperStatus.DELETED"><code class="name">var <span class="ident">DELETED</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
 <dt id="codeflare_sdk.cluster.model.AppWrapperStatus.FAILED"><code class="name">var <span class="ident">FAILED</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="codeflare_sdk.cluster.model.AppWrapperStatus.PENDING"><code class="name">var <span class="ident">PENDING</span></code></dt>
+<dt id="codeflare_sdk.cluster.model.AppWrapperStatus.RESETTING"><code class="name">var <span class="ident">RESETTING</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="codeflare_sdk.cluster.model.AppWrapperStatus.QUEUEING"><code class="name">var <span class="ident">QUEUEING</span></code></dt>
+<dt id="codeflare_sdk.cluster.model.AppWrapperStatus.RESUMING"><code class="name">var <span class="ident">RESUMING</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -230,7 +212,19 @@ class AppWrapper:
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="codeflare_sdk.cluster.model.AppWrapperStatus.RUNNING_HOLD_COMPLETION"><code class="name">var <span class="ident">RUNNING_HOLD_COMPLETION</span></code></dt>
+<dt id="codeflare_sdk.cluster.model.AppWrapperStatus.SUCCEEDED"><code class="name">var <span class="ident">SUCCEEDED</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="codeflare_sdk.cluster.model.AppWrapperStatus.SUSPENDED"><code class="name">var <span class="ident">SUSPENDED</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="codeflare_sdk.cluster.model.AppWrapperStatus.SUSPENDING"><code class="name">var <span class="ident">SUSPENDING</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="codeflare_sdk.cluster.model.AppWrapperStatus.TERMINATING"><code class="name">var <span class="ident">TERMINATING</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -444,22 +438,21 @@ class AppWrapper:
 <li>
 <h4><code><a title="codeflare_sdk.cluster.model.AppWrapper" href="#codeflare_sdk.cluster.model.AppWrapper">AppWrapper</a></code></h4>
 <ul class="">
-<li><code><a title="codeflare_sdk.cluster.model.AppWrapper.can_run" href="#codeflare_sdk.cluster.model.AppWrapper.can_run">can_run</a></code></li>
-<li><code><a title="codeflare_sdk.cluster.model.AppWrapper.job_state" href="#codeflare_sdk.cluster.model.AppWrapper.job_state">job_state</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.model.AppWrapper.name" href="#codeflare_sdk.cluster.model.AppWrapper.name">name</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.model.AppWrapper.status" href="#codeflare_sdk.cluster.model.AppWrapper.status">status</a></code></li>
 </ul>
 </li>
 <li>
 <h4><code><a title="codeflare_sdk.cluster.model.AppWrapperStatus" href="#codeflare_sdk.cluster.model.AppWrapperStatus">AppWrapperStatus</a></code></h4>
-<ul class="">
-<li><code><a title="codeflare_sdk.cluster.model.AppWrapperStatus.COMPLETED" href="#codeflare_sdk.cluster.model.AppWrapperStatus.COMPLETED">COMPLETED</a></code></li>
-<li><code><a title="codeflare_sdk.cluster.model.AppWrapperStatus.DELETED" href="#codeflare_sdk.cluster.model.AppWrapperStatus.DELETED">DELETED</a></code></li>
+<ul class="two-column">
 <li><code><a title="codeflare_sdk.cluster.model.AppWrapperStatus.FAILED" href="#codeflare_sdk.cluster.model.AppWrapperStatus.FAILED">FAILED</a></code></li>
-<li><code><a title="codeflare_sdk.cluster.model.AppWrapperStatus.PENDING" href="#codeflare_sdk.cluster.model.AppWrapperStatus.PENDING">PENDING</a></code></li>
-<li><code><a title="codeflare_sdk.cluster.model.AppWrapperStatus.QUEUEING" href="#codeflare_sdk.cluster.model.AppWrapperStatus.QUEUEING">QUEUEING</a></code></li>
+<li><code><a title="codeflare_sdk.cluster.model.AppWrapperStatus.RESETTING" href="#codeflare_sdk.cluster.model.AppWrapperStatus.RESETTING">RESETTING</a></code></li>
+<li><code><a title="codeflare_sdk.cluster.model.AppWrapperStatus.RESUMING" href="#codeflare_sdk.cluster.model.AppWrapperStatus.RESUMING">RESUMING</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.model.AppWrapperStatus.RUNNING" href="#codeflare_sdk.cluster.model.AppWrapperStatus.RUNNING">RUNNING</a></code></li>
-<li><code><a title="codeflare_sdk.cluster.model.AppWrapperStatus.RUNNING_HOLD_COMPLETION" href="#codeflare_sdk.cluster.model.AppWrapperStatus.RUNNING_HOLD_COMPLETION">RUNNING_HOLD_COMPLETION</a></code></li>
+<li><code><a title="codeflare_sdk.cluster.model.AppWrapperStatus.SUCCEEDED" href="#codeflare_sdk.cluster.model.AppWrapperStatus.SUCCEEDED">SUCCEEDED</a></code></li>
+<li><code><a title="codeflare_sdk.cluster.model.AppWrapperStatus.SUSPENDED" href="#codeflare_sdk.cluster.model.AppWrapperStatus.SUSPENDED">SUSPENDED</a></code></li>
+<li><code><a title="codeflare_sdk.cluster.model.AppWrapperStatus.SUSPENDING" href="#codeflare_sdk.cluster.model.AppWrapperStatus.SUSPENDING">SUSPENDING</a></code></li>
+<li><code><a title="codeflare_sdk.cluster.model.AppWrapperStatus.TERMINATING" href="#codeflare_sdk.cluster.model.AppWrapperStatus.TERMINATING">TERMINATING</a></code></li>
 </ul>
 </li>
 <li>
