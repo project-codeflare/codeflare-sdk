@@ -143,6 +143,12 @@ jobs:
         if: always() && steps.deploy.outcome == 'success'
         run: kubectl config use-context kind-cluster
 
+      - name: Print Pytest output log
+        if: always() && steps.deploy.outcome == 'success'
+        run: |
+          echo "Printing Pytest output logs"
+          cat ${CODEFLARE_TEST_OUTPUT_DIR}/pytest_output.log
+
       - name: Print CodeFlare operator logs
         if: always() && steps.deploy.outcome == 'success'
         run: |
