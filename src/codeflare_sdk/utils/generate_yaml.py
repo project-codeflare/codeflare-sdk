@@ -77,13 +77,10 @@ def is_kind_cluster():
         return False
 
 
-def update_names(yaml, item, appwrapper_name, cluster_name, namespace):
-    metadata = yaml.get("metadata")
-    metadata["name"] = appwrapper_name
-    metadata["namespace"] = namespace
-    lower_meta = item.get("template", {}).get("metadata")
-    lower_meta["name"] = cluster_name
-    lower_meta["namespace"] = namespace
+def update_names(cluster_yaml, cluster_name, namespace):
+    meta = cluster_yaml.get("metadata")
+    meta["name"] = cluster_name
+    meta["namespace"] = namespace
 
 
 def update_image(spec, image):
@@ -125,7 +122,7 @@ def update_resources(spec, min_cpu, max_cpu, min_memory, max_memory, gpu):
 
 
 def update_nodes(
-    item,
+    cluster_yaml,
     appwrapper_name,
     min_cpu,
     max_cpu,
@@ -140,46 +137,33 @@ def update_nodes(
     head_memory,
     head_gpus,
 ):
-    if "template" in item.keys():
-        head = item.get("template").get("spec").get("headGroupSpec")
-        head["rayStartParams"]["num-gpus"] = str(int(head_gpus))
+    head = cluster_yaml.get("spec").get("headGroupSpec")
+    head["rayStartParams"]["num-gpus"] = str(int(head_gpus))
 
-        worker = item.get("template").get("spec").get("workerGroupSpecs")[0]
-        # Head counts as first worker
-        worker["replicas"] = workers
-        worker["minReplicas"] = workers
-        worker["maxReplicas"] = workers
-        worker["groupName"] = "small-group-" + appwrapper_name
-        worker["rayStartParams"]["num-gpus"] = str(int(gpu))
+    worker = cluster_yaml.get("spec").get("workerGroupSpecs")[0]
+    # Head counts as first worker
+    worker["replicas"] = workers
+    worker["minReplicas"] = workers
+    worker["maxReplicas"] = workers
+    worker["groupName"] = "small-group-" + appwrapper_name
+    worker["rayStartParams"]["num-gpus"] = str(int(gpu))
 
-        for comp in [head, worker]:
-            spec = comp.get("template").get("spec")
-            update_image_pull_secrets(spec, image_pull_secrets)
-            update_image(spec, image)
-            update_env(spec, env)
-            if comp == head:
-                # TODO: Eventually add head node configuration outside of template
-                update_resources(
-                    spec, head_cpus, head_cpus, head_memory, head_memory, head_gpus
-                )
-            else:
-                update_resources(spec, min_cpu, max_cpu, min_memory, max_memory, gpu)
+    for comp in [head, worker]:
+        spec = comp.get("template").get("spec")
+        update_image_pull_secrets(spec, image_pull_secrets)
+        update_image(spec, image)
+        update_env(spec, env)
+        if comp == head:
+            # TODO: Eventually add head node configuration outside of template
+            update_resources(
+                spec, head_cpus, head_cpus, head_memory, head_memory, head_gpus
+            )
+        else:
+            update_resources(spec, min_cpu, max_cpu, min_memory, max_memory, gpu)
 
 
 def del_from_list_by_name(l: list, target: typing.List[str]) -> list:
     return [x for x in l if x["name"] not in target]
-
-
-def write_user_appwrapper(user_yaml, output_file_name):
-    # Create the directory if it doesn't exist
-    directory_path = os.path.dirname(output_file_name)
-    if not os.path.exists(directory_path):
-        os.makedirs(directory_path)
-
-    with open(output_file_name, "w") as outfile:
-        yaml.dump(user_yaml, outfile, default_flow_style=False)
-
-    print(f"Written to: {output_file_name}")
 
 
 def get_default_kueue_name(namespace: str):
@@ -240,64 +224,40 @@ def add_queue_label(item: dict, namespace: str, local_queue: Optional[str]):
 
 
 def augment_labels(item: dict, labels: dict):
-    if "template" in item:
-        if not "labels" in item["template"]["metadata"]:
-            item["template"]["metadata"]["labels"] = {}
-    item["template"]["metadata"]["labels"].update(labels)
+    if not "labels" in item["metadata"]:
+        item["metadata"]["labels"] = {}
+    item["metadata"]["labels"].update(labels)
 
 
 def notebook_annotations(item: dict):
     nb_prefix = os.environ.get("NB_PREFIX")
     if nb_prefix:
-        if "template" in item:
-            if not "annotations" in item["template"]["metadata"]:
-                item["template"]["metadata"]["annotations"] = {}
-        item["template"]["metadata"]["annotations"].update(
+        if not "annotations" in item["metadata"]:
+            item["metadata"]["annotations"] = {}
+        item["metadata"]["annotations"].update(
             {"app.kubernetes.io/managed-by": nb_prefix}
         )
 
 
-def write_components(
-    user_yaml: dict,
-    output_file_name: str,
-):
+def wrap_cluster(cluster_yaml: dict, appwrapper_name: str, namespace: str):
+    return {
+        "apiVersion": "workload.codeflare.dev/v1beta2",
+        "kind": "AppWrapper",
+        "metadata": {"name": appwrapper_name, "namespace": namespace},
+        "spec": {"components": [{"template": cluster_yaml}]},
+    }
+
+
+def write_user_yaml(user_yaml, output_file_name):
     # Create the directory if it doesn't exist
     directory_path = os.path.dirname(output_file_name)
     if not os.path.exists(directory_path):
         os.makedirs(directory_path)
 
-    components = user_yaml.get("spec", "resources").get("components")
-    open(output_file_name, "w").close()
-    with open(output_file_name, "a") as outfile:
-        for component in components:
-            if "template" in component:
-                outfile.write("---\n")
-                yaml.dump(component["template"], outfile, default_flow_style=False)
+    with open(output_file_name, "w") as outfile:
+        yaml.dump(user_yaml, outfile, default_flow_style=False)
+
     print(f"Written to: {output_file_name}")
-
-
-def load_components(
-    user_yaml: dict,
-    name: str,
-):
-    component_list = []
-    components = user_yaml.get("spec", "resources").get("components")
-    for component in components:
-        if "template" in component:
-            component_list.append(component["template"])
-
-    resources = "---\n" + "---\n".join(
-        [yaml.dump(component) for component in component_list]
-    )
-    user_yaml = resources
-    print(f"Yaml resources loaded for {name}")
-    return user_yaml
-
-
-def load_appwrapper(user_yaml: dict, name: str):
-    user_yaml = yaml.dump(user_yaml)
-    print(f"Yaml resources loaded for {name}")
-    return user_yaml
 
 
 def generate_appwrapper(
@@ -315,27 +275,17 @@ def generate_appwrapper(
     template: str,
     image: str,
     appwrapper: bool,
-    instance_types: list,
     env,
     image_pull_secrets: list,
     write_to_file: bool,
-    verify_tls: bool,
     local_queue: Optional[str],
     labels,
 ):
-    user_yaml = read_template(template)
+    cluster_yaml = read_template(template)
     appwrapper_name, cluster_name = gen_names(name)
-    resources = user_yaml.get("spec", "resources")
-    item = resources.get("components")[0]
-    update_names(
-        user_yaml,
-        item,
-        appwrapper_name,
-        cluster_name,
-        namespace,
-    )
+    update_names(cluster_yaml, cluster_name, namespace)
     update_nodes(
-        item,
+        cluster_yaml,
         appwrapper_name,
         min_cpu,
         max_cpu,
@@ -350,27 +300,23 @@ def generate_appwrapper(
         head_memory,
         head_gpus,
     )
+    augment_labels(cluster_yaml, labels)
+    notebook_annotations(cluster_yaml)
 
-    augment_labels(item, labels)
-    notebook_annotations(item)
+    user_yaml = (
+        wrap_cluster(cluster_yaml, appwrapper_name, namespace)
+        if appwrapper
+        else cluster_yaml
+    )
 
-    if appwrapper:
-        add_queue_label(user_yaml, namespace, local_queue)
-    else:
-        add_queue_label(item["template"], namespace, local_queue)
-
-    directory_path = os.path.expanduser("~/.codeflare/resources/")
-    outfile = os.path.join(directory_path, appwrapper_name + ".yaml")
+    add_queue_label(user_yaml, namespace, local_queue)
 
     if write_to_file:
-        if appwrapper:
-            write_user_appwrapper(user_yaml, outfile)
-        else:
-            write_components(user_yaml, outfile)
+        directory_path = os.path.expanduser("~/.codeflare/resources/")
+        outfile = os.path.join(directory_path, appwrapper_name + ".yaml")
+        write_user_yaml(user_yaml, outfile)
         return outfile
     else:
-        if appwrapper:
-            user_yaml = load_appwrapper(user_yaml, name)
-        else:
-            user_yaml = load_components(user_yaml, name)
+        user_yaml = yaml.dump(user_yaml)
+        print(f"Yaml resources loaded for {name}")
         return user_yaml
