@@ -30,7 +30,7 @@ from .auth import config_check, api_config_handler
 class AWManager:
     """
     An object for submitting and removing existing AppWrapper yamls
-    to be added to the MCAD queue.
+    to be added to the Kueue localqueue.
     """
 
     def __init__(self, filename: str) -> None:

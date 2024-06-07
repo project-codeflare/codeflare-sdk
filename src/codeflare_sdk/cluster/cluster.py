@@ -147,11 +147,9 @@ class Cluster:
         template = self.config.template
         image = self.config.image
         appwrapper = self.config.appwrapper
-        instance_types = self.config.machine_types
         env = self.config.envs
         image_pull_secrets = self.config.image_pull_secrets
         write_to_file = self.config.write_to_file
-        verify_tls = self.config.verify_tls
         local_queue = self.config.local_queue
         labels = self.config.labels
         return generate_appwrapper(
@@ -169,11 +167,9 @@ class Cluster:
             template=template,
             image=image,
             appwrapper=appwrapper,
-            instance_types=instance_types,
             env=env,
             image_pull_secrets=image_pull_secrets,
             write_to_file=write_to_file,
-            verify_tls=verify_tls,
             local_queue=local_queue,
             labels=labels,
         )
@@ -181,8 +177,8 @@ class Cluster:
     # creates a new cluster with the provided or default spec
     def up(self):
         """
-        Applies the AppWrapper yaml, pushing the resource request onto
-        the MCAD queue.
+        Applies the Cluster yaml, pushing the resource request onto
+        the Kueue localqueue.
         """
 
         # check if RayCluster CustomResourceDefinition exists if not throw RuntimeError

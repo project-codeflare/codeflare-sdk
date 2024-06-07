@@ -73,8 +73,6 @@ import codeflare_sdk.utils.kube_api_helpers
 from codeflare_sdk.utils.generate_yaml import (
     gen_names,
     is_openshift_cluster,
-    read_template,
-    write_components,
 )
 
 import openshift
