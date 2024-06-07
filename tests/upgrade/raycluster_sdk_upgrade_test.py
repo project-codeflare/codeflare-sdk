@@ -10,6 +10,10 @@ from codeflare_sdk.cluster.cluster import get_cluster
 from codeflare_sdk.utils.kube_api_helpers import _kube_api_error_handling
 
 namespace = "test-ns-rayupgrade"
+# Global variables for kueue resources
+cluster_queue = "cluster-queue-mnist"
+flavor = "default-flavor-mnist"
+local_queue = "local-queue-mnist"
 
 
 # Creates a Ray cluster
@@ -18,7 +22,9 @@ class TestMNISTRayClusterUp:
         initialize_kubernetes_client(self)
         create_namespace_with_name(self, namespace)
         try:
-            create_kueue_resources(self)
+            create_cluster_queue(self, cluster_queue, flavor)
+            create_resource_flavor(self, flavor)
+            create_local_queue(self, cluster_queue, local_queue)
         except Exception as e:
             delete_namespace(self)
             delete_kueue_resources(self)
