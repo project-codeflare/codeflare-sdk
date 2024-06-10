@@ -261,7 +261,7 @@ def test_config_creation():
     assert config.min_cpus == 3 and config.max_cpus == 4
     assert config.min_memory == "5G" and config.max_memory == "6G"
     assert config.num_gpus == 7
-    assert config.image == "quay.io/project-codeflare/ray:latest-py39-cu118"
+    assert config.image == "quay.io/project-codeflare/ray:2.20.0-py39-cu118"
     assert config.template == f"{parent}/src/codeflare_sdk/templates/base-template.yaml"
     assert config.machine_types == ["cpu.small", "gpu.large"]
     assert config.image_pull_secrets == ["unit-test-pull-secret"]
@@ -400,7 +400,7 @@ def test_cluster_creation_no_mcad_local_queue(mocker):
         num_gpus=7,
         machine_types=["cpu.small", "gpu.large"],
         image_pull_secrets=["unit-test-pull-secret"],
-        image="quay.io/project-codeflare/ray:latest-py39-cu118",
+        image="quay.io/project-codeflare/ray:2.20.0-py39-cu118",
         write_to_file=True,
         appwrapper=False,
         local_queue="local-queue-default",
@@ -428,7 +428,7 @@ def test_default_cluster_creation(mocker):
     )
     default_config = ClusterConfiguration(
         name="unit-test-default-cluster",
-        image="quay.io/project-codeflare/ray:latest-py39-cu118",
+        image="quay.io/project-codeflare/ray:2.20.0-py39-cu118",
         appwrapper=True,
     )
     cluster = Cluster(default_config)
@@ -493,7 +493,7 @@ def test_cluster_with_custom_volumes(mocker):
 
     test_config = ClusterConfiguration(
         name="unit-test-volume-cluster",
-        image="quay.io/project-codeflare/ray:latest-py39-cu118",
+        image="quay.io/project-codeflare/ray:2.20.0-py39-cu118",
         volume_mounts=volume_mounts,
         volumes=volumes,
     )
@@ -839,7 +839,7 @@ def test_ray_job_wrapping(mocker):
         return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
     )
     cluster = cluster = createClusterWithConfig(mocker)
-    cluster.config.image = "quay.io/project-codeflare/ray:latest-py39-cu118"
+    cluster.config.image = "quay.io/project-codeflare/ray:2.20.0-py39-cu118"
     mocker.patch(
         "ray.job_submission.JobSubmissionClient._check_connection_and_version_with_url",
         return_value="None",
@@ -959,7 +959,7 @@ def test_ray_details(mocker, capsys):
         ClusterConfiguration(
             name="raytest2",
             namespace="ns",
-            image="quay.io/project-codeflare/ray:latest-py39-cu118",
+            image="quay.io/project-codeflare/ray:2.20.0-py39-cu118",
             write_to_file=True,
             appwrapper=True,
             local_queue="local_default_queue",
@@ -2352,7 +2352,7 @@ def test_cluster_status(mocker):
         ClusterConfiguration(
             name="test",
             namespace="ns",
-            image="quay.io/project-codeflare/ray:latest-py39-cu118",
+            image="quay.io/project-codeflare/ray:2.20.0-py39-cu118",
             write_to_file=True,
             appwrapper=True,
             local_queue="local_default_queue",
@@ -2447,7 +2447,7 @@ def test_wait_ready(mocker, capsys):
         ClusterConfiguration(
             name="test",
             namespace="ns",
-            image="quay.io/project-codeflare/ray:latest-py39-cu118",
+            image="quay.io/project-codeflare/ray:2.20.0-py39-cu118",
             write_to_file=True,
             appwrapper=True,
             local_queue="local-queue-default",
@@ -2674,7 +2674,7 @@ def test_cluster_throw_for_no_raycluster(mocker: MockerFixture):
     cluster = Cluster(
         ClusterConfiguration(
             "test_cluster",
-            image="quay.io/project-codeflare/ray:latest-py39-cu118",
+            image="quay.io/project-codeflare/ray:2.20.0-py39-cu118",
             write_to_file=False,
         )
     )

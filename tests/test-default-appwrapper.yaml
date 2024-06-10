@@ -38,7 +38,7 @@ spec:
           template:
             spec:
               containers:
-              - image: quay.io/project-codeflare/ray:latest-py39-cu118
+              - image: quay.io/project-codeflare/ray:2.20.0-py39-cu118
                 imagePullPolicy: Always
                 lifecycle:
                   preStop:
@@ -110,7 +110,7 @@ spec:
                 key: value
             spec:
               containers:
-              - image: quay.io/project-codeflare/ray:latest-py39-cu118
+              - image: quay.io/project-codeflare/ray:2.20.0-py39-cu118
                 lifecycle:
                   preStop:
                     exec:

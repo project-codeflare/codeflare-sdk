@@ -17,7 +17,7 @@ def createClusterConfig():
         appwrapper=True,
         machine_types=["cpu.small", "gpu.large"],
         image_pull_secrets=["unit-test-pull-secret"],
-        image="quay.io/project-codeflare/ray:latest-py39-cu118",
+        image="quay.io/project-codeflare/ray:2.20.0-py39-cu118",
         write_to_file=True,
     )
     return config
