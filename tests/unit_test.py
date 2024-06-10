@@ -345,6 +345,8 @@ def test_cluster_creation_no_mcad(mocker):
         "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
         return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
     )
+    mocker.patch("os.environ.get", return_value="test-prefix")
+
     config = createClusterConfig()
     config.name = "unit-test-cluster-ray"
     config.write_to_file = True
@@ -373,6 +375,7 @@ def test_cluster_creation_no_mcad_local_queue(mocker):
         "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
         return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
     )
+    mocker.patch("os.environ.get", return_value="test-prefix")
     config = createClusterConfig()
     config.name = "unit-test-cluster-ray"
     config.appwrapper = False
