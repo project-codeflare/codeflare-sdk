@@ -2,6 +2,8 @@
 apiVersion: ray.io/v1
 kind: RayCluster
 metadata:
+  annotations:
+    app.kubernetes.io/managed-by: test-prefix
   labels:
     controller-tools.k8s.io: '1.0'
     kueue.x-k8s.io/queue-name: local-queue-default
