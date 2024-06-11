@@ -97,7 +97,6 @@ class TestMnistJobSubmit:
 
         self.assert_jobsubmit_withoutLogin(self.cluster)
         self.assert_jobsubmit_withlogin(self.cluster)
-        self.cluster.down()
 
     # Assertions
     def assert_jobsubmit_withoutLogin(self, cluster):
@@ -147,7 +146,6 @@ class TestMnistJobSubmit:
         self.assert_job_completion(status)
 
         client.delete_job(submission_id)
-        cluster.down()
 
     def assert_job_completion(self, status):
         if status == "SUCCEEDED":
