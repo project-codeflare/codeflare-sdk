@@ -82,19 +82,18 @@ class TestMNISTRayClusterUp:
 class TestMnistJobSubmit:
     def setup_method(self):
         initialize_kubernetes_client(self)
-        self.namespace = namespace
-        self.cluster = get_cluster("mnist", self.namespace)
-        if not self.cluster:
-            raise RuntimeError("TestRayClusterUp needs to be run before this test")
-
-    def test_mnist_job_submission(self):
         auth = TokenAuthentication(
             token=run_oc_command(["whoami", "--show-token=true"]),
             server=run_oc_command(["whoami", "--show-server=true"]),
             skip_tls=True,
         )
         auth.login()
+        self.namespace = namespace
+        self.cluster = get_cluster("mnist", self.namespace)
+        if not self.cluster:
+            raise RuntimeError("TestRayClusterUp needs to be run before this test")
 
+    def test_mnist_job_submission(self):
         self.assert_jobsubmit_withoutLogin(self.cluster)
         self.assert_jobsubmit_withlogin(self.cluster)
 
