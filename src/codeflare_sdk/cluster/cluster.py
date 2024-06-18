@@ -152,6 +152,8 @@ class Cluster:
         write_to_file = self.config.write_to_file
         local_queue = self.config.local_queue
         labels = self.config.labels
+        volumes = self.config.volumes
+        volume_mounts = self.config.volume_mounts
         return generate_appwrapper(
             name=name,
             namespace=namespace,
@@ -172,6 +174,8 @@ class Cluster:
             write_to_file=write_to_file,
             local_queue=local_queue,
             labels=labels,
+            volumes=volumes,
+            volume_mounts=volume_mounts,
         )
 
     # creates a new cluster with the provided or default spec
