@@ -53,6 +53,8 @@ class ClusterConfiguration:
     write_to_file: bool = False
     verify_tls: bool = True
     labels: dict = field(default_factory=dict)
+    volumes: list = field(default_factory=list)
+    volume_mounts: list = field(default_factory=list)
 
     def __post_init__(self):
         if not self.verify_tls:
