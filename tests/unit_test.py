@@ -13,6 +13,7 @@
 # limitations under the License.
 
 
+import difflib
 from pathlib import Path
 import sys
 import filecmp
@@ -276,6 +277,22 @@ def test_cluster_creation(mocker):
         return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
     )
     cluster = createClusterWithConfig(mocker)
+    # output_file1 = f"{aw_dir}unit-test-cluster.yaml"
+    # output_file2 = f"{parent}/tests/test-case.yaml"
+    # with open(output_file1, 'r') as f1:
+    #         content1 = yaml.safe_load(f1)
+    #         print("Contents of the first YAML file:")
+    #         print(yaml.dump(content1, sort_keys=False))
+    # with open(output_file2, 'r') as f2:
+    #         content2 = yaml.safe_load(f2)
+    #         print("Contents of the second YAML file:")
+    #         print(yaml.dump(content2, sort_keys=False))
+    # with open(output_file1, 'r') as f1:
+    #     content1 = f1.readlines()
+    # with open(output_file2, 'r') as f2:
+    #     content2 = f2.readlines()
+    # diff = difflib.unified_diff(content1, content2, fromfile=output_file1, tofile=output_file2)
+    # print('\n'.join(diff))
     assert cluster.app_wrapper_yaml == f"{aw_dir}unit-test-cluster.yaml"
     assert cluster.app_wrapper_name == "unit-test-cluster"
     assert filecmp.cmp(

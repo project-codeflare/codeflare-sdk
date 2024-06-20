@@ -55,6 +55,13 @@ spec:
               cpu: 2
               memory: 8G
               nvidia.com/gpu: 0
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            seccompProfile:
+              type: RuntimeDefault
           volumeMounts:
           - mountPath: /etc/pki/tls/certs/odh-trusted-ca-bundle.crt
             name: odh-trusted-ca-cert
@@ -137,6 +144,13 @@ spec:
               cpu: 1
               memory: 2G
               nvidia.com/gpu: 0
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            seccompProfile:
+              type: RuntimeDefault
           volumeMounts:
           - mountPath: /etc/pki/tls/certs/odh-trusted-ca-bundle.crt
             name: odh-trusted-ca-cert
