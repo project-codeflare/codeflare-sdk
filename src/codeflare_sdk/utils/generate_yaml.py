@@ -96,20 +96,6 @@ def update_image_pull_secrets(spec, image_pull_secrets):
     ]
 
 
-def update_volume_mounts(spec, volume_mounts: list):
-    containers = spec.get("containers")
-    for volume_mount in volume_mounts:
-        for container in containers:
-            volumeMount = client.ApiClient().sanitize_for_serialization(volume_mount)
-            container["volumeMounts"].append(volumeMount)
-
-
-def update_volumes(spec, volumes: list):
-    for volume in volumes:
-        new_volume = client.ApiClient().sanitize_for_serialization(volume)
-        spec["volumes"].append(new_volume)
-
-
 def update_env(spec, env):
     containers = spec.get("containers")
     for container in containers:
@@ -150,8 +136,6 @@ def update_nodes(
     head_cpus,
     head_memory,
     head_gpus,
-    volumes,
-    volume_mounts,
 ):
     head = cluster_yaml.get("spec").get("headGroupSpec")
     head["rayStartParams"]["num-gpus"] = str(int(head_gpus))
@@ -166,8 +150,6 @@ def update_nodes(
 
     for comp in [head, worker]:
         spec = comp.get("template").get("spec")
-        update_volume_mounts(spec, volume_mounts)
-        update_volumes(spec, volumes)
         update_image_pull_secrets(spec, image_pull_secrets)
         update_image(spec, image)
         update_env(spec, env)
@@ -298,8 +280,6 @@ def generate_appwrapper(
     write_to_file: bool,
     local_queue: Optional[str],
     labels,
-    volumes: list[client.V1Volume],
-    volume_mounts: list[client.V1VolumeMount],
 ):
     cluster_yaml = read_template(template)
     appwrapper_name, cluster_name = gen_names(name)
@@ -319,8 +299,6 @@ def generate_appwrapper(
         head_cpus,
         head_memory,
         head_gpus,
-        volumes,
-        volume_mounts,
     )
     augment_labels(cluster_yaml, labels)
     notebook_annotations(cluster_yaml)
