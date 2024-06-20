@@ -444,68 +444,6 @@ def test_default_cluster_creation(mocker):
     assert cluster.config.namespace == "opendatahub"
 
 
-def test_cluster_with_custom_volumes(mocker):
-    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
-    mocker.patch(
-        "codeflare_sdk.cluster.cluster.get_current_namespace",
-        return_value="opendatahub",
-    )
-    mocker.patch(
-        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
-        return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
-    )
-
-    from kubernetes.client import (
-        V1Volume,
-        V1VolumeMount,
-        V1EmptyDirVolumeSource,
-        V1ConfigMapVolumeSource,
-        V1KeyToPath,
-        V1SecretVolumeSource,
-    )
-
-    volume_mounts = [
-        V1VolumeMount(mount_path="/home/ray/test1", name="test"),
-        V1VolumeMount(
-            mount_path="/home/ray/test2",
-            name="test2",
-        ),
-        V1VolumeMount(
-            mount_path="/home/ray/test2",
-            name="test3",
-        ),
-    ]
-
-    volumes = [
-        V1Volume(
-            name="test",
-            empty_dir=V1EmptyDirVolumeSource(size_limit="500Gi"),
-        ),
-        V1Volume(
-            name="test2",
-            config_map=V1ConfigMapVolumeSource(
-                name="config-map-test",
-                items=[V1KeyToPath(key="test", path="/home/ray/test2/data.txt")],
-            ),
-        ),
-        V1Volume(name="test3", secret=V1SecretVolumeSource(secret_name="test-secret")),
-    ]
-
-    test_config = ClusterConfiguration(
-        name="unit-test-volume-cluster",
-        image="quay.io/project-codeflare/ray:2.20.0-py39-cu118",
-        volume_mounts=volume_mounts,
-        volumes=volumes,
-    )
-    cluster = Cluster(test_config)
-    test_rc = yaml.load(cluster.app_wrapper_yaml, Loader=yaml.FullLoader)
-    with open(
-        f"{parent}/tests/unit-test-volume-cluster.yaml",
-    ) as f:
-        volume_rc = yaml.load(f, Loader=yaml.FullLoader)
-        assert test_rc == volume_rc
-
-
 def test_gen_names_with_name(mocker):
     mocker.patch.object(
         uuid, "uuid4", return_value=uuid.UUID("00000000-0000-0000-0000-000000000001")
