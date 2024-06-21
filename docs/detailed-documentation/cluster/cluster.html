@@ -179,11 +179,9 @@ class Cluster:
         template = self.config.template
         image = self.config.image
         appwrapper = self.config.appwrapper
-        instance_types = self.config.machine_types
         env = self.config.envs
         image_pull_secrets = self.config.image_pull_secrets
         write_to_file = self.config.write_to_file
-        verify_tls = self.config.verify_tls
         local_queue = self.config.local_queue
         labels = self.config.labels
         return generate_appwrapper(
@@ -201,11 +199,9 @@ class Cluster:
             template=template,
             image=image,
             appwrapper=appwrapper,
-            instance_types=instance_types,
             env=env,
             image_pull_secrets=image_pull_secrets,
             write_to_file=write_to_file,
-            verify_tls=verify_tls,
             local_queue=local_queue,
             labels=labels,
         )
@@ -213,8 +209,8 @@ class Cluster:
     # creates a new cluster with the provided or default spec
     def up(self):
         &#34;&#34;&#34;
-        Applies the AppWrapper yaml, pushing the resource request onto
-        the MCAD queue.
+        Applies the Cluster yaml, pushing the resource request onto
+        the Kueue localqueue.
         &#34;&#34;&#34;
 
         # check if RayCluster CustomResourceDefinition exists if not throw RuntimeError
@@ -1229,11 +1225,9 @@ request.</p></div>
         template = self.config.template
         image = self.config.image
         appwrapper = self.config.appwrapper
-        instance_types = self.config.machine_types
         env = self.config.envs
         image_pull_secrets = self.config.image_pull_secrets
         write_to_file = self.config.write_to_file
-        verify_tls = self.config.verify_tls
         local_queue = self.config.local_queue
         labels = self.config.labels
         return generate_appwrapper(
@@ -1251,11 +1245,9 @@ request.</p></div>
             template=template,
             image=image,
             appwrapper=appwrapper,
-            instance_types=instance_types,
             env=env,
             image_pull_secrets=image_pull_secrets,
             write_to_file=write_to_file,
-            verify_tls=verify_tls,
             local_queue=local_queue,
             labels=labels,
         )
@@ -1263,8 +1255,8 @@ request.</p></div>
     # creates a new cluster with the provided or default spec
     def up(self):
         &#34;&#34;&#34;
-        Applies the AppWrapper yaml, pushing the resource request onto
-        the MCAD queue.
+        Applies the Cluster yaml, pushing the resource request onto
+        the Kueue localqueue.
         &#34;&#34;&#34;
 
         # check if RayCluster CustomResourceDefinition exists if not throw RuntimeError
@@ -1776,11 +1768,9 @@ the specifications of the ClusterConfiguration.</p></div>
     template = self.config.template
     image = self.config.image
     appwrapper = self.config.appwrapper
-    instance_types = self.config.machine_types
     env = self.config.envs
     image_pull_secrets = self.config.image_pull_secrets
     write_to_file = self.config.write_to_file
-    verify_tls = self.config.verify_tls
     local_queue = self.config.local_queue
     labels = self.config.labels
     return generate_appwrapper(
@@ -1798,11 +1788,9 @@ the specifications of the ClusterConfiguration.</p></div>
         template=template,
         image=image,
         appwrapper=appwrapper,
-        instance_types=instance_types,
         env=env,
         image_pull_secrets=image_pull_secrets,
         write_to_file=write_to_file,
-        verify_tls=verify_tls,
         local_queue=local_queue,
         labels=labels,
     )</code></pre>
@@ -1974,7 +1962,7 @@ associated with the cluster.</p></div>
 </details>
 </dd>
 <dt id="codeflare_sdk.cluster.cluster.Cluster.list_jobs"><code class="name flex">
-<span>def <span class="ident">list_jobs</span></span>(<span>self) ‑> List[~T]</span>
+<span>def <span class="ident">list_jobs</span></span>(<span>self) ‑> List</span>
 </code></dt>
 <dd>
 <div class="desc"><p>This method accesses the head ray node in your cluster and lists the running jobs.</p></div>
@@ -2090,16 +2078,16 @@ it is ready for use.</p></div>
 <span>def <span class="ident">up</span></span>(<span>self)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Applies the AppWrapper yaml, pushing the resource request onto
-the MCAD queue.</p></div>
+<div class="desc"><p>Applies the Cluster yaml, pushing the resource request onto
+the Kueue localqueue.</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def up(self):
     &#34;&#34;&#34;
-    Applies the AppWrapper yaml, pushing the resource request onto
-    the MCAD queue.
+    Applies the Cluster yaml, pushing the resource request onto
+    the Kueue localqueue.
     &#34;&#34;&#34;
 
     # check if RayCluster CustomResourceDefinition exists if not throw RuntimeError
