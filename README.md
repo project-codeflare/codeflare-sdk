@@ -1,4 +1,4 @@
-# Codeflare-SDK
+# CodeFlare SDK
 
 [![Python application](https://github.com/project-codeflare/codeflare-sdk/actions/workflows/unit-tests.yml/badge.svg?branch=main)](https://github.com/project-codeflare/codeflare-sdk/actions/workflows/unit-tests.yml)
 ![coverage badge](./coverage.svg)
@@ -19,61 +19,7 @@ Can be installed via `pip`: `pip install codeflare-sdk`
 
 ## Development
 
-### Prerequisites
-
-We recommend using Python 3.9 for development, along with Poetry.
-Create a Poetry virtual environment with the required Python version 3.9, and run all commands within this environment.
-
-  - run: `poetry shell`
-
-#### Install dependencies:
-
-  - run: `poetry install`
-
-This will install standard requirements as specified in the poetry.lock file. Test and docs dependencies are optional.
-
-- To include test dependencies run: `poetry install --with test`
-
-- To include docs dependencies run: `poetry install --with docs`
-
-- To include test and docs dependencies run: `poetry install --with test,docs`
-
-If you require a requirements.txt file you can run:
-
-`poetry export -f requirements.txt --output requirements.txt --without-hashes`
-
-### Pre-commit
-
-We use pre-commit to make sure the code is consistently formatted. To make sure that pre-commit is run every time you commit changes, simply run `pre-commit install`
-
-To build the codeflare-sdk pre-commit image run `podman build -f .github/build/Containerfile .` from the root directory.
-
-### Testing
-
-- To install codeflare-sdk in editable mode, run `pip install -e .` from the repo root.
-- Any new test functions/scripts can be added into the `tests` folder
-- NOTE: Functional tests coming soon, will live in `tests/func_test.py`
-
-#### Unit Testing
-- To run the unit tests, run `pytest -v tests/unit_test.py`
-
-#### Local e2e Testing
-- Please follow the [e2e documentation](https://github.com/project-codeflare/codeflare-sdk/blob/main/docs/e2e.md)
-
-#### Code Coverage
-
-- Run tests with the following command: `coverage run -m --source=src pytest tests/unit_test.py`
-- To then view a code coverage report w/ missing lines, run `coverage report -m`
-
-### Code Formatting
-
-- To check file formatting, in top-level dir run `black --check .`
-- To auto-reformat all files, remove the `--check` flag
-- To reformat an individual file, run `black <filename>`
-
-### Package Build
-
-To build the python package: `$ poetry build`
+Please see our [CONTRIBUTING.md](./CONTRIBUTING.md) for detailed instructions.
 
 ## Release Instructions
 
