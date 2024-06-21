@@ -19,7 +19,7 @@ cluster = Cluster(ClusterConfiguration(
     min_memory=2, # Default 2
     max_memory=2, # Default 2
     num_gpus=0, # Default 0
-    image="quay.io/project-codeflare/ray:latest-py39-cu118", # Mandatory Field
+    image="quay.io/project-codeflare/ray:2.20.0-py39-cu118", # Mandatory Field
     machine_types=["m5.xlarge", "g4dn.xlarge"],
     labels={"exampleLabel": "example", "secondLabel": "example"},
 ))
