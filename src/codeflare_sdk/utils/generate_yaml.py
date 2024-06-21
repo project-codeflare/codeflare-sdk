@@ -30,6 +30,7 @@ from ..cluster.auth import api_config_handler, config_check
 from os import urandom
 from base64 import b64encode
 from urllib3.util import parse_url
+from mergedeep import merge
 
 
 def read_template(template):
@@ -300,8 +301,10 @@ def generate_appwrapper(
     labels,
     volumes: list[client.V1Volume],
     volume_mounts: list[client.V1VolumeMount],
+    template_update_dict={},
 ):
     cluster_yaml = read_template(template)
+    cluster_yaml = merge(cluster_yaml, template_update_dict)
     appwrapper_name, cluster_name = gen_names(name)
     update_names(cluster_yaml, cluster_name, namespace)
     update_nodes(

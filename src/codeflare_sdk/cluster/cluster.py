@@ -145,6 +145,7 @@ class Cluster:
         gpu = self.config.num_gpus
         workers = self.config.num_workers
         template = self.config.template
+        template_update_dict = self.config.template_update_dict
         image = self.config.image
         appwrapper = self.config.appwrapper
         env = self.config.envs
@@ -176,6 +177,7 @@ class Cluster:
             labels=labels,
             volumes=volumes,
             volume_mounts=volume_mounts,
+            template_update_dict=template_update_dict,
         )
 
     # creates a new cluster with the provided or default spec
