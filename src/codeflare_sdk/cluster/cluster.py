@@ -18,11 +18,9 @@ the resources requested by the user. It also contains functions for checking the
 cluster setup queue, a list of all existing clusters, and the user's working namespace.
 """
 
-import re
 from time import sleep
 from typing import List, Optional, Tuple, Dict
 
-from kubernetes import config
 from ray.job_submission import JobSubmissionClient
 
 from .auth import config_check, api_config_handler
@@ -41,13 +39,11 @@ from .model import (
     RayCluster,
     RayClusterStatus,
 )
-from kubernetes import client, config
-from kubernetes.utils import parse_quantity
 import yaml
 import os
 import requests
 
-from kubernetes import config
+from kubernetes import client, config
 from kubernetes.client.rest import ApiException
 
 
@@ -145,6 +141,8 @@ class Cluster:
         gpu = self.config.num_gpus
         workers = self.config.num_workers
         template = self.config.template
+        head_template = self.config.head_template
+        worker_template = self.config.worker_template
         image = self.config.image
         appwrapper = self.config.appwrapper
         env = self.config.envs
@@ -167,6 +165,8 @@ class Cluster:
             gpu=gpu,
             workers=workers,
             template=template,
+            head_template=head_template,
+            worker_template=worker_template,
             image=image,
             appwrapper=appwrapper,
             env=env,

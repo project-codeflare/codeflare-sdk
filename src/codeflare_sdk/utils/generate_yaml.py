@@ -20,16 +20,12 @@ This sub-module exists primarily to be used internally by the Cluster object
 from typing import Optional
 import typing
 import yaml
-import sys
 import os
-import argparse
 import uuid
 from kubernetes import client, config
 from .kube_api_helpers import _kube_api_error_handling
 from ..cluster.auth import api_config_handler, config_check
-from os import urandom
-from base64 import b64encode
-from urllib3.util import parse_url
+from mergedeep import merge, Strategy
 
 
 def read_template(template):
@@ -278,6 +274,16 @@ def write_user_yaml(user_yaml, output_file_name):
     print(f"Written to: {output_file_name}")
 
 
+def apply_head_template(cluster_yaml: dict, head_template: client.V1PodTemplateSpec):
+    head = cluster_yaml.get("spec").get("headGroupSpec")
+    merge(head["template"], head_template.to_dict(), strategy=Strategy.ADDITIVE)
+
+
+def apply_worker_template(cluster_yaml: dict, worker_template: client.V1PodTemplateSpec):
+    worker = cluster_yaml.get("spec").get("workerGroupSpecs")[0]
+    merge(worker["template"], worker_template.to_dict(), strategy=Strategy.ADDITIVE)
+
+
 def generate_appwrapper(
     name: str,
     namespace: str,
@@ -291,6 +297,8 @@ def generate_appwrapper(
     gpu: int,
     workers: int,
     template: str,
+    head_template: client.V1PodTemplateSpec,
+    worker_template: client.V1PodTemplateSpec,
     image: str,
     appwrapper: bool,
     env,
@@ -302,6 +310,12 @@ def generate_appwrapper(
     volume_mounts: list[client.V1VolumeMount],
 ):
     cluster_yaml = read_template(template)
+
+    if head_template:
+        apply_head_template(cluster_yaml, head_template)
+    if worker_template:
+        apply_worker_template(cluster_yaml, worker_template)
+
     appwrapper_name, cluster_name = gen_names(name)
     update_names(cluster_yaml, cluster_name, namespace)
     update_nodes(

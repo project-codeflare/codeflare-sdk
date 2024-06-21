@@ -22,6 +22,8 @@ from dataclasses import dataclass, field
 import pathlib
 import typing
 
+import kubernetes
+
 dir = pathlib.Path(__file__).parent.parent.resolve()
 
 
@@ -46,6 +48,8 @@ class ClusterConfiguration:
     max_memory: typing.Union[int, str] = 2
     num_gpus: int = 0
     template: str = f"{dir}/templates/base-template.yaml"
+    head_template: kubernetes.client.V1PodTemplateSpec = None
+    worker_template: kubernetes.client.V1PodTemplateSpec = None
     appwrapper: bool = False
     envs: dict = field(default_factory=dict)
     image: str = ""
