@@ -133,7 +133,8 @@ is passed in as an argument when creating a Cluster object.</p></div>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class ClusterConfiguration:
+<pre><code class="python">@dataclass
+class ClusterConfiguration:
     &#34;&#34;&#34;
     This dataclass is used to specify resource requirements and other details, and
     is passed in as an argument when creating a Cluster object.

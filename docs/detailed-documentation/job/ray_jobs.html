@@ -191,7 +191,7 @@ class RayJobClient:
 <dl>
 <dt id="codeflare_sdk.job.ray_jobs.RayJobClient"><code class="flex name class">
 <span>class <span class="ident">RayJobClient</span></span>
-<span>(</span><span>address: Optional[str] = None, create_cluster_if_needed: bool = False, cookies: Optional[Dict[str, Any]] = None, metadata: Optional[Dict[str, Any]] = None, headers: Optional[Dict[str, Any]] = None, verify: Union[str, bool, None] = True)</span>
+<span>(</span><span>address: Optional[str] = None, create_cluster_if_needed: bool = False, cookies: Optional[Dict[str, Any]] = None, metadata: Optional[Dict[str, Any]] = None, headers: Optional[Dict[str, Any]] = None, verify: Union[str, bool, ForwardRef(None)] = True)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>A class that functions as a wrapper for the Ray Job Submission Client.</p>
@@ -461,7 +461,7 @@ verify &ndash; Boolean indication to verify the server's TLS certificate or a pa
 </details>
 </dd>
 <dt id="codeflare_sdk.job.ray_jobs.RayJobClient.submit_job"><code class="name flex">
-<span>def <span class="ident">submit_job</span></span>(<span>self, entrypoint: str, job_id: Optional[str] = None, runtime_env: Optional[Dict[str, Any]] = None, metadata: Optional[Dict[str, str]] = None, submission_id: Optional[str] = None, entrypoint_num_cpus: Union[int, float, None] = None, entrypoint_num_gpus: Union[int, float, None] = None, entrypoint_resources: Optional[Dict[str, float]] = None) ‑> str</span>
+<span>def <span class="ident">submit_job</span></span>(<span>self, entrypoint: str, job_id: Optional[str] = None, runtime_env: Optional[Dict[str, Any]] = None, metadata: Optional[Dict[str, str]] = None, submission_id: Optional[str] = None, entrypoint_num_cpus: Union[int, float, ForwardRef(None)] = None, entrypoint_num_gpus: Union[int, float, ForwardRef(None)] = None, entrypoint_resources: Optional[Dict[str, float]] = None) ‑> str</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Method for submitting jobs to a Ray Cluster and returning the job id with entrypoint being a mandatory field.</p>
