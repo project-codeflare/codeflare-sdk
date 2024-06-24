@@ -72,11 +72,13 @@ class TestRayClusterSDKOauth:
 
     def assert_jobsubmit_withoutLogin(self, cluster):
         dashboard_url = cluster.cluster_dashboard_uri()
+
         jobdata = {
             "entrypoint": "python mnist.py",
             "runtime_env": {
                 "working_dir": "./tests/e2e/",
                 "pip": "./tests/e2e/mnist_pip_requirements.txt",
+                "env_vars": get_setup_env_variables(),
             },
         }
         try:
@@ -104,8 +106,10 @@ class TestRayClusterSDKOauth:
             runtime_env={
                 "working_dir": "./tests/e2e/",
                 "pip": "./tests/e2e/mnist_pip_requirements.txt",
+                "env_vars": get_setup_env_variables(),
             },
         )
+
         print(f"Submitted job with ID: {submission_id}")
         done = False
         time = 0

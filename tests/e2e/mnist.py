@@ -19,14 +19,17 @@ from pytorch_lightning import LightningModule, Trainer
 from pytorch_lightning.callbacks.progress import TQDMProgressBar
 from torch import nn
 from torch.nn import functional as F
-from torch.utils.data import DataLoader, random_split, RandomSampler
+from torch.utils.data import DataLoader, random_split
 from torchmetrics import Accuracy
 from torchvision import transforms
 from torchvision.datasets import MNIST
+from support import download_all_from_storage_bucket
 
 PATH_DATASETS = os.environ.get("PATH_DATASETS", ".")
 BATCH_SIZE = 256 if torch.cuda.is_available() else 64
 # %%
+
+local_mnist_path = os.path.dirname(os.path.abspath(__file__))
 
 print("prior to running the trainer")
 print("MASTER_ADDR: is ", os.getenv("MASTER_ADDR"))
@@ -110,28 +113,44 @@ class LitMNIST(LightningModule):
 
     def prepare_data(self):
         # download
-        print("Downloading MNIST dataset...")
-        MNIST(self.data_dir, train=True, download=True)
-        MNIST(self.data_dir, train=False, download=True)
+        print("Preparing MNIST dataset...")
+
+        if "AWS_DEFAULT_ENDPOINT" in os.environ:
+            dataset_dir = os.path.join(self.data_dir, "MNIST/raw")
+            endpoint = os.environ.get("AWS_DEFAULT_ENDPOINT")
+            access_key = os.environ.get("AWS_ACCESS_KEY_ID")
+            secret_key = os.environ.get("AWS_SECRET_ACCESS_KEY")
+            bucket_name = os.environ.get("AWS_STORAGE_BUCKET")
+            download_all_from_storage_bucket(
+                endpoint,
+                access_key=access_key,
+                secret_key=secret_key,
+                bucket_name=bucket_name,
+                dir_path=dataset_dir,
+            )
+            download_datasets = False
+        else:
+            download_datasets = True
+
+        MNIST(self.data_dir, train=True, download=download_datasets)
+        MNIST(self.data_dir, train=False, download=download_datasets)
 
     def setup(self, stage=None):
         # Assign train/val datasets for use in dataloaders
         if stage == "fit" or stage is None:
-            mnist_full = MNIST(self.data_dir, train=True, transform=self.transform)
+            mnist_full = MNIST(
+                self.data_dir, train=True, transform=self.transform, download=False
+            )
             self.mnist_train, self.mnist_val = random_split(mnist_full, [55000, 5000])
 
         # Assign test dataset for use in dataloader(s)
         if stage == "test" or stage is None:
             self.mnist_test = MNIST(
-                self.data_dir, train=False, transform=self.transform
+                self.data_dir, train=False, transform=self.transform, download=False
             )
 
     def train_dataloader(self):
-        return DataLoader(
-            self.mnist_train,
-            batch_size=BATCH_SIZE,
-            sampler=RandomSampler(self.mnist_train, num_samples=1000),
-        )
+        return DataLoader(self.mnist_train, batch_size=BATCH_SIZE)
 
     def val_dataloader(self):
         return DataLoader(self.mnist_val, batch_size=BATCH_SIZE)
@@ -142,7 +161,7 @@ class LitMNIST(LightningModule):
 
 # Init DataLoader from MNIST Dataset
 
-model = LitMNIST()
+model = LitMNIST(data_dir=local_mnist_path)
 
 print("GROUP: ", int(os.environ.get("GROUP_WORLD_SIZE", 1)))
 print("LOCAL: ", int(os.environ.get("LOCAL_WORLD_SIZE", 1)))
