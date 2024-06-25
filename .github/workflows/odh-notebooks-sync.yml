@@ -25,6 +25,7 @@ env:
   REPO_OWNER: ${{ github.event.inputs.codeflare-repository-organization }}
   REPO_NAME: notebooks
   GITHUB_TOKEN: ${{ secrets.CODEFLARE_MACHINE_ACCOUNT_TOKEN }}
+  MINIMUM_SUPPORTED_PYTHON_VERSION: 3.9
 
 jobs:
   build:
@@ -44,7 +45,6 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: |
-            3.8
             3.9
 
       - name: Install pipenv and pip-versions
@@ -92,7 +92,32 @@ jobs:
             for dir in "${directories[@]}"; do
               counter=$((counter+1))
               echo "--Processing directory $counter '$dir' of total $total"
-              cd "$dir" && pipenv install ${package_name}~="${CODEFLARE_RELEASE_VERSION}" && pipenv --rm && cd -
+              cd "$dir"
+              minimum_supported_python_version_major=$(echo "${MINIMUM_SUPPORTED_PYTHON_VERSION}" | awk -F '.' '{print $1}') #integer of MINIMUM_SUPPORTED_PYTHON_VERSION env variable
+              minimum_supported_python_version_minor=$(echo "${MINIMUM_SUPPORTED_PYTHON_VERSION}" | awk -F '.' '{print $2}') #decimal of MINIMUM_SUPPORTED_PYTHON_VERSION env variable
+              pipfile_python_version=$(grep -E '^python_version' ./Pipfile | cut -d '"' -f 2) # extracted from pipfile
+              pipfile_python_version_major=$(echo "$pipfile_python_version" | awk -F '.' '{print $1}')
+              pipfile_python_version_minor=$(echo "$pipfile_python_version" | awk -F '.' '{print $2}')
+              if [[ "pipfile_python_version_major" -ge "$minimum_supported_python_version_major" && "pipfile_python_version_minor" -ge "$minimum_supported_python_version_minor" ]]; then
+                #install specified package
+                if ! pipenv install ${package_name}~="${CODEFLARE_RELEASE_VERSION}"; then
+                  echo "Failed to install ${package_name} with version ${CODEFLARE_RELEASE_VERSION} in $dir"
+                  exit 1
+                fi
+                # Lock dependencies, ensuring pre-release are included and clear previous state
+                if ! pipenv lock --pre --clear ; then
+                  echo "Failed to lock dependencies"
+                  exit 1
+                fi
+                # remove virtual env and clear cache
+                if ! pipenv --rm --clear ; then
+                  echo "Failed to remove virtual environment"
+                  exit 1
+                fi
+              else
+                echo "Skipped installation of ${package_name} with version ${CODEFLARE_RELEASE_VERSION} in $dir"
+              fi
+              cd -
               echo "$((total-counter)) directories remaining.."
             done
           else
