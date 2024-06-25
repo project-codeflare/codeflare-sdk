@@ -23,7 +23,9 @@ from .utils import generate_cert
 from importlib.metadata import version, PackageNotFoundError
 
 try:
-    __version__ = version("codeflare-sdk") #Update with latest version with each release
+    __version__ = version(
+        "codeflare-sdk"
+    )  # Update with latest version with each release
 
 except PackageNotFoundError:
     __version__ = "unknown"
