@@ -43,15 +43,15 @@ jobs:
       - name: Setup Python environment
         uses: actions/setup-python@v4
         with:
-          python-version: |
-            3.8
-            3.9
+          python-version: 3.9
 
       - name: Install pipenv and pip-versions
         run: pip install pipenv pip-versions
 
       - name: Update Pipfiles in accordance with Codeflare-SDK latest release
         run: |
+          set -e
+          set -o pipefail
           package_name=codeflare-sdk
           # Get the list of available versions for the package
           if ! versions=$(pipenv run pip-versions list $package_name);then
