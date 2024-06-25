@@ -18,8 +18,9 @@ states and AppWrapper states, and CodeFlare cluster states, as well as
 dataclasses to store information for Ray clusters and AppWrappers.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
+import typing
 
 
 class RayClusterStatus(Enum):
@@ -74,14 +75,14 @@ class RayCluster:
     status: RayClusterStatus
     head_cpus: int
     head_mem: str
-    head_gpu: int
     workers: int
     worker_mem_min: str
     worker_mem_max: str
     worker_cpu: int
-    worker_gpu: int
     namespace: str
     dashboard: str
+    worker_extended_resources: typing.Dict[str, int] = field(default_factory=dict)
+    head_extended_resources: typing.Dict[str, int] = field(default_factory=dict)
 
 
 @dataclass
