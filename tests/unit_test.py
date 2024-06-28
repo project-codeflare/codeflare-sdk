@@ -20,8 +20,6 @@ import os
 import re
 import uuid
 
-from codeflare_sdk.cluster import cluster
-
 parent = Path(__file__).resolve().parents[1]
 aw_dir = os.path.expanduser("~/.codeflare/resources/")
 sys.path.append(str(parent) + "/src")
@@ -69,17 +67,18 @@ from tests.unit_test_support import (
     createClusterConfig,
 )
 
-import codeflare_sdk.utils.kube_api_helpers
 from codeflare_sdk.utils.generate_yaml import (
     gen_names,
     is_openshift_cluster,
 )
 
 import openshift
-from openshift.selector import Selector
 import ray
 import pytest
 import yaml
+
+from kubernetes.client import V1PodTemplateSpec, V1PodSpec, V1Toleration
+
 from unittest.mock import MagicMock
 from pytest_mock import MockerFixture
 from ray.job_submission import JobSubmissionClient
@@ -266,6 +265,41 @@ def test_config_creation():
     assert config.machine_types == ["cpu.small", "gpu.large"]
     assert config.image_pull_secrets == ["unit-test-pull-secret"]
     assert config.appwrapper == True
+
+
+def test_cluster_config_with_worker_template(mocker):
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
+        return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
+    )
+
+    cluster = Cluster(ClusterConfiguration(
+        name="unit-test-cluster",
+        namespace="ns",
+        num_workers=2,
+        min_cpus=3,
+        max_cpus=4,
+        min_memory=5,
+        max_memory=6,
+        num_gpus=7,
+        image="test/ray:2.20.0-py39-cu118",
+        worker_template=V1PodTemplateSpec(
+            spec=V1PodSpec(
+                containers=[],
+                tolerations=[V1Toleration(
+                    key="nvidia.com/gpu",
+                    operator="Exists",
+                    effect="NoSchedule",
+                )],
+                node_selector={
+                    "nvidia.com/gpu.present": "true",
+                },
+            )
+        ),
+    ))
+
+    assert cluster
 
 
 def test_cluster_creation(mocker):
