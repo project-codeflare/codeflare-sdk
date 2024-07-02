@@ -285,6 +285,28 @@ def test_cluster_creation(mocker):
     )
 
 
+def test_cluster_no_kueue_no_aw(mocker):
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.get_cluster_custom_object",
+        return_value={"spec": {"domain": "apps.cluster.awsroute.org"}},
+    )
+    mocker.patch("kubernetes.client.CustomObjectsApi.list_namespaced_custom_object")
+    mocker.patch("os.environ.get", return_value="test-prefix")
+    config = createClusterConfig()
+    config.appwrapper = False
+    config.name = "unit-test-no-kueue"
+    config.write_to_file = True
+    cluster = Cluster(config)
+    assert cluster.app_wrapper_yaml == f"{aw_dir}unit-test-no-kueue.yaml"
+    assert cluster.config.local_queue == None
+    assert filecmp.cmp(
+        f"{aw_dir}unit-test-no-kueue.yaml",
+        f"{parent}/tests/test-case-no-kueue-no-aw.yaml",
+        shallow=True,
+    )
+
+
 def test_create_app_wrapper_raises_error_with_no_image():
     config = createClusterConfig()
     config.image = ""  # Clear the image to test error handling
@@ -2799,6 +2821,7 @@ def test_rjc_list_jobs(ray_job_client, mocker):
 
 # Make sure to always keep this function last
 def test_cleanup():
+    os.remove(f"{aw_dir}unit-test-no-kueue.yaml")
     os.remove(f"{aw_dir}unit-test-cluster.yaml")
     os.remove(f"{aw_dir}test.yaml")
     os.remove(f"{aw_dir}raytest2.yaml")
