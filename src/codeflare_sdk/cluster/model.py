@@ -72,8 +72,10 @@ class RayCluster:
 
     name: str
     status: RayClusterStatus
-    head_cpus: int
-    head_mem: str
+    head_cpu_requests: int
+    head_cpu_limits: int
+    head_mem_requests: str
+    head_mem_limits: str
     head_gpu: int
     workers: int
     worker_mem_min: str
