@@ -135,8 +135,10 @@ class Cluster:
 
         name = self.config.name
         namespace = self.config.namespace
-        head_cpus = self.config.head_cpus
-        head_memory = self.config.head_memory
+        head_cpu_requests = self.config.head_cpu_requests
+        head_cpu_limits = self.config.head_cpu_limits
+        head_memory_requests = self.config.head_memory_requests
+        head_memory_limits = self.config.head_memory_limits
         num_head_gpus = self.config.num_head_gpus
         worker_cpu_requests = self.config.worker_cpu_requests
         worker_cpu_limits = self.config.worker_cpu_limits
@@ -155,8 +157,10 @@ class Cluster:
         return generate_appwrapper(
             name=name,
             namespace=namespace,
-            head_cpus=head_cpus,
-            head_memory=head_memory,
+            head_cpu_requests=head_cpu_requests,
+            head_cpu_limits=head_cpu_limits,
+            head_memory_requests=head_memory_requests,
+            head_memory_limits=head_memory_limits,
             num_head_gpus=num_head_gpus,
             worker_cpu_requests=worker_cpu_requests,
             worker_cpu_limits=worker_cpu_limits,
@@ -887,12 +891,18 @@ def _map_to_ray_cluster(rc) -> Optional[RayCluster]:
         ]["resources"]["limits"]["cpu"],
         worker_gpu=0,  # hard to detect currently how many gpus, can override it with what the user asked for
         namespace=rc["metadata"]["namespace"],
-        head_cpus=rc["spec"]["headGroupSpec"]["template"]["spec"]["containers"][0][
-            "resources"
-        ]["limits"]["cpu"],
-        head_mem=rc["spec"]["headGroupSpec"]["template"]["spec"]["containers"][0][
-            "resources"
-        ]["limits"]["memory"],
+        head_cpu_requests=rc["spec"]["headGroupSpec"]["template"]["spec"]["containers"][
+            0
+        ]["resources"]["requests"]["cpu"],
+        head_cpu_limits=rc["spec"]["headGroupSpec"]["template"]["spec"]["containers"][
+            0
+        ]["resources"]["limits"]["cpu"],
+        head_mem_requests=rc["spec"]["headGroupSpec"]["template"]["spec"]["containers"][
+            0
+        ]["resources"]["requests"]["memory"],
+        head_mem_limits=rc["spec"]["headGroupSpec"]["template"]["spec"]["containers"][
+            0
+        ]["resources"]["limits"]["memory"],
         head_gpu=rc["spec"]["headGroupSpec"]["template"]["spec"]["containers"][0][
             "resources"
         ]["limits"]["nvidia.com/gpu"],
@@ -923,8 +933,10 @@ def _copy_to_ray(cluster: Cluster) -> RayCluster:
         worker_gpu=cluster.config.num_worker_gpus,
         namespace=cluster.config.namespace,
         dashboard=cluster.cluster_dashboard_uri(),
-        head_cpus=cluster.config.head_cpus,
-        head_mem=cluster.config.head_memory,
+        head_mem_requests=cluster.config.head_memory_requests,
+        head_mem_limits=cluster.config.head_memory_limits,
+        head_cpu_requests=cluster.config.head_cpu_requests,
+        head_cpu_limits=cluster.config.head_cpu_limits,
         head_gpu=cluster.config.num_head_gpus,
     )
     if ray.status == CodeFlareClusterStatus.READY:

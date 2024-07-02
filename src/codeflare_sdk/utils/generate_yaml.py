@@ -109,24 +109,24 @@ def update_env(spec, env):
 
 def update_resources(
     spec,
-    worker_cpu_requests,
-    worker_cpu_limits,
-    worker_memory_requests,
-    worker_memory_limits,
-    num_worker_gpus,
+    cpu_requests,
+    cpu_limits,
+    memory_requests,
+    memory_limits,
+    num_gpus,
 ):
     container = spec.get("containers")
     for resource in container:
         requests = resource.get("resources").get("requests")
         if requests is not None:
-            requests["cpu"] = worker_cpu_requests
-            requests["memory"] = worker_memory_requests
-            requests["nvidia.com/gpu"] = num_worker_gpus
+            requests["cpu"] = cpu_requests
+            requests["memory"] = memory_requests
+            requests["nvidia.com/gpu"] = num_gpus
         limits = resource.get("resources").get("limits")
         if limits is not None:
-            limits["cpu"] = worker_cpu_limits
-            limits["memory"] = worker_memory_limits
-            limits["nvidia.com/gpu"] = num_worker_gpus
+            limits["cpu"] = cpu_limits
+            limits["memory"] = memory_limits
+            limits["nvidia.com/gpu"] = num_gpus
 
 
 def update_nodes(
@@ -141,8 +141,10 @@ def update_nodes(
     image,
     env,
     image_pull_secrets,
-    head_cpus,
-    head_memory,
+    head_cpu_requests,
+    head_cpu_limits,
+    head_memory_requests,
+    head_memory_limits,
     num_head_gpus,
 ):
     head = cluster_yaml.get("spec").get("headGroupSpec")
@@ -164,7 +166,12 @@ def update_nodes(
         if comp == head:
             # TODO: Eventually add head node configuration outside of template
             update_resources(
-                spec, head_cpus, head_cpus, head_memory, head_memory, num_head_gpus
+                spec,
+                head_cpu_requests,
+                head_cpu_limits,
+                head_memory_requests,
+                head_memory_limits,
+                num_head_gpus,
             )
         else:
             update_resources(
@@ -280,8 +287,10 @@ def write_user_yaml(user_yaml, output_file_name):
 def generate_appwrapper(
     name: str,
     namespace: str,
-    head_cpus: int,
-    head_memory: int,
+    head_cpu_requests: int,
+    head_cpu_limits: int,
+    head_memory_requests: int,
+    head_memory_limits: int,
     num_head_gpus: int,
     worker_cpu_requests: int,
     worker_cpu_limits: int,
@@ -313,8 +322,10 @@ def generate_appwrapper(
         image,
         env,
         image_pull_secrets,
-        head_cpus,
-        head_memory,
+        head_cpu_requests,
+        head_cpu_limits,
+        head_memory_requests,
+        head_memory_limits,
         num_head_gpus,
     )
     augment_labels(cluster_yaml, labels)
