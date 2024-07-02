@@ -877,8 +877,10 @@ def test_ray_details(mocker, capsys):
         worker_gpu=0,
         namespace="ns",
         dashboard="fake-uri",
-        head_cpus=2,
-        head_mem=8,
+        head_cpu_requests=2,
+        head_cpu_limits=2,
+        head_mem_limits=8,
+        head_mem_requests=8,
         head_gpu=0,
     )
     mocker.patch(
@@ -2304,8 +2306,10 @@ def test_cluster_status(mocker):
         worker_gpu=0,
         namespace="ns",
         dashboard="fake-uri",
-        head_cpus=2,
-        head_mem=8,
+        head_cpu_requests=2,
+        head_cpu_limits=2,
+        head_mem_limits=8,
+        head_mem_requests=8,
         head_gpu=0,
     )
     cf = Cluster(
