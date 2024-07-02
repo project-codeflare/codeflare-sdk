@@ -19,3 +19,11 @@ from .cluster import (
 from .job import RayJobClient
 
 from .utils import generate_cert
+
+from importlib.metadata import version, PackageNotFoundError
+
+try:
+    __version__ = version("codeflare-sdk")  # use metadata associated with built package
+
+except PackageNotFoundError:
+    __version__ = "v0.0.0"
