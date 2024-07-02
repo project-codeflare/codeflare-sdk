@@ -1,0 +1,153 @@
+apiVersion: ray.io/v1
+kind: RayCluster
+metadata:
+  annotations:
+    app.kubernetes.io/managed-by: test-prefix
+  labels:
+    controller-tools.k8s.io: '1.0'
+  name: unit-test-no-kueue
+  namespace: ns
+spec:
+  autoscalerOptions:
+    idleTimeoutSeconds: 60
+    imagePullPolicy: Always
+    resources:
+      limits:
+        cpu: 500m
+        memory: 512Mi
+      requests:
+        cpu: 500m
+        memory: 512Mi
+    upscalingMode: Default
+  enableInTreeAutoscaling: false
+  headGroupSpec:
+    enableIngress: false
+    rayStartParams:
+      block: 'true'
+      dashboard-host: 0.0.0.0
+      num-gpus: '0'
+    serviceType: ClusterIP
+    template:
+      spec:
+        containers:
+        - image: quay.io/rhoai/ray:2.23.0-py39-cu121
+          imagePullPolicy: Always
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                - /bin/sh
+                - -c
+                - ray stop
+          name: ray-head
+          ports:
+          - containerPort: 6379
+            name: gcs
+          - containerPort: 8265
+            name: dashboard
+          - containerPort: 10001
+            name: client
+          resources:
+            limits:
+              cpu: 2
+              memory: 8G
+              nvidia.com/gpu: 0
+            requests:
+              cpu: 2
+              memory: 8G
+              nvidia.com/gpu: 0
+          volumeMounts:
+          - mountPath: /etc/pki/tls/certs/odh-trusted-ca-bundle.crt
+            name: odh-trusted-ca-cert
+            subPath: odh-trusted-ca-bundle.crt
+          - mountPath: /etc/ssl/certs/odh-trusted-ca-bundle.crt
+            name: odh-trusted-ca-cert
+            subPath: odh-trusted-ca-bundle.crt
+          - mountPath: /etc/pki/tls/certs/odh-ca-bundle.crt
+            name: odh-ca-cert
+            subPath: odh-ca-bundle.crt
+          - mountPath: /etc/ssl/certs/odh-ca-bundle.crt
+            name: odh-ca-cert
+            subPath: odh-ca-bundle.crt
+        imagePullSecrets:
+        - name: unit-test-pull-secret
+        volumes:
+        - configMap:
+            items:
+            - key: ca-bundle.crt
+              path: odh-trusted-ca-bundle.crt
+            name: odh-trusted-ca-bundle
+            optional: true
+          name: odh-trusted-ca-cert
+        - configMap:
+            items:
+            - key: odh-ca-bundle.crt
+              path: odh-ca-bundle.crt
+            name: odh-trusted-ca-bundle
+            optional: true
+          name: odh-ca-cert
+  rayVersion: 2.23.0
+  workerGroupSpecs:
+  - groupName: small-group-unit-test-no-kueue
+    maxReplicas: 2
+    minReplicas: 2
+    rayStartParams:
+      block: 'true'
+      num-gpus: '7'
+    replicas: 2
+    template:
+      metadata:
+        annotations:
+          key: value
+        labels:
+          key: value
+      spec:
+        containers:
+        - image: quay.io/rhoai/ray:2.23.0-py39-cu121
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                - /bin/sh
+                - -c
+                - ray stop
+          name: machine-learning
+          resources:
+            limits:
+              cpu: 4
+              memory: 6G
+              nvidia.com/gpu: 7
+            requests:
+              cpu: 3
+              memory: 5G
+              nvidia.com/gpu: 7
+          volumeMounts:
+          - mountPath: /etc/pki/tls/certs/odh-trusted-ca-bundle.crt
+            name: odh-trusted-ca-cert
+            subPath: odh-trusted-ca-bundle.crt
+          - mountPath: /etc/ssl/certs/odh-trusted-ca-bundle.crt
+            name: odh-trusted-ca-cert
+            subPath: odh-trusted-ca-bundle.crt
+          - mountPath: /etc/pki/tls/certs/odh-ca-bundle.crt
+            name: odh-ca-cert
+            subPath: odh-ca-bundle.crt
+          - mountPath: /etc/ssl/certs/odh-ca-bundle.crt
+            name: odh-ca-cert
+            subPath: odh-ca-bundle.crt
+        imagePullSecrets:
+        - name: unit-test-pull-secret
+        volumes:
+        - configMap:
+            items:
+            - key: ca-bundle.crt
+              path: odh-trusted-ca-bundle.crt
+            name: odh-trusted-ca-bundle
+            optional: true
+          name: odh-trusted-ca-cert
+        - configMap:
+            items:
+            - key: odh-ca-bundle.crt
+              path: odh-ca-bundle.crt
+            name: odh-trusted-ca-bundle
+            optional: true
+          name: odh-ca-cert
