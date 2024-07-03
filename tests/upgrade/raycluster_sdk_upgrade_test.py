@@ -52,8 +52,14 @@ class TestMNISTRayClusterUp:
                 head_memory=2,
                 worker_cpu_requests=1,
                 worker_cpu_limits=1,
+<<<<<<< HEAD
                 worker_memory_requests=1,
                 worker_memory_limits=2,
+=======
+                worker_memory_requests=4,
+                worker_memory_limits=4,
+                num_worker_gpus=0,
+>>>>>>> abf0b21 (Increase Cluster configuration memory for sdk upgrade tests)
                 image=ray_image,
                 write_to_file=True,
                 verify_tls=False,
