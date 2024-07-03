@@ -78,8 +78,8 @@ class RayCluster:
     head_mem_limits: str
     head_gpu: int
     workers: int
-    worker_mem_min: str
-    worker_mem_max: str
+    worker_mem_requests: str
+    worker_mem_limits: str
     worker_cpu: int
     worker_gpu: int
     namespace: str

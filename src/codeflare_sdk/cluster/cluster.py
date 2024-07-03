@@ -880,10 +880,10 @@ def _map_to_ray_cluster(rc) -> Optional[RayCluster]:
         status=status,
         # for now we are not using autoscaling so same replicas is fine
         workers=rc["spec"]["workerGroupSpecs"][0]["replicas"],
-        worker_mem_max=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"][
+        worker_mem_limits=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"][
             "containers"
         ][0]["resources"]["limits"]["memory"],
-        worker_mem_min=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"][
+        worker_mem_requests=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"][
             "containers"
         ][0]["resources"]["requests"]["memory"],
         worker_cpu=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"]["containers"][
@@ -927,8 +927,8 @@ def _copy_to_ray(cluster: Cluster) -> RayCluster:
         name=cluster.config.name,
         status=cluster.status(print_to_console=False)[0],
         workers=cluster.config.num_workers,
-        worker_mem_min=cluster.config.worker_memory_requests,
-        worker_mem_max=cluster.config.worker_memory_limits,
+        worker_mem_requests=cluster.config.worker_memory_requests,
+        worker_mem_limits=cluster.config.worker_memory_limits,
         worker_cpu=cluster.config.worker_cpu_requests,
         worker_gpu=cluster.config.num_worker_gpus,
         namespace=cluster.config.namespace,
