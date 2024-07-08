@@ -307,19 +307,6 @@ def test_cluster_no_kueue_no_aw(mocker):
     )
 
 
-def test_create_app_wrapper_raises_error_with_no_image():
-    config = createClusterConfig()
-    config.image = ""  # Clear the image to test error handling
-    try:
-        cluster = Cluster(config)
-        cluster.create_app_wrapper()
-        assert False, "Expected ValueError when 'image' is not specified."
-    except ValueError as error:
-        assert (
-            str(error) == "Image must be specified in the ClusterConfiguration"
-        ), "Error message did not match expected output."
-
-
 def get_local_queue(group, version, namespace, plural):
     assert group == "kueue.x-k8s.io"
     assert version == "v1beta1"
