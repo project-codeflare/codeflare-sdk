@@ -86,8 +86,9 @@ def update_names(cluster_yaml, cluster_name, namespace):
 
 def update_image(spec, image):
     containers = spec.get("containers")
-    for container in containers:
-        container["image"] = image
+    if image != "":
+        for container in containers:
+            container["image"] = image
 
 
 def update_image_pull_secrets(spec, image_pull_secrets):
