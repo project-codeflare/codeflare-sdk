@@ -5,10 +5,7 @@ metadata:
     app.kubernetes.io/managed-by: test-prefix
   labels:
     controller-tools.k8s.io: '1.0'
-    kueue.x-k8s.io/queue-name: local-queue-default
-    testlabel: test
-    testlabel2: test
-  name: unit-test-cluster-ray
+  name: unit-test-no-kueue
   namespace: ns
 spec:
   autoscalerOptions:
@@ -90,7 +87,7 @@ spec:
           name: odh-ca-cert
   rayVersion: 2.23.0
   workerGroupSpecs:
-  - groupName: small-group-unit-test-cluster-ray
+  - groupName: small-group-unit-test-no-kueue
     maxReplicas: 2
     minReplicas: 2
     rayStartParams:

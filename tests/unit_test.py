@@ -258,10 +258,10 @@ def test_config_creation():
 
     assert config.name == "unit-test-cluster" and config.namespace == "ns"
     assert config.num_workers == 2
-    assert config.min_cpus == 3 and config.max_cpus == 4
-    assert config.min_memory == "5G" and config.max_memory == "6G"
-    assert config.num_gpus == 7
-    assert config.image == "quay.io/project-codeflare/ray:2.20.0-py39-cu118"
+    assert config.worker_cpu_requests == 3 and config.worker_cpu_limits == 4
+    assert config.worker_memory_requests == "5G" and config.worker_memory_limits == "6G"
+    assert config.worker_extended_resource_requests == {"nvidia.com/gpu": 7}
+    assert config.image == "quay.io/rhoai/ray:2.23.0-py39-cu121"
     assert config.template == f"{parent}/src/codeflare_sdk/templates/base-template.yaml"
     assert config.machine_types == ["cpu.small", "gpu.large"]
     assert config.image_pull_secrets == ["unit-test-pull-secret"]
@@ -285,17 +285,26 @@ def test_cluster_creation(mocker):
     )
 
 
-def test_create_app_wrapper_raises_error_with_no_image():
+def test_cluster_no_kueue_no_aw(mocker):
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.get_cluster_custom_object",
+        return_value={"spec": {"domain": "apps.cluster.awsroute.org"}},
+    )
+    mocker.patch("kubernetes.client.CustomObjectsApi.list_namespaced_custom_object")
+    mocker.patch("os.environ.get", return_value="test-prefix")
     config = createClusterConfig()
-    config.image = ""  # Clear the image to test error handling
-    try:
-        cluster = Cluster(config)
-        cluster.create_app_wrapper()
-        assert False, "Expected ValueError when 'image' is not specified."
-    except ValueError as error:
-        assert (
-            str(error) == "Image must be specified in the ClusterConfiguration"
-        ), "Error message did not match expected output."
+    config.appwrapper = False
+    config.name = "unit-test-no-kueue"
+    config.write_to_file = True
+    cluster = Cluster(config)
+    assert cluster.app_wrapper_yaml == f"{aw_dir}unit-test-no-kueue.yaml"
+    assert cluster.config.local_queue == None
+    assert filecmp.cmp(
+        f"{aw_dir}unit-test-no-kueue.yaml",
+        f"{parent}/tests/test-case-no-kueue-no-aw.yaml",
+        shallow=True,
+    )
 
 
 def get_local_queue(group, version, namespace, plural):
@@ -393,14 +402,14 @@ def test_cluster_creation_no_mcad_local_queue(mocker):
         name="unit-test-cluster-ray",
         namespace="ns",
         num_workers=2,
-        min_cpus=3,
-        max_cpus=4,
-        min_memory=5,
-        max_memory=6,
-        num_gpus=7,
+        worker_cpu_requests=3,
+        worker_cpu_limits=4,
+        worker_memory_requests=5,
+        worker_memory_limits=6,
+        worker_extended_resource_requests={"nvidia.com/gpu": 7},
         machine_types=["cpu.small", "gpu.large"],
         image_pull_secrets=["unit-test-pull-secret"],
-        image="quay.io/project-codeflare/ray:2.20.0-py39-cu118",
+        image="quay.io/rhoai/ray:2.23.0-py39-cu121",
         write_to_file=True,
         appwrapper=False,
         local_queue="local-queue-default",
@@ -428,7 +437,7 @@ def test_default_cluster_creation(mocker):
     )
     default_config = ClusterConfiguration(
         name="unit-test-default-cluster",
-        image="quay.io/project-codeflare/ray:2.20.0-py39-cu118",
+        image="quay.io/rhoai/ray:2.23.0-py39-cu121",
         appwrapper=True,
     )
     cluster = Cluster(default_config)
@@ -777,7 +786,7 @@ def test_ray_job_wrapping(mocker):
         return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
     )
     cluster = cluster = createClusterWithConfig(mocker)
-    cluster.config.image = "quay.io/project-codeflare/ray:2.20.0-py39-cu118"
+    cluster.config.image = "quay.io/rhoai/ray:2.23.0-py39-cu121"
     mocker.patch(
         "ray.job_submission.JobSubmissionClient._check_connection_and_version_with_url",
         return_value="None",
@@ -874,12 +883,10 @@ def test_ray_details(mocker, capsys):
         worker_mem_min="2G",
         worker_mem_max="2G",
         worker_cpu=1,
-        worker_gpu=0,
         namespace="ns",
         dashboard="fake-uri",
         head_cpus=2,
         head_mem=8,
-        head_gpu=0,
     )
     mocker.patch(
         "codeflare_sdk.cluster.cluster.Cluster.status",
@@ -897,7 +904,7 @@ def test_ray_details(mocker, capsys):
         ClusterConfiguration(
             name="raytest2",
             namespace="ns",
-            image="quay.io/project-codeflare/ray:2.20.0-py39-cu118",
+            image="quay.io/rhoai/ray:2.23.0-py39-cu121",
             write_to_file=True,
             appwrapper=True,
             local_queue="local_default_queue",
@@ -913,7 +920,7 @@ def test_ray_details(mocker, capsys):
     assert ray1.worker_mem_min == ray2.worker_mem_min
     assert ray1.worker_mem_max == ray2.worker_mem_max
     assert ray1.worker_cpu == ray2.worker_cpu
-    assert ray1.worker_gpu == ray2.worker_gpu
+    assert ray1.worker_extended_resources == ray2.worker_extended_resources
     try:
         print_clusters([ray1, ray2])
         print_cluster_status(ray1)
@@ -1120,12 +1127,10 @@ def get_ray_obj(group, version, namespace, plural, cls=None):
                                             "limits": {
                                                 "cpu": 2,
                                                 "memory": "8G",
-                                                "nvidia.com/gpu": 0,
                                             },
                                             "requests": {
                                                 "cpu": 2,
                                                 "memory": "8G",
-                                                "nvidia.com/gpu": 0,
                                             },
                                         },
                                         "volumeMounts": [
@@ -1183,13 +1188,16 @@ def get_ray_obj(group, version, namespace, plural, cls=None):
                             },
                         },
                     },
-                    "rayVersion": "2.20.0",
+                    "rayVersion": "2.23.0",
                     "workerGroupSpecs": [
                         {
                             "groupName": "small-group-quicktest",
                             "maxReplicas": 1,
                             "minReplicas": 1,
-                            "rayStartParams": {"block": "true", "num-gpus": "0"},
+                            "rayStartParams": {
+                                "block": "true",
+                                "num-gpus": "0",
+                            },
                             "replicas": 1,
                             "scaleStrategy": {},
                             "template": {
@@ -1240,12 +1248,10 @@ def get_ray_obj(group, version, namespace, plural, cls=None):
                                                 "limits": {
                                                     "cpu": 1,
                                                     "memory": "2G",
-                                                    "nvidia.com/gpu": 0,
                                                 },
                                                 "requests": {
                                                     "cpu": 1,
                                                     "memory": "2G",
-                                                    "nvidia.com/gpu": 0,
                                                 },
                                             },
                                             "volumeMounts": [
@@ -1404,12 +1410,10 @@ def get_ray_obj(group, version, namespace, plural, cls=None):
                                             "limits": {
                                                 "cpu": 2,
                                                 "memory": "8G",
-                                                "nvidia.com/gpu": 0,
                                             },
                                             "requests": {
                                                 "cpu": 2,
                                                 "memory": "8G",
-                                                "nvidia.com/gpu": 0,
                                             },
                                         },
                                     }
@@ -1417,13 +1421,16 @@ def get_ray_obj(group, version, namespace, plural, cls=None):
                             }
                         },
                     },
-                    "rayVersion": "2.20.0",
+                    "rayVersion": "2.23.0",
                     "workerGroupSpecs": [
                         {
                             "groupName": "small-group-quicktest2",
                             "maxReplicas": 1,
                             "minReplicas": 1,
-                            "rayStartParams": {"block": "true", "num-gpus": "0"},
+                            "rayStartParams": {
+                                "block": "true",
+                                "num-gpus": "0",
+                            },
                             "replicas": 1,
                             "template": {
                                 "metadata": {
@@ -1460,12 +1467,10 @@ def get_ray_obj(group, version, namespace, plural, cls=None):
                                                 "limits": {
                                                     "cpu": 1,
                                                     "memory": "2G",
-                                                    "nvidia.com/gpu": 0,
                                                 },
                                                 "requests": {
                                                     "cpu": 1,
                                                     "memory": "2G",
-                                                    "nvidia.com/gpu": 0,
                                                 },
                                             },
                                         }
@@ -1582,12 +1587,10 @@ def get_aw_obj(group, version, namespace, plural):
                                                             "limits": {
                                                                 "cpu": 2,
                                                                 "memory": "8G",
-                                                                "nvidia.com/gpu": 0,
                                                             },
                                                             "requests": {
                                                                 "cpu": 2,
                                                                 "memory": "8G",
-                                                                "nvidia.com/gpu": 0,
                                                             },
                                                         },
                                                     }
@@ -1641,12 +1644,10 @@ def get_aw_obj(group, version, namespace, plural):
                                                                 "limits": {
                                                                     "cpu": 1,
                                                                     "memory": "2G",
-                                                                    "nvidia.com/gpu": 0,
                                                                 },
                                                                 "requests": {
                                                                     "cpu": 1,
                                                                     "memory": "2G",
-                                                                    "nvidia.com/gpu": 0,
                                                                 },
                                                             },
                                                         }
@@ -1777,12 +1778,10 @@ def get_aw_obj(group, version, namespace, plural):
                                                             "limits": {
                                                                 "cpu": 2,
                                                                 "memory": "8G",
-                                                                "nvidia.com/gpu": 0,
                                                             },
                                                             "requests": {
                                                                 "cpu": 2,
                                                                 "memory": "8G",
-                                                                "nvidia.com/gpu": 0,
                                                             },
                                                         },
                                                     }
@@ -1790,7 +1789,7 @@ def get_aw_obj(group, version, namespace, plural):
                                             }
                                         },
                                     },
-                                    "rayVersion": "2.20.0",
+                                    "rayVersion": "2.23.0",
                                     "workerGroupSpecs": [
                                         {
                                             "groupName": "small-group-quicktest",
@@ -1836,12 +1835,10 @@ def get_aw_obj(group, version, namespace, plural):
                                                                 "limits": {
                                                                     "cpu": 1,
                                                                     "memory": "2G",
-                                                                    "nvidia.com/gpu": 0,
                                                                 },
                                                                 "requests": {
                                                                     "cpu": 1,
                                                                     "memory": "2G",
-                                                                    "nvidia.com/gpu": 0,
                                                                 },
                                                             },
                                                         }
@@ -1985,9 +1982,15 @@ def test_get_cluster_openshift(mocker):
         "m4.xlarge" in cluster_config.machine_types
         and "g4dn.xlarge" in cluster_config.machine_types
     )
-    assert cluster_config.min_cpus == 1 and cluster_config.max_cpus == 1
-    assert cluster_config.min_memory == "2G" and cluster_config.max_memory == "2G"
-    assert cluster_config.num_gpus == 0
+    assert (
+        cluster_config.worker_cpu_requests == 1
+        and cluster_config.worker_cpu_limits == 1
+    )
+    assert (
+        cluster_config.worker_memory_requests == "2G"
+        and cluster_config.worker_memory_limits == "2G"
+    )
+    assert cluster_config.worker_extended_resource_requests == {}
     assert (
         cluster_config.image
         == "ghcr.io/foundation-model-stack/base:ray2.1.0-py38-gpu-pytorch1.12.0cu116-20221213-193103"
@@ -2021,9 +2024,15 @@ def test_get_cluster(mocker):
         "m4.xlarge" in cluster_config.machine_types
         and "g4dn.xlarge" in cluster_config.machine_types
     )
-    assert cluster_config.min_cpus == 1 and cluster_config.max_cpus == 1
-    assert cluster_config.min_memory == "2G" and cluster_config.max_memory == "2G"
-    assert cluster_config.num_gpus == 0
+    assert (
+        cluster_config.worker_cpu_requests == 1
+        and cluster_config.worker_cpu_limits == 1
+    )
+    assert (
+        cluster_config.worker_memory_requests == "2G"
+        and cluster_config.worker_memory_limits == "2G"
+    )
+    assert cluster_config.worker_extended_resource_requests == {}
     assert (
         cluster_config.image
         == "ghcr.io/foundation-model-stack/base:ray2.1.0-py38-gpu-pytorch1.12.0cu116-20221213-193103"
@@ -2053,9 +2062,15 @@ def test_get_cluster_no_mcad(mocker):
         "m4.xlarge" in cluster_config.machine_types
         and "g4dn.xlarge" in cluster_config.machine_types
     )
-    assert cluster_config.min_cpus == 1 and cluster_config.max_cpus == 1
-    assert cluster_config.min_memory == "2G" and cluster_config.max_memory == "2G"
-    assert cluster_config.num_gpus == 0
+    assert (
+        cluster_config.worker_cpu_requests == 1
+        and cluster_config.worker_cpu_limits == 1
+    )
+    assert (
+        cluster_config.worker_memory_requests == "2G"
+        and cluster_config.worker_memory_limits == "2G"
+    )
+    assert cluster_config.worker_extended_resource_requests == {}
     assert (
         cluster_config.image
         == "ghcr.io/foundation-model-stack/base:ray2.1.0-py38-gpu-pytorch1.12.0cu116-20221213-193103"
@@ -2283,18 +2298,16 @@ def test_cluster_status(mocker):
         worker_mem_min=2,
         worker_mem_max=2,
         worker_cpu=1,
-        worker_gpu=0,
         namespace="ns",
         dashboard="fake-uri",
         head_cpus=2,
         head_mem=8,
-        head_gpu=0,
     )
     cf = Cluster(
         ClusterConfiguration(
             name="test",
             namespace="ns",
-            image="quay.io/project-codeflare/ray:2.20.0-py39-cu118",
+            image="quay.io/rhoai/ray:2.23.0-py39-cu121",
             write_to_file=True,
             appwrapper=True,
             local_queue="local_default_queue",
@@ -2389,7 +2402,7 @@ def test_wait_ready(mocker, capsys):
         ClusterConfiguration(
             name="test",
             namespace="ns",
-            image="quay.io/project-codeflare/ray:2.20.0-py39-cu118",
+            image="quay.io/rhoai/ray:2.23.0-py39-cu121",
             write_to_file=True,
             appwrapper=True,
             local_queue="local-queue-default",
@@ -2616,7 +2629,7 @@ def test_cluster_throw_for_no_raycluster(mocker: MockerFixture):
     cluster = Cluster(
         ClusterConfiguration(
             "test_cluster",
-            image="quay.io/project-codeflare/ray:2.20.0-py39-cu118",
+            image="quay.io/rhoai/ray:2.23.0-py39-cu121",
             write_to_file=False,
         )
     )
@@ -2767,8 +2780,8 @@ def test_rjc_tail_job_logs(ray_job_client, mocker):
 
 def test_rjc_list_jobs(ray_job_client, mocker):
     jobs_list = [
-        "JobDetails(type=<JobType.SUBMISSION: 'SUBMISSION'>, job_id=None, submission_id='raysubmit_4k2NYS1YbRXYPZCM', driver_info=None, status=<JobStatus.SUCCEEDED: 'SUCCEEDED'>, entrypoint='python mnist.py', message='Job finished successfully.', error_type=None, start_time=1701352132585, end_time=1701352192002, metadata={}, runtime_env={'working_dir': 'gcs://_ray_pkg_6200b93a110e8033.zip', 'pip': {'packages': ['pytorch_lightning==1.5.10', 'ray_lightning', 'torchmetrics==0.9.1', 'torchvision==0.12.0'], 'pip_check': False}, '_ray_commit': 'b4bba4717f5ba04ee25580fe8f88eed63ef0c5dc'}, driver_agent_http_address='http://10.131.0.18:52365', driver_node_id='9fb515995f5fb13ad4db239ceea378333bebf0a2d45b6aa09d02e691')",
-        "JobDetails(type=<JobType.SUBMISSION: 'SUBMISSION'>, job_id=None, submission_id='raysubmit_iRuwU8vdkbUZZGvT', driver_info=None, status=<JobStatus.STOPPED: 'STOPPED'>, entrypoint='python mnist.py', message='Job was intentionally stopped.', error_type=None, start_time=1701353096163, end_time=1701353097733, metadata={}, runtime_env={'working_dir': 'gcs://_ray_pkg_6200b93a110e8033.zip', 'pip': {'packages': ['pytorch_lightning==1.5.10', 'ray_lightning', 'torchmetrics==0.9.1', 'torchvision==0.12.0'], 'pip_check': False}, '_ray_commit': 'b4bba4717f5ba04ee25580fe8f88eed63ef0c5dc'}, driver_agent_http_address='http://10.131.0.18:52365', driver_node_id='9fb515995f5fb13ad4db239ceea378333bebf0a2d45b6aa09d02e691')",
+        "JobDetails(type=<JobType.SUBMISSION: 'SUBMISSION'>, job_id=None, submission_id='raysubmit_4k2NYS1YbRXYPZCM', driver_info=None, status=<JobStatus.SUCCEEDED: 'SUCCEEDED'>, entrypoint='python mnist.py', message='Job finished successfully.', error_type=None, start_time=1701352132585, end_time=1701352192002, metadata={}, runtime_env={'working_dir': 'gcs://_ray_pkg_6200b93a110e8033.zip', 'pip': {'packages': ['pytorch_lightning==1.9.5', 'ray_lightning', 'torchmetrics==0.9.1', 'torchvision==0.12.0'], 'pip_check': False}, '_ray_commit': 'b4bba4717f5ba04ee25580fe8f88eed63ef0c5dc'}, driver_agent_http_address='http://10.131.0.18:52365', driver_node_id='9fb515995f5fb13ad4db239ceea378333bebf0a2d45b6aa09d02e691')",
+        "JobDetails(type=<JobType.SUBMISSION: 'SUBMISSION'>, job_id=None, submission_id='raysubmit_iRuwU8vdkbUZZGvT', driver_info=None, status=<JobStatus.STOPPED: 'STOPPED'>, entrypoint='python mnist.py', message='Job was intentionally stopped.', error_type=None, start_time=1701353096163, end_time=1701353097733, metadata={}, runtime_env={'working_dir': 'gcs://_ray_pkg_6200b93a110e8033.zip', 'pip': {'packages': ['pytorch_lightning==1.9.5', 'ray_lightning', 'torchmetrics==0.9.1', 'torchvision==0.12.0'], 'pip_check': False}, '_ray_commit': 'b4bba4717f5ba04ee25580fe8f88eed63ef0c5dc'}, driver_agent_http_address='http://10.131.0.18:52365', driver_node_id='9fb515995f5fb13ad4db239ceea378333bebf0a2d45b6aa09d02e691')",
     ]
     mocked_rjc_list_jobs = mocker.patch.object(
         JobSubmissionClient, "list_jobs", return_value=jobs_list
@@ -2779,8 +2792,27 @@ def test_rjc_list_jobs(ray_job_client, mocker):
     assert job_list_jobs == jobs_list
 
 
+def test_cluster_config_deprecation_conversion(mocker):
+    config = ClusterConfiguration(
+        name="test",
+        num_gpus=2,
+        head_gpus=1,
+        min_memory=3,
+        max_memory=4,
+        min_cpus=1,
+        max_cpus=2,
+    )
+    assert config.worker_extended_resource_requests == {"nvidia.com/gpu": 2}
+    assert config.head_extended_resource_requests == {"nvidia.com/gpu": 1}
+    assert config.worker_memory_requests == "3G"
+    assert config.worker_memory_limits == "4G"
+    assert config.worker_cpu_requests == 1
+    assert config.worker_cpu_limits == 2
+
+
 # Make sure to always keep this function last
 def test_cleanup():
+    os.remove(f"{aw_dir}unit-test-no-kueue.yaml")
     os.remove(f"{aw_dir}unit-test-cluster.yaml")
     os.remove(f"{aw_dir}test.yaml")
     os.remove(f"{aw_dir}raytest2.yaml")

@@ -29,6 +29,7 @@ from .auth import config_check, api_config_handler
 from ..utils import pretty_print
 from ..utils.generate_yaml import (
     generate_appwrapper,
+    head_worker_gpu_count_from_cluster,
 )
 from ..utils.kube_api_helpers import _kube_api_error_handling
 from ..utils.generate_yaml import is_openshift_cluster
@@ -103,16 +104,6 @@ class Cluster:
             )
         return self._job_submission_client
 
-    def validate_image_config(self):
-        """
-        Validates that the image configuration is not empty.
-
-        :param image: The image string to validate
-        :raises ValueError: If the image is not specified
-        """
-        if self.config.image == "" or self.config.image == None:
-            raise ValueError("Image must be specified in the ClusterConfiguration")
-
     def create_app_wrapper(self):
         """
         Called upon cluster object creation, creates an AppWrapper yaml based on
@@ -128,51 +119,7 @@ class Cluster:
                     f"Namespace {self.config.namespace} is of type {type(self.config.namespace)}. Check your Kubernetes Authentication."
                 )
 
-        # Validate image configuration
-        self.validate_image_config()
-
-        # Before attempting to create the cluster AW, let's evaluate the ClusterConfig
-
-        name = self.config.name
-        namespace = self.config.namespace
-        head_cpus = self.config.head_cpus
-        head_memory = self.config.head_memory
-        head_gpus = self.config.head_gpus
-        min_cpu = self.config.min_cpus
-        max_cpu = self.config.max_cpus
-        min_memory = self.config.min_memory
-        max_memory = self.config.max_memory
-        gpu = self.config.num_gpus
-        workers = self.config.num_workers
-        template = self.config.template
-        image = self.config.image
-        appwrapper = self.config.appwrapper
-        env = self.config.envs
-        image_pull_secrets = self.config.image_pull_secrets
-        write_to_file = self.config.write_to_file
-        local_queue = self.config.local_queue
-        labels = self.config.labels
-        return generate_appwrapper(
-            name=name,
-            namespace=namespace,
-            head_cpus=head_cpus,
-            head_memory=head_memory,
-            head_gpus=head_gpus,
-            min_cpu=min_cpu,
-            max_cpu=max_cpu,
-            min_memory=min_memory,
-            max_memory=max_memory,
-            gpu=gpu,
-            workers=workers,
-            template=template,
-            image=image,
-            appwrapper=appwrapper,
-            env=env,
-            image_pull_secrets=image_pull_secrets,
-            write_to_file=write_to_file,
-            local_queue=local_queue,
-            labels=labels,
-        )
+        return generate_appwrapper(self)
 
     # creates a new cluster with the provided or default spec
     def up(self):
@@ -318,7 +265,7 @@ class Cluster:
 
             if print_to_console:
                 # overriding the number of gpus with requested
-                cluster.worker_gpu = self.config.num_gpus
+                _, cluster.worker_gpu = head_worker_gpu_count_from_cluster(self)
                 pretty_print.print_cluster_status(cluster)
         elif print_to_console:
             if status == CodeFlareClusterStatus.UNKNOWN:
@@ -456,6 +403,29 @@ class Cluster:
         """
         return self.job_client.get_job_logs(job_id)
 
+    @staticmethod
+    def _head_worker_extended_resources_from_rc_dict(rc: Dict) -> Tuple[dict, dict]:
+        head_extended_resources, worker_extended_resources = {}, {}
+        for resource in rc["spec"]["workerGroupSpecs"][0]["template"]["spec"][
+            "containers"
+        ][0]["resources"]["limits"].keys():
+            if resource in ["memory", "cpu"]:
+                continue
+            worker_extended_resources[resource] = rc["spec"]["workerGroupSpecs"][0][
+                "template"
+            ]["spec"]["containers"][0]["resources"]["limits"][resource]
+
+        for resource in rc["spec"]["headGroupSpec"]["template"]["spec"]["containers"][
+            0
+        ]["resources"]["limits"].keys():
+            if resource in ["memory", "cpu"]:
+                continue
+            head_extended_resources[resource] = rc["spec"]["headGroupSpec"]["template"][
+                "spec"
+            ]["containers"][0]["resources"]["limits"][resource]
+
+        return head_extended_resources, worker_extended_resources
+
     def from_k8_cluster_object(
         rc,
         appwrapper=True,
@@ -469,28 +439,30 @@ class Cluster:
             else []
         )
 
+        (
+            head_extended_resources,
+            worker_extended_resources,
+        ) = Cluster._head_worker_extended_resources_from_rc_dict(rc)
+
         cluster_config = ClusterConfiguration(
             name=rc["metadata"]["name"],
             namespace=rc["metadata"]["namespace"],
             machine_types=machine_types,
             num_workers=rc["spec"]["workerGroupSpecs"][0]["minReplicas"],
-            min_cpus=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"][
+            worker_cpu_requests=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"][
                 "containers"
             ][0]["resources"]["requests"]["cpu"],
-            max_cpus=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"][
+            worker_cpu_limits=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"][
                 "containers"
             ][0]["resources"]["limits"]["cpu"],
-            min_memory=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"][
-                "containers"
-            ][0]["resources"]["requests"]["memory"],
-            max_memory=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"][
+            worker_memory_requests=rc["spec"]["workerGroupSpecs"][0]["template"][
+                "spec"
+            ]["containers"][0]["resources"]["requests"]["memory"],
+            worker_memory_limits=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"][
                 "containers"
             ][0]["resources"]["limits"]["memory"],
-            num_gpus=int(
-                rc["spec"]["workerGroupSpecs"][0]["template"]["spec"]["containers"][0][
-                    "resources"
-                ]["limits"]["nvidia.com/gpu"]
-            ),
+            worker_extended_resource_requests=worker_extended_resources,
+            head_extended_resource_requests=head_extended_resources,
             image=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"]["containers"][
                 0
             ]["image"],
@@ -871,6 +843,11 @@ def _map_to_ray_cluster(rc) -> Optional[RayCluster]:
                     protocol = "https"
             dashboard_url = f"{protocol}://{ingress.spec.rules[0].host}"
 
+    (
+        head_extended_resources,
+        worker_extended_resources,
+    ) = Cluster._head_worker_extended_resources_from_rc_dict(rc)
+
     return RayCluster(
         name=rc["metadata"]["name"],
         status=status,
@@ -885,7 +862,7 @@ def _map_to_ray_cluster(rc) -> Optional[RayCluster]:
         worker_cpu=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"]["containers"][
             0
         ]["resources"]["limits"]["cpu"],
-        worker_gpu=0,  # hard to detect currently how many gpus, can override it with what the user asked for
+        worker_extended_resources=worker_extended_resources,
         namespace=rc["metadata"]["namespace"],
         head_cpus=rc["spec"]["headGroupSpec"]["template"]["spec"]["containers"][0][
             "resources"
@@ -893,9 +870,7 @@ def _map_to_ray_cluster(rc) -> Optional[RayCluster]:
         head_mem=rc["spec"]["headGroupSpec"]["template"]["spec"]["containers"][0][
             "resources"
         ]["limits"]["memory"],
-        head_gpu=rc["spec"]["headGroupSpec"]["template"]["spec"]["containers"][0][
-            "resources"
-        ]["limits"]["nvidia.com/gpu"],
+        head_extended_resources=head_extended_resources,
         dashboard=dashboard_url,
     )
 
@@ -917,15 +892,15 @@ def _copy_to_ray(cluster: Cluster) -> RayCluster:
         name=cluster.config.name,
         status=cluster.status(print_to_console=False)[0],
         workers=cluster.config.num_workers,
-        worker_mem_min=cluster.config.min_memory,
-        worker_mem_max=cluster.config.max_memory,
-        worker_cpu=cluster.config.min_cpus,
-        worker_gpu=cluster.config.num_gpus,
+        worker_mem_min=cluster.config.worker_memory_requests,
+        worker_mem_max=cluster.config.worker_memory_limits,
+        worker_cpu=cluster.config.worker_cpu_requests,
+        worker_extended_resources=cluster.config.worker_extended_resource_requests,
         namespace=cluster.config.namespace,
         dashboard=cluster.cluster_dashboard_uri(),
         head_cpus=cluster.config.head_cpus,
         head_mem=cluster.config.head_memory,
-        head_gpu=cluster.config.head_gpus,
+        head_extended_resources=cluster.config.head_extended_resource_requests,
     )
     if ray.status == CodeFlareClusterStatus.READY:
         ray.status = RayClusterStatus.READY
