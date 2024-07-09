@@ -32,6 +32,9 @@ print("prior to running the trainer")
 print("MASTER_ADDR: is ", os.getenv("MASTER_ADDR"))
 print("MASTER_PORT: is ", os.getenv("MASTER_PORT"))
 
+print("ACCELERATOR: is ", os.getenv("ACCELERATOR"))
+ACCELERATOR = os.getenv("ACCELERATOR")
+
 
 class LitMNIST(LightningModule):
     def __init__(self, data_dir=PATH_DATASETS, hidden_size=64, learning_rate=2e-4):
@@ -149,7 +152,7 @@ print("LOCAL: ", int(os.environ.get("LOCAL_WORLD_SIZE", 1)))
 
 # Initialize a trainer
 trainer = Trainer(
-    accelerator="auto",
+    accelerator=ACCELERATOR,
     # devices=1 if torch.cuda.is_available() else None,  # limiting got iPython runs
     max_epochs=3,
     callbacks=[TQDMProgressBar(refresh_rate=20)],

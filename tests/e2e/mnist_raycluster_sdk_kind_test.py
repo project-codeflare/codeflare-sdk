@@ -25,9 +25,18 @@ class TestRayClusterSDKKind:
         self.setup_method()
         create_namespace(self)
         create_kueue_resources(self)
-        self.run_mnist_raycluster_sdk_kind()
+        self.run_mnist_raycluster_sdk_kind(accelerator="cpu")
 
-    def run_mnist_raycluster_sdk_kind(self):
+    @pytest.mark.nvidia_gpu
+    def test_mnist_ray_cluster_sdk_kind_nvidia_gpu(self):
+        self.setup_method()
+        create_namespace(self)
+        create_kueue_resources(self)
+        self.run_mnist_raycluster_sdk_kind(accelerator="gpu", number_of_gpus=1)
+
+    def run_mnist_raycluster_sdk_kind(
+        self, accelerator, gpu_resource_name="nvidia.com/gpu", number_of_gpus=0
+    ):
         ray_image = get_ray_image()
 
         cluster = Cluster(
@@ -40,7 +49,8 @@ class TestRayClusterSDKKind:
                 worker_cpu_requests="500m",
                 worker_cpu_limits=1,
                 worker_memory_requests=1,
-                worker_memory_limits=2,
+                worker_memory_limits=4,
+                worker_extended_resource_requests={gpu_resource_name: number_of_gpus},
                 image=ray_image,
                 write_to_file=True,
                 verify_tls=False,
@@ -57,11 +67,11 @@ class TestRayClusterSDKKind:
 
         cluster.details()
 
-        self.assert_jobsubmit_withoutlogin_kind(cluster)
+        self.assert_jobsubmit_withoutlogin_kind(cluster, accelerator, number_of_gpus)
 
     # Assertions
 
-    def assert_jobsubmit_withoutlogin_kind(self, cluster):
+    def assert_jobsubmit_withoutlogin_kind(self, cluster, accelerator, number_of_gpus):
         ray_dashboard = cluster.cluster_dashboard_uri()
         client = RayJobClient(address=ray_dashboard, verify=False)
 
@@ -70,7 +80,9 @@ class TestRayClusterSDKKind:
             runtime_env={
                 "working_dir": "./tests/e2e/",
                 "pip": "./tests/e2e/mnist_pip_requirements.txt",
+                "env_vars": {"ACCELERATOR": accelerator},
             },
+            entrypoint_num_gpus=number_of_gpus,
         )
         print(f"Submitted job with ID: {submission_id}")
         done = False

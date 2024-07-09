@@ -5,6 +5,9 @@
 ## On KinD clusters
 Pre-requisite for KinD clusters: please add in your local `/etc/hosts` file `127.0.0.1 kind`. This will map your localhost IP address to the KinD cluster's hostname. This is already performed on [GitHub Actions](https://github.com/project-codeflare/codeflare-common/blob/1edd775e2d4088a5a0bfddafb06ff3a773231c08/github-actions/kind/action.yml#L70-L72)
 
+If the system you run on contains NVidia GPU then you can enable the GPU support in KinD, this will allow you to run also GPU tests.
+To enable GPU on KinD follow [these instructions](https://www.substratus.ai/blog/kind-with-gpus).
+
 - Setup Phase:
   - Pull the [codeflare-operator repo](https://github.com/project-codeflare/codeflare-operator) and run the following make targets:
   ```
@@ -64,9 +67,13 @@ Pre-requisite for KinD clusters: please add in your local `/etc/hosts` file `127
    - Once we have the codeflare-operator, kuberay-operator and kueue running and ready, we can run the e2e test on the codeflare-sdk repository:
   ```
   poetry install --with test,docs
-  poetry run pytest -v -s ./tests/e2e/mnist_raycluster_sdk_test.py
+  poetry run pytest -v -s ./tests/e2e/mnist_raycluster_sdk_kind_test.py
   ```
-
+   - If the cluster doesn't have NVidia GPU support then we need to disable NVidia GPU tests by providing proper marker:
+  ```
+  poetry install --with test,docs
+  poetry run pytest -v -s ./tests/e2e/mnist_raycluster_sdk_kind_test.py -m 'kind and not nvidia_gpu'
+  ```
 
 
 ## On OpenShift clusters
@@ -83,6 +90,10 @@ Pre-requisite for KinD clusters: please add in your local `/etc/hosts` file `127
   kubectl apply --server-side -k "github.com/opendatahub-io/kueue/config/rhoai?ref=dev"
   ```
 
+If the system you run on contains NVidia GPU then you can enable the GPU support on OpenShift, this will allow you to run also GPU tests.
+To enable GPU on OpenShift follow [these instructions](https://docs.nvidia.com/datacenter/cloud-native/openshift/latest/introduction.html).
+Currently the SDK doesn't support tolerations, so e2e tests can't be executed on nodes with taint (i.e. GPU taint).
+
 - Test Phase:
    - Once we have the codeflare-operator, kuberay-operator and kueue running and ready, we can run the e2e test on the codeflare-sdk repository:
   ```
@@ -96,4 +107,9 @@ Pre-requisite for KinD clusters: please add in your local `/etc/hosts` file `127
   - By default tests configured with timeout of `15 minutes`. If necessary, we can override the timeout using `--timeout` option
   ```
   poetry run pytest -v -s ./tests/e2e -m openshift --timeout=1200
+  ```
+  - If the cluster doesn't have NVidia GPU support or GPU nodes have taint then we need to disable NVidia GPU tests by providing proper marker:
+  ```
+  poetry install --with test,docs
+  poetry run pytest -v -s ./tests/e2e/mnist_raycluster_sdk_kind_test.py -m 'not nvidia_gpu'
   ```

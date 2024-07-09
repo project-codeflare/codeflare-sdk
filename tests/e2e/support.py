@@ -90,7 +90,7 @@ def create_cluster_queue(self, cluster_queue, flavor):
                             "resources": [
                                 {"name": "cpu", "nominalQuota": 9},
                                 {"name": "memory", "nominalQuota": "36Gi"},
-                                {"name": "nvidia.com/gpu", "nominalQuota": 0},
+                                {"name": "nvidia.com/gpu", "nominalQuota": 1},
                             ],
                         }
                     ],
