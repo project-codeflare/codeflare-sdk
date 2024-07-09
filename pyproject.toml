@@ -52,6 +52,7 @@ filterwarnings = [
 ]
 markers = [
     "kind",
-    "openshift"
+    "openshift",
+    "nvidia_gpu"
 ]
 addopts = "--timeout=900"

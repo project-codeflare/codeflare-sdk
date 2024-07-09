@@ -30,26 +30,9 @@ env:
 jobs:
   kubernetes:
 
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-20.04-4core-gpu
 
     steps:
-      - name: Cleanup
-        run: |
-          ls -lart
-          echo "Initial status:"
-          df -h
-          echo "Cleaning up resources:"
-          sudo swapoff -a
-          sudo rm -f /swapfile
-          sudo apt clean
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf /opt/ghc
-          sudo rm -rf "/usr/local/share/boost"
-          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
-          docker rmi $(docker image ls -aq)
-          echo "Final status:"
-          df -h
-
       - name: Checkout code
         uses: actions/checkout@v4
         with:
@@ -85,8 +68,14 @@ jobs:
           python-version: '3.9'
           cache: 'pip' # caching pip dependencies
 
+      - name: Setup NVidia GPU environment for KinD
+        uses: ./common/github-actions/nvidia-gpu-setup
+
       - name: Setup and start KinD cluster
         uses: ./common/github-actions/kind
+
+      - name: Install NVidia GPU operator for KinD
+        uses: ./common/github-actions/nvidia-gpu-operator
 
       - name: Deploy CodeFlare stack
         id: deploy
@@ -103,9 +92,6 @@ jobs:
         uses: ./common/github-actions/kind-add-user
         with:
           user-name: sdk-user
-
-      - name: Add kueue resources
-        run: kubectl apply --server-side -f "https://github.com/kubernetes-sigs/kueue/releases/download/v0.6.2/manifests.yaml"
 
       - name: Configure RBAC for sdk user with limited permissions
         run: |
@@ -136,7 +122,7 @@ jobs:
           pip install poetry
           poetry install --with test,docs
           echo "Running e2e tests..."
-          poetry run pytest -v -s ./tests/e2e -m kind > ${CODEFLARE_TEST_OUTPUT_DIR}/pytest_output.log 2>&1
+          poetry run pytest -v -s ./tests/e2e -m 'kind and nvidia_gpu' > ${CODEFLARE_TEST_OUTPUT_DIR}/pytest_output.log 2>&1
         env:
           GRPC_DNS_RESOLVER: "native"
 

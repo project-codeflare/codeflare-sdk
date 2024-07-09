@@ -27,7 +27,16 @@ class TestRayLocalInteractiveOauth:
         create_kueue_resources(self)
         self.run_local_interactives()
 
-    def run_local_interactives(self):
+    @pytest.mark.nvidia_gpu
+    def test_local_interactives_nvidia_gpu(self):
+        self.setup_method()
+        create_namespace(self)
+        create_kueue_resources(self)
+        self.run_local_interactives(number_of_gpus=1)
+
+    def run_local_interactives(
+        self, gpu_resource_name="nvidia.com/gpu", number_of_gpus=0
+    ):
         ray_image = get_ray_image()
 
         cluster_name = "test-ray-cluster-li"
@@ -43,6 +52,7 @@ class TestRayLocalInteractiveOauth:
                 worker_cpu_limits=1,
                 worker_memory_requests=1,
                 worker_memory_limits=2,
+                worker_extended_resource_requests={gpu_resource_name: number_of_gpus},
                 image=ray_image,
                 write_to_file=True,
                 verify_tls=False,
@@ -59,7 +69,7 @@ class TestRayLocalInteractiveOauth:
         ray.shutdown()
         ray.init(address=cluster.local_client_url(), logging_level="DEBUG")
 
-        @ray.remote
+        @ray.remote(num_gpus=number_of_gpus / 2)
         def heavy_calculation_part(num_iterations):
             result = 0.0
             for i in range(num_iterations):
@@ -68,7 +78,7 @@ class TestRayLocalInteractiveOauth:
                         result += math.sin(i) * math.cos(j) * math.tan(k)
             return result
 
-        @ray.remote
+        @ray.remote(num_gpus=number_of_gpus / 2)
         def heavy_calculation(num_iterations):
             results = ray.get(
                 [heavy_calculation_part.remote(num_iterations // 30) for _ in range(30)]
