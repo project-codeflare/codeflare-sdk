@@ -37,8 +37,6 @@ class TestRayLocalInteractiveOauth:
     def run_local_interactives(
         self, gpu_resource_name="nvidia.com/gpu", number_of_gpus=0
     ):
-        ray_image = get_ray_image()
-
         cluster_name = "test-ray-cluster-li"
 
         cluster = Cluster(
@@ -51,9 +49,8 @@ class TestRayLocalInteractiveOauth:
                 worker_cpu_requests="500m",
                 worker_cpu_limits=1,
                 worker_memory_requests=1,
-                worker_memory_limits=2,
+                worker_memory_limits=4,
                 worker_extended_resource_requests={gpu_resource_name: number_of_gpus},
-                image=ray_image,
                 write_to_file=True,
                 verify_tls=False,
             )
