@@ -31,3 +31,23 @@ def createClusterWithConfig(mocker):
     )
     cluster = Cluster(createClusterConfig())
     return cluster
+
+
+def createClusterWrongType():
+    config = ClusterConfiguration(
+        name="unit-test-cluster",
+        namespace="ns",
+        num_workers=2,
+        worker_cpu_requests=[],
+        worker_cpu_limits=4,
+        worker_memory_requests=5,
+        worker_memory_limits=6,
+        worker_extended_resource_requests={"nvidia.com/gpu": 7},
+        appwrapper=True,
+        machine_types=[True, False],
+        image_pull_secrets=["unit-test-pull-secret"],
+        image="quay.io/rhoai/ray:2.23.0-py39-cu121",
+        write_to_file=True,
+        labels={1: 1},
+    )
+    return config
