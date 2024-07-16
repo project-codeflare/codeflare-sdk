@@ -67,6 +67,7 @@ from codeflare_sdk.utils.generate_cert import (
 from tests.unit_test_support import (
     createClusterWithConfig,
     createClusterConfig,
+    createClusterWrongType,
 )
 
 import codeflare_sdk.utils.kube_api_helpers
@@ -266,6 +267,11 @@ def test_config_creation():
     assert config.machine_types == ["cpu.small", "gpu.large"]
     assert config.image_pull_secrets == ["unit-test-pull-secret"]
     assert config.appwrapper == True
+
+
+def test_config_creation_wrong_type():
+    with pytest.raises(TypeError):
+        config = createClusterWrongType()
 
 
 def test_cluster_creation(mocker):
