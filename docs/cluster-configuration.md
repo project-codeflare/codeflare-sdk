@@ -19,11 +19,12 @@ cluster = Cluster(ClusterConfiguration(
     min_memory=2, # Default 2
     max_memory=2, # Default 2
     num_gpus=0, # Default 0
-    image="quay.io/rhoai/ray:2.23.0-py39-cu121", # Mandatory Field
+    # image="", # Optional Field
     machine_types=["m5.xlarge", "g4dn.xlarge"],
     labels={"exampleLabel": "example", "secondLabel": "example"},
 ))
 ```
+Note: 'quay.io/rhoai/ray:2.23.0-py39-cu121' is the default community image used by the CodeFlare SDK for creating a RayCluster resource. If you have your own Ray image which suits your purposes, specify it in image field to override the default image.
 
 The `labels={"exampleLabel": "example"}` parameter can be used to apply additional labels to the RayCluster resource.
 
