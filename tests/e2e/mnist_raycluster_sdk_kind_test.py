@@ -66,6 +66,11 @@ class TestRayClusterSDKKind:
 
         self.assert_jobsubmit_withoutlogin_kind(cluster, accelerator, number_of_gpus)
 
+        # Asserting job for HPO with Ray tune
+        self.assert_jobsubmit_raytune_hpo(cluster)
+
+        cluster.down()
+
     # Assertions
 
     def assert_jobsubmit_withoutlogin_kind(self, cluster, accelerator, number_of_gpus):
@@ -103,7 +108,38 @@ class TestRayClusterSDKKind:
 
         client.delete_job(submission_id)
 
-        cluster.down()
+    def assert_jobsubmit_raytune_hpo(self, cluster):
+        ray_dashboard = cluster.cluster_dashboard_uri()
+        client = RayJobClient(address=ray_dashboard, verify=False)
+
+        submission_id = client.submit_job(
+            entrypoint="python mnist_raytune_hpo_pytorch.py",
+            runtime_env={
+                "working_dir": "./tests/e2e/",
+                "pip": "./tests/e2e/hpo_raytune_pip_requirements.txt",
+            },
+        )
+        print(f"Submitted job with ID: {submission_id}")
+        done = False
+        time = 0
+        timeout = 900
+        while not done:
+            status = client.get_job_status(submission_id)
+            if status.is_terminal():
+                break
+            if not done:
+                print(status)
+                if timeout and time >= timeout:
+                    raise TimeoutError(f"job has timed out after waiting {timeout}s")
+                sleep(5)
+                time += 5
+
+        logs = client.get_job_logs(submission_id)
+        print(logs)
+
+        self.assert_job_completion(status)
+
+        client.delete_job(submission_id)
 
     def assert_job_completion(self, status):
         if status == "SUCCEEDED":
