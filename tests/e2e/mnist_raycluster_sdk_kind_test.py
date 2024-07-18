@@ -77,7 +77,7 @@ class TestRayClusterSDKKind:
             runtime_env={
                 "working_dir": "./tests/e2e/",
                 "pip": "./tests/e2e/mnist_pip_requirements.txt",
-                "env_vars": {"ACCELERATOR": accelerator},
+                "env_vars": get_setup_env_variables(ACCELERATOR=accelerator),
             },
             entrypoint_num_gpus=number_of_gpus,
         )

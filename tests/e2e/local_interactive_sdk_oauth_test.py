@@ -28,6 +28,8 @@ class TestRayLocalInteractiveOauth:
         self.run_local_interactives()
 
     def run_local_interactives(self):
+        ray_image = get_ray_image()
+
         auth = TokenAuthentication(
             token=run_oc_command(["whoami", "--show-token=true"]),
             server=run_oc_command(["whoami", "--show-server=true"]),
@@ -46,6 +48,7 @@ class TestRayLocalInteractiveOauth:
                 worker_cpu_limits=1,
                 worker_memory_requests=1,
                 worker_memory_limits=4,
+                image=ray_image,
                 verify_tls=False,
             )
         )

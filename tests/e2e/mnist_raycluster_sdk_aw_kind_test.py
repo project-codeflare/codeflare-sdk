@@ -19,6 +19,7 @@ class TestRayClusterSDKAppWrapperKind:
 
     def teardown_method(self):
         delete_namespace(self)
+        delete_kueue_resources(self)
 
     def test_mnist_ray_cluster_sdk_kind(self):
         self.setup_method()
@@ -77,7 +78,7 @@ class TestRayClusterSDKAppWrapperKind:
             runtime_env={
                 "working_dir": "./tests/e2e/",
                 "pip": "./tests/e2e/mnist_pip_requirements.txt",
-                "env_vars": {"ACCELERATOR": accelerator},
+                "env_vars": get_setup_env_variables(ACCELERATOR=accelerator),
             },
             entrypoint_num_gpus=number_of_gpus,
         )

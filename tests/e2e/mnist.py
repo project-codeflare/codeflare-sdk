@@ -15,6 +15,7 @@
 import os
 
 import torch
+import requests
 from pytorch_lightning import LightningModule, Trainer
 from pytorch_lightning.callbacks.progress import TQDMProgressBar
 from torch import nn
@@ -23,9 +24,15 @@ from torch.utils.data import DataLoader, random_split, RandomSampler
 from torchmetrics import Accuracy
 from torchvision import transforms
 from torchvision.datasets import MNIST
+import gzip
+import shutil
+from minio import Minio
+
 
 PATH_DATASETS = os.environ.get("PATH_DATASETS", ".")
 BATCH_SIZE = 256 if torch.cuda.is_available() else 64
+
+local_mnist_path = os.path.dirname(os.path.abspath(__file__))
 # %%
 
 print("prior to running the trainer")
@@ -34,6 +41,25 @@ print("MASTER_PORT: is ", os.getenv("MASTER_PORT"))
 
 print("ACCELERATOR: is ", os.getenv("ACCELERATOR"))
 ACCELERATOR = os.getenv("ACCELERATOR")
+
+STORAGE_BUCKET_EXISTS = "AWS_DEFAULT_ENDPOINT" in os.environ
+print("STORAGE_BUCKET_EXISTS: ", STORAGE_BUCKET_EXISTS)
+
+print(
+    f'Storage_Bucket_Default_Endpoint : is {os.environ.get("AWS_DEFAULT_ENDPOINT")}'
+    if "AWS_DEFAULT_ENDPOINT" in os.environ
+    else ""
+)
+print(
+    f'Storage_Bucket_Name : is {os.environ.get("AWS_STORAGE_BUCKET")}'
+    if "AWS_STORAGE_BUCKET" in os.environ
+    else ""
+)
+print(
+    f'Storage_Bucket_Mnist_Directory : is {os.environ.get("AWS_STORAGE_BUCKET_MNIST_DIR")}'
+    if "AWS_STORAGE_BUCKET_MNIST_DIR" in os.environ
+    else ""
+)
 
 
 class LitMNIST(LightningModule):
@@ -114,19 +140,74 @@ class LitMNIST(LightningModule):
     def prepare_data(self):
         # download
         print("Downloading MNIST dataset...")
-        MNIST(self.data_dir, train=True, download=True)
-        MNIST(self.data_dir, train=False, download=True)
+
+        if (
+            STORAGE_BUCKET_EXISTS
+            and os.environ.get("AWS_DEFAULT_ENDPOINT") != ""
+            and os.environ.get("AWS_DEFAULT_ENDPOINT") != None
+        ):
+            print("Using storage bucket to download datasets...")
+
+            dataset_dir = os.path.join(self.data_dir, "MNIST/raw")
+            endpoint = os.environ.get("AWS_DEFAULT_ENDPOINT")
+            access_key = os.environ.get("AWS_ACCESS_KEY_ID")
+            secret_key = os.environ.get("AWS_SECRET_ACCESS_KEY")
+            bucket_name = os.environ.get("AWS_STORAGE_BUCKET")
+
+            client = Minio(
+                endpoint,
+                access_key=access_key,
+                secret_key=secret_key,
+                cert_check=False,
+            )
+
+            if not os.path.exists(dataset_dir):
+                os.makedirs(dataset_dir)
+            else:
+                print(f"Directory '{dataset_dir}' already exists")
+
+            # To download datasets from storage bucket's specific directory, use prefix to provide directory name
+            prefix = os.environ.get("AWS_STORAGE_BUCKET_MNIST_DIR")
+            # download all files from prefix folder of storage bucket recursively
+            for item in client.list_objects(bucket_name, prefix=prefix, recursive=True):
+                file_name = item.object_name[len(prefix) + 1 :]
+                dataset_file_path = os.path.join(dataset_dir, file_name)
+                if not os.path.exists(dataset_file_path):
+                    client.fget_object(bucket_name, item.object_name, dataset_file_path)
+                else:
+                    print(f"File-path '{dataset_file_path}' already exists")
+                # Unzip files
+                with gzip.open(dataset_file_path, "rb") as f_in:
+                    with open(dataset_file_path.split(".")[:-1][0], "wb") as f_out:
+                        shutil.copyfileobj(f_in, f_out)
+                # delete zip file
+                os.remove(dataset_file_path)
+                unzipped_filepath = dataset_file_path.split(".")[0]
+                if os.path.exists(unzipped_filepath):
+                    print(
+                        f"Unzipped and saved dataset file to path - {unzipped_filepath}"
+                    )
+            download_datasets = False
+
+        else:
+            print("Using default MNIST mirror reference to download datasets...")
+            download_datasets = True
+
+        MNIST(self.data_dir, train=True, download=download_datasets)
+        MNIST(self.data_dir, train=False, download=download_datasets)
 
     def setup(self, stage=None):
         # Assign train/val datasets for use in dataloaders
         if stage == "fit" or stage is None:
-            mnist_full = MNIST(self.data_dir, train=True, transform=self.transform)
+            mnist_full = MNIST(
+                self.data_dir, train=True, transform=self.transform, download=False
+            )
             self.mnist_train, self.mnist_val = random_split(mnist_full, [55000, 5000])
 
         # Assign test dataset for use in dataloader(s)
         if stage == "test" or stage is None:
             self.mnist_test = MNIST(
-                self.data_dir, train=False, transform=self.transform
+                self.data_dir, train=False, transform=self.transform, download=False
             )
 
     def train_dataloader(self):
@@ -145,7 +226,7 @@ class LitMNIST(LightningModule):
 
 # Init DataLoader from MNIST Dataset
 
-model = LitMNIST()
+model = LitMNIST(data_dir=local_mnist_path)
 
 print("GROUP: ", int(os.environ.get("GROUP_WORLD_SIZE", 1)))
 print("LOCAL: ", int(os.environ.get("LOCAL_WORLD_SIZE", 1)))
