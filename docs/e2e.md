@@ -108,8 +108,25 @@ Currently the SDK doesn't support tolerations, so e2e tests can't be executed on
   ```
   poetry run pytest -v -s ./tests/e2e -m openshift --timeout=1200
   ```
-  - If the cluster doesn't have NVidia GPU support or GPU nodes have taint then we need to disable NVidia GPU tests by providing proper marker:
-  ```
-  poetry install --with test,docs
-  poetry run pytest -v -s ./tests/e2e/mnist_raycluster_sdk_kind_test.py -m 'not nvidia_gpu'
-  ```
+
+## On OpenShift Disconnected clusters
+
+- In addition to setup phase mentioned above in case of Openshift cluster, Disconnected environment requires following pre-requisites :
+   - Mirror Image registry :
+     - Image mirror registry is used to host set of container images required locally for the applications and services. This ensures to pull images without needing an external network connection. It also ensures continuous operation and deployment capabilities in a network-isolated environment.
+   - PYPI Mirror Index :
+     - When trying to install Python packages in a disconnected environment, the pip command might fail because the connection cannot install packages from external URLs. This issue can be resolved by setting up PIP Mirror Index on separate endpoint in same environment.
+   - S3 compatible storage :
+     - Some of our distributed training examples require an external storage solution so that all nodes can access the same data in disconnected environment (For example: common-datasets and model files).
+     - Minio S3 compatible storage type instance can be deployed in disconnected environment using `/tests/e2e/minio_deployment.yaml` or using support methods in e2e test suite.
+     - The following are environment variables for configuring PIP index URl for accessing the common-python packages required and the S3 or Minio storage for your Ray Train script or interactive session.
+    ```
+    export RAY_IMAGE=quay.io/project-codeflare/ray@sha256:<image-digest> (prefer image digest over image tag in disocnnected environment)
+    PIP_INDEX_URL=https://<bastion-node-endpoint-url>/root/pypi/+simple/ \
+    PIP_TRUSTED_HOST=<bastion-node-endpoint-url> \
+    AWS_DEFAULT_ENDPOINT=<s3-compatible-storage-endpoint-url> \
+    AWS_ACCESS_KEY_ID=<s3-compatible-storage-access-key>  \
+    AWS_SECRET_ACCESS_KEY=<s3-compatible-storage-secret-key>  \
+    AWS_STORAGE_BUCKET=<storage-bucket-name>
+    AWS_STORAGE_BUCKET_MNIST_DIR=<storage-bucket-MNIST-datasets-directory>
+    ```

@@ -28,6 +28,8 @@ class TestRayClusterSDKOauth:
         self.run_mnist_raycluster_sdk_oauth()
 
     def run_mnist_raycluster_sdk_oauth(self):
+        ray_image = get_ray_image()
+
         auth = TokenAuthentication(
             token=run_oc_command(["whoami", "--show-token=true"]),
             server=run_oc_command(["whoami", "--show-server=true"]),
@@ -42,10 +44,11 @@ class TestRayClusterSDKOauth:
                 num_workers=1,
                 head_cpus="500m",
                 head_memory=2,
-                worker_cpu_requests="500m",
+                worker_cpu_requests=1,
                 worker_cpu_limits=1,
                 worker_memory_requests=1,
                 worker_memory_limits=4,
+                image=ray_image,
                 write_to_file=True,
                 verify_tls=False,
             )
@@ -73,6 +76,7 @@ class TestRayClusterSDKOauth:
             "runtime_env": {
                 "working_dir": "./tests/e2e/",
                 "pip": "./tests/e2e/mnist_pip_requirements.txt",
+                "env_vars": get_setup_env_variables(),
             },
         }
         try:
@@ -100,7 +104,9 @@ class TestRayClusterSDKOauth:
             runtime_env={
                 "working_dir": "./tests/e2e/",
                 "pip": "./tests/e2e/mnist_pip_requirements.txt",
+                "env_vars": get_setup_env_variables(),
             },
+            entrypoint_num_cpus=1,
         )
         print(f"Submitted job with ID: {submission_id}")
         done = False
