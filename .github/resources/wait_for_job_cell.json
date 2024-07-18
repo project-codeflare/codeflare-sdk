@@ -1,0 +1,20 @@
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "from time import sleep\n",
+    "\n",
+    "finished = False\n",
+    "while not finished:\n",
+    "    sleep(5)\n",
+    "    status = client.get_job_status(submission_id)\n",
+    "    finished = (status == \"SUCCEEDED\" or status == \"FAILED\" or status == \"STOPPED\")\n",
+    "    print(status)\n",
+    "print(\"Job status \" + status)\n",
+    "print(\"Logs: \")\n",
+    "print(client.get_job_logs(submission_id))\n",
+    "assert status == \"SUCCEEDED\", \"Job failed or was stopped!\""
+   ]
+  }
