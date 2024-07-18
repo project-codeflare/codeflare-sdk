@@ -88,10 +88,7 @@ spec:
               mountPath: /data
               subPath: minio
           terminationMessagePolicy: File
-          image: >-
-            quay.io/minio/minio:RELEASE.2024-06-22T05-26-45Z
-            # In case of disconnected environment, use image digest instead of tag
-            # For example : <mirror_registry_endpoint>/minio/minio@sha256:6b3abf2f59286b985bfde2b23e37230b466081eda5dccbf971524d54c8e406b5
+          image: quay.io/minio/minio:RELEASE.2024-06-22T05-26-45Z
           args:
             - server
             - /data
@@ -129,35 +126,3 @@ spec:
   sessionAffinity: None
   selector:
     app: minio
----
-kind: Route
-apiVersion: route.openshift.io/v1
-metadata:
-  name: minio-api
-spec:
-  to:
-    kind: Service
-    name: minio-service
-    weight: 100
-  port:
-    targetPort: api
-  wildcardPolicy: None
-  tls:
-    termination: edge
-    insecureEdgeTerminationPolicy: Redirect
----
-kind: Route
-apiVersion: route.openshift.io/v1
-metadata:
-  name: minio-ui
-spec:
-  to:
-    kind: Service
-    name: minio-service
-    weight: 100
-  port:
-    targetPort: ui
-  wildcardPolicy: None
-  tls:
-    termination: edge
-    insecureEdgeTerminationPolicy: Redirect

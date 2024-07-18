@@ -78,8 +78,16 @@ use_gpu = True
 trainer = TorchTrainer(
     train_func_distributed,
     scaling_config=ScalingConfig(
-        num_workers=3, use_gpu=use_gpu
-    ),  # num_workers = number of worker nodes with the ray head node included
+        # num_workers = number of worker nodes with the ray head node included
+        num_workers=3,
+        use_gpu=use_gpu,
+        resources_per_worker={
+            "CPU": 1,
+        },
+        trainer_resources={
+            "CPU": 0,
+        },
+    ),
 )
 
 results = trainer.fit()

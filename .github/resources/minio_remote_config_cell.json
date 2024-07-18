@@ -1,0 +1,20 @@
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "@ray.remote\n",
+    "def get_minio_run_config():\n",
+    "    import s3fs\n",
+    "    import pyarrow\n",
+    "    s3_fs = s3fs.S3FileSystem(\n",
+    "        key = \"minio\",\n",
+    "        secret = \"minio123\",\n",
+    "        endpoint_url = \"http://minio-service.default.svc.cluster.local:9000\"\n",
+    "    )\n",
+    "    custom_fs = pyarrow.fs.PyFileSystem(pyarrow.fs.FSSpecHandler(s3_fs))\n",
+    "    run_config = ray.train.RunConfig(storage_path='training', storage_filesystem=custom_fs)\n",
+    "    return run_config"
+   ]
+  }
