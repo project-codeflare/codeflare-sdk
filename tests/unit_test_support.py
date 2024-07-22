@@ -17,7 +17,6 @@ def createClusterConfig():
         appwrapper=True,
         machine_types=["cpu.small", "gpu.large"],
         image_pull_secrets=["unit-test-pull-secret"],
-        image="quay.io/rhoai/ray:2.23.0-py39-cu121",
         write_to_file=True,
     )
     return config

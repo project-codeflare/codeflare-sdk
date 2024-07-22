@@ -262,7 +262,6 @@ def test_config_creation():
     assert config.worker_cpu_requests == 3 and config.worker_cpu_limits == 4
     assert config.worker_memory_requests == "5G" and config.worker_memory_limits == "6G"
     assert config.worker_extended_resource_requests == {"nvidia.com/gpu": 7}
-    assert config.image == "quay.io/rhoai/ray:2.23.0-py39-cu121"
     assert config.template == f"{parent}/src/codeflare_sdk/templates/base-template.yaml"
     assert config.machine_types == ["cpu.small", "gpu.large"]
     assert config.image_pull_secrets == ["unit-test-pull-secret"]
@@ -415,7 +414,6 @@ def test_cluster_creation_no_mcad_local_queue(mocker):
         worker_extended_resource_requests={"nvidia.com/gpu": 7},
         machine_types=["cpu.small", "gpu.large"],
         image_pull_secrets=["unit-test-pull-secret"],
-        image="quay.io/rhoai/ray:2.23.0-py39-cu121",
         write_to_file=True,
         appwrapper=False,
         local_queue="local-queue-default",
@@ -443,7 +441,6 @@ def test_default_cluster_creation(mocker):
     )
     default_config = ClusterConfiguration(
         name="unit-test-default-cluster",
-        image="quay.io/rhoai/ray:2.23.0-py39-cu121",
         appwrapper=True,
     )
     cluster = Cluster(default_config)
@@ -457,6 +454,61 @@ def test_default_cluster_creation(mocker):
 
     assert cluster.app_wrapper_name == "unit-test-default-cluster"
     assert cluster.config.namespace == "opendatahub"
+
+
+def test_cluster_creation_with_custom_image(mocker):
+    # With written resources
+    # Create Ray Cluster with local queue specified
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.get_cluster_custom_object",
+        return_value={"spec": {"domain": "apps.cluster.awsroute.org"}},
+    )
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
+        return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
+    )
+    mocker.patch("os.environ.get", return_value="test-prefix")
+    config = createClusterConfig()
+    config.name = "unit-test-cluster-custom-image"
+    config.appwrapper = False
+    config.image = "quay.io/project-codeflare/ray:2.20.0-py39-cu118"
+    config.local_queue = "local-queue-default"
+    config.labels = {"testlabel": "test", "testlabel2": "test"}
+    cluster = Cluster(config)
+    assert cluster.app_wrapper_yaml == f"{aw_dir}unit-test-cluster-custom-image.yaml"
+    assert cluster.app_wrapper_name == "unit-test-cluster-custom-image"
+    assert filecmp.cmp(
+        f"{aw_dir}unit-test-cluster-custom-image.yaml",
+        f"{parent}/tests/test-case-custom-image.yaml",
+        shallow=True,
+    )
+    # With resources loaded in memory
+    config = ClusterConfiguration(
+        name="unit-test-cluster-custom-image",
+        namespace="ns",
+        num_workers=2,
+        worker_cpu_requests=3,
+        worker_cpu_limits=4,
+        worker_memory_requests=5,
+        worker_memory_limits=6,
+        worker_extended_resource_requests={"nvidia.com/gpu": 7},
+        machine_types=["cpu.small", "gpu.large"],
+        image_pull_secrets=["unit-test-pull-secret"],
+        image="quay.io/project-codeflare/ray:2.20.0-py39-cu118",
+        write_to_file=True,
+        appwrapper=False,
+        local_queue="local-queue-default",
+        labels={"testlabel": "test", "testlabel2": "test"},
+    )
+    cluster = Cluster(config)
+    assert cluster.app_wrapper_yaml == f"{aw_dir}unit-test-cluster-custom-image.yaml"
+    assert cluster.app_wrapper_name == "unit-test-cluster-custom-image"
+    assert filecmp.cmp(
+        f"{aw_dir}unit-test-cluster-custom-image.yaml",
+        f"{parent}/tests/test-case-custom-image.yaml",
+        shallow=True,
+    )
 
 
 def test_gen_names_with_name(mocker):
@@ -792,7 +844,6 @@ def test_ray_job_wrapping(mocker):
         return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
     )
     cluster = cluster = createClusterWithConfig(mocker)
-    cluster.config.image = "quay.io/rhoai/ray:2.23.0-py39-cu121"
     mocker.patch(
         "ray.job_submission.JobSubmissionClient._check_connection_and_version_with_url",
         return_value="None",
@@ -910,7 +961,6 @@ def test_ray_details(mocker, capsys):
         ClusterConfiguration(
             name="raytest2",
             namespace="ns",
-            image="quay.io/rhoai/ray:2.23.0-py39-cu121",
             write_to_file=True,
             appwrapper=True,
             local_queue="local_default_queue",
@@ -2313,7 +2363,6 @@ def test_cluster_status(mocker):
         ClusterConfiguration(
             name="test",
             namespace="ns",
-            image="quay.io/rhoai/ray:2.23.0-py39-cu121",
             write_to_file=True,
             appwrapper=True,
             local_queue="local_default_queue",
@@ -2408,7 +2457,6 @@ def test_wait_ready(mocker, capsys):
         ClusterConfiguration(
             name="test",
             namespace="ns",
-            image="quay.io/rhoai/ray:2.23.0-py39-cu121",
             write_to_file=True,
             appwrapper=True,
             local_queue="local-queue-default",
@@ -2635,7 +2683,6 @@ def test_cluster_throw_for_no_raycluster(mocker: MockerFixture):
     cluster = Cluster(
         ClusterConfiguration(
             "test_cluster",
-            image="quay.io/rhoai/ray:2.23.0-py39-cu121",
             write_to_file=False,
         )
     )
