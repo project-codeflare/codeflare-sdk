@@ -19,6 +19,7 @@ from .cluster import (
 from .job import RayJobClient
 
 from .utils import generate_cert
+from .utils.demos import copy_demo_nbs
 
 from importlib.metadata import version, PackageNotFoundError
 

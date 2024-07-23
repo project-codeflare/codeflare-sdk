@@ -7,8 +7,8 @@ An intuitive, easy-to-use python interface for batch resource requesting, access
 
 For guided demos and basics walkthroughs, check out the following links:
 
-- Guided demo notebooks available [here](https://github.com/project-codeflare/codeflare-sdk/tree/main/demo-notebooks/guided-demos), and copies of the notebooks with [expected output](https://github.com/project-codeflare/codeflare-sdk/tree/main/demo-notebooks/guided-demos/notebook-ex-outputs) also available
-- Note that these notebooks will work with the latest `codeflare-sdk` PyPI release. For testing and experimentation with `main` branch, please use the [preview notebooks](https://github.com/project-codeflare/codeflare-sdk/tree/main/demo-notebooks/guided-demos/preview_nbs)
+- Guided demo notebooks available [here](https://github.com/project-codeflare/codeflare-sdk/tree/main/src/demo-notebooks/guided-demos), and copies of the notebooks with [expected output](https://github.com/project-codeflare/codeflare-sdk/tree/main/src/demo-notebooks/guided-demos/notebook-ex-outputs) also available
+- these demos can be copied into your current working directory when using the `codeflare-sdk` by using the `codeflare_sdk.copy_demo_nbs()` function
 - Additionally, we have a [video walkthrough](https://www.youtube.com/watch?v=U76iIfd9EmE) of these basic demos from June, 2023
 
 Full documentation can be found [here](https://project-codeflare.github.io/codeflare-sdk/detailed-documentation)
