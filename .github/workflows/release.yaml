@@ -53,7 +53,7 @@ jobs:
             - name: Create new documentation
               run: poetry run pdoc --html -o docs/detailed-documentation src/codeflare_sdk && pushd docs/detailed-documentation && rm -rf cluster job utils && mv codeflare_sdk/* . && rm -rf codeflare_sdk && popd && find docs/detailed-documentation -type f -name "*.html" -exec bash -c "echo '' >> {}" \;
             - name: Copy demo notebooks into SDK package
-              run: cp demo-notebooks src/codeflare_sdk/demo-notebooks
+              run: cp -r demo-notebooks src/codeflare_sdk/demo-notebooks
             - name: Run poetry build
               run: poetry build
             - name: Commit changes in docs
