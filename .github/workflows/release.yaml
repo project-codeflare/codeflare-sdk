@@ -50,11 +50,12 @@ jobs:
               run: poetry version "${{ github.event.inputs.release-version }}"
             - name: Run poetry install
               run: poetry install --with docs
-            - name: Run poetry build
-              run: poetry build
             - name: Create new documentation
               run: poetry run pdoc --html -o docs/detailed-documentation src/codeflare_sdk && pushd docs/detailed-documentation && rm -rf cluster job utils && mv codeflare_sdk/* . && rm -rf codeflare_sdk && popd && find docs/detailed-documentation -type f -name "*.html" -exec bash -c "echo '' >> {}" \;
-
+            - name: Copy demo notebooks into SDK package
+              run: cp demo-notebooks src/codeflare_sdk/demo-notebooks
+            - name: Run poetry build
+              run: poetry build
             - name: Commit changes in docs
               uses: stefanzweifel/git-auto-commit-action@v4
               with:
