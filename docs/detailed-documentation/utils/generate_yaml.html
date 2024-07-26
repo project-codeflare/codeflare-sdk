@@ -48,6 +48,7 @@ This sub-module exists primarily to be used internally by the Cluster object
 (in the cluster sub-module) for AppWrapper generation.
 &#34;&#34;&#34;
 
+import json
 from typing import Optional
 import typing
 import yaml
@@ -61,6 +62,8 @@ from ..cluster.auth import api_config_handler, config_check
 from os import urandom
 from base64 import b64encode
 from urllib3.util import parse_url
+from kubernetes.client.exceptions import ApiException
+import codeflare_sdk
 
 
 def read_template(template):
@@ -108,16 +111,20 @@ def is_kind_cluster():
         return False
 
 
-def update_names(cluster_yaml, cluster_name, namespace):
-    meta = cluster_yaml.get(&#34;metadata&#34;)
-    meta[&#34;name&#34;] = cluster_name
-    meta[&#34;namespace&#34;] = namespace
+def update_names(
+    cluster_yaml: dict,
+    cluster: &#34;codeflare_sdk.cluster.Cluster&#34;,
+):
+    metadata = cluster_yaml.get(&#34;metadata&#34;)
+    metadata[&#34;name&#34;] = cluster.config.name
+    metadata[&#34;namespace&#34;] = cluster.config.namespace
 
 
 def update_image(spec, image):
     containers = spec.get(&#34;containers&#34;)
-    for container in containers:
-        container[&#34;image&#34;] = image
+    if image != &#34;&#34;:
+        for container in containers:
+            container[&#34;image&#34;] = image
 
 
 def update_image_pull_secrets(spec, image_pull_secrets):
@@ -137,60 +144,118 @@ def update_env(spec, env):
                 container[&#34;env&#34;] = env
 
 
-def update_resources(spec, min_cpu, max_cpu, min_memory, max_memory, gpu):
+def update_resources(
+    spec,
+    worker_cpu_requests,
+    worker_cpu_limits,
+    worker_memory_requests,
+    worker_memory_limits,
+    custom_resources,
+):
     container = spec.get(&#34;containers&#34;)
     for resource in container:
         requests = resource.get(&#34;resources&#34;).get(&#34;requests&#34;)
         if requests is not None:
-            requests[&#34;cpu&#34;] = min_cpu
-            requests[&#34;memory&#34;] = min_memory
-            requests[&#34;nvidia.com/gpu&#34;] = gpu
+            requests[&#34;cpu&#34;] = worker_cpu_requests
+            requests[&#34;memory&#34;] = worker_memory_requests
         limits = resource.get(&#34;resources&#34;).get(&#34;limits&#34;)
         if limits is not None:
-            limits[&#34;cpu&#34;] = max_cpu
-            limits[&#34;memory&#34;] = max_memory
-            limits[&#34;nvidia.com/gpu&#34;] = gpu
+            limits[&#34;cpu&#34;] = worker_cpu_limits
+            limits[&#34;memory&#34;] = worker_memory_limits
+        for k in custom_resources.keys():
+            limits[k] = custom_resources[k]
+            requests[k] = custom_resources[k]
+
+
+def head_worker_gpu_count_from_cluster(
+    cluster: &#34;codeflare_sdk.cluster.Cluster&#34;,
+) -&gt; typing.Tuple[int, int]:
+    head_gpus = 0
+    worker_gpus = 0
+    for k in cluster.config.head_extended_resource_requests.keys():
+        resource_type = cluster.config.extended_resource_mapping[k]
+        if resource_type == &#34;GPU&#34;:
+            head_gpus += int(cluster.config.head_extended_resource_requests[k])
+    for k in cluster.config.worker_extended_resource_requests.keys():
+        resource_type = cluster.config.extended_resource_mapping[k]
+        if resource_type == &#34;GPU&#34;:
+            worker_gpus += int(cluster.config.worker_extended_resource_requests[k])
+
+    return head_gpus, worker_gpus
+
+
+FORBIDDEN_CUSTOM_RESOURCE_TYPES = [&#34;GPU&#34;, &#34;CPU&#34;, &#34;memory&#34;]
+
+
+def head_worker_resources_from_cluster(
+    cluster: &#34;codeflare_sdk.cluster.Cluster&#34;,
+) -&gt; typing.Tuple[dict, dict]:
+    to_return = {}, {}
+    for k in cluster.config.head_extended_resource_requests.keys():
+        resource_type = cluster.config.extended_resource_mapping[k]
+        if resource_type in FORBIDDEN_CUSTOM_RESOURCE_TYPES:
+            continue
+        to_return[0][resource_type] = cluster.config.head_extended_resource_requests[
+            k
+        ] + to_return[0].get(resource_type, 0)
+
+    for k in cluster.config.worker_extended_resource_requests.keys():
+        resource_type = cluster.config.extended_resource_mapping[k]
+        if resource_type in FORBIDDEN_CUSTOM_RESOURCE_TYPES:
+            continue
+        to_return[1][resource_type] = cluster.config.worker_extended_resource_requests[
+            k
+        ] + to_return[1].get(resource_type, 0)
+    return to_return
 
 
 def update_nodes(
-    cluster_yaml,
-    appwrapper_name,
-    min_cpu,
-    max_cpu,
-    min_memory,
-    max_memory,
-    gpu,
-    workers,
-    image,
-    env,
-    image_pull_secrets,
-    head_cpus,
-    head_memory,
-    head_gpus,
+    ray_cluster_dict: dict,
+    cluster: &#34;codeflare_sdk.cluster.Cluster&#34;,
 ):
-    head = cluster_yaml.get(&#34;spec&#34;).get(&#34;headGroupSpec&#34;)
-    head[&#34;rayStartParams&#34;][&#34;num-gpus&#34;] = str(int(head_gpus))
+    head = ray_cluster_dict.get(&#34;spec&#34;).get(&#34;headGroupSpec&#34;)
+    worker = ray_cluster_dict.get(&#34;spec&#34;).get(&#34;workerGroupSpecs&#34;)[0]
+    head_gpus, worker_gpus = head_worker_gpu_count_from_cluster(cluster)
+    head_resources, worker_resources = head_worker_resources_from_cluster(cluster)
+    head_resources = json.dumps(head_resources).replace(&#39;&#34;&#39;, &#39;\\&#34;&#39;)
+    head_resources = f&#39;&#34;{head_resources}&#34;&#39;
+    worker_resources = json.dumps(worker_resources).replace(&#39;&#34;&#39;, &#39;\\&#34;&#39;)
+    worker_resources = f&#39;&#34;{worker_resources}&#34;&#39;
+    head[&#34;rayStartParams&#34;][&#34;num-gpus&#34;] = str(head_gpus)
+    head[&#34;rayStartParams&#34;][&#34;resources&#34;] = head_resources
 
-    worker = cluster_yaml.get(&#34;spec&#34;).get(&#34;workerGroupSpecs&#34;)[0]
     # Head counts as first worker
-    worker[&#34;replicas&#34;] = workers
-    worker[&#34;minReplicas&#34;] = workers
-    worker[&#34;maxReplicas&#34;] = workers
-    worker[&#34;groupName&#34;] = &#34;small-group-&#34; + appwrapper_name
-    worker[&#34;rayStartParams&#34;][&#34;num-gpus&#34;] = str(int(gpu))
+    worker[&#34;replicas&#34;] = cluster.config.num_workers
+    worker[&#34;minReplicas&#34;] = cluster.config.num_workers
+    worker[&#34;maxReplicas&#34;] = cluster.config.num_workers
+    worker[&#34;groupName&#34;] = &#34;small-group-&#34; + cluster.config.name
+    worker[&#34;rayStartParams&#34;][&#34;num-gpus&#34;] = str(worker_gpus)
+    worker[&#34;rayStartParams&#34;][&#34;resources&#34;] = worker_resources
 
     for comp in [head, worker]:
         spec = comp.get(&#34;template&#34;).get(&#34;spec&#34;)
-        update_image_pull_secrets(spec, image_pull_secrets)
-        update_image(spec, image)
-        update_env(spec, env)
+        update_image_pull_secrets(spec, cluster.config.image_pull_secrets)
+        update_image(spec, cluster.config.image)
+        update_env(spec, cluster.config.envs)
         if comp == head:
             # TODO: Eventually add head node configuration outside of template
             update_resources(
-                spec, head_cpus, head_cpus, head_memory, head_memory, head_gpus
+                spec,
+                cluster.config.head_cpus,
+                cluster.config.head_cpus,
+                cluster.config.head_memory,
+                cluster.config.head_memory,
+                cluster.config.head_extended_resource_requests,
             )
         else:
-            update_resources(spec, min_cpu, max_cpu, min_memory, max_memory, gpu)
+            update_resources(
+                spec,
+                cluster.config.worker_cpu_requests,
+                cluster.config.worker_cpu_limits,
+                cluster.config.worker_memory_requests,
+                cluster.config.worker_memory_limits,
+                cluster.config.worker_extended_resource_requests,
+            )
 
 
 def del_from_list_by_name(l: list, target: typing.List[str]) -&gt; list:
@@ -208,8 +273,11 @@ def get_default_kueue_name(namespace: str):
             namespace=namespace,
             plural=&#34;localqueues&#34;,
         )
-    except Exception as e:  # pragma: no cover
-        return _kube_api_error_handling(e)
+    except ApiException as e:  # pragma: no cover
+        if e.status == 404 or e.status == 403:
+            return
+        else:
+            return _kube_api_error_handling(e)
     for lq in local_queues[&#34;items&#34;]:
         if (
             &#34;annotations&#34; in lq[&#34;metadata&#34;]
@@ -218,9 +286,6 @@ def get_default_kueue_name(namespace: str):
             == &#34;true&#34;
         ):
             return lq[&#34;metadata&#34;][&#34;name&#34;]
-    raise ValueError(
-        &#34;Default Local Queue with kueue.x-k8s.io/default-queue: true annotation not found please create a default Local Queue or provide the local_queue name in Cluster Configuration&#34;
-    )
 
 
 def local_queue_exists(namespace: str, local_queue_name: str):
@@ -245,7 +310,9 @@ def local_queue_exists(namespace: str, local_queue_name: str):
 
 def add_queue_label(item: dict, namespace: str, local_queue: Optional[str]):
     lq_name = local_queue or get_default_kueue_name(namespace)
-    if not local_queue_exists(namespace, lq_name):
+    if lq_name == None:
+        return
+    elif not local_queue_exists(namespace, lq_name):
         raise ValueError(
             &#34;local_queue provided does not exist or is not in this namespace. Please provide the correct local_queue name in Cluster Configuration&#34;
         )
@@ -291,65 +358,32 @@ def write_user_yaml(user_yaml, output_file_name):
     print(f&#34;Written to: {output_file_name}&#34;)
 
 
-def generate_appwrapper(
-    name: str,
-    namespace: str,
-    head_cpus: int,
-    head_memory: int,
-    head_gpus: int,
-    min_cpu: int,
-    max_cpu: int,
-    min_memory: int,
-    max_memory: int,
-    gpu: int,
-    workers: int,
-    template: str,
-    image: str,
-    appwrapper: bool,
-    env,
-    image_pull_secrets: list,
-    write_to_file: bool,
-    local_queue: Optional[str],
-    labels,
-):
-    cluster_yaml = read_template(template)
-    appwrapper_name, cluster_name = gen_names(name)
-    update_names(cluster_yaml, cluster_name, namespace)
-    update_nodes(
+def generate_appwrapper(cluster: &#34;codeflare_sdk.cluster.Cluster&#34;):
+    cluster_yaml = read_template(cluster.config.template)
+    appwrapper_name, _ = gen_names(cluster.config.name)
+    update_names(
         cluster_yaml,
-        appwrapper_name,
-        min_cpu,
-        max_cpu,
-        min_memory,
-        max_memory,
-        gpu,
-        workers,
-        image,
-        env,
-        image_pull_secrets,
-        head_cpus,
-        head_memory,
-        head_gpus,
+        cluster,
     )
-    augment_labels(cluster_yaml, labels)
+    update_nodes(cluster_yaml, cluster)
+    augment_labels(cluster_yaml, cluster.config.labels)
     notebook_annotations(cluster_yaml)
-
     user_yaml = (
-        wrap_cluster(cluster_yaml, appwrapper_name, namespace)
-        if appwrapper
+        wrap_cluster(cluster_yaml, appwrapper_name, cluster.config.namespace)
+        if cluster.config.appwrapper
         else cluster_yaml
     )
 
-    add_queue_label(user_yaml, namespace, local_queue)
+    add_queue_label(user_yaml, cluster.config.namespace, cluster.config.local_queue)
 
-    if write_to_file:
+    if cluster.config.write_to_file:
         directory_path = os.path.expanduser(&#34;~/.codeflare/resources/&#34;)
         outfile = os.path.join(directory_path, appwrapper_name + &#34;.yaml&#34;)
         write_user_yaml(user_yaml, outfile)
         return outfile
     else:
         user_yaml = yaml.dump(user_yaml)
-        print(f&#34;Yaml resources loaded for {name}&#34;)
+        print(f&#34;Yaml resources loaded for {cluster.config.name}&#34;)
         return user_yaml</code></pre>
 </details>
 </section>
@@ -371,7 +405,9 @@ def generate_appwrapper(
 </summary>
 <pre><code class="python">def add_queue_label(item: dict, namespace: str, local_queue: Optional[str]):
     lq_name = local_queue or get_default_kueue_name(namespace)
-    if not local_queue_exists(namespace, lq_name):
+    if lq_name == None:
+        return
+    elif not local_queue_exists(namespace, lq_name):
         raise ValueError(
             &#34;local_queue provided does not exist or is not in this namespace. Please provide the correct local_queue name in Cluster Configuration&#34;
         )
@@ -428,7 +464,7 @@ def generate_appwrapper(
 </details>
 </dd>
 <dt id="codeflare_sdk.utils.generate_yaml.generate_appwrapper"><code class="name flex">
-<span>def <span class="ident">generate_appwrapper</span></span>(<span>name: str, namespace: str, head_cpus: int, head_memory: int, head_gpus: int, min_cpu: int, max_cpu: int, min_memory: int, max_memory: int, gpu: int, workers: int, template: str, image: str, appwrapper: bool, env, image_pull_secrets: list, write_to_file: bool, local_queue: Optional[str], labels)</span>
+<span>def <span class="ident">generate_appwrapper</span></span>(<span>cluster: codeflare_sdk.cluster.Cluster)</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -436,65 +472,32 @@ def generate_appwrapper(
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def generate_appwrapper(
-    name: str,
-    namespace: str,
-    head_cpus: int,
-    head_memory: int,
-    head_gpus: int,
-    min_cpu: int,
-    max_cpu: int,
-    min_memory: int,
-    max_memory: int,
-    gpu: int,
-    workers: int,
-    template: str,
-    image: str,
-    appwrapper: bool,
-    env,
-    image_pull_secrets: list,
-    write_to_file: bool,
-    local_queue: Optional[str],
-    labels,
-):
-    cluster_yaml = read_template(template)
-    appwrapper_name, cluster_name = gen_names(name)
-    update_names(cluster_yaml, cluster_name, namespace)
-    update_nodes(
+<pre><code class="python">def generate_appwrapper(cluster: &#34;codeflare_sdk.cluster.Cluster&#34;):
+    cluster_yaml = read_template(cluster.config.template)
+    appwrapper_name, _ = gen_names(cluster.config.name)
+    update_names(
         cluster_yaml,
-        appwrapper_name,
-        min_cpu,
-        max_cpu,
-        min_memory,
-        max_memory,
-        gpu,
-        workers,
-        image,
-        env,
-        image_pull_secrets,
-        head_cpus,
-        head_memory,
-        head_gpus,
+        cluster,
     )
-    augment_labels(cluster_yaml, labels)
+    update_nodes(cluster_yaml, cluster)
+    augment_labels(cluster_yaml, cluster.config.labels)
     notebook_annotations(cluster_yaml)
-
     user_yaml = (
-        wrap_cluster(cluster_yaml, appwrapper_name, namespace)
-        if appwrapper
+        wrap_cluster(cluster_yaml, appwrapper_name, cluster.config.namespace)
+        if cluster.config.appwrapper
         else cluster_yaml
     )
 
-    add_queue_label(user_yaml, namespace, local_queue)
+    add_queue_label(user_yaml, cluster.config.namespace, cluster.config.local_queue)
 
-    if write_to_file:
+    if cluster.config.write_to_file:
         directory_path = os.path.expanduser(&#34;~/.codeflare/resources/&#34;)
         outfile = os.path.join(directory_path, appwrapper_name + &#34;.yaml&#34;)
         write_user_yaml(user_yaml, outfile)
         return outfile
     else:
         user_yaml = yaml.dump(user_yaml)
-        print(f&#34;Yaml resources loaded for {name}&#34;)
+        print(f&#34;Yaml resources loaded for {cluster.config.name}&#34;)
         return user_yaml</code></pre>
 </details>
 </dd>
@@ -518,8 +521,11 @@ def generate_appwrapper(
             namespace=namespace,
             plural=&#34;localqueues&#34;,
         )
-    except Exception as e:  # pragma: no cover
-        return _kube_api_error_handling(e)
+    except ApiException as e:  # pragma: no cover
+        if e.status == 404 or e.status == 403:
+            return
+        else:
+            return _kube_api_error_handling(e)
     for lq in local_queues[&#34;items&#34;]:
         if (
             &#34;annotations&#34; in lq[&#34;metadata&#34;]
@@ -527,10 +533,64 @@ def generate_appwrapper(
             and lq[&#34;metadata&#34;][&#34;annotations&#34;][&#34;kueue.x-k8s.io/default-queue&#34;].lower()
             == &#34;true&#34;
         ):
-            return lq[&#34;metadata&#34;][&#34;name&#34;]
-    raise ValueError(
-        &#34;Default Local Queue with kueue.x-k8s.io/default-queue: true annotation not found please create a default Local Queue or provide the local_queue name in Cluster Configuration&#34;
-    )</code></pre>
+            return lq[&#34;metadata&#34;][&#34;name&#34;]</code></pre>
+</details>
+</dd>
+<dt id="codeflare_sdk.utils.generate_yaml.head_worker_gpu_count_from_cluster"><code class="name flex">
+<span>def <span class="ident">head_worker_gpu_count_from_cluster</span></span>(<span>cluster: codeflare_sdk.cluster.Cluster) ‑> Tuple[int, int]</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def head_worker_gpu_count_from_cluster(
+    cluster: &#34;codeflare_sdk.cluster.Cluster&#34;,
+) -&gt; typing.Tuple[int, int]:
+    head_gpus = 0
+    worker_gpus = 0
+    for k in cluster.config.head_extended_resource_requests.keys():
+        resource_type = cluster.config.extended_resource_mapping[k]
+        if resource_type == &#34;GPU&#34;:
+            head_gpus += int(cluster.config.head_extended_resource_requests[k])
+    for k in cluster.config.worker_extended_resource_requests.keys():
+        resource_type = cluster.config.extended_resource_mapping[k]
+        if resource_type == &#34;GPU&#34;:
+            worker_gpus += int(cluster.config.worker_extended_resource_requests[k])
+
+    return head_gpus, worker_gpus</code></pre>
+</details>
+</dd>
+<dt id="codeflare_sdk.utils.generate_yaml.head_worker_resources_from_cluster"><code class="name flex">
+<span>def <span class="ident">head_worker_resources_from_cluster</span></span>(<span>cluster: codeflare_sdk.cluster.Cluster) ‑> Tuple[dict, dict]</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def head_worker_resources_from_cluster(
+    cluster: &#34;codeflare_sdk.cluster.Cluster&#34;,
+) -&gt; typing.Tuple[dict, dict]:
+    to_return = {}, {}
+    for k in cluster.config.head_extended_resource_requests.keys():
+        resource_type = cluster.config.extended_resource_mapping[k]
+        if resource_type in FORBIDDEN_CUSTOM_RESOURCE_TYPES:
+            continue
+        to_return[0][resource_type] = cluster.config.head_extended_resource_requests[
+            k
+        ] + to_return[0].get(resource_type, 0)
+
+    for k in cluster.config.worker_extended_resource_requests.keys():
+        resource_type = cluster.config.extended_resource_mapping[k]
+        if resource_type in FORBIDDEN_CUSTOM_RESOURCE_TYPES:
+            continue
+        to_return[1][resource_type] = cluster.config.worker_extended_resource_requests[
+            k
+        ] + to_return[1].get(resource_type, 0)
+    return to_return</code></pre>
 </details>
 </dd>
 <dt id="codeflare_sdk.utils.generate_yaml.is_kind_cluster"><code class="name flex">
@@ -672,8 +732,9 @@ def generate_appwrapper(
 </summary>
 <pre><code class="python">def update_image(spec, image):
     containers = spec.get(&#34;containers&#34;)
-    for container in containers:
-        container[&#34;image&#34;] = image</code></pre>
+    if image != &#34;&#34;:
+        for container in containers:
+            container[&#34;image&#34;] = image</code></pre>
 </details>
 </dd>
 <dt id="codeflare_sdk.utils.generate_yaml.update_image_pull_secrets"><code class="name flex">
@@ -693,7 +754,7 @@ def generate_appwrapper(
 </details>
 </dd>
 <dt id="codeflare_sdk.utils.generate_yaml.update_names"><code class="name flex">
-<span>def <span class="ident">update_names</span></span>(<span>cluster_yaml, cluster_name, namespace)</span>
+<span>def <span class="ident">update_names</span></span>(<span>cluster_yaml: dict, cluster: codeflare_sdk.cluster.Cluster)</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -701,14 +762,17 @@ def generate_appwrapper(
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def update_names(cluster_yaml, cluster_name, namespace):
-    meta = cluster_yaml.get(&#34;metadata&#34;)
-    meta[&#34;name&#34;] = cluster_name
-    meta[&#34;namespace&#34;] = namespace</code></pre>
+<pre><code class="python">def update_names(
+    cluster_yaml: dict,
+    cluster: &#34;codeflare_sdk.cluster.Cluster&#34;,
+):
+    metadata = cluster_yaml.get(&#34;metadata&#34;)
+    metadata[&#34;name&#34;] = cluster.config.name
+    metadata[&#34;namespace&#34;] = cluster.config.namespace</code></pre>
 </details>
 </dd>
 <dt id="codeflare_sdk.utils.generate_yaml.update_nodes"><code class="name flex">
-<span>def <span class="ident">update_nodes</span></span>(<span>cluster_yaml, appwrapper_name, min_cpu, max_cpu, min_memory, max_memory, gpu, workers, image, env, image_pull_secrets, head_cpus, head_memory, head_gpus)</span>
+<span>def <span class="ident">update_nodes</span></span>(<span>ray_cluster_dict: dict, cluster: codeflare_sdk.cluster.Cluster)</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -717,48 +781,56 @@ def generate_appwrapper(
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def update_nodes(
-    cluster_yaml,
-    appwrapper_name,
-    min_cpu,
-    max_cpu,
-    min_memory,
-    max_memory,
-    gpu,
-    workers,
-    image,
-    env,
-    image_pull_secrets,
-    head_cpus,
-    head_memory,
-    head_gpus,
+    ray_cluster_dict: dict,
+    cluster: &#34;codeflare_sdk.cluster.Cluster&#34;,
 ):
-    head = cluster_yaml.get(&#34;spec&#34;).get(&#34;headGroupSpec&#34;)
-    head[&#34;rayStartParams&#34;][&#34;num-gpus&#34;] = str(int(head_gpus))
+    head = ray_cluster_dict.get(&#34;spec&#34;).get(&#34;headGroupSpec&#34;)
+    worker = ray_cluster_dict.get(&#34;spec&#34;).get(&#34;workerGroupSpecs&#34;)[0]
+    head_gpus, worker_gpus = head_worker_gpu_count_from_cluster(cluster)
+    head_resources, worker_resources = head_worker_resources_from_cluster(cluster)
+    head_resources = json.dumps(head_resources).replace(&#39;&#34;&#39;, &#39;\\&#34;&#39;)
+    head_resources = f&#39;&#34;{head_resources}&#34;&#39;
+    worker_resources = json.dumps(worker_resources).replace(&#39;&#34;&#39;, &#39;\\&#34;&#39;)
+    worker_resources = f&#39;&#34;{worker_resources}&#34;&#39;
+    head[&#34;rayStartParams&#34;][&#34;num-gpus&#34;] = str(head_gpus)
+    head[&#34;rayStartParams&#34;][&#34;resources&#34;] = head_resources
 
-    worker = cluster_yaml.get(&#34;spec&#34;).get(&#34;workerGroupSpecs&#34;)[0]
     # Head counts as first worker
-    worker[&#34;replicas&#34;] = workers
-    worker[&#34;minReplicas&#34;] = workers
-    worker[&#34;maxReplicas&#34;] = workers
-    worker[&#34;groupName&#34;] = &#34;small-group-&#34; + appwrapper_name
-    worker[&#34;rayStartParams&#34;][&#34;num-gpus&#34;] = str(int(gpu))
+    worker[&#34;replicas&#34;] = cluster.config.num_workers
+    worker[&#34;minReplicas&#34;] = cluster.config.num_workers
+    worker[&#34;maxReplicas&#34;] = cluster.config.num_workers
+    worker[&#34;groupName&#34;] = &#34;small-group-&#34; + cluster.config.name
+    worker[&#34;rayStartParams&#34;][&#34;num-gpus&#34;] = str(worker_gpus)
+    worker[&#34;rayStartParams&#34;][&#34;resources&#34;] = worker_resources
 
     for comp in [head, worker]:
         spec = comp.get(&#34;template&#34;).get(&#34;spec&#34;)
-        update_image_pull_secrets(spec, image_pull_secrets)
-        update_image(spec, image)
-        update_env(spec, env)
+        update_image_pull_secrets(spec, cluster.config.image_pull_secrets)
+        update_image(spec, cluster.config.image)
+        update_env(spec, cluster.config.envs)
         if comp == head:
             # TODO: Eventually add head node configuration outside of template
             update_resources(
-                spec, head_cpus, head_cpus, head_memory, head_memory, head_gpus
+                spec,
+                cluster.config.head_cpus,
+                cluster.config.head_cpus,
+                cluster.config.head_memory,
+                cluster.config.head_memory,
+                cluster.config.head_extended_resource_requests,
             )
         else:
-            update_resources(spec, min_cpu, max_cpu, min_memory, max_memory, gpu)</code></pre>
+            update_resources(
+                spec,
+                cluster.config.worker_cpu_requests,
+                cluster.config.worker_cpu_limits,
+                cluster.config.worker_memory_requests,
+                cluster.config.worker_memory_limits,
+                cluster.config.worker_extended_resource_requests,
+            )</code></pre>
 </details>
 </dd>
 <dt id="codeflare_sdk.utils.generate_yaml.update_resources"><code class="name flex">
-<span>def <span class="ident">update_resources</span></span>(<span>spec, min_cpu, max_cpu, min_memory, max_memory, gpu)</span>
+<span>def <span class="ident">update_resources</span></span>(<span>spec, worker_cpu_requests, worker_cpu_limits, worker_memory_requests, worker_memory_limits, custom_resources)</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -766,19 +838,27 @@ def generate_appwrapper(
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def update_resources(spec, min_cpu, max_cpu, min_memory, max_memory, gpu):
+<pre><code class="python">def update_resources(
+    spec,
+    worker_cpu_requests,
+    worker_cpu_limits,
+    worker_memory_requests,
+    worker_memory_limits,
+    custom_resources,
+):
     container = spec.get(&#34;containers&#34;)
     for resource in container:
         requests = resource.get(&#34;resources&#34;).get(&#34;requests&#34;)
         if requests is not None:
-            requests[&#34;cpu&#34;] = min_cpu
-            requests[&#34;memory&#34;] = min_memory
-            requests[&#34;nvidia.com/gpu&#34;] = gpu
+            requests[&#34;cpu&#34;] = worker_cpu_requests
+            requests[&#34;memory&#34;] = worker_memory_requests
         limits = resource.get(&#34;resources&#34;).get(&#34;limits&#34;)
         if limits is not None:
-            limits[&#34;cpu&#34;] = max_cpu
-            limits[&#34;memory&#34;] = max_memory
-            limits[&#34;nvidia.com/gpu&#34;] = gpu</code></pre>
+            limits[&#34;cpu&#34;] = worker_cpu_limits
+            limits[&#34;memory&#34;] = worker_memory_limits
+        for k in custom_resources.keys():
+            limits[k] = custom_resources[k]
+            requests[k] = custom_resources[k]</code></pre>
 </details>
 </dd>
 <dt id="codeflare_sdk.utils.generate_yaml.wrap_cluster"><code class="name flex">
@@ -844,6 +924,8 @@ def generate_appwrapper(
 <li><code><a title="codeflare_sdk.utils.generate_yaml.gen_names" href="#codeflare_sdk.utils.generate_yaml.gen_names">gen_names</a></code></li>
 <li><code><a title="codeflare_sdk.utils.generate_yaml.generate_appwrapper" href="#codeflare_sdk.utils.generate_yaml.generate_appwrapper">generate_appwrapper</a></code></li>
 <li><code><a title="codeflare_sdk.utils.generate_yaml.get_default_kueue_name" href="#codeflare_sdk.utils.generate_yaml.get_default_kueue_name">get_default_kueue_name</a></code></li>
+<li><code><a title="codeflare_sdk.utils.generate_yaml.head_worker_gpu_count_from_cluster" href="#codeflare_sdk.utils.generate_yaml.head_worker_gpu_count_from_cluster">head_worker_gpu_count_from_cluster</a></code></li>
+<li><code><a title="codeflare_sdk.utils.generate_yaml.head_worker_resources_from_cluster" href="#codeflare_sdk.utils.generate_yaml.head_worker_resources_from_cluster">head_worker_resources_from_cluster</a></code></li>
 <li><code><a title="codeflare_sdk.utils.generate_yaml.is_kind_cluster" href="#codeflare_sdk.utils.generate_yaml.is_kind_cluster">is_kind_cluster</a></code></li>
 <li><code><a title="codeflare_sdk.utils.generate_yaml.is_openshift_cluster" href="#codeflare_sdk.utils.generate_yaml.is_openshift_cluster">is_openshift_cluster</a></code></li>
 <li><code><a title="codeflare_sdk.utils.generate_yaml.local_queue_exists" href="#codeflare_sdk.utils.generate_yaml.local_queue_exists">local_queue_exists</a></code></li>

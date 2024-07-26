@@ -46,7 +46,16 @@
 
 from .job import RayJobClient
 
-from .utils import generate_cert</code></pre>
+from .utils import generate_cert
+from .utils.demos import copy_demo_nbs
+
+from importlib.metadata import version, PackageNotFoundError
+
+try:
+    __version__ = version(&#34;codeflare-sdk&#34;)  # use metadata associated with built package
+
+except PackageNotFoundError:
+    __version__ = &#34;v0.0.0&#34;</code></pre>
 </details>
 </section>
 <section>
