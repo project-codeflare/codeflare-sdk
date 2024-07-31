@@ -68,6 +68,7 @@ from tests.unit_test_support import (
     createClusterWithConfig,
     createClusterConfig,
     createClusterWrongType,
+    get_package_and_version,
 )
 
 import codeflare_sdk.utils.kube_api_helpers
@@ -2832,9 +2833,13 @@ def test_rjc_tail_job_logs(ray_job_client, mocker):
 
 
 def test_rjc_list_jobs(ray_job_client, mocker):
+    requirements_path = "tests/e2e/mnist_pip_requirements.txt"
+    pytorch_lightning = get_package_and_version("pytorch_lightning", requirements_path)
+    torchmetrics = get_package_and_version("torchmetrics", requirements_path)
+    torchvision = get_package_and_version("torchvision", requirements_path)
     jobs_list = [
-        "JobDetails(type=<JobType.SUBMISSION: 'SUBMISSION'>, job_id=None, submission_id='raysubmit_4k2NYS1YbRXYPZCM', driver_info=None, status=<JobStatus.SUCCEEDED: 'SUCCEEDED'>, entrypoint='python mnist.py', message='Job finished successfully.', error_type=None, start_time=1701352132585, end_time=1701352192002, metadata={}, runtime_env={'working_dir': 'gcs://_ray_pkg_6200b93a110e8033.zip', 'pip': {'packages': ['pytorch_lightning==1.9.5', 'ray_lightning', 'torchmetrics==0.9.1', 'torchvision==0.12.0'], 'pip_check': False}, '_ray_commit': 'b4bba4717f5ba04ee25580fe8f88eed63ef0c5dc'}, driver_agent_http_address='http://10.131.0.18:52365', driver_node_id='9fb515995f5fb13ad4db239ceea378333bebf0a2d45b6aa09d02e691')",
-        "JobDetails(type=<JobType.SUBMISSION: 'SUBMISSION'>, job_id=None, submission_id='raysubmit_iRuwU8vdkbUZZGvT', driver_info=None, status=<JobStatus.STOPPED: 'STOPPED'>, entrypoint='python mnist.py', message='Job was intentionally stopped.', error_type=None, start_time=1701353096163, end_time=1701353097733, metadata={}, runtime_env={'working_dir': 'gcs://_ray_pkg_6200b93a110e8033.zip', 'pip': {'packages': ['pytorch_lightning==1.9.5', 'ray_lightning', 'torchmetrics==0.9.1', 'torchvision==0.12.0'], 'pip_check': False}, '_ray_commit': 'b4bba4717f5ba04ee25580fe8f88eed63ef0c5dc'}, driver_agent_http_address='http://10.131.0.18:52365', driver_node_id='9fb515995f5fb13ad4db239ceea378333bebf0a2d45b6aa09d02e691')",
+        f"JobDetails(type=<JobType.SUBMISSION: 'SUBMISSION'>, job_id=None, submission_id='raysubmit_4k2NYS1YbRXYPZCM', driver_info=None, status=<JobStatus.SUCCEEDED: 'SUCCEEDED'>, entrypoint='python mnist.py', message='Job finished successfully.', error_type=None, start_time=1701352132585, end_time=1701352192002, metadata={{}}, runtime_env={{'working_dir': 'gcs://_ray_pkg_6200b93a110e8033.zip', 'pip': {{'packages': ['{pytorch_lightning}', 'ray_lightning', '{torchmetrics}', '{torchvision}'], 'pip_check': False}}, '_ray_commit': 'b4bba4717f5ba04ee25580fe8f88eed63ef0c5dc'}}, driver_agent_http_address='http://10.131.0.18:52365', driver_node_id='9fb515995f5fb13ad4db239ceea378333bebf0a2d45b6aa09d02e691')",
+        f"JobDetails(type=<JobType.SUBMISSION: 'SUBMISSION'>, job_id=None, submission_id='raysubmit_iRuwU8vdkbUZZGvT', driver_info=None, status=<JobStatus.STOPPED: 'STOPPED'>, entrypoint='python mnist.py', message='Job was intentionally stopped.', error_type=None, start_time=1701353096163, end_time=1701353097733, metadata={{}}, runtime_env={{'working_dir': 'gcs://_ray_pkg_6200b93a110e8033.zip', 'pip': {{'packages': ['{pytorch_lightning}', 'ray_lightning', '{torchmetrics}', '{torchvision}'], 'pip_check': False}}, '_ray_commit': 'b4bba4717f5ba04ee25580fe8f88eed63ef0c5dc'}}, driver_agent_http_address='http://10.131.0.18:52365', driver_node_id='9fb515995f5fb13ad4db239ceea378333bebf0a2d45b6aa09d02e691')",
     ]
     mocked_rjc_list_jobs = mocker.patch.object(
         JobSubmissionClient, "list_jobs", return_value=jobs_list

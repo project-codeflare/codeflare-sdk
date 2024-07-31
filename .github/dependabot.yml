@@ -1,0 +1,29 @@
+# Please see the documentation for all configuration options:
+# https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+
+version: 2
+updates:
+  # This is to update requirements.txt files in the guided-demos, and e2e directories.
+  # The group configuration option is used to group updates for consistency across related directories.
+  - package-ecosystem: "pip"
+    directories:
+      - "**/demo-notebooks/guided-demos*"
+      - "/tests/e2e"
+    schedule:
+      interval: "weekly"
+    groups:
+      requirements.txt:
+        patterns:
+          - "*"
+    open-pull-requests-limit: 10
+    labels:
+      - "test-guided-notebooks"
+
+  # pip means poetry in this case, this keeps poetry.lock up to date with constraints in pyproject.toml.
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels:
+      - "test-guided-notebooks"
