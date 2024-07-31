@@ -50,3 +50,11 @@ def createClusterWrongType():
         labels={1: 1},
     )
     return config
+
+
+def get_package_and_version(package_name, requirements_file_path):
+    with open(requirements_file_path, "r") as file:
+        for line in file:
+            if line.strip().startswith(f"{package_name}=="):
+                return line.strip()
+    return None
