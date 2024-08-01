@@ -14,7 +14,7 @@
 
 FROM  quay.io/opendatahub/notebooks:jupyter-minimal-ubi9-python-3.9-2023a_20230302
 
-COPY requirements.txt requirements.txt
+COPY requirements/requirements.txt requirements.txt
 
 RUN pip install -r requirements.txt
 
