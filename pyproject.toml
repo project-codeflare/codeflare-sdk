@@ -43,7 +43,7 @@ optional = true
 pytest = "7.4.0"
 coverage = "7.2.7"
 pytest-mock = "3.11.1"
-pytest-timeout = "2.2.0"
+pytest-timeout = "2.3.1"
 
 [tool.pytest.ini_options]
 filterwarnings = [
