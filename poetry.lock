@@ -1673,13 +1673,12 @@ testing = ["docopt", "pytest"]
 
 [[package]]
 name = "pdoc3"
-version = "0.10.0"
+version = "0.11.1"
 description = "Auto-generate API documentation for Python projects."
 optional = false
-python-versions = ">= 3.6"
+python-versions = ">=3.9"
 files = [
-    {file = "pdoc3-0.10.0-py3-none-any.whl", hash = "sha256:ba45d1ada1bd987427d2bf5cdec30b2631a3ff5fb01f6d0e77648a572ce6028b"},
-    {file = "pdoc3-0.10.0.tar.gz", hash = "sha256:5f22e7bcb969006738e1aa4219c75a32f34c2d62d46dc9d2fb2d3e0b0287e4b7"},
+    {file = "pdoc3-0.11.1.tar.gz", hash = "sha256:20bf2aad8110892573fd350b1bf95f6612b53b55e29b0fc143b5f2b5bcbabfb6"},
 ]
 
 [package.dependencies]
@@ -2807,4 +2806,4 @@ test = ["big-O", "importlib-resources", "jaraco.functools", "jaraco.itertools", 
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.9"
-content-hash = "7bb89ee82f06208a09aecaa8f4f31aa2e06194e79eae305546d255d13e895368"
+content-hash = "472b1c1692b2a28cbecfde398c190f224ff5d0b4725f07b61b517b80a6f84005"
