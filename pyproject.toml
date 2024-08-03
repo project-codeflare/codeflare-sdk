@@ -41,7 +41,7 @@ optional = true
 
 [tool.poetry.group.test.dependencies]
 pytest = "7.4.0"
-coverage = "7.2.7"
+coverage = "7.6.0"
 pytest-mock = "3.11.1"
 pytest-timeout = "2.3.1"
 
