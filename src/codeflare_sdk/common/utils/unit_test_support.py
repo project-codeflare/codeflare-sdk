@@ -55,7 +55,7 @@ def createClusterWrongType():
     config = ClusterConfiguration(
         name="unit-test-cluster",
         namespace="ns",
-        num_workers=2,
+        num_workers=True,
         worker_cpu_requests=[],
         worker_cpu_limits=4,
         worker_memory_requests=5,
