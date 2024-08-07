@@ -242,13 +242,15 @@ class ClusterConfiguration:
 
     def _validate_types(self):
         """Validate the types of all fields in the ClusterConfiguration dataclass."""
+        errors = []
         for field_info in fields(self):
             value = getattr(self, field_info.name)
             expected_type = field_info.type
             if not self._is_type(value, expected_type):
-                raise TypeError(
-                    f"'{field_info.name}' should be of type {expected_type}"
-                )
+                errors.append(f"'{field_info.name}' should be of type {expected_type}.")
+
+        if errors:
+            raise TypeError("Type validation failed:\n" + "\n".join(errors))
 
     @staticmethod
     def _is_type(value, expected_type):
@@ -268,6 +270,10 @@ class ClusterConfiguration:
                 )
             if origin_type is tuple:
                 return all(check_type(elem, etype) for elem, etype in zip(value, args))
+            if expected_type is int:
+                return isinstance(value, int) and not isinstance(value, bool)
+            if expected_type is bool:
+                return isinstance(value, bool)
             return isinstance(value, expected_type)
 
         return check_type(value, expected_type)

@@ -108,8 +108,10 @@ def test_all_config_params_aw(mocker):
 
 
 def test_config_creation_wrong_type():
-    with pytest.raises(TypeError):
+    with pytest.raises(TypeError) as error_info:
         createClusterWrongType()
+
+    assert len(str(error_info.value).splitlines()) == 4
 
 
 def test_cluster_config_deprecation_conversion(mocker):
