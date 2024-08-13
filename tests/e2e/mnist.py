@@ -154,11 +154,19 @@ class LitMNIST(LightningModule):
             secret_key = os.environ.get("AWS_SECRET_ACCESS_KEY")
             bucket_name = os.environ.get("AWS_STORAGE_BUCKET")
 
+            if endpoint.startswith("https://"):
+                endpoint = endpoint[len("https://") :]
+                secure = True
+            elif endpoint.startswith("http://"):
+                endpoint = endpoint[len("http://") :]
+                secure = False
+
             client = Minio(
                 endpoint,
                 access_key=access_key,
                 secret_key=secret_key,
                 cert_check=False,
+                secure=secure,
             )
 
             if not os.path.exists(dataset_dir):
