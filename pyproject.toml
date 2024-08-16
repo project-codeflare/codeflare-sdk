@@ -26,7 +26,7 @@ rich = "^12.5"
 ray = {version = "2.23.0", extras = ["data", "default"]}
 kubernetes = ">= 25.3.0, < 27"
 cryptography = "40.0.2"
-executing = "1.2.0"
+executing = "2.0.1"
 pydantic = "< 2"
 ipywidgets = "8.1.2"
 # If updating setuptools version, please verify the odh-notebooks-sync workflow continues to work.
