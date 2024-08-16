@@ -21,7 +21,7 @@ keywords = ['codeflare', 'python', 'sdk', 'client', 'batch', 'scale']
 
 [tool.poetry.dependencies]
 python = "^3.9"
-openshift-client = "1.0.18"
+openshift-client = "2.0.4"
 rich = "^12.5"
 ray = {version = "2.23.0", extras = ["data", "default"]}
 kubernetes = ">= 25.3.0, < 27"
