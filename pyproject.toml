@@ -44,7 +44,7 @@ pdoc3 = "0.10.0"
 optional = true
 
 [tool.poetry.group.test.dependencies]
-pytest = "7.4.0"
+pytest = "8.3.2"
 coverage = "7.2.7"
 pytest-mock = "3.11.1"
 pytest-timeout = "2.3.1"
