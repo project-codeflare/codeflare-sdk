@@ -130,3 +130,4 @@ Currently the SDK doesn't support tolerations, so e2e tests can't be executed on
     AWS_STORAGE_BUCKET=<storage-bucket-name>
     AWS_STORAGE_BUCKET_MNIST_DIR=<storage-bucket-MNIST-datasets-directory>
     ```
+    Note : When using the Python Minio client to connect to a minio storage bucket, the `AWS_DEFAULT_ENDPOINT` environment variable by default expects secure endpoint where user can use endpoint url with https/http prefix for autodetection of secure/insecure endpoint.

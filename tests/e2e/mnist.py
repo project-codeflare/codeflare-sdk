@@ -154,9 +154,10 @@ class LitMNIST(LightningModule):
             secret_key = os.environ.get("AWS_SECRET_ACCESS_KEY")
             bucket_name = os.environ.get("AWS_STORAGE_BUCKET")
 
+            # remove prefix if specified in storage bucket endpoint url
+            secure = True
             if endpoint.startswith("https://"):
                 endpoint = endpoint[len("https://") :]
-                secure = True
             elif endpoint.startswith("http://"):
                 endpoint = endpoint[len("http://") :]
                 secure = False
