@@ -11,14 +11,13 @@ cluster = Cluster(ClusterConfiguration(
     namespace='default', # Default None
     head_cpus=1, # Default 2
     head_memory=1, # Default 8
-    head_gpus=0, # Default 0
-    num_gpus=0, # Default 0
+    head_extended_resource_requests={'nvidia.com/gpu':0}, # Default 0
+    worker_extended_resource_requests={'nvidia.com/gpu':0}, # Default 0
     num_workers=1, # Default 1
-    min_cpus=1, # Default 1
-    max_cpus=1, # Default 1
-    min_memory=2, # Default 2
-    max_memory=2, # Default 2
-    num_gpus=0, # Default 0
+    worker_cpu_requests=1, # Default 1
+    worker_cpu_limits=1, # Default 1
+    worker_memory_requests=2, # Default 2
+    worker_memory_limits=2, # Default 2
     # image="", # Optional Field
     machine_types=["m5.xlarge", "g4dn.xlarge"],
     labels={"exampleLabel": "example", "secondLabel": "example"},
@@ -28,4 +27,4 @@ Note: 'quay.io/rhoai/ray:2.23.0-py39-cu121' is the default community image used 
 
 The `labels={"exampleLabel": "example"}` parameter can be used to apply additional labels to the RayCluster resource.
 
-After creating their`cluster`, a user can call `cluster.up()` and `cluster.down()` to respectively create or remove the Ray Cluster.
+After creating their `cluster`, a user can call `cluster.up()` and `cluster.down()` to respectively create or remove the Ray Cluster.
