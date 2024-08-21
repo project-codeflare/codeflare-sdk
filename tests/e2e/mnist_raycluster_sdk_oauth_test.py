@@ -43,7 +43,7 @@ class TestRayClusterSDKOauth:
                 namespace=self.namespace,
                 num_workers=1,
                 head_cpus="500m",
-                head_memory=2,
+                head_memory=4,
                 worker_cpu_requests=1,
                 worker_cpu_limits=1,
                 worker_memory_requests=1,
