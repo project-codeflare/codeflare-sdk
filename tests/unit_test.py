@@ -38,6 +38,7 @@ from codeflare_sdk.cluster.cluster import (
     get_cluster,
     _app_wrapper_status,
     _ray_cluster_status,
+    _is_openshift_cluster,
 )
 from codeflare_sdk.cluster.auth import (
     TokenAuthentication,
@@ -71,11 +72,11 @@ from tests.unit_test_support import (
     get_package_and_version,
 )
 
-import codeflare_sdk.utils.kube_api_helpers
-from codeflare_sdk.utils.generate_yaml import (
+from codeflare_sdk.utils.build_ray_cluster import (
     gen_names,
-    is_openshift_cluster,
 )
+
+import codeflare_sdk.utils.kube_api_helpers
 
 import openshift
 from openshift.selector import Selector
@@ -263,8 +264,6 @@ def test_config_creation():
     assert config.worker_cpu_requests == 3 and config.worker_cpu_limits == 4
     assert config.worker_memory_requests == "5G" and config.worker_memory_limits == "6G"
     assert config.worker_extended_resource_requests == {"nvidia.com/gpu": 7}
-    assert config.template == f"{parent}/src/codeflare_sdk/templates/base-template.yaml"
-    assert config.machine_types == ["cpu.small", "gpu.large"]
     assert config.image_pull_secrets == ["unit-test-pull-secret"]
     assert config.appwrapper == True
 
@@ -282,8 +281,8 @@ def test_cluster_creation(mocker):
         return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
     )
     cluster = createClusterWithConfig(mocker)
-    assert cluster.app_wrapper_yaml == f"{aw_dir}unit-test-cluster.yaml"
-    assert cluster.app_wrapper_name == "unit-test-cluster"
+    assert cluster.resource_yaml == f"{aw_dir}unit-test-cluster.yaml"
+    assert cluster.config.name == "unit-test-cluster"
     assert filecmp.cmp(
         f"{aw_dir}unit-test-cluster.yaml",
         f"{parent}/tests/test-case.yaml",
@@ -304,7 +303,7 @@ def test_cluster_no_kueue_no_aw(mocker):
     config.name = "unit-test-no-kueue"
     config.write_to_file = True
     cluster = Cluster(config)
-    assert cluster.app_wrapper_yaml == f"{aw_dir}unit-test-no-kueue.yaml"
+    assert cluster.resource_yaml == f"{aw_dir}unit-test-no-kueue.yaml"
     assert cluster.config.local_queue == None
     assert filecmp.cmp(
         f"{aw_dir}unit-test-no-kueue.yaml",
@@ -367,8 +366,8 @@ def test_cluster_creation_no_mcad(mocker):
     config.appwrapper = False
     cluster = Cluster(config)
 
-    assert cluster.app_wrapper_yaml == f"{aw_dir}unit-test-cluster-ray.yaml"
-    assert cluster.app_wrapper_name == "unit-test-cluster-ray"
+    assert cluster.resource_yaml == f"{aw_dir}unit-test-cluster-ray.yaml"
+    assert cluster.config.name == "unit-test-cluster-ray"
     assert filecmp.cmp(
         f"{aw_dir}unit-test-cluster-ray.yaml",
         f"{parent}/tests/test-case-no-mcad.yamls",
@@ -396,8 +395,8 @@ def test_cluster_creation_no_mcad_local_queue(mocker):
     config.local_queue = "local-queue-default"
     config.labels = {"testlabel": "test", "testlabel2": "test"}
     cluster = Cluster(config)
-    assert cluster.app_wrapper_yaml == f"{aw_dir}unit-test-cluster-ray.yaml"
-    assert cluster.app_wrapper_name == "unit-test-cluster-ray"
+    assert cluster.resource_yaml == f"{aw_dir}unit-test-cluster-ray.yaml"
+    assert cluster.config.name == "unit-test-cluster-ray"
     assert filecmp.cmp(
         f"{aw_dir}unit-test-cluster-ray.yaml",
         f"{parent}/tests/test-case-no-mcad.yamls",
@@ -413,7 +412,6 @@ def test_cluster_creation_no_mcad_local_queue(mocker):
         worker_memory_requests=5,
         worker_memory_limits=6,
         worker_extended_resource_requests={"nvidia.com/gpu": 7},
-        machine_types=["cpu.small", "gpu.large"],
         image_pull_secrets=["unit-test-pull-secret"],
         write_to_file=True,
         appwrapper=False,
@@ -421,8 +419,8 @@ def test_cluster_creation_no_mcad_local_queue(mocker):
         labels={"testlabel": "test", "testlabel2": "test"},
     )
     cluster = Cluster(config)
-    assert cluster.app_wrapper_yaml == f"{aw_dir}unit-test-cluster-ray.yaml"
-    assert cluster.app_wrapper_name == "unit-test-cluster-ray"
+    assert cluster.resource_yaml == f"{aw_dir}unit-test-cluster-ray.yaml"
+    assert cluster.config.name == "unit-test-cluster-ray"
     assert filecmp.cmp(
         f"{aw_dir}unit-test-cluster-ray.yaml",
         f"{parent}/tests/test-case-no-mcad.yamls",
@@ -445,15 +443,14 @@ def test_default_cluster_creation(mocker):
         appwrapper=True,
     )
     cluster = Cluster(default_config)
-    test_aw = yaml.load(cluster.app_wrapper_yaml, Loader=yaml.FullLoader)
 
     with open(
         f"{parent}/tests/test-default-appwrapper.yaml",
     ) as f:
         default_aw = yaml.load(f, Loader=yaml.FullLoader)
-        assert test_aw == default_aw
+        assert cluster.resource_yaml == default_aw
 
-    assert cluster.app_wrapper_name == "unit-test-default-cluster"
+    assert cluster.config.name == "unit-test-default-cluster"
     assert cluster.config.namespace == "opendatahub"
 
 
@@ -477,8 +474,8 @@ def test_cluster_creation_with_custom_image(mocker):
     config.local_queue = "local-queue-default"
     config.labels = {"testlabel": "test", "testlabel2": "test"}
     cluster = Cluster(config)
-    assert cluster.app_wrapper_yaml == f"{aw_dir}unit-test-cluster-custom-image.yaml"
-    assert cluster.app_wrapper_name == "unit-test-cluster-custom-image"
+    assert cluster.resource_yaml == f"{aw_dir}unit-test-cluster-custom-image.yaml"
+    assert cluster.config.name == "unit-test-cluster-custom-image"
     assert filecmp.cmp(
         f"{aw_dir}unit-test-cluster-custom-image.yaml",
         f"{parent}/tests/test-case-custom-image.yaml",
@@ -494,7 +491,6 @@ def test_cluster_creation_with_custom_image(mocker):
         worker_memory_requests=5,
         worker_memory_limits=6,
         worker_extended_resource_requests={"nvidia.com/gpu": 7},
-        machine_types=["cpu.small", "gpu.large"],
         image_pull_secrets=["unit-test-pull-secret"],
         image="quay.io/project-codeflare/ray:2.20.0-py39-cu118",
         write_to_file=True,
@@ -503,8 +499,8 @@ def test_cluster_creation_with_custom_image(mocker):
         labels={"testlabel": "test", "testlabel2": "test"},
     )
     cluster = Cluster(config)
-    assert cluster.app_wrapper_yaml == f"{aw_dir}unit-test-cluster-custom-image.yaml"
-    assert cluster.app_wrapper_name == "unit-test-cluster-custom-image"
+    assert cluster.resource_yaml == f"{aw_dir}unit-test-cluster-custom-image.yaml"
+    assert cluster.config.name == "unit-test-cluster-custom-image"
     assert filecmp.cmp(
         f"{aw_dir}unit-test-cluster-custom-image.yaml",
         f"{parent}/tests/test-case-custom-image.yaml",
@@ -759,7 +755,7 @@ def test_local_client_url(mocker):
         return_value="rayclient-unit-test-cluster-localinter-ns.apps.cluster.awsroute.org",
     )
     mocker.patch(
-        "codeflare_sdk.cluster.cluster.Cluster.create_app_wrapper",
+        "codeflare_sdk.cluster.cluster.Cluster.create_resource",
         return_value="unit-test-cluster-localinter.yaml",
     )
 
@@ -955,7 +951,7 @@ def test_ray_details(mocker, capsys):
         return_value="",
     )
     mocker.patch(
-        "codeflare_sdk.utils.generate_yaml.local_queue_exists",
+        "codeflare_sdk.utils.build_ray_cluster.local_queue_exists",
         return_value="true",
     )
     cf = Cluster(
@@ -1984,156 +1980,53 @@ def route_list_retrieval(group, version, namespace, plural):
     }
 
 
-def test_get_cluster_openshift(mocker):
-    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
-    # Mock the client.ApisApi function to return a mock object
-    mock_api = MagicMock()
-    mock_api.get_api_versions.return_value.groups = [
-        MagicMock(versions=[MagicMock(group_version="route.openshift.io/v1")])
-    ]
-    mocker.patch("kubernetes.client.ApisApi", return_value=mock_api)
-    mocker.patch(
-        "codeflare_sdk.utils.generate_yaml.local_queue_exists",
-        return_value="true",
-    )
-
-    assert is_openshift_cluster()
-
-    def custom_side_effect(group, version, namespace, plural, **kwargs):
-        if plural == "routes":
-            return route_list_retrieval("route.openshift.io", "v1", "ns", "routes")
-        elif plural == "rayclusters":
-            return get_ray_obj("ray.io", "v1", "ns", "rayclusters")
-        elif plural == "appwrappers":
-            return get_aw_obj("workload.codeflare.dev", "v1beta2", "ns", "appwrappers")
-        elif plural == "localqueues":
-            return get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues")
-
-    mocker.patch(
-        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object", get_aw_obj
-    )
-
-    mocker.patch(
-        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
-        side_effect=custom_side_effect,
-    )
-    mocker.patch(
-        "kubernetes.client.CustomObjectsApi.get_namespaced_custom_object",
-        return_value=get_named_aw,
-    )
-    mocker.patch(
-        "kubernetes.client.CustomObjectsApi.get_namespaced_custom_object",
-        side_effect=route_list_retrieval("route.openshift.io", "v1", "ns", "routes")[
-            "items"
-        ],
-    )
-    mocker.patch(
-        "codeflare_sdk.utils.generate_yaml.local_queue_exists",
-        return_value="true",
-    )
-
-    cluster = get_cluster("quicktest")
-    cluster_config = cluster.config
-    assert cluster_config.name == "quicktest" and cluster_config.namespace == "ns"
-    assert (
-        "m4.xlarge" in cluster_config.machine_types
-        and "g4dn.xlarge" in cluster_config.machine_types
-    )
-    assert (
-        cluster_config.worker_cpu_requests == 1
-        and cluster_config.worker_cpu_limits == 1
-    )
-    assert (
-        cluster_config.worker_memory_requests == "2G"
-        and cluster_config.worker_memory_limits == "2G"
-    )
-    assert cluster_config.worker_extended_resource_requests == {}
-    assert (
-        cluster_config.image
-        == "ghcr.io/foundation-model-stack/base:ray2.1.0-py38-gpu-pytorch1.12.0cu116-20221213-193103"
-    )
-    assert cluster_config.num_workers == 1
-
-
-def test_get_cluster(mocker):
+def test_get_appwrapper(mocker):
     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
-    mocker.patch(
-        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
-        side_effect=get_ray_obj,
+
+    with open(
+        f"{parent}/tests/test-case.yaml",
+    ) as f:
+        default_aw = yaml.load(f, Loader=yaml.FullLoader)
+        mocker.patch(
+            "kubernetes.client.CustomObjectsApi.get_namespaced_custom_object",
+            return_value=default_aw,
+        )
+
+    cluster = get_cluster(
+        "unit-test-cluster", "ns", is_appwrapper=True, write_to_file=False
     )
-    mocker.patch(
-        "kubernetes.client.CustomObjectsApi.get_namespaced_custom_object",
-        side_effect=get_named_aw,
-    )
-    mocker.patch(
-        "kubernetes.client.NetworkingV1Api.list_namespaced_ingress",
-        return_value=ingress_retrieval(cluster_name="quicktest", client_ing=True),
-    )
-    mocker.patch(
-        "codeflare_sdk.utils.generate_yaml.local_queue_exists",
-        return_value="true",
-    )
-    cluster = get_cluster("quicktest")
     cluster_config = cluster.config
-    assert cluster_config.name == "quicktest" and cluster_config.namespace == "ns"
+    assert cluster.resource_yaml == default_aw
     assert (
-        "m4.xlarge" in cluster_config.machine_types
-        and "g4dn.xlarge" in cluster_config.machine_types
+        cluster_config.name == "unit-test-cluster" and cluster_config.namespace == "ns"
     )
-    assert (
-        cluster_config.worker_cpu_requests == 1
-        and cluster_config.worker_cpu_limits == 1
-    )
-    assert (
-        cluster_config.worker_memory_requests == "2G"
-        and cluster_config.worker_memory_limits == "2G"
-    )
-    assert cluster_config.worker_extended_resource_requests == {}
-    assert (
-        cluster_config.image
-        == "ghcr.io/foundation-model-stack/base:ray2.1.0-py38-gpu-pytorch1.12.0cu116-20221213-193103"
-    )
-    assert cluster_config.num_workers == 1
 
 
-def test_get_cluster_no_mcad(mocker):
+def test_get_cluster_no_appwrapper(mocker):
     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
-    mocker.patch(
-        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
-        side_effect=get_ray_obj,
-    )
-    mocker.patch(
-        "kubernetes.client.NetworkingV1Api.list_namespaced_ingress",
-        return_value=ingress_retrieval(cluster_name="quicktest", client_ing=True),
-    )
-    mocker.patch(
-        "codeflare_sdk.utils.generate_yaml.local_queue_exists",
-        return_value="true",
-    )
-    cluster = get_cluster("quicktest")
+
+    with open(
+        f"{parent}/tests/test-case-no-mcad.yamls",
+    ) as f:
+        default_rc = yaml.load(f, Loader=yaml.FullLoader)
+        mocker.patch(
+            "kubernetes.client.CustomObjectsApi.get_namespaced_custom_object",
+            return_value=default_rc,
+        )
+
+    cluster = get_cluster("unit-test-cluster-ray", "ns", write_to_file=True)
     cluster_config = cluster.config
-    assert cluster_config.name == "quicktest" and cluster_config.namespace == "ns"
     assert (
-        "m4.xlarge" in cluster_config.machine_types
-        and "g4dn.xlarge" in cluster_config.machine_types
+        cluster_config.name == "unit-test-cluster-ray"
+        and cluster_config.namespace == "ns"
     )
-    assert (
-        cluster_config.worker_cpu_requests == 1
-        and cluster_config.worker_cpu_limits == 1
+    assert filecmp.cmp(
+        f"{aw_dir}unit-test-cluster-ray.yaml",
+        f"{parent}/tests/test-case-no-mcad.yamls",
+        shallow=True,
     )
-    assert (
-        cluster_config.worker_memory_requests == "2G"
-        and cluster_config.worker_memory_limits == "2G"
-    )
-    assert cluster_config.worker_extended_resource_requests == {}
-    assert (
-        cluster_config.image
-        == "ghcr.io/foundation-model-stack/base:ray2.1.0-py38-gpu-pytorch1.12.0cu116-20221213-193103"
-    )
-    assert cluster_config.num_workers == 1
-    assert cluster_config.local_queue == "team-a-queue"
 
 
 def route_retrieval(group, version, namespace, plural, name):
@@ -2158,7 +2051,7 @@ def test_map_to_ray_cluster(mocker):
     mocker.patch("kubernetes.config.load_kube_config")
 
     mocker.patch(
-        "codeflare_sdk.cluster.cluster.is_openshift_cluster", return_value=True
+        "codeflare_sdk.cluster.cluster._is_openshift_cluster", return_value=True
     )
 
     mock_api_client = mocker.MagicMock(spec=client.ApiClient)
@@ -2305,7 +2198,7 @@ def test_list_queue_rayclusters(mocker, capsys):
     ]
     mocker.patch("kubernetes.client.ApisApi", return_value=mock_api)
 
-    assert is_openshift_cluster() == True
+    assert _is_openshift_cluster() == True
     mocker.patch(
         "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
         side_effect=get_obj_none,
@@ -2344,7 +2237,7 @@ def test_cluster_status(mocker):
     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
     mocker.patch(
-        "codeflare_sdk.utils.generate_yaml.local_queue_exists",
+        "codeflare_sdk.utils.build_ray_cluster.local_queue_exists",
         return_value="true",
     )
     fake_aw = AppWrapper("test", AppWrapperStatus.FAILED)
@@ -2436,7 +2329,7 @@ def test_wait_ready(mocker, capsys):
     mocker.patch("codeflare_sdk.cluster.cluster._app_wrapper_status", return_value=None)
     mocker.patch("codeflare_sdk.cluster.cluster._ray_cluster_status", return_value=None)
     mocker.patch(
-        "codeflare_sdk.utils.generate_yaml.local_queue_exists",
+        "codeflare_sdk.utils.build_ray_cluster.local_queue_exists",
         return_value="true",
     )
     mocker.patch.object(
@@ -2664,11 +2557,11 @@ def test_cluster_throw_for_no_raycluster(mocker: MockerFixture):
         return_value="opendatahub",
     )
     mocker.patch(
-        "codeflare_sdk.utils.generate_yaml.get_default_kueue_name",
+        "codeflare_sdk.utils.build_ray_cluster.get_default_local_queue",
         return_value="default",
     )
     mocker.patch(
-        "codeflare_sdk.utils.generate_yaml.local_queue_exists",
+        "codeflare_sdk.utils.build_ray_cluster.local_queue_exists",
         return_value="true",
     )
 
