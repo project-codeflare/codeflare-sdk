@@ -16,7 +16,7 @@ FROM  quay.io/opendatahub/notebooks:jupyter-minimal-ubi9-python-3.9-2023a_202303
 
 COPY requirements/requirements.txt requirements.txt
 
-RUN pip install -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 RUN pip uninstall pickle5 -y
 
