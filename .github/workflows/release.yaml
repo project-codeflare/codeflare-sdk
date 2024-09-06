@@ -86,23 +86,6 @@ jobs:
             - name: Publish package distributions to PyPI
               uses: pypa/gh-action-pypi-publish@release/v1
 
-            - name: Notebook Image Build and Push
-              run: |
-                gh workflow run image-build-and-push.yaml --repo ${{ github.event.inputs.codeflare-repository-organization }}/codeflare-sdk --ref ${{ github.ref }} --field is-stable=${{ github.event.inputs.is-stable }} --field release-version=${{ github.event.inputs.release-version }} --field quay-organization=${{ github.event.inputs.quay-organization }}
-              env:
-                GITHUB_TOKEN: ${{ secrets.CODEFLARE_MACHINE_ACCOUNT_TOKEN }}
-              shell: bash
-
-            - name: Wait for Notebook image build and push to finish
-              run: |
-                # wait for a while for Run to be started
-                sleep 5
-                run_id=$(gh run list --workflow image-build-and-push.yaml --repo ${{ github.event.inputs.codeflare-repository-organization }}/codeflare-sdk --limit 1 --json databaseId --jq .[].databaseId)
-                gh run watch ${run_id} --repo ${{ github.event.inputs.codeflare-repository-organization }}/codeflare-sdk --interval 10 --exit-status
-              env:
-                GITHUB_TOKEN: ${{ secrets.CODEFLARE_MACHINE_ACCOUNT_TOKEN }}
-              shell: bash
-
             - name: Sync ODH Notebooks
               run: |
                 gh workflow run odh-notebooks-sync.yml \
