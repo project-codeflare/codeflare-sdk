@@ -21,6 +21,7 @@ from cryptography.x509.oid import NameOID
 import datetime
 from ..cluster.auth import config_check, api_config_handler
 from kubernetes import client, config
+from .kube_api_helpers import _kube_api_error_handling
 
 
 def generate_ca_cert(days: int = 30):
@@ -74,6 +75,24 @@ def generate_ca_cert(days: int = 30):
     return key, certificate
 
 
+def get_secret_name(cluster_name, namespace, api_instance):
+    label_selector = f"ray.openshift.ai/cluster-name={cluster_name}"
+    try:
+        secrets = api_instance.list_namespaced_secret(
+            namespace, label_selector=label_selector
+        )
+        for secret in secrets.items:
+            if (
+                f"{cluster_name}-ca-secret-" in secret.metadata.name
+            ):  # Oauth secret share the same label this conditional is to make things more specific
+                return secret.metadata.name
+            else:
+                continue
+        raise KeyError(f"Unable to gather secret name for {cluster_name}")
+    except Exception as e:  # pragma: no cover
+        return _kube_api_error_handling(e)
+
+
 def generate_tls_cert(cluster_name, namespace, days=30):
     # Create a folder tls-<cluster>-<namespace> and store three files: ca.crt, tls.crt, and tls.key
     tls_dir = os.path.join(os.getcwd(), f"tls-{cluster_name}-{namespace}")
@@ -85,7 +104,11 @@ def generate_tls_cert(cluster_name, namespace, days=30):
     # oc get secret ca-secret-<cluster-name> -o template='{{index .data "ca.crt"}}'|base64 -d > ${TLSDIR}/ca.crt
     config_check()
     v1 = client.CoreV1Api(api_config_handler())
-    secret = v1.read_namespaced_secret(f"ca-secret-{cluster_name}", namespace).data
+
+    # Secrets have a suffix appended to the end so we must list them and gather the secret that includes cluster_name-ca-secret-
+    secret_name = get_secret_name(cluster_name, namespace, v1)
+    secret = v1.read_namespaced_secret(secret_name, namespace).data
+
     ca_cert = secret.get("ca.crt")
     ca_key = secret.get("ca.key")
 
