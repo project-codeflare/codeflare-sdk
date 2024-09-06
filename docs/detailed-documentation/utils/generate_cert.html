@@ -49,6 +49,7 @@ from cryptography.x509.oid import NameOID
 import datetime
 from ..cluster.auth import config_check, api_config_handler
 from kubernetes import client, config
+from .kube_api_helpers import _kube_api_error_handling
 
 
 def generate_ca_cert(days: int = 30):
@@ -102,6 +103,24 @@ def generate_ca_cert(days: int = 30):
     return key, certificate
 
 
+def get_secret_name(cluster_name, namespace, api_instance):
+    label_selector = f&#34;ray.openshift.ai/cluster-name={cluster_name}&#34;
+    try:
+        secrets = api_instance.list_namespaced_secret(
+            namespace, label_selector=label_selector
+        )
+        for secret in secrets.items:
+            if (
+                f&#34;{cluster_name}-ca-secret-&#34; in secret.metadata.name
+            ):  # Oauth secret share the same label this conditional is to make things more specific
+                return secret.metadata.name
+            else:
+                continue
+        raise KeyError(f&#34;Unable to gather secret name for {cluster_name}&#34;)
+    except Exception as e:  # pragma: no cover
+        return _kube_api_error_handling(e)
+
+
 def generate_tls_cert(cluster_name, namespace, days=30):
     # Create a folder tls-&lt;cluster&gt;-&lt;namespace&gt; and store three files: ca.crt, tls.crt, and tls.key
     tls_dir = os.path.join(os.getcwd(), f&#34;tls-{cluster_name}-{namespace}&#34;)
@@ -113,7 +132,11 @@ def generate_tls_cert(cluster_name, namespace, days=30):
     # oc get secret ca-secret-&lt;cluster-name&gt; -o template=&#39;{{index .data &#34;ca.crt&#34;}}&#39;|base64 -d &gt; ${TLSDIR}/ca.crt
     config_check()
     v1 = client.CoreV1Api(api_config_handler())
-    secret = v1.read_namespaced_secret(f&#34;ca-secret-{cluster_name}&#34;, namespace).data
+
+    # Secrets have a suffix appended to the end so we must list them and gather the secret that includes cluster_name-ca-secret-
+    secret_name = get_secret_name(cluster_name, namespace, v1)
+    secret = v1.read_namespaced_secret(secret_name, namespace).data
+
     ca_cert = secret.get(&#34;ca.crt&#34;)
     ca_key = secret.get(&#34;ca.key&#34;)
 
@@ -294,7 +317,11 @@ def export_env(cluster_name, namespace):
     # oc get secret ca-secret-&lt;cluster-name&gt; -o template=&#39;{{index .data &#34;ca.crt&#34;}}&#39;|base64 -d &gt; ${TLSDIR}/ca.crt
     config_check()
     v1 = client.CoreV1Api(api_config_handler())
-    secret = v1.read_namespaced_secret(f&#34;ca-secret-{cluster_name}&#34;, namespace).data
+
+    # Secrets have a suffix appended to the end so we must list them and gather the secret that includes cluster_name-ca-secret-
+    secret_name = get_secret_name(cluster_name, namespace, v1)
+    secret = v1.read_namespaced_secret(secret_name, namespace).data
+
     ca_cert = secret.get(&#34;ca.crt&#34;)
     ca_key = secret.get(&#34;ca.key&#34;)
 
@@ -363,6 +390,33 @@ def export_env(cluster_name, namespace):
         f.write(tls_cert.public_bytes(serialization.Encoding.PEM).decode(&#34;utf-8&#34;))</code></pre>
 </details>
 </dd>
+<dt id="codeflare_sdk.utils.generate_cert.get_secret_name"><code class="name flex">
+<span>def <span class="ident">get_secret_name</span></span>(<span>cluster_name, namespace, api_instance)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_secret_name(cluster_name, namespace, api_instance):
+    label_selector = f&#34;ray.openshift.ai/cluster-name={cluster_name}&#34;
+    try:
+        secrets = api_instance.list_namespaced_secret(
+            namespace, label_selector=label_selector
+        )
+        for secret in secrets.items:
+            if (
+                f&#34;{cluster_name}-ca-secret-&#34; in secret.metadata.name
+            ):  # Oauth secret share the same label this conditional is to make things more specific
+                return secret.metadata.name
+            else:
+                continue
+        raise KeyError(f&#34;Unable to gather secret name for {cluster_name}&#34;)
+    except Exception as e:  # pragma: no cover
+        return _kube_api_error_handling(e)</code></pre>
+</details>
+</dd>
 </dl>
 </section>
 <section>
@@ -384,6 +438,7 @@ def export_env(cluster_name, namespace):
 <li><code><a title="codeflare_sdk.utils.generate_cert.export_env" href="#codeflare_sdk.utils.generate_cert.export_env">export_env</a></code></li>
 <li><code><a title="codeflare_sdk.utils.generate_cert.generate_ca_cert" href="#codeflare_sdk.utils.generate_cert.generate_ca_cert">generate_ca_cert</a></code></li>
 <li><code><a title="codeflare_sdk.utils.generate_cert.generate_tls_cert" href="#codeflare_sdk.utils.generate_cert.generate_tls_cert">generate_tls_cert</a></code></li>
+<li><code><a title="codeflare_sdk.utils.generate_cert.get_secret_name" href="#codeflare_sdk.utils.generate_cert.get_secret_name">get_secret_name</a></code></li>
 </ul>
 </li>
 </ul>
