@@ -2620,6 +2620,10 @@ def test_generate_tls_cert(mocker):
     """
     mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
     mocker.patch(
+        "codeflare_sdk.utils.generate_cert.get_secret_name",
+        return_value="ca-secret-cluster",
+    )
+    mocker.patch(
         "kubernetes.client.CoreV1Api.read_namespaced_secret",
         side_effect=secret_ca_retreival,
     )
