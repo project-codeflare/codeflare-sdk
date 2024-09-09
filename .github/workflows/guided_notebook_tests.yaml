@@ -84,7 +84,7 @@ jobs:
           jq -r 'del(.cells[] | select(.source[] | contains("Create authentication object for user permissions")))' 0_basic_ray.ipynb > 0_basic_ray.ipynb.tmp && mv 0_basic_ray.ipynb.tmp 0_basic_ray.ipynb
           jq -r 'del(.cells[] | select(.source[] | contains("auth.logout()")))' 0_basic_ray.ipynb > 0_basic_ray.ipynb.tmp && mv 0_basic_ray.ipynb.tmp 0_basic_ray.ipynb
           # Set explicit namespace as SDK need it (currently) to resolve local queues
-          sed -i "s/head_memory=2,/head_memory=2, namespace='default',/" 0_basic_ray.ipynb
+          sed -i "s/head_memory_limits=2,/head_memory_limits=2, namespace='default',/" 0_basic_ray.ipynb
           # Run notebook
           poetry run papermill 0_basic_ray.ipynb 0_basic_ray_out.ipynb --log-output --execution-timeout 600
         working-directory: demo-notebooks/guided-demos
@@ -206,7 +206,7 @@ jobs:
           JOB_WAIT=$(jq -r '.' ${GITHUB_WORKSPACE}/.github/resources/wait_for_job_cell.json)
           jq --argjson job_wait "$JOB_WAIT" -r '(.cells[] | select(.source[] | contains("async for lines in client.tail_job_logs"))) |= $job_wait' 1_cluster_job_client.ipynb > 1_cluster_job_client.ipynb.tmp && mv 1_cluster_job_client.ipynb.tmp 1_cluster_job_client.ipynb
           # Set explicit namespace as SDK need it (currently) to resolve local queues
-          sed -i "s/head_cpus=1,/head_cpus=1, namespace='default',/" 1_cluster_job_client.ipynb
+          sed -i "s/head_cpu_limits=1,/head_cpu_limits=1, namespace='default',/" 1_cluster_job_client.ipynb
           # Run notebook
           poetry run papermill 1_cluster_job_client.ipynb 1_cluster_job_client_out.ipynb --log-output --execution-timeout 1200
         working-directory: demo-notebooks/guided-demos
@@ -332,7 +332,7 @@ jobs:
           # Rewrite cluster_uri() to local_client_url() to retrieve client URL available out of cluster, as the test is executed outside of cluster
           sed -i "s/cluster_uri()/local_client_url()/" 2_basic_interactive.ipynb
           # Set explicit namespace as SDK need it (currently) to resolve local queues
-          sed -i "s/head_cpus=1,/head_cpus=1, namespace='default',/" 2_basic_interactive.ipynb
+          sed -i "s/head_cpu_limits=1,/head_cpu_limits=1, namespace='default',/" 2_basic_interactive.ipynb
           # Add MINIO related modules to runtime environment
           sed -i "s/\\\\\"transformers/\\\\\"s3fs\\\\\", \\\\\"pyarrow\\\\\", \\\\\"transformers/" 2_basic_interactive.ipynb
           # Replace markdown cell with remote configuration for MINIO

@@ -942,13 +942,15 @@ def test_ray_details(mocker, capsys):
         name="raytest1",
         status=RayClusterStatus.READY,
         workers=1,
-        worker_mem_min="2G",
-        worker_mem_max="2G",
+        worker_mem_requests="2G",
+        worker_mem_limits="2G",
         worker_cpu=1,
         namespace="ns",
         dashboard="fake-uri",
-        head_cpus=2,
-        head_mem=8,
+        head_cpu_requests=2,
+        head_cpu_limits=2,
+        head_mem_requests=8,
+        head_mem_limits=8,
     )
     mocker.patch(
         "codeflare_sdk.cluster.cluster.Cluster.status",
@@ -978,8 +980,8 @@ def test_ray_details(mocker, capsys):
     assert ray2.name == "raytest2"
     assert ray1.namespace == ray2.namespace
     assert ray1.workers == ray2.workers
-    assert ray1.worker_mem_min == ray2.worker_mem_min
-    assert ray1.worker_mem_max == ray2.worker_mem_max
+    assert ray1.worker_mem_requests == ray2.worker_mem_requests
+    assert ray1.worker_mem_limits == ray2.worker_mem_limits
     assert ray1.worker_cpu == ray2.worker_cpu
     assert ray1.worker_extended_resources == ray2.worker_extended_resources
     try:
@@ -2356,13 +2358,15 @@ def test_cluster_status(mocker):
         name="test",
         status=RayClusterStatus.UNKNOWN,
         workers=1,
-        worker_mem_min=2,
-        worker_mem_max=2,
+        worker_mem_requests=2,
+        worker_mem_limits=2,
         worker_cpu=1,
         namespace="ns",
         dashboard="fake-uri",
-        head_cpus=2,
-        head_mem=8,
+        head_cpu_requests=2,
+        head_cpu_limits=2,
+        head_mem_requests=8,
+        head_mem_limits=8,
     )
     cf = Cluster(
         ClusterConfiguration(
