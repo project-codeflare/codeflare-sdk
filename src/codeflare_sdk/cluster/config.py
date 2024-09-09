@@ -75,10 +75,16 @@ class ClusterConfiguration:
     name: str
     namespace: Optional[str] = None
     head_info: List[str] = field(default_factory=list)
-    head_cpus: Union[int, str] = 2
-    head_memory: Union[int, str] = 8
+    head_cpu_requests: Union[int, str] = 2
+    head_cpu_limits: Union[int, str] = 2
+    head_cpus: Optional[Union[int, str]] = None  # Deprecating
+    head_memory_requests: Union[int, str] = 8
+    head_memory_limits: Union[int, str] = 8
+    head_memory: Optional[Union[int, str]] = None  # Deprecating
     head_gpus: Optional[int] = None  # Deprecating
-    head_extended_resource_requests: Dict[str, int] = field(default_factory=dict)
+    head_extended_resource_requests: Dict[str, Union[str, int]] = field(
+        default_factory=dict
+    )
     machine_types: List[str] = field(
         default_factory=list
     )  # ["m4.xlarge", "g4dn.xlarge"]
@@ -100,7 +106,9 @@ class ClusterConfiguration:
     write_to_file: bool = False
     verify_tls: bool = True
     labels: Dict[str, str] = field(default_factory=dict)
-    worker_extended_resource_requests: Dict[str, int] = field(default_factory=dict)
+    worker_extended_resource_requests: Dict[str, Union[str, int]] = field(
+        default_factory=dict
+    )
     extended_resource_mapping: Dict[str, str] = field(default_factory=dict)
     overwrite_default_resource_mapping: bool = False
     local_queue: Optional[str] = None
@@ -183,14 +191,21 @@ class ClusterConfiguration:
             self.worker_memory_limits = f"{self.worker_memory_limits}G"
 
     def _memory_to_string(self):
-        if isinstance(self.head_memory, int):
-            self.head_memory = f"{self.head_memory}G"
+        if isinstance(self.head_memory_requests, int):
+            self.head_memory_requests = f"{self.head_memory_requests}G"
+        if isinstance(self.head_memory_limits, int):
+            self.head_memory_limits = f"{self.head_memory_limits}G"
         if isinstance(self.worker_memory_requests, int):
             self.worker_memory_requests = f"{self.worker_memory_requests}G"
         if isinstance(self.worker_memory_limits, int):
             self.worker_memory_limits = f"{self.worker_memory_limits}G"
 
     def _cpu_to_resource(self):
+        if self.head_cpus:
+            warnings.warn(
+                "head_cpus is being deprecated, use head_cpu_requests and head_cpu_limits"
+            )
+            self.head_cpu_requests = self.head_cpu_limits = self.head_cpus
         if self.min_cpus:
             warnings.warn("min_cpus is being deprecated, use worker_cpu_requests")
             self.worker_cpu_requests = self.min_cpus
@@ -199,6 +214,11 @@ class ClusterConfiguration:
             self.worker_cpu_limits = self.max_cpus
 
     def _memory_to_resource(self):
+        if self.head_memory:
+            warnings.warn(
+                "head_memory is being deprecated, use head_memory_requests and head_memory_limits"
+            )
+            self.head_memory_requests = self.head_memory_limits = self.head_memory
         if self.min_memory:
             warnings.warn("min_memory is being deprecated, use worker_memory_requests")
             self.worker_memory_requests = f"{self.min_memory}G"

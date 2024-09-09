@@ -115,22 +115,22 @@ def update_env(spec, env):
 
 def update_resources(
     spec,
-    worker_cpu_requests,
-    worker_cpu_limits,
-    worker_memory_requests,
-    worker_memory_limits,
+    cpu_requests,
+    cpu_limits,
+    memory_requests,
+    memory_limits,
     custom_resources,
 ):
     container = spec.get("containers")
     for resource in container:
         requests = resource.get("resources").get("requests")
         if requests is not None:
-            requests["cpu"] = worker_cpu_requests
-            requests["memory"] = worker_memory_requests
+            requests["cpu"] = cpu_requests
+            requests["memory"] = memory_requests
         limits = resource.get("resources").get("limits")
         if limits is not None:
-            limits["cpu"] = worker_cpu_limits
-            limits["memory"] = worker_memory_limits
+            limits["cpu"] = cpu_limits
+            limits["memory"] = memory_limits
         for k in custom_resources.keys():
             limits[k] = custom_resources[k]
             requests[k] = custom_resources[k]
@@ -210,10 +210,10 @@ def update_nodes(
             # TODO: Eventually add head node configuration outside of template
             update_resources(
                 spec,
-                cluster.config.head_cpus,
-                cluster.config.head_cpus,
-                cluster.config.head_memory,
-                cluster.config.head_memory,
+                cluster.config.head_cpu_requests,
+                cluster.config.head_cpu_limits,
+                cluster.config.head_memory_requests,
+                cluster.config.head_memory_limits,
                 cluster.config.head_extended_resource_requests,
             )
         else:
