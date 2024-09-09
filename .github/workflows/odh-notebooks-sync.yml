@@ -57,6 +57,11 @@ jobs:
           package_name=codeflare-sdk
           available_python_versions=("3.9", "3.11") # add space separated python versions according to 'python-versions' specified in 'Setup Python Environment' step
           install_package_using_pipenv(){
+            # args allow custom names for Pipfile and Pipfile.lock
+            if $# -eq 2; then
+              mv $1 Pipfile
+              mv $2 Pipfile.lock
+            fi
             if ! pipenv install ${package_name}~="${CODEFLARE_RELEASE_VERSION}"; then
               echo "Failed to install ${package_name} with version ${CODEFLARE_RELEASE_VERSION} in $dir"
               exit 1
@@ -71,6 +76,10 @@ jobs:
               echo "Failed to remove virtual environment"
               exit 1
             fi
+            if $# -eq 2; then
+              mv Pipfile $1
+              mv Pipfile.lock $2
+            fi
           }
           # Get the list of available versions for the package
           if ! versions=$(pipenv run pip-versions list $package_name);then
@@ -81,31 +90,8 @@ jobs:
           if echo "$versions" | grep -q "${CODEFLARE_RELEASE_VERSION}"; then
             echo "Version ${CODEFLARE_RELEASE_VERSION} is available for $package_name"
             # list all Pipfile paths having Codeflare-SDK listed
-            paths+=($(grep -rl "${package_name} = \"~=.*\""))
-            # Extracting only directories from file paths, excluding a `.gitworkflow` directory
-            directories=()
-            exclude_directories=(
-              ".git/objects/pack"
-              ".github/workflows/",
-            )
-            for path in "${paths[@]}"; do
-              current_dir=$(dirname "$path")
-              #Check if current_dir is not in exclude_directories list
-              if [[ ! "${exclude_directories[@]}" =~ "$current_dir" ]]; then
-                #Check if Pipfile exists in current_dir
-                if ls "$current_dir"/Pipfile* 1> /dev/null 2>&1;then
-                  directories+=("$current_dir")
-                fi
-              fi
-            done
-            # Remove duplicates
-            directories=($(echo "${directories[@]}" | tr ' ' '\n' | sort -u | tr '\n' ' '))
-            # Print the directories for verification
-            echo "Directories (Start updating Pipfile in these below directories in accordance with Codeflare-SDK latest release):"
-            for dir in "${directories[@]}"; do
-              echo "- $dir"
-            done
-            # iterate over the directories and update Pipfile
+            # Extracting only directories from file paths, excluding a `.gitworkflow` and `.git` directory
+            directories+=($(grep --exclude-dir=.git --exclude-dir=.github --include="Pipfile*" -rl "${package_name} = \"~=.*\"" | xargs dirname | sort | uniq))
             counter=0
             total=${#directories[@]}
             for dir in "${directories[@]}"; do
@@ -126,20 +112,10 @@ jobs:
               if [[ " ${available_python_versions[@]} " =~ " ${pipfile_python_version} " && "$pipfile_python_version_major" -ge "$minimum_supported_python_version_major" && "$pipfile_python_version_minor" -ge "$minimum_supported_python_version_minor" ]]; then
                 if ! [ -f "Pipfile" ]; then
                   if [ -f "Pipfile.cpu" ]; then
-                    mv Pipfile.cpu Pipfile
-                    mv Pipfile.lock.cpu Pipfile.lock
-                    #install specified package
-                    install_package_using_pipenv
-                    mv Pipfile.lock Pipfile.lock.cpu
-                    mv Pipfile Pipfile.cpu
+                    install_package_using_pipenv Pipfile.cpu Pipfile.lock.cpu
                   fi
                   if [ -f "Pipfile.gpu" ]; then
-                    mv Pipfile.gpu Pipfile
-                    mv Pipfile.lock.gpu Pipfile.lock
-                    #install specified package
-                    install_package_using_pipenv
-                    mv Pipfile.lock Pipfile.lock.gpu
-                    mv Pipfile Pipfile.gpu
+                    install_package_using_pipenv Pipfile.gpu Pipfile.lock.gpu
                   fi
                 else
                   #install specified package
