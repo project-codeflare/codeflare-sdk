@@ -16,6 +16,7 @@
 The ray_jobs sub-module contains methods needed to submit jobs and connect to Ray Clusters that were not created by CodeFlare.
 The SDK acts as a wrapper for the Ray Job Submission Client.
 """
+
 from ray.job_submission import JobSubmissionClient
 from ray.dashboard.modules.job.pydantic_models import JobDetails
 from typing import Iterator, Optional, Dict, Any, Union, List
@@ -62,6 +63,7 @@ class RayJobClient:
         submission_id: Optional[str] = None,
         entrypoint_num_cpus: Optional[Union[int, float]] = None,
         entrypoint_num_gpus: Optional[Union[int, float]] = None,
+        entrypoint_memory: Optional[int] = None,
         entrypoint_resources: Optional[Dict[str, float]] = None,
     ) -> str:
         """
@@ -75,6 +77,7 @@ class RayJobClient:
         job_id -- DEPRECATED. This has been renamed to submission_id
         entrypoint_num_cpus -- The quantity of CPU cores to reserve for the execution of the entrypoint command, separately from any tasks or actors launched by it. Defaults to 0.
         entrypoint_num_gpus -- The quantity of GPUs to reserve for the execution of the entrypoint command, separately from any tasks or actors launched by it. Defaults to 0.
+        entrypoint_memory –- The quantity of memory to reserve for the execution of the entrypoint command, separately from any tasks or actors launched by it. Defaults to 0.
         entrypoint_resources -- The quantity of custom resources to reserve for the execution of the entrypoint command, separately from any tasks or actors launched by it.
         """
         return self.rayJobClient.submit_job(
@@ -85,6 +88,7 @@ class RayJobClient:
             submission_id=submission_id,
             entrypoint_num_cpus=entrypoint_num_cpus,
             entrypoint_num_gpus=entrypoint_num_gpus,
+            entrypoint_memory=entrypoint_memory,
             entrypoint_resources=entrypoint_resources,
         )
 

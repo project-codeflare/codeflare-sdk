@@ -2724,6 +2724,7 @@ def test_rjc_submit_job(ray_job_client, mocker):
         submission_id=None,
         entrypoint_num_cpus=None,
         entrypoint_num_gpus=None,
+        entrypoint_memory=None,
         entrypoint_resources=None,
     )
 
