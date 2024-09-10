@@ -1245,7 +1245,7 @@ def get_ray_obj(group, version, namespace, plural, cls=None):
                             },
                         },
                     },
-                    "rayVersion": "2.23.0",
+                    "rayVersion": "2.35.0",
                     "workerGroupSpecs": [
                         {
                             "groupName": "small-group-quicktest",
@@ -1478,7 +1478,7 @@ def get_ray_obj(group, version, namespace, plural, cls=None):
                             }
                         },
                     },
-                    "rayVersion": "2.23.0",
+                    "rayVersion": "2.35.0",
                     "workerGroupSpecs": [
                         {
                             "groupName": "small-group-quicktest2",
@@ -1846,7 +1846,7 @@ def get_aw_obj(group, version, namespace, plural):
                                             }
                                         },
                                     },
-                                    "rayVersion": "2.23.0",
+                                    "rayVersion": "2.35.0",
                                     "workerGroupSpecs": [
                                         {
                                             "groupName": "small-group-quicktest",

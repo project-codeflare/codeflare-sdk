@@ -45,7 +45,7 @@ def createClusterWrongType():
         appwrapper=True,
         machine_types=[True, False],
         image_pull_secrets=["unit-test-pull-secret"],
-        image="quay.io/rhoai/ray:2.23.0-py39-cu121",
+        image="quay.io/modh/ray:2.35.0-py39-cu121",
         write_to_file=True,
         labels={1: 1},
     )
