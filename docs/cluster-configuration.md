@@ -23,7 +23,7 @@ cluster = Cluster(ClusterConfiguration(
     labels={"exampleLabel": "example", "secondLabel": "example"},
 ))
 ```
-Note: 'quay.io/rhoai/ray:2.23.0-py39-cu121' is the default community image used by the CodeFlare SDK for creating a RayCluster resource. If you have your own Ray image which suits your purposes, specify it in image field to override the default image.
+Note: 'quay.io/modh/ray:2.35.0-py39-cu121' is the default image used by the CodeFlare SDK for creating a RayCluster resource. If you have your own Ray image which suits your purposes, specify it in image field to override the default image.
 
 The `labels={"exampleLabel": "example"}` parameter can be used to apply additional labels to the RayCluster resource.
 
