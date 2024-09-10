@@ -9,8 +9,10 @@ from codeflare_sdk import Cluster, ClusterConfiguration
 cluster = Cluster(ClusterConfiguration(
     name='ray-example', # Mandatory Field
     namespace='default', # Default None
-    head_cpus=1, # Default 2
-    head_memory=1, # Default 8
+    head_cpu_requests=1, # Default 2
+    head_cpu_limits=1, # Default 2
+    head_memory_requests=1, # Default 8
+    head_memory_limits=1, # Default 8
     head_extended_resource_requests={'nvidia.com/gpu':0}, # Default 0
     worker_extended_resource_requests={'nvidia.com/gpu':0}, # Default 0
     num_workers=1, # Default 1
@@ -28,3 +30,17 @@ Note: 'quay.io/modh/ray:2.35.0-py39-cu121' is the default image used by the Code
 The `labels={"exampleLabel": "example"}` parameter can be used to apply additional labels to the RayCluster resource.
 
 After creating their `cluster`, a user can call `cluster.up()` and `cluster.down()` to respectively create or remove the Ray Cluster.
+
+
+## Deprecating Parameters
+The following parameters of the `ClusterConfiguration` are being deprecated in release `v0.22.0`. <!-- TODO: When removing deprecated parameters update this statement -->
+| Deprecated Parameter | Replaced By |
+| :--------- | :-------- |
+| `head_cpus` | `head_cpu_requests`, `head_cpu_limits` |
+| `head_memory` | `head_memory_requests`, `head_memory_limits` |
+| `min_cpus` | `worker_cpu_requests` |
+| `max_cpus` | `worker_cpu_limits` |
+| `min_memory` | `worker_memory_requests` |
+| `max_memory` | `worker_memory_limits` |
+| `head_gpus` | `head_extended_resource_requests` |
+| `num_gpus` | `worker_extended_resource_requests` |
