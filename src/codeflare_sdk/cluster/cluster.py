@@ -27,12 +27,12 @@ from ray.job_submission import JobSubmissionClient
 
 from .auth import config_check, api_config_handler
 from ..utils import pretty_print
-from ..utils.generate_yaml import (
-    generate_appwrapper,
+
+from ..utils.build_ray_cluster import (
     head_worker_gpu_count_from_cluster,
+    build_ray_cluster,
 )
 from ..utils.kube_api_helpers import _kube_api_error_handling
-from ..utils.generate_yaml import is_openshift_cluster
 
 from .config import ClusterConfiguration
 from .model import (
@@ -43,13 +43,14 @@ from .model import (
     RayClusterStatus,
 )
 from kubernetes import client, config
-from kubernetes.utils import parse_quantity
 import yaml
 import os
 import requests
 
 from kubernetes import config
 from kubernetes.client.rest import ApiException
+from ..utils.build_ray_cluster import write_to_file as write_cluster_to_file
+import warnings
 
 
 class Cluster:
@@ -68,9 +69,13 @@ class Cluster:
         request.
         """
         self.config = config
-        self.app_wrapper_yaml = self.create_app_wrapper()
+        if self.config is None:
+            warnings.warn(
+                "Please provide a ClusterConfiguration to initialise the Cluster object"
+            )
+        else:
+            self.resource_yaml = self.create_resource()
         self._job_submission_client = None
-        self.app_wrapper_name = self.config.name
 
     @property
     def _client_headers(self):
@@ -83,7 +88,7 @@ class Cluster:
 
     @property
     def _client_verify_tls(self):
-        if not is_openshift_cluster or not self.config.verify_tls:
+        if not _is_openshift_cluster or not self.config.verify_tls:
             return False
         return True
 
@@ -92,7 +97,7 @@ class Cluster:
         k8client = api_config_handler() or client.ApiClient()
         if self._job_submission_client:
             return self._job_submission_client
-        if is_openshift_cluster():
+        if _is_openshift_cluster():
             self._job_submission_client = JobSubmissionClient(
                 self.cluster_dashboard_uri(),
                 headers=self._client_headers,
@@ -104,7 +109,7 @@ class Cluster:
             )
         return self._job_submission_client
 
-    def create_app_wrapper(self):
+    def create_resource(self):
         """
         Called upon cluster object creation, creates an AppWrapper yaml based on
         the specifications of the ClusterConfiguration.
@@ -119,7 +124,7 @@ class Cluster:
                     f"Namespace {self.config.namespace} is of type {type(self.config.namespace)}. Check your Kubernetes Authentication."
                 )
 
-        return generate_appwrapper(self)
+        return build_ray_cluster(self)
 
     # creates a new cluster with the provided or default spec
     def up(self):
@@ -138,7 +143,7 @@ class Cluster:
             api_instance = client.CustomObjectsApi(api_config_handler())
             if self.config.appwrapper:
                 if self.config.write_to_file:
-                    with open(self.app_wrapper_yaml) as f:
+                    with open(self.resource_yaml) as f:
                         aw = yaml.load(f, Loader=yaml.FullLoader)
                         api_instance.create_namespaced_custom_object(
                             group="workload.codeflare.dev",
@@ -148,13 +153,12 @@ class Cluster:
                             body=aw,
                         )
                 else:
-                    aw = yaml.safe_load(self.app_wrapper_yaml)
                     api_instance.create_namespaced_custom_object(
                         group="workload.codeflare.dev",
                         version="v1beta2",
                         namespace=namespace,
                         plural="appwrappers",
-                        body=aw,
+                        body=self.resource_yaml,
                     )
             else:
                 self._component_resources_up(namespace, api_instance)
@@ -196,10 +200,10 @@ class Cluster:
                     version="v1beta2",
                     namespace=namespace,
                     plural="appwrappers",
-                    name=self.app_wrapper_name,
+                    name=self.config.name,
                 )
             else:
-                self._component_resources_down(namespace, api_instance)
+                _delete_resources(self.config.name, namespace, api_instance)
         except Exception as e:  # pragma: no cover
             return _kube_api_error_handling(e)
 
@@ -342,7 +346,7 @@ class Cluster:
         Returns a string containing the cluster's dashboard URI.
         """
         config_check()
-        if is_openshift_cluster():
+        if _is_openshift_cluster():
             try:
                 api_instance = client.CustomObjectsApi(api_config_handler())
                 routes = api_instance.list_namespaced_custom_object(
@@ -426,55 +430,6 @@ class Cluster:
 
         return head_extended_resources, worker_extended_resources
 
-    def from_k8_cluster_object(
-        rc,
-        appwrapper=True,
-        write_to_file=False,
-        verify_tls=True,
-    ):
-        config_check()
-        machine_types = (
-            rc["metadata"]["labels"]["orderedinstance"].split("_")
-            if "orderedinstance" in rc["metadata"]["labels"]
-            else []
-        )
-
-        (
-            head_extended_resources,
-            worker_extended_resources,
-        ) = Cluster._head_worker_extended_resources_from_rc_dict(rc)
-
-        cluster_config = ClusterConfiguration(
-            name=rc["metadata"]["name"],
-            namespace=rc["metadata"]["namespace"],
-            machine_types=machine_types,
-            num_workers=rc["spec"]["workerGroupSpecs"][0]["minReplicas"],
-            worker_cpu_requests=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"][
-                "containers"
-            ][0]["resources"]["requests"]["cpu"],
-            worker_cpu_limits=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"][
-                "containers"
-            ][0]["resources"]["limits"]["cpu"],
-            worker_memory_requests=rc["spec"]["workerGroupSpecs"][0]["template"][
-                "spec"
-            ]["containers"][0]["resources"]["requests"]["memory"],
-            worker_memory_limits=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"][
-                "containers"
-            ][0]["resources"]["limits"]["memory"],
-            worker_extended_resource_requests=worker_extended_resources,
-            head_extended_resource_requests=head_extended_resources,
-            image=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"]["containers"][
-                0
-            ]["image"],
-            appwrapper=appwrapper,
-            write_to_file=write_to_file,
-            verify_tls=verify_tls,
-            local_queue=rc["metadata"]
-            .get("labels", dict())
-            .get("kueue.x-k8s.io/queue-name", None),
-        )
-        return Cluster(cluster_config)
-
     def local_client_url(self):
         ingress_domain = _get_ingress_domain(self)
         return f"ray://{ingress_domain}"
@@ -483,36 +438,11 @@ class Cluster:
         self, namespace: str, api_instance: client.CustomObjectsApi
     ):
         if self.config.write_to_file:
-            with open(self.app_wrapper_yaml) as f:
-                yamls = list(yaml.load_all(f, Loader=yaml.FullLoader))
-                for resource in yamls:
-                    enable_ingress = (
-                        resource.get("spec", {})
-                        .get("headGroupSpec", {})
-                        .get("enableIngress")
-                    )
-                    if resource["kind"] == "RayCluster" and enable_ingress is True:
-                        name = resource["metadata"]["name"]
-                        print(
-                            f"Forbidden: RayCluster '{name}' has 'enableIngress' set to 'True'."
-                        )
-                        return
-                _create_resources(yamls, namespace, api_instance)
+            with open(self.resource_yaml) as f:
+                ray_cluster = yaml.safe_load(f)
+                _create_resources(ray_cluster, namespace, api_instance)
         else:
-            yamls = yaml.load_all(self.app_wrapper_yaml, Loader=yaml.FullLoader)
-            _create_resources(yamls, namespace, api_instance)
-
-    def _component_resources_down(
-        self, namespace: str, api_instance: client.CustomObjectsApi
-    ):
-        cluster_name = self.config.name
-        if self.config.write_to_file:
-            with open(self.app_wrapper_yaml) as f:
-                yamls = yaml.load_all(f, Loader=yaml.FullLoader)
-                _delete_resources(yamls, namespace, api_instance, cluster_name)
-        else:
-            yamls = yaml.safe_load_all(self.app_wrapper_yaml)
-            _delete_resources(yamls, namespace, api_instance, cluster_name)
+            _create_resources(self.resource_yaml, namespace, api_instance)
 
 
 def list_all_clusters(namespace: str, print_to_console: bool = True):
@@ -583,82 +513,114 @@ def get_current_namespace():  # pragma: no cover
                 return None
 
 
-def get_cluster(
-    cluster_name: str,
-    namespace: str = "default",
-    write_to_file: bool = False,
-    verify_tls: bool = True,
-):
-    try:
-        config_check()
-        api_instance = client.CustomObjectsApi(api_config_handler())
-        rcs = api_instance.list_namespaced_custom_object(
-            group="ray.io",
-            version="v1",
-            namespace=namespace,
-            plural="rayclusters",
-        )
-    except Exception as e:
-        return _kube_api_error_handling(e)
-
-    for rc in rcs["items"]:
-        if rc["metadata"]["name"] == cluster_name:
-            appwrapper = _check_aw_exists(cluster_name, namespace)
-            return Cluster.from_k8_cluster_object(
-                rc,
-                appwrapper=appwrapper,
-                write_to_file=write_to_file,
-                verify_tls=verify_tls,
-            )
-    raise FileNotFoundError(
-        f"Cluster {cluster_name} is not found in {namespace} namespace"
+def _delete_resources(name: str, namespace: str, api_instance: client.CustomObjectsApi):
+    api_instance.delete_namespaced_custom_object(
+        group="ray.io",
+        version="v1",
+        namespace=namespace,
+        plural="rayclusters",
+        name=name,
     )
 
 
-# private methods
-def _delete_resources(
-    yamls, namespace: str, api_instance: client.CustomObjectsApi, cluster_name: str
-):
-    for resource in yamls:
-        if resource["kind"] == "RayCluster":
-            name = resource["metadata"]["name"]
-            api_instance.delete_namespaced_custom_object(
-                group="ray.io",
-                version="v1",
-                namespace=namespace,
-                plural="rayclusters",
-                name=name,
-            )
-
-
 def _create_resources(yamls, namespace: str, api_instance: client.CustomObjectsApi):
-    for resource in yamls:
-        if resource["kind"] == "RayCluster":
-            api_instance.create_namespaced_custom_object(
+    api_instance.create_namespaced_custom_object(
+        group="ray.io",
+        version="v1",
+        namespace=namespace,
+        plural="rayclusters",
+        body=yamls,
+    )
+
+
+def get_cluster(
+    cluster_name: str,
+    namespace: str = "default",
+    verify_tls: bool = True,
+    is_appwrapper: bool = False,  # As get_cluster no longer searches a list of potential candidates it is necessary to specify if the resource is an appwrapper
+    write_to_file: bool = False,
+):
+    config_check()
+    api_instance = client.CustomObjectsApi(api_config_handler())
+    # Check/Get the AppWrapper if it exists
+    if is_appwrapper:
+        try:
+            resource = api_instance.get_namespaced_custom_object(
+                group="workload.codeflare.dev",
+                version="v1beta2",
+                namespace=namespace,
+                plural="appwrappers",
+                name=cluster_name,
+            )
+        except Exception as e:
+            return _kube_api_error_handling(e)
+    else:
+        # Get the Ray Cluster
+        try:
+            resource = api_instance.get_namespaced_custom_object(
                 group="ray.io",
                 version="v1",
                 namespace=namespace,
                 plural="rayclusters",
-                body=resource,
+                name=cluster_name,
             )
+        except Exception as e:
+            return _kube_api_error_handling(e)
 
-
-def _check_aw_exists(name: str, namespace: str) -> bool:
-    try:
-        config_check()
-        api_instance = client.CustomObjectsApi(api_config_handler())
-        aws = api_instance.list_namespaced_custom_object(
-            group="workload.codeflare.dev",
-            version="v1beta2",
-            namespace=namespace,
-            plural="appwrappers",
+    # Create a Cluster Configuration with just the necessary provided parameters
+    cluster_config = ClusterConfiguration(
+        name=cluster_name,
+        namespace=namespace,
+        verify_tls=verify_tls,
+        write_to_file=write_to_file,
+        appwrapper=is_appwrapper,
+    )
+    # Ignore the warning here for the lack of a ClusterConfiguration
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore",
+            message="Please provide a ClusterConfiguration to initialise the Cluster object",
         )
-    except Exception as e:  # pragma: no cover
-        return _kube_api_error_handling(e, print_error=False)
-    for aw in aws["items"]:
-        if aw["metadata"]["name"] == name:
-            return True
-    return False
+        cluster = Cluster(None)
+        cluster.config = cluster_config
+
+        # Remove auto-generated fields like creationTimestamp, uid and etc.
+        remove_autogenerated_fields(resource)
+
+        if write_to_file:
+            cluster.resource_yaml = write_cluster_to_file(cluster, resource)
+        else:
+            # Update the Cluster's resource_yaml to reflect the retrieved Ray Cluster/AppWrapper
+            cluster.resource_yaml = resource
+            print(f"Yaml resources loaded for {cluster.config.name}")
+
+        return cluster
+
+
+def remove_autogenerated_fields(resource):
+    """Recursively remove autogenerated fields from a dictionary."""
+    if isinstance(resource, dict):
+        for key in list(resource.keys()):
+            if key in [
+                "creationTimestamp",
+                "resourceVersion",
+                "uid",
+                "selfLink",
+                "managedFields",
+                "finalizers",
+                "generation",
+                "status",
+                "suspend",
+                "workload.codeflare.dev/user",  # AppWrapper field
+                "workload.codeflare.dev/userid",  # AppWrapper field
+                "podSetInfos",  # AppWrapper field
+            ]:
+                del resource[key]
+            else:
+                remove_autogenerated_fields(resource[key])
+    elif isinstance(resource, list):
+        for item in resource:
+            remove_autogenerated_fields(item)
 
 
 # Cant test this until get_current_namespace is fixed and placed in this function over using `self`
@@ -671,7 +633,7 @@ def _get_ingress_domain(self):  # pragma: no cover
         namespace = get_current_namespace()
     domain = None
 
-    if is_openshift_cluster():
+    if _is_openshift_cluster():
         try:
             api_instance = client.CustomObjectsApi(api_config_handler())
 
@@ -803,7 +765,7 @@ def _map_to_ray_cluster(rc) -> Optional[RayCluster]:
         status = RayClusterStatus.UNKNOWN
     config_check()
     dashboard_url = None
-    if is_openshift_cluster():
+    if _is_openshift_cluster():
         try:
             api_instance = client.CustomObjectsApi(api_config_handler())
             routes = api_instance.list_namespaced_custom_object(
@@ -905,3 +867,17 @@ def _copy_to_ray(cluster: Cluster) -> RayCluster:
     if ray.status == CodeFlareClusterStatus.READY:
         ray.status = RayClusterStatus.READY
     return ray
+
+
+# Check if the routes api exists
+def _is_openshift_cluster():
+    try:
+        config_check()
+        for api in client.ApisApi(api_config_handler()).get_api_versions().groups:
+            for v in api.versions:
+                if "route.openshift.io/v1" in v.group_version:
+                    return True
+        else:
+            return False
+    except Exception as e:  # pragma: no cover
+        return _kube_api_error_handling(e)

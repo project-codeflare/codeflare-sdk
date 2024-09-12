@@ -34,11 +34,9 @@ spec:
             block: 'true'
             dashboard-host: 0.0.0.0
             num-gpus: '0'
-            resources: '"{}"'
           serviceType: ClusterIP
           template:
             spec:
-              imagePullSecrets: []
               containers:
               - image: quay.io/rhoai/ray:2.23.0-py39-cu121
                 imagePullPolicy: Always
@@ -100,18 +98,12 @@ spec:
           rayStartParams:
             block: 'true'
             num-gpus: '0'
-            resources: '"{}"'
           replicas: 1
           template:
-            metadata:
-              annotations:
-                key: value
-              labels:
-                key: value
             spec:
-              imagePullSecrets: []
               containers:
               - image: quay.io/rhoai/ray:2.23.0-py39-cu121
+                imagePullPolicy: Always
                 lifecycle:
                   preStop:
                     exec:

@@ -18,8 +18,7 @@ cluster = Cluster(ClusterConfiguration(
     worker_cpu_limits=1, # Default 1
     worker_memory_requests=2, # Default 2
     worker_memory_limits=2, # Default 2
-    # image="", # Optional Field
-    machine_types=["m5.xlarge", "g4dn.xlarge"],
+    # image="", # Default quay.io/rhoai/ray:2.23.0-py39-cu121
     labels={"exampleLabel": "example", "secondLabel": "example"},
 ))
 ```
@@ -27,4 +26,4 @@ Note: 'quay.io/rhoai/ray:2.23.0-py39-cu121' is the default community image used 
 
 The `labels={"exampleLabel": "example"}` parameter can be used to apply additional labels to the RayCluster resource.
 
-After creating their `cluster`, a user can call `cluster.up()` and `cluster.down()` to respectively create or remove the Ray Cluster.
+For detailed instructions on the various methods that can be called for interacting with Ray Clusters see [Ray Cluster Interaction](./ray_cluster_interaction.md).
