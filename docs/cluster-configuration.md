@@ -23,7 +23,7 @@ cluster = Cluster(ClusterConfiguration(
     labels={"exampleLabel": "example", "secondLabel": "example"},
 ))
 ```
-Note: 'quay.io/modh/ray:2.35.0-py39-cu121' is the default image used by the CodeFlare SDK for creating a RayCluster resource. If you have your own Ray image which suits your purposes, specify it in image field to override the default image.
+Note: 'quay.io/modh/ray:2.35.0-py39-cu121' is the default image used by the CodeFlare SDK for creating a RayCluster resource. If you have your own Ray image which suits your purposes, specify it in image field to override the default image. If you are using ROCm compatible GPUs you can use 'quay.io/modh/ray:2.35.0-py39-rocm61'. You can also find documentation on building a custom image [here](https://github.com/opendatahub-io/distributed-workloads/tree/main/images/runtime/examples).
 
 The `labels={"exampleLabel": "example"}` parameter can be used to apply additional labels to the RayCluster resource.
 
