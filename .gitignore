@@ -8,3 +8,7 @@ Pipfile.lock
 build/
 tls-cluster-namespace
 quicktest.yaml
+node_modules
+.DS_Store
+ui-tests/playwright-report
+ui-tests/test-results
