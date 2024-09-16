@@ -24,7 +24,7 @@ import yaml
 
 from kubernetes import client, config
 from ..utils.kube_api_helpers import _kube_api_error_handling
-from .auth import config_check, api_config_handler
+from .auth import config_check, get_api_client
 
 
 class AWManager:
@@ -59,7 +59,7 @@ class AWManager:
         """
         try:
             config_check()
-            api_instance = client.CustomObjectsApi(api_config_handler())
+            api_instance = client.CustomObjectsApi(get_api_client())
             api_instance.create_namespaced_custom_object(
                 group="workload.codeflare.dev",
                 version="v1beta2",
@@ -84,7 +84,7 @@ class AWManager:
 
         try:
             config_check()
-            api_instance = client.CustomObjectsApi(api_config_handler())
+            api_instance = client.CustomObjectsApi(get_api_client())
             api_instance.delete_namespaced_custom_object(
                 group="workload.codeflare.dev",
                 version="v1beta2",

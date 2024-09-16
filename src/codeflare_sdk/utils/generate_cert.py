@@ -19,7 +19,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography import x509
 from cryptography.x509.oid import NameOID
 import datetime
-from ..cluster.auth import config_check, api_config_handler
+from ..cluster.auth import config_check, get_api_client
 from kubernetes import client, config
 from .kube_api_helpers import _kube_api_error_handling
 
@@ -103,7 +103,7 @@ def generate_tls_cert(cluster_name, namespace, days=30):
     # oc get secret ca-secret-<cluster-name> -o template='{{index .data "ca.key"}}'
     # oc get secret ca-secret-<cluster-name> -o template='{{index .data "ca.crt"}}'|base64 -d > ${TLSDIR}/ca.crt
     config_check()
-    v1 = client.CoreV1Api(api_config_handler())
+    v1 = client.CoreV1Api(get_api_client())
 
     # Secrets have a suffix appended to the end so we must list them and gather the secret that includes cluster_name-ca-secret-
     secret_name = get_secret_name(cluster_name, namespace, v1)

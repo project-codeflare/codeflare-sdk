@@ -93,17 +93,7 @@ class TokenAuthentication(Authentication):
         self.token = token
         self.server = server
         self.skip_tls = skip_tls
-        self.ca_cert_path = self._gen_ca_cert_path(ca_cert_path)
-
-    def _gen_ca_cert_path(self, ca_cert_path: str):
-        if ca_cert_path is not None:
-            return ca_cert_path
-        elif "CF_SDK_CA_CERT_PATH" in os.environ:
-            return os.environ.get("CF_SDK_CA_CERT_PATH")
-        elif os.path.exists(WORKBENCH_CA_CERT_PATH):
-            return WORKBENCH_CA_CERT_PATH
-        else:
-            return None
+        self.ca_cert_path = _gen_ca_cert_path(ca_cert_path)
 
     def login(self) -> str:
         """
@@ -119,25 +109,14 @@ class TokenAuthentication(Authentication):
             configuration.host = self.server
             configuration.api_key["authorization"] = self.token
 
+            api_client = client.ApiClient(configuration)
             if not self.skip_tls:
-                if self.ca_cert_path is None:
-                    configuration.ssl_ca_cert = None
-                elif os.path.isfile(self.ca_cert_path):
-                    print(
-                        f"Authenticated with certificate located at {self.ca_cert_path}"
-                    )
-                    configuration.ssl_ca_cert = self.ca_cert_path
-                else:
-                    raise FileNotFoundError(
-                        f"Certificate file not found at {self.ca_cert_path}"
-                    )
-                configuration.verify_ssl = True
+                _client_with_cert(api_client, self.ca_cert_path)
             else:
                 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
                 print("Insecure request warnings have been disabled")
                 configuration.verify_ssl = False
 
-            api_client = client.ApiClient(configuration)
             client.AuthenticationApi(api_client).get_api_group()
             config_path = None
             return "Logged into %s" % self.server
@@ -211,11 +190,33 @@ def config_check() -> str:
         return config_path
 
 
-def api_config_handler() -> Optional[client.ApiClient]:
-    """
-    This function is used to load the api client if the user has logged in
-    """
-    if api_client != None and config_path == None:
-        return api_client
+def _client_with_cert(client: client.ApiClient, ca_cert_path: Optional[str] = None):
+    client.configuration.verify_ssl = True
+    cert_path = _gen_ca_cert_path(ca_cert_path)
+    if cert_path is None:
+        client.configuration.ssl_ca_cert = None
+    elif os.path.isfile(cert_path):
+        client.configuration.ssl_ca_cert = cert_path
+    else:
+        raise FileNotFoundError(f"Certificate file not found at {cert_path}")
+
+
+def _gen_ca_cert_path(ca_cert_path: Optional[str]):
+    """Gets the path to the default CA certificate file either through env config or default path"""
+    if ca_cert_path is not None:
+        return ca_cert_path
+    elif "CF_SDK_CA_CERT_PATH" in os.environ:
+        return os.environ.get("CF_SDK_CA_CERT_PATH")
+    elif os.path.exists(WORKBENCH_CA_CERT_PATH):
+        return WORKBENCH_CA_CERT_PATH
     else:
         return None
+
+
+def get_api_client() -> client.ApiClient:
+    "This function should load the api client with defaults"
+    if api_client != None:
+        return api_client
+    to_return = client.ApiClient()
+    _client_with_cert(to_return)
+    return to_return
