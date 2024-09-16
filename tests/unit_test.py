@@ -76,6 +76,7 @@ from codeflare_sdk.utils.generate_yaml import (
     gen_names,
     is_openshift_cluster,
 )
+from codeflare_sdk.cluster.widgets import cluster_up_down_buttons
 
 import openshift
 from openshift.selector import Selector
