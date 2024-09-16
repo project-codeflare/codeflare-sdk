@@ -42,6 +42,10 @@ from .model import (
     RayCluster,
     RayClusterStatus,
 )
+from .widgets import (
+    cluster_up_down_buttons,
+    is_notebook,
+)
 from kubernetes import client, config
 from kubernetes.utils import parse_quantity
 import yaml
@@ -71,6 +75,8 @@ class Cluster:
         self.app_wrapper_yaml = self.create_app_wrapper()
         self._job_submission_client = None
         self.app_wrapper_name = self.config.name
+        if is_notebook():
+            cluster_up_down_buttons(self)
 
     @property
     def _client_headers(self):
@@ -156,8 +162,12 @@ class Cluster:
                         plural="appwrappers",
                         body=aw,
                     )
+                print(f"AppWrapper: '{self.config.name}' has successfully been created")
             else:
                 self._component_resources_up(namespace, api_instance)
+                print(
+                    f"Ray Cluster: '{self.config.name}' has successfully been created"
+                )
         except Exception as e:  # pragma: no cover
             return _kube_api_error_handling(e)
 
@@ -198,8 +208,12 @@ class Cluster:
                     plural="appwrappers",
                     name=self.app_wrapper_name,
                 )
+                print(f"AppWrapper: '{self.config.name}' has successfully been deleted")
             else:
                 self._component_resources_down(namespace, api_instance)
+                print(
+                    f"Ray Cluster: '{self.config.name}' has successfully been deleted"
+                )
         except Exception as e:  # pragma: no cover
             return _kube_api_error_handling(e)
 
