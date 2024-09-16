@@ -134,7 +134,7 @@ def test_token_auth_creation():
         assert token_auth.skip_tls == True
         assert token_auth.ca_cert_path == None
 
-        os.environ["CF_SDK_CA_CERT_PATH"] = f"/etc/pki/tls/custom-certs/ca-bundle.crt"
+        os.environ["CF_SDK_CA_CERT_PATH"] = "/etc/pki/tls/custom-certs/ca-bundle.crt"
         token_auth = TokenAuthentication(token="token", server="server", skip_tls=False)
         assert token_auth.token == "token"
         assert token_auth.server == "server"
@@ -153,7 +153,7 @@ def test_token_auth_creation():
         assert token_auth.skip_tls == False
         assert token_auth.ca_cert_path == f"{parent}/tests/auth-test.crt"
 
-    except Exception:
+    except Exception as e:
         assert 0 == 1
 
 
@@ -294,6 +294,7 @@ def test_cluster_creation(mocker):
     )
 
 
+@patch.dict("os.environ", {"NB_PREFIX": "test-prefix"})
 def test_cluster_no_kueue_no_aw(mocker):
     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch(
@@ -301,7 +302,6 @@ def test_cluster_no_kueue_no_aw(mocker):
         return_value={"spec": {"domain": "apps.cluster.awsroute.org"}},
     )
     mocker.patch("kubernetes.client.CustomObjectsApi.list_namespaced_custom_object")
-    mocker.patch("os.environ.get", return_value="test-prefix")
     config = createClusterConfig()
     config.appwrapper = False
     config.name = "unit-test-no-kueue"
@@ -350,6 +350,7 @@ def get_local_queue(group, version, namespace, plural):
     return local_queues
 
 
+@patch.dict("os.environ", {"NB_PREFIX": "test-prefix"})
 def test_cluster_creation_no_mcad(mocker):
     # Create Ray Cluster with no local queue specified
     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
@@ -361,7 +362,6 @@ def test_cluster_creation_no_mcad(mocker):
         "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
         return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
     )
-    mocker.patch("os.environ.get", return_value="test-prefix")
 
     config = createClusterConfig()
     config.name = "unit-test-cluster-ray"
@@ -379,6 +379,7 @@ def test_cluster_creation_no_mcad(mocker):
     )
 
 
+@patch.dict("os.environ", {"NB_PREFIX": "test-prefix"})
 def test_cluster_creation_no_mcad_local_queue(mocker):
     # With written resources
     # Create Ray Cluster with local queue specified
@@ -391,7 +392,6 @@ def test_cluster_creation_no_mcad_local_queue(mocker):
         "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
         return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
     )
-    mocker.patch("os.environ.get", return_value="test-prefix")
     config = createClusterConfig()
     config.name = "unit-test-cluster-ray"
     config.appwrapper = False
@@ -460,6 +460,7 @@ def test_default_cluster_creation(mocker):
     assert cluster.config.namespace == "opendatahub"
 
 
+@patch.dict("os.environ", {"NB_PREFIX": "test-prefix"})
 def test_cluster_creation_with_custom_image(mocker):
     # With written resources
     # Create Ray Cluster with local queue specified
@@ -472,7 +473,6 @@ def test_cluster_creation_with_custom_image(mocker):
         "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
         return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
     )
-    mocker.patch("os.environ.get", return_value="test-prefix")
     config = createClusterConfig()
     config.name = "unit-test-cluster-custom-image"
     config.appwrapper = False
@@ -2170,7 +2170,7 @@ def test_map_to_ray_cluster(mocker):
 
     mock_api_client = mocker.MagicMock(spec=client.ApiClient)
     mocker.patch(
-        "codeflare_sdk.cluster.auth.api_config_handler", return_value=mock_api_client
+        "codeflare_sdk.cluster.auth.get_api_client", return_value=mock_api_client
     )
 
     mock_routes = {

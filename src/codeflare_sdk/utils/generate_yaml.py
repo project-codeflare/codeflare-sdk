@@ -27,7 +27,7 @@ import argparse
 import uuid
 from kubernetes import client, config
 from .kube_api_helpers import _kube_api_error_handling
-from ..cluster.auth import api_config_handler, config_check
+from ..cluster.auth import get_api_client, config_check
 from os import urandom
 from base64 import b64encode
 from urllib3.util import parse_url
@@ -57,7 +57,7 @@ def gen_names(name):
 def is_openshift_cluster():
     try:
         config_check()
-        for api in client.ApisApi(api_config_handler()).get_api_versions().groups:
+        for api in client.ApisApi(get_api_client()).get_api_versions().groups:
             for v in api.versions:
                 if "route.openshift.io/v1" in v.group_version:
                     return True
@@ -235,7 +235,7 @@ def get_default_kueue_name(namespace: str):
     # If the local queue is set, use it. Otherwise, try to use the default queue.
     try:
         config_check()
-        api_instance = client.CustomObjectsApi(api_config_handler())
+        api_instance = client.CustomObjectsApi(get_api_client())
         local_queues = api_instance.list_namespaced_custom_object(
             group="kueue.x-k8s.io",
             version="v1beta1",
@@ -261,7 +261,7 @@ def local_queue_exists(namespace: str, local_queue_name: str):
     # get all local queues in the namespace
     try:
         config_check()
-        api_instance = client.CustomObjectsApi(api_config_handler())
+        api_instance = client.CustomObjectsApi(get_api_client())
         local_queues = api_instance.list_namespaced_custom_object(
             group="kueue.x-k8s.io",
             version="v1beta1",

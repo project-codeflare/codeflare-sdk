@@ -26,7 +26,7 @@ from typing import List, Optional, Tuple, Dict
 from kubernetes import config
 from ray.job_submission import JobSubmissionClient
 
-from .auth import config_check, api_config_handler
+from .auth import config_check, get_api_client
 from ..utils import pretty_print
 from ..utils.generate_yaml import (
     generate_appwrapper,
@@ -81,7 +81,7 @@ class Cluster:
 
     @property
     def _client_headers(self):
-        k8_client = api_config_handler() or client.ApiClient()
+        k8_client = get_api_client()
         return {
             "Authorization": k8_client.configuration.get_api_key_with_prefix(
                 "authorization"
@@ -96,7 +96,7 @@ class Cluster:
 
     @property
     def job_client(self):
-        k8client = api_config_handler() or client.ApiClient()
+        k8client = get_api_client()
         if self._job_submission_client:
             return self._job_submission_client
         if is_openshift_cluster():
@@ -142,7 +142,7 @@ class Cluster:
 
         try:
             config_check()
-            api_instance = client.CustomObjectsApi(api_config_handler())
+            api_instance = client.CustomObjectsApi(get_api_client())
             if self.config.appwrapper:
                 if self.config.write_to_file:
                     with open(self.app_wrapper_yaml) as f:
@@ -173,7 +173,7 @@ class Cluster:
             return _kube_api_error_handling(e)
 
     def _throw_for_no_raycluster(self):
-        api_instance = client.CustomObjectsApi(api_config_handler())
+        api_instance = client.CustomObjectsApi(get_api_client())
         try:
             api_instance.list_namespaced_custom_object(
                 group="ray.io",
@@ -200,7 +200,7 @@ class Cluster:
         self._throw_for_no_raycluster()
         try:
             config_check()
-            api_instance = client.CustomObjectsApi(api_config_handler())
+            api_instance = client.CustomObjectsApi(get_api_client())
             if self.config.appwrapper:
                 api_instance.delete_namespaced_custom_object(
                     group="workload.codeflare.dev",
@@ -359,7 +359,7 @@ class Cluster:
         config_check()
         if is_openshift_cluster():
             try:
-                api_instance = client.CustomObjectsApi(api_config_handler())
+                api_instance = client.CustomObjectsApi(get_api_client())
                 routes = api_instance.list_namespaced_custom_object(
                     group="route.openshift.io",
                     version="v1",
@@ -381,7 +381,7 @@ class Cluster:
                     return f"{protocol}://{route['spec']['host']}"
         else:
             try:
-                api_instance = client.NetworkingV1Api(api_config_handler())
+                api_instance = client.NetworkingV1Api(get_api_client())
                 ingresses = api_instance.list_namespaced_ingress(self.config.namespace)
             except Exception as e:  # pragma no cover
                 return _kube_api_error_handling(e)
@@ -580,9 +580,6 @@ def get_current_namespace():  # pragma: no cover
             return active_context
         except Exception as e:
             print("Unable to find current namespace")
-
-    if api_config_handler() != None:
-        return None
     print("trying to gather from current context")
     try:
         _, active_context = config.list_kube_config_contexts(config_check())
@@ -602,7 +599,7 @@ def get_cluster(
 ):
     try:
         config_check()
-        api_instance = client.CustomObjectsApi(api_config_handler())
+        api_instance = client.CustomObjectsApi(get_api_client())
         rcs = api_instance.list_namespaced_custom_object(
             group="ray.io",
             version="v1",
@@ -657,7 +654,7 @@ def _create_resources(yamls, namespace: str, api_instance: client.CustomObjectsA
 def _check_aw_exists(name: str, namespace: str) -> bool:
     try:
         config_check()
-        api_instance = client.CustomObjectsApi(api_config_handler())
+        api_instance = client.CustomObjectsApi(get_api_client())
         aws = api_instance.list_namespaced_custom_object(
             group="workload.codeflare.dev",
             version="v1beta2",
@@ -684,7 +681,7 @@ def _get_ingress_domain(self):  # pragma: no cover
 
     if is_openshift_cluster():
         try:
-            api_instance = client.CustomObjectsApi(api_config_handler())
+            api_instance = client.CustomObjectsApi(get_api_client())
 
             routes = api_instance.list_namespaced_custom_object(
                 group="route.openshift.io",
@@ -703,7 +700,7 @@ def _get_ingress_domain(self):  # pragma: no cover
                 domain = route["spec"]["host"]
     else:
         try:
-            api_client = client.NetworkingV1Api(api_config_handler())
+            api_client = client.NetworkingV1Api(get_api_client())
             ingresses = api_client.list_namespaced_ingress(namespace)
         except Exception as e:  # pragma: no cover
             return _kube_api_error_handling(e)
@@ -717,7 +714,7 @@ def _get_ingress_domain(self):  # pragma: no cover
 def _app_wrapper_status(name, namespace="default") -> Optional[AppWrapper]:
     try:
         config_check()
-        api_instance = client.CustomObjectsApi(api_config_handler())
+        api_instance = client.CustomObjectsApi(get_api_client())
         aws = api_instance.list_namespaced_custom_object(
             group="workload.codeflare.dev",
             version="v1beta2",
@@ -736,7 +733,7 @@ def _app_wrapper_status(name, namespace="default") -> Optional[AppWrapper]:
 def _ray_cluster_status(name, namespace="default") -> Optional[RayCluster]:
     try:
         config_check()
-        api_instance = client.CustomObjectsApi(api_config_handler())
+        api_instance = client.CustomObjectsApi(get_api_client())
         rcs = api_instance.list_namespaced_custom_object(
             group="ray.io",
             version="v1",
@@ -758,7 +755,7 @@ def _get_ray_clusters(
     list_of_clusters = []
     try:
         config_check()
-        api_instance = client.CustomObjectsApi(api_config_handler())
+        api_instance = client.CustomObjectsApi(get_api_client())
         rcs = api_instance.list_namespaced_custom_object(
             group="ray.io",
             version="v1",
@@ -787,7 +784,7 @@ def _get_app_wrappers(
 
     try:
         config_check()
-        api_instance = client.CustomObjectsApi(api_config_handler())
+        api_instance = client.CustomObjectsApi(get_api_client())
         aws = api_instance.list_namespaced_custom_object(
             group="workload.codeflare.dev",
             version="v1beta2",
@@ -816,7 +813,7 @@ def _map_to_ray_cluster(rc) -> Optional[RayCluster]:
     dashboard_url = None
     if is_openshift_cluster():
         try:
-            api_instance = client.CustomObjectsApi(api_config_handler())
+            api_instance = client.CustomObjectsApi(get_api_client())
             routes = api_instance.list_namespaced_custom_object(
                 group="route.openshift.io",
                 version="v1",
@@ -835,7 +832,7 @@ def _map_to_ray_cluster(rc) -> Optional[RayCluster]:
                 dashboard_url = f"{protocol}://{route['spec']['host']}"
     else:
         try:
-            api_instance = client.NetworkingV1Api(api_config_handler())
+            api_instance = client.NetworkingV1Api(get_api_client())
             ingresses = api_instance.list_namespaced_ingress(
                 rc["metadata"]["namespace"]
             )
