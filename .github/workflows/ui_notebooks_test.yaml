@@ -1,0 +1,113 @@
+name: UI notebooks tests
+
+on:
+  pull_request:
+    types: [labeled]
+
+concurrency:
+  group: ${{ github.head_ref }}-${{ github.workflow }}
+  cancel-in-progress: true
+
+env:
+  CODEFLARE_OPERATOR_IMG: "quay.io/project-codeflare/codeflare-operator:dev"
+
+jobs:
+  verify-3_widget_example:
+    if: ${{ github.event.label.name == 'test-guided-notebooks' || github.event.label.name == 'test-ui-notebooks'}}
+    runs-on: ubuntu-20.04-4core
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Checkout common repo code
+        uses: actions/checkout@v4
+        with:
+          repository: "project-codeflare/codeflare-common"
+          ref: "main"
+          path: "common"
+
+      - name: Checkout CodeFlare operator repository
+        uses: actions/checkout@v4
+        with:
+          repository: project-codeflare/codeflare-operator
+          path: codeflare-operator
+
+      - name: Set Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: "./codeflare-operator/go.mod"
+          cache-dependency-path: "./codeflare-operator/go.sum"
+
+      - name: Set up gotestfmt
+        uses: gotesttools/gotestfmt-action@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up specific Python version
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.9"
+          cache: "pip" # caching pip dependencies
+
+      - name: Setup and start KinD cluster
+        uses: ./common/github-actions/kind
+
+      - name: Deploy CodeFlare stack
+        id: deploy
+        run: |
+          cd codeflare-operator
+          echo Setting up CodeFlare stack
+          make setup-e2e
+          echo Deploying CodeFlare operator
+          make deploy -e IMG="${CODEFLARE_OPERATOR_IMG}" -e ENV="e2e"
+          kubectl wait --timeout=120s --for=condition=Available=true deployment -n openshift-operators codeflare-operator-manager
+          cd ..
+
+      - name: Setup Guided notebooks execution
+        run: |
+          echo "Installing papermill and dependencies..."
+          pip install poetry ipython ipykernel
+          poetry config virtualenvs.create false
+          echo "Installing SDK..."
+          poetry install --with test,docs
+
+      - name: Install Yarn dependencies
+        run: |
+          poetry run yarn install
+          poetry run yarn playwright install chromium
+        working-directory: ui-tests
+
+      - name: Fix 3_widget_example.ipynb notebook for test
+        run: |
+          # Remove login/logout cells, as KinD doesn't support authentication using token
+          jq -r 'del(.cells[] | select(.source[] | contains("Create authentication object for user permissions")))' 3_widget_example.ipynb > 3_widget_example.ipynb.tmp && mv 3_widget_example.ipynb.tmp 3_widget_example.ipynb
+          jq -r 'del(.cells[] | select(.source[] | contains("auth.logout()")))' 3_widget_example.ipynb > 3_widget_example.ipynb.tmp && mv 3_widget_example.ipynb.tmp 3_widget_example.ipynb
+          # Set explicit namespace as SDK need it (currently) to resolve local queues
+          sed -i "s/head_memory_limits=2,/head_memory_limits=2, namespace='default',/" 3_widget_example.ipynb
+        working-directory: demo-notebooks/guided-demos
+
+      - name: Run UI notebook tests
+        run: |
+          set -euo pipefail
+
+          poetry run yarn test
+        working-directory: ui-tests
+
+      - name: Upload Playwright Test assets
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ipywidgets-test-assets
+          path: |
+            ui-tests/test-results
+
+      - name: Upload Playwright Test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ipywidgets-test-report
+          path: |
+            ui-tests/playwright-report
