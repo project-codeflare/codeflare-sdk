@@ -83,10 +83,13 @@ from openshift.selector import Selector
 import ray
 import pytest
 import yaml
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 from pytest_mock import MockerFixture
 from ray.job_submission import JobSubmissionClient
 from codeflare_sdk.job.ray_jobs import RayJobClient
+
+import ipywidgets as widgets
+from IPython.display import display
 
 # For mocking openshift client results
 fake_res = openshift.Result("fake")
@@ -2872,6 +2875,80 @@ def test_cluster_config_deprecation_conversion(mocker):
     assert config.worker_memory_limits == "4G"
     assert config.worker_cpu_requests == 1
     assert config.worker_cpu_limits == 2
+
+
+"""
+    Ipywidgets tests
+"""
+
+
+@patch.dict(
+    "os.environ", {"JPY_SESSION_NAME": "example-test"}
+)  # Mock Jupyter environment variable
+def test_cluster_up_down_buttons(mocker):
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.get_cluster_custom_object",
+        return_value={"spec": {"domain": "apps.cluster.awsroute.org"}},
+    )
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
+        return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
+    )
+    cluster = Cluster(createClusterConfig())
+
+    with patch("ipywidgets.Button") as MockButton, patch(
+        "ipywidgets.Checkbox"
+    ) as MockCheckbox, patch("ipywidgets.Output"), patch("ipywidgets.HBox"), patch(
+        "ipywidgets.VBox"
+    ), patch.object(
+        cluster, "up"
+    ) as mock_up, patch.object(
+        cluster, "down"
+    ) as mock_down, patch.object(
+        cluster, "wait_ready"
+    ) as mock_wait_ready:
+        # Create mock button & CheckBox instances
+        mock_up_button = MagicMock()
+        mock_down_button = MagicMock()
+        mock_wait_ready_check_box = MagicMock()
+
+        # Ensure the mock Button class returns the mock button instances in sequence
+        MockCheckbox.side_effect = [mock_wait_ready_check_box]
+        MockButton.side_effect = [mock_up_button, mock_down_button]
+
+        # Call the method under test
+        cluster_up_down_buttons(cluster)
+
+        # Simulate checkbox being checked or unchecked
+        mock_wait_ready_check_box.value = True  # Simulate checkbox being checked
+
+        # Simulate the button clicks by calling the mock on_click handlers
+        mock_up_button.on_click.call_args[0][0](None)  # Simulate clicking "Cluster Up"
+        mock_down_button.on_click.call_args[0][0](
+            None
+        )  # Simulate clicking "Cluster Down"
+
+        # Check if the `up` and `down` methods were called
+        mock_wait_ready.assert_called_once()
+        mock_up.assert_called_once()
+        mock_down.assert_called_once()
+
+
+@patch.dict("os.environ", {}, clear=True)  # Mock environment with no variables
+def test_is_notebook_false():
+    from codeflare_sdk.cluster.widgets import is_notebook
+
+    assert is_notebook() is False
+
+
+@patch.dict(
+    "os.environ", {"JPY_SESSION_NAME": "example-test"}
+)  # Mock Jupyter environment variable
+def test_is_notebook_true():
+    from codeflare_sdk.cluster.widgets import is_notebook
+
+    assert is_notebook() is True
 
 
 # Make sure to always keep this function last
