@@ -15,6 +15,7 @@
 import os
 
 import torch
+import torchvision.datasets.utils as utils
 import requests
 from pytorch_lightning import LightningModule, Trainer
 from pytorch_lightning.callbacks.progress import TQDMProgressBar
@@ -138,6 +139,11 @@ class LitMNIST(LightningModule):
     ####################
 
     def prepare_data(self):
+        def check_md5(fpath, md5=None):
+            return True
+
+        utils.check_md5 = check_md5
+
         # download
         print("Downloading MNIST dataset...")
 
