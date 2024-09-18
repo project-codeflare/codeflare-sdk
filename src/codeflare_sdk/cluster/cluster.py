@@ -110,15 +110,6 @@ class Cluster:
         the specifications of the ClusterConfiguration.
         """
 
-        if self.config.namespace is None:
-            self.config.namespace = get_current_namespace()
-            if self.config.namespace is None:
-                print("Please specify with namespace=<your_current_namespace>")
-            elif type(self.config.namespace) is not str:
-                raise TypeError(
-                    f"Namespace {self.config.namespace} is of type {type(self.config.namespace)}. Check your Kubernetes Authentication."
-                )
-
         return generate_appwrapper(self)
 
     # creates a new cluster with the provided or default spec
@@ -545,28 +536,6 @@ def list_all_queued(
     return resources
 
 
-def get_current_namespace():  # pragma: no cover
-    if os.path.isfile("/var/run/secrets/kubernetes.io/serviceaccount/namespace"):
-        try:
-            file = open("/var/run/secrets/kubernetes.io/serviceaccount/namespace", "r")
-            active_context = file.readline().strip("\n")
-            return active_context
-        except Exception as e:
-            print("Unable to find current namespace")
-
-    if api_config_handler() != None:
-        return None
-    print("trying to gather from current context")
-    try:
-        _, active_context = config.list_kube_config_contexts(config_check())
-    except Exception as e:
-        return _kube_api_error_handling(e)
-    try:
-        return active_context["context"]["namespace"]
-    except KeyError:
-        return None
-
-
 def get_cluster(
     cluster_name: str,
     namespace: str = "default",
@@ -645,14 +614,9 @@ def _check_aw_exists(name: str, namespace: str) -> bool:
     return False
 
 
-# Cant test this until get_current_namespace is fixed and placed in this function over using `self`
 def _get_ingress_domain(self):  # pragma: no cover
     config_check()
 
-    if self.config.namespace != None:
-        namespace = self.config.namespace
-    else:
-        namespace = get_current_namespace()
     domain = None
 
     if is_openshift_cluster():

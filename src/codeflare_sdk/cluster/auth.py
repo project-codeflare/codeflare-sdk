@@ -219,3 +219,25 @@ def api_config_handler() -> Optional[client.ApiClient]:
         return api_client
     else:
         return None
+
+
+def get_current_namespace():  # pragma: no cover
+    config_check()
+    if os.path.isfile("/var/run/secrets/kubernetes.io/serviceaccount/namespace"):
+        try:
+            file = open("/var/run/secrets/kubernetes.io/serviceaccount/namespace", "r")
+            active_context = file.readline().strip("\n")
+            return active_context
+        except Exception as e:
+            print("Unable to find current namespace")
+    if api_config_handler() is not None:
+        return None
+    print("trying to gather from current context")
+    try:
+        _, active_context = config.list_kube_config_contexts(config_check())
+    except Exception as e:
+        return _kube_api_error_handling(e)
+    try:
+        return active_context["context"]["namespace"]
+    except KeyError:
+        return None

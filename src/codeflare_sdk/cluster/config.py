@@ -23,6 +23,8 @@ import warnings
 from dataclasses import dataclass, field, fields
 from typing import Dict, List, Optional, Union, get_args, get_origin
 
+from .auth import get_current_namespace
+
 dir = pathlib.Path(__file__).parent.parent.resolve()
 
 # https://docs.ray.io/en/latest/ray-core/scheduling/accelerators.html
@@ -122,6 +124,13 @@ class ClusterConfiguration:
         self._validate_extended_resource_requests(
             self.worker_extended_resource_requests
         )
+        if self.namespace is None:
+            self.namespace = get_current_namespace()
+            print(f"Namespace not provided, using current namespace: {self.namespace}")
+        if self.namespace is None:
+            raise ValueError(
+                "Namespace not provided and unable to determine current namespace"
+            )
 
     def _combine_extended_resource_mapping(self):
         if overwritten := set(self.extended_resource_mapping.keys()).intersection(

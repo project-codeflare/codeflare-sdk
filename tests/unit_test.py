@@ -433,7 +433,7 @@ def test_cluster_creation_no_mcad_local_queue(mocker):
 def test_default_cluster_creation(mocker):
     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch(
-        "codeflare_sdk.cluster.cluster.get_current_namespace",
+        "codeflare_sdk.cluster.auth.get_current_namespace",
         return_value="opendatahub",
     )
     mocker.patch(
@@ -2664,7 +2664,7 @@ def test_export_env():
 def test_cluster_throw_for_no_raycluster(mocker: MockerFixture):
     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch(
-        "codeflare_sdk.cluster.cluster.get_current_namespace",
+        "codeflare_sdk.cluster.auth.get_current_namespace",
         return_value="opendatahub",
     )
     mocker.patch(
