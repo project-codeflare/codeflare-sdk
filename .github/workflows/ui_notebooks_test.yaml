@@ -1,6 +1,7 @@
 name: UI notebooks tests
 
 on:
+  workflow_dispatch: {}
   pull_request:
     types: [labeled]
 

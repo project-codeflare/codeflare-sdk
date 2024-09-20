@@ -91,7 +91,7 @@ test.describe("Visual Regression", () => {
       const upAndRunningMessage = await page.waitForSelector('text=Requested cluster is up and running!');
       expect(upAndRunningMessage).not.toBeNull();
 
-      const dashboardReadyMessage = await page.waitForSelector('text=Dashboard is ready!');
+      const dashboardReadyMessage = await page.waitForSelector('text=Purposeful failure!');
       expect(dashboardReadyMessage).not.toBeNull();
     });
 
