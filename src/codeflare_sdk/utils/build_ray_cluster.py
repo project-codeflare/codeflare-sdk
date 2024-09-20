@@ -164,7 +164,9 @@ def build_ray_cluster(cluster: "codeflare_sdk.cluster.Cluster"):
 
     # write_to_file functionality
     if cluster.config.write_to_file:
-        return write_to_file(cluster, resource)  # Writes the file and returns it's name
+        return write_to_file(
+            cluster.config.name, resource
+        )  # Writes the file and returns it's name
     else:
         print(f"Yaml resources loaded for {cluster.config.name}")
         return resource  # Returns the Resource as a dict
@@ -482,9 +484,9 @@ def wrap_cluster(
 
 
 # Etc.
-def write_to_file(cluster: "codeflare_sdk.cluster.Cluster", resource: dict):
+def write_to_file(cluster_name: str, resource: dict):
     directory_path = os.path.expanduser("~/.codeflare/resources/")
-    output_file_name = os.path.join(directory_path, cluster.config.name + ".yaml")
+    output_file_name = os.path.join(directory_path, cluster_name + ".yaml")
 
     directory_path = os.path.dirname(output_file_name)
     if not os.path.exists(directory_path):
