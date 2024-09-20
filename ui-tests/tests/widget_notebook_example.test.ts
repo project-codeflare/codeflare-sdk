@@ -27,7 +27,7 @@ test.describe("Visual Regression", () => {
     await page.filebrowser.openDirectory(tmpPath);
   });
 
-  test("Run notebook and capture cell outputs", async ({
+  test("Run notebook, capture cell outputs, and test widgets", async ({
     page,
     tmpPath,
   }) => {
@@ -60,5 +60,80 @@ test.describe("Visual Regression", () => {
         continue;
       }
     }
+
+    const widgetCellIndex = 3;
+
+    await waitForWidget(page, widgetCellIndex, 'input[type="checkbox"]');
+    await waitForWidget(page, widgetCellIndex, 'button:has-text("Cluster Down")');
+    await waitForWidget(page, widgetCellIndex, 'button:has-text("Cluster Up")');
+
+    await interactWithWidget(page, widgetCellIndex, 'input[type="checkbox"]', async (checkbox) => {
+      await checkbox.click();
+      const isChecked = await checkbox.isChecked();
+      expect(isChecked).toBe(true);
+    });
+
+    await interactWithWidget(page, widgetCellIndex, 'button:has-text("Cluster Down")', async (button) => {
+      await button.click();
+      const clusterDownMessage = await page.waitForSelector('text=No instances found, nothing to be done.', { timeout: 5000 });
+      expect(clusterDownMessage).not.toBeNull();
+    });
+
+    await interactWithWidget(page, widgetCellIndex, 'button:has-text("Cluster Up")', async (button) => {
+      await button.click();
+
+      const successMessage = await page.waitForSelector('text=Ray Cluster: \'raytest\' has successfully been created', { timeout: 10000 });
+      expect(successMessage).not.toBeNull();
+
+      const resourcesMessage = await page.waitForSelector('text=Waiting for requested resources to be set up...');
+      expect(resourcesMessage).not.toBeNull();
+
+      const upAndRunningMessage = await page.waitForSelector('text=Requested cluster is up and running!');
+      expect(upAndRunningMessage).not.toBeNull();
+
+      const dashboardReadyMessage = await page.waitForSelector('text=Dashboard is ready!');
+      expect(dashboardReadyMessage).not.toBeNull();
+    });
+
+    await runLastCell(page, cellCount, '(<CodeFlareClusterStatus.READY: 1>, True)');
+
+    await interactWithWidget(page, widgetCellIndex, 'button:has-text("Cluster Down")', async (button) => {
+      await button.click();
+      const clusterDownMessage = await page.waitForSelector('text=Ray Cluster: \'raytest\' has successfully been deleted', { timeout: 5000 });
+      expect(clusterDownMessage).not.toBeNull();
+    });
+
+    await runLastCell(page, cellCount, '(<CodeFlareClusterStatus.UNKNOWN: 6>, False)');
   });
 });
+
+async function waitForWidget(page, cellIndex: number, widgetSelector: string, timeout = 5000) {
+  const widgetCell = await page.notebook.getCellOutput(cellIndex);
+
+  if (widgetCell) {
+    await widgetCell.waitForSelector(widgetSelector, { timeout });
+  }
+}
+
+async function interactWithWidget(page, cellIndex: number, widgetSelector: string, action: (widget) => Promise<void>) {
+  const widgetCell = await page.notebook.getCellOutput(cellIndex);
+
+  if (widgetCell) {
+    const widget = await widgetCell.$(widgetSelector);
+    if (widget) {
+      await action(widget);
+    }
+  }
+}
+
+async function runLastCell(page, cellCount, expectedMessage) {
+  const runSuccess = await page.notebook.runCell(cellCount - 1); expect(runSuccess).toBe(true);
+  const lastCellOutput = await page.notebook.getCellOutput(cellCount - 1);
+  const newOutput = await lastCellOutput.evaluate((output) => output.textContent);
+
+  if (expectedMessage) {
+    expect(newOutput).toContain(expectedMessage);
+  }
+
+  return lastCellOutput;
+}
