@@ -656,10 +656,12 @@ def _fetch_cluster_data(namespace):
     return pd.DataFrame(data)
 
 
-def list_cluster_details(namespace: str):
+def list_cluster_details(namespace: str): # TODO: or current namespace as default
+    global df
     df = _fetch_cluster_data(namespace)
 
-    my_output = widgets.Output()
+    outputs = widgets.Output()
+    data_output = widgets.Output()
     if df["Name"].empty:
         print(f"No clusters found in the {namespace} namespace.")
     else:
@@ -670,22 +672,38 @@ def list_cluster_details(namespace: str):
 
         def on_cluster_click(change):
             new_value = change["new"]
-            my_output.clear_output()
-            with my_output:
+            data_output.clear_output()
+            df = _fetch_cluster_data(namespace)
+            classification_widget.options = df["Name"].tolist()
+            with data_output:
                 display(HTML(df[df["Name"]==new_value][["Name", "Namespace", "Head GPUs", "Head CPU Req~Lim", "Head Memory Req~Lim", "Worker GPUs", "Worker CPU Req~Lim", "Worker Memory Req~Lim", "status"]].to_html(escape=False, index=False, border=2)))
 
         classification_widget.observe(on_cluster_click, names="value")
-        display(widgets.VBox([classification_widget, my_output]))
+        display(widgets.VBox([classification_widget, data_output]))
 
         def on_delete_button_clicked(b):
+            global df
             cluster_name = classification_widget.value
             namespace = df[df["Name"]==classification_widget.value]["Namespace"].values[0]
             delete_cluster(cluster_name, namespace)
-            my_output.clear_output()
-            print(f"Cluster {cluster_name} in the {namespace} namespace was deleted successfully.")
+
+            sleep(3) # wait for the cluster to be deleted
+            outputs.clear_output()
+            with outputs:
+                print(f"Cluster {cluster_name} in the {namespace} namespace was deleted successfully.")
             # Refresh the dataframe
-            new_df = _fetch_cluster_data(namespace)
-            classification_widget.options = new_df["Name"].tolist()
+            df = _fetch_cluster_data(namespace)
+            if df["Name"].empty:
+                classification_widget.close()
+                delete_button.close()
+                list_jobs_button.close()
+                ray_dashboard_button.close()
+                data_output.clear_output()
+                with data_output:
+                    print(f"No clusters found in the {namespace} namespace.")
+            else:
+                classification_widget.options = df["Name"].tolist()
+
 
 
         # out Output widget is used to execute JavaScript code to open the Ray dashboard URL in a new browser tab
@@ -697,10 +715,11 @@ def list_cluster_details(namespace: str):
             cluster = Cluster(ClusterConfiguration(cluster_name, namespace))
             dashboard_url = cluster.cluster_dashboard_uri()
 
-            my_output.clear_output()
+            outputs.clear_output()
+            with outputs:
+                print(f"Opening Ray Dashboard for {cluster_name} cluster:\n{dashboard_url}")
             with out:
                 display(Javascript(f'window.open("{dashboard_url}", "_blank");'))
-            print(f"Opening Ray Dashboard for {cluster_name}:\n{dashboard_url}")
 
         def on_list_jobs_button_clicked(b):
             cluster_name = classification_widget.value
@@ -709,7 +728,9 @@ def list_cluster_details(namespace: str):
             cluster = Cluster(ClusterConfiguration(cluster_name, namespace))
             dashboard_url = cluster.cluster_dashboard_uri()
 
-            my_output.clear_output()
+            outputs.clear_output()
+            with outputs:
+                print(f"Opening Ray Jobs Dashboard for {cluster_name} cluster:\n{dashboard_url}/#/jobs")
             with out:
                 display(Javascript(f'window.open("{dashboard_url}/#/jobs", "_blank");'))
 
@@ -723,17 +744,19 @@ def list_cluster_details(namespace: str):
         delete_button = widgets.Button(
                     description='Delete Cluster',
                     icon='trash',
+                    tooltip="Delete the selected cluster"
                 )
         delete_button.on_click(on_delete_button_clicked)
 
         ray_dashboard_button = widgets.Button(
                     description='Open Ray Dashboard',
                     icon='dashboard',
+                    tooltip="Open the Ray Dashboard in a new tab",
                     layout=widgets.Layout(width='auto'),
                 )
         ray_dashboard_button.on_click(on_ray_dashboard_button_clicked)
 
-        display(widgets.HBox([delete_button, list_jobs_button, ray_dashboard_button]), out)
+        display(widgets.HBox([delete_button, list_jobs_button, ray_dashboard_button]), out, outputs)
 
 
 
