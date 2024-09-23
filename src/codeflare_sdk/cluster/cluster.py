@@ -618,39 +618,39 @@ def _fetch_cluster_data(namespace):
     namespaces = [item.namespace for item in rayclusters]
     head_extended_resources = [
         f"{list(item.head_extended_resources.keys())[0]}: {list(item.head_extended_resources.values())[0]}"
-        if item.head_extended_resources else "nvidia.com/gpu: 0"
+        if item.head_extended_resources else "0"
         for item in rayclusters
     ]
     worker_extended_resources = [
         f"{list(item.worker_extended_resources.keys())[0]}: {list(item.worker_extended_resources.values())[0]}"
-        if item.worker_extended_resources else "nvidia.com/gpu: 0"
+        if item.worker_extended_resources else "0"
         for item in rayclusters
     ]
     head_cpu_requests = [item.head_cpu_requests if item.head_cpu_requests else 0 for item in rayclusters]
     head_cpu_limits = [item.head_cpu_limits if item.head_cpu_limits else 0 for item in rayclusters]
+    head_cpu_rl = [f"{requests}~{limits}" for requests, limits in zip(head_cpu_requests, head_cpu_limits)]
     head_mem_requests = [item.head_mem_requests if item.head_mem_requests else 0 for item in rayclusters]
     head_mem_limits = [item.head_mem_limits if item.head_mem_limits else 0 for item in rayclusters]
+    head_mem_rl = [f"{requests}~{limits}" for requests, limits in zip(head_mem_requests, head_mem_limits)]
     worker_cpu_requests = [item.worker_cpu_requests if item.worker_cpu_requests else 0 for item in rayclusters]
     worker_cpu_limits = [item.worker_cpu_limits if item.worker_cpu_limits else 0 for item in rayclusters]
+    worker_cpu_rl = [f"{requests}~{limits}" for requests, limits in zip(worker_cpu_requests, worker_cpu_limits)]
     worker_mem_requests = [item.worker_mem_requests if item.worker_mem_requests else 0 for item in rayclusters]
     worker_mem_limits = [item.worker_mem_limits if item.worker_mem_limits else 0 for item in rayclusters]
+    worker_mem_rl = [f"{requests}~{limits}" for requests, limits in zip(worker_mem_requests, worker_mem_limits)]
     status = [item.status.name for item in rayclusters]
 
     status = [format_status(item.status) for item in rayclusters]
 
     data = {
-        "name": names,
-        "namespace": namespaces,
-        "head gpus": head_extended_resources,
-        "worker gpus": worker_extended_resources,
-        "head cpu requests": head_cpu_requests,
-        "head cpu limits": head_cpu_limits,
-        "head memory requests": head_mem_requests,
-        "head memory limits": head_mem_limits,
-        "worker cpu requests": worker_cpu_requests,
-        "worker cpu limits": worker_cpu_limits,
-        "worker memory requests": worker_mem_requests,
-        "worker memory limits": worker_mem_limits,
+        "Name": names,
+        "Namespace": namespaces,
+        "Head GPUs": head_extended_resources,
+        "Worker GPUs": worker_extended_resources,
+        "Head CPU Req~Lim": head_cpu_rl,
+        "Head Memory Req~Lim": head_mem_rl,
+        "Worker CPU Req~Lim": worker_cpu_rl,
+        "Worker Memory Req~Lim": worker_mem_rl,
         "status": status
     }
     return pd.DataFrame(data)
@@ -660,11 +660,11 @@ def list_cluster_details(namespace: str):
     df = _fetch_cluster_data(namespace)
 
     my_output = widgets.Output()
-    if df["name"].empty:
+    if df["Name"].empty:
         print(f"No clusters found in the {namespace} namespace.")
     else:
         classification_widget = widgets.ToggleButtons(
-            options=df["name"].tolist(), value=None,
+            options=df["Name"].tolist(), value=None,
             description='Select an existing cluster:',
         )
 
@@ -672,27 +672,27 @@ def list_cluster_details(namespace: str):
             new_value = change["new"]
             my_output.clear_output()
             with my_output:
-                display(HTML(df[df["name"]==new_value][["name", "namespace", "head gpus", "worker gpus", "head cpu requests", "head cpu limits", "head memory requests", "head memory limits", "worker memory requests", "worker memory limits", "status"]].to_html(escape=False, index=False, border=2)))
+                display(HTML(df[df["Name"]==new_value][["Name", "Namespace", "Head GPUs", "Head CPU Req~Lim", "Head Memory Req~Lim", "Worker GPUs", "Worker CPU Req~Lim", "Worker Memory Req~Lim", "status"]].to_html(escape=False, index=False, border=2)))
 
         classification_widget.observe(on_cluster_click, names="value")
         display(widgets.VBox([classification_widget, my_output]))
 
         def on_delete_button_clicked(b):
             cluster_name = classification_widget.value
-            namespace = df[df["name"]==classification_widget.value]["namespace"].values[0]
+            namespace = df[df["Name"]==classification_widget.value]["Namespace"].values[0]
             delete_cluster(cluster_name, namespace)
             my_output.clear_output()
             print(f"Cluster {cluster_name} in the {namespace} namespace was deleted successfully.")
             # Refresh the dataframe
             new_df = _fetch_cluster_data(namespace)
-            classification_widget.options = new_df["name"].tolist()
+            classification_widget.options = new_df["Name"].tolist()
 
 
         # out Output widget is used to execute JavaScript code to open the Ray dashboard URL in a new browser tab
         out = widgets.Output()
         def on_ray_dashboard_button_clicked(b):
             cluster_name = classification_widget.value
-            namespace = df[df["name"]==classification_widget.value]["namespace"].values[0]
+            namespace = df[df["Name"]==classification_widget.value]["Namespace"].values[0]
 
             cluster = Cluster(ClusterConfiguration(cluster_name, namespace))
             dashboard_url = cluster.cluster_dashboard_uri()
@@ -704,7 +704,7 @@ def list_cluster_details(namespace: str):
 
         def on_list_jobs_button_clicked(b):
             cluster_name = classification_widget.value
-            namespace = df[df["name"]==classification_widget.value]["namespace"].values[0]
+            namespace = df[df["Name"]==classification_widget.value]["Namespace"].values[0]
 
             cluster = Cluster(ClusterConfiguration(cluster_name, namespace))
             dashboard_url = cluster.cluster_dashboard_uri()
