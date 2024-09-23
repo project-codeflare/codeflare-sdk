@@ -19,7 +19,10 @@ from .cluster import (
     get_cluster,
     list_all_queued,
     list_all_clusters,
-    list_cluster_details,
+)
+
+from .widgets import (
+    view_clusters,
 )
 
 from .awload import AWManager
