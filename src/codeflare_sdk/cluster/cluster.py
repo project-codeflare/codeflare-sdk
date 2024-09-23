@@ -19,6 +19,7 @@ cluster setup queue, a list of all existing clusters, and the user's working nam
 """
 
 import re
+import subprocess
 from time import sleep
 from typing import List, Optional, Tuple, Dict
 
@@ -33,6 +34,10 @@ from ..utils.generate_yaml import (
 )
 from ..utils.kube_api_helpers import _kube_api_error_handling
 from ..utils.generate_yaml import is_openshift_cluster
+
+import ipywidgets as widgets
+from IPython.display import display, HTML, Javascript
+import pandas as pd
 
 from .config import ClusterConfiguration
 from .model import (
@@ -592,6 +597,173 @@ def get_current_namespace():  # pragma: no cover
     except KeyError:
         return None
 
+# format_status takes a RayCluster status and applies colors and icons based on the status.
+def format_status(status):
+    if status == RayClusterStatus.READY:
+        return '<span style="color: green;">Ready ✓</span>'
+    elif status == RayClusterStatus.SUSPENDED:
+        return '<span style="color: #007BFF;">Suspended ❄️</span>'
+    elif status == RayClusterStatus.FAILED:
+        return '<span style="color: red;">Failed ✗</span>'
+    elif status == RayClusterStatus.UNHEALTHY:
+        return '<span style="color: purple;">Unhealthy</span>'
+    elif status == RayClusterStatus.UNKNOWN:
+        return '<span style="color: purple;">Unknown</span>'
+    else:
+        return status
+
+def _fetch_cluster_data(namespace):
+    rayclusters = list_all_clusters(namespace, False)
+    names = [item.name for item in rayclusters]
+    namespaces = [item.namespace for item in rayclusters]
+    head_extended_resources = [
+        f"{list(item.head_extended_resources.keys())[0]}: {list(item.head_extended_resources.values())[0]}"
+        if item.head_extended_resources else "nvidia.com/gpu: 0"
+        for item in rayclusters
+    ]
+    worker_extended_resources = [
+        f"{list(item.worker_extended_resources.keys())[0]}: {list(item.worker_extended_resources.values())[0]}"
+        if item.worker_extended_resources else "nvidia.com/gpu: 0"
+        for item in rayclusters
+    ]
+    head_cpus = [item.head_cpus if item.head_cpus else 0 for item in rayclusters]
+    head_mem = [item.head_mem if item.head_mem else 0 for item in rayclusters]
+    worker_cpu_min = [item.worker_cpu_min if item.worker_cpu_min else 0 for item in rayclusters]
+    worker_cpu_max = [item.worker_cpu_max if item.worker_cpu_max else 0 for item in rayclusters]
+    worker_mem_min = [item.worker_mem_min if item.worker_mem_min else 0 for item in rayclusters]
+    worker_mem_max = [item.worker_mem_max if item.worker_mem_max else 0 for item in rayclusters]
+    status = [item.status.name for item in rayclusters]
+
+    status = [format_status(item.status) for item in rayclusters]
+
+    data = {
+        "name": names,
+        "namespace": namespaces,
+        "head gpus": head_extended_resources,
+        "worker gpus": worker_extended_resources,
+        "head cpus": head_cpus,
+        "head memory": head_mem,
+        "worker cpu requests": worker_cpu_min,
+        "worker cpu limits": worker_cpu_max,
+        "worker memory requests": worker_mem_min,
+        "worker memory limits": worker_mem_max,
+        "status": status
+    }
+    return pd.DataFrame(data)
+
+
+def list_cluster_details(namespace: str):
+    df = _fetch_cluster_data(namespace)
+
+    my_output = widgets.Output()
+    if df["name"].empty:
+        print(f"No clusters found in the {namespace} namespace.")
+    else:
+        classification_widget = widgets.ToggleButtons(
+            options=df["name"].tolist(), value=None,
+            description='Select an existing cluster:',
+        )
+
+        def on_cluster_click(change):
+            new_value = change["new"]
+            my_output.clear_output()
+            with my_output:
+                display(HTML(df[df["name"]==new_value][["name", "namespace", "head gpus", "worker gpus", "head cpus", "head memory", "worker memory requests", "worker memory limits", "status"]].to_html(escape=False, index=False, border=2)))
+
+        classification_widget.observe(on_cluster_click, names="value")
+        display(widgets.VBox([classification_widget, my_output]))
+
+        def on_delete_button_clicked(b):
+            cluster_name = classification_widget.value
+            namespace = df[df["name"]==classification_widget.value]["namespace"].values[0]
+            delete_cluster(cluster_name, namespace)
+            my_output.clear_output()
+            print(f"Cluster {cluster_name} in the {namespace} namespace was deleted successfully.")
+            # Refresh the dataframe
+            new_df = _fetch_cluster_data(namespace)
+            classification_widget.options = new_df["name"].tolist()
+
+
+        # out Output widget is used to execute JavaScript code to open the Ray dashboard URL in a new browser tab
+        out = widgets.Output()
+        def on_ray_dashboard_button_clicked(b):
+            cluster_name = classification_widget.value
+            namespace = df[df["name"]==classification_widget.value]["namespace"].values[0]
+
+            cluster = Cluster(ClusterConfiguration(cluster_name, namespace))
+            dashboard_url = cluster.cluster_dashboard_uri()
+
+            my_output.clear_output()
+            with out:
+                display(Javascript(f'window.open("{dashboard_url}", "_blank");'))
+            print(f"Opening Ray Dashboard for {cluster_name}:\n{dashboard_url}")
+
+        def on_list_jobs_button_clicked(b):
+            cluster_name = classification_widget.value
+            namespace = df[df["name"]==classification_widget.value]["namespace"].values[0]
+
+            cluster = Cluster(ClusterConfiguration(cluster_name, namespace))
+            dashboard_url = cluster.cluster_dashboard_uri()
+
+            my_output.clear_output()
+            with out:
+                display(Javascript(f'window.open("{dashboard_url}/#/jobs", "_blank");'))
+
+        list_jobs_button = widgets.Button(
+                    description='View Jobs',
+                    icon='suitcase',
+                    tooltip="Open the Ray Job Dashboard"
+                )
+        list_jobs_button.on_click(on_list_jobs_button_clicked)
+
+        delete_button = widgets.Button(
+                    description='Delete Cluster',
+                    icon='trash',
+                )
+        delete_button.on_click(on_delete_button_clicked)
+
+        ray_dashboard_button = widgets.Button(
+                    description='Open Ray Dashboard',
+                    icon='dashboard',
+                    layout=widgets.Layout(width='auto'),
+                )
+        ray_dashboard_button.on_click(on_ray_dashboard_button_clicked)
+
+        display(widgets.HBox([delete_button, list_jobs_button, ray_dashboard_button]), out)
+
+
+
+def delete_cluster(
+    cluster_name: str,
+    namespace: str, # TODO: get current namespace if not provided
+):
+    if _check_aw_exists(cluster_name, namespace):
+        try:
+            config_check()
+            api_instance = client.CustomObjectsApi(api_config_handler())
+            api_instance.delete_namespaced_custom_object(
+                group="workload.codeflare.dev",
+                version="v1beta2",
+                namespace=namespace,
+                plural="appwrappers",
+                name=cluster_name,
+            )
+        except Exception as e:
+            return _kube_api_error_handling(e)
+    else:
+        try:
+            config_check()
+            api_instance = client.CustomObjectsApi(api_config_handler())
+            api_instance.delete_namespaced_custom_object(
+                group="ray.io",
+                version="v1",
+                namespace=namespace,
+                plural="rayclusters",
+                name=cluster_name,
+            )
+        except Exception as e:
+            return _kube_api_error_handling(e)
+
 
 def get_cluster(
     cluster_name: str,
@@ -869,7 +1041,8 @@ def _map_to_ray_cluster(rc) -> Optional[RayCluster]:
         worker_mem_requests=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"][
             "containers"
         ][0]["resources"]["requests"]["memory"],
-        worker_cpu=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"]["containers"][
+        worker_cpu_min=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"]["containers"][0]["resources"]["requests"]["cpu"],
+        worker_cpu_max=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"]["containers"][
             0
         ]["resources"]["limits"]["cpu"],
         worker_extended_resources=worker_extended_resources,
@@ -910,7 +1083,8 @@ def _copy_to_ray(cluster: Cluster) -> RayCluster:
         workers=cluster.config.num_workers,
         worker_mem_requests=cluster.config.worker_memory_requests,
         worker_mem_limits=cluster.config.worker_memory_limits,
-        worker_cpu=cluster.config.worker_cpu_requests,
+        worker_cpu_min=cluster.config.worker_cpu_requests,
+        worker_cpu_max=cluster.config.worker_cpu_limits,
         worker_extended_resources=cluster.config.worker_extended_resource_requests,
         namespace=cluster.config.namespace,
         dashboard=cluster.cluster_dashboard_uri(),

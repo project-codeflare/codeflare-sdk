@@ -21,6 +21,7 @@ dataclasses to store information for Ray clusters and AppWrappers.
 from dataclasses import dataclass, field
 from enum import Enum
 import typing
+from typing import Union
 
 
 class RayClusterStatus(Enum):
@@ -80,7 +81,8 @@ class RayCluster:
     workers: int
     worker_mem_requests: str
     worker_mem_limits: str
-    worker_cpu: int
+    worker_cpu_min: Union[int, str]
+    worker_cpu_max: Union[int, str]
     namespace: str
     dashboard: str
     worker_extended_resources: typing.Dict[str, int] = field(default_factory=dict)
