@@ -944,8 +944,8 @@ def test_ray_details(mocker, capsys):
         workers=1,
         worker_mem_requests="2G",
         worker_mem_limits="2G",
-        worker_cpu_min=1,
-        worker_cpu_max=1,
+        worker_cpu_requests=1,
+        worker_cpu_limits=1,
         namespace="ns",
         dashboard="fake-uri",
         head_cpu_requests=2,
@@ -983,8 +983,8 @@ def test_ray_details(mocker, capsys):
     assert ray1.workers == ray2.workers
     assert ray1.worker_mem_requests == ray2.worker_mem_requests
     assert ray1.worker_mem_limits == ray2.worker_mem_limits
-    assert ray1.worker_cpu_min == ray2.worker_cpu_min
-    assert ray1.worker_cpu_max == ray2.worker_cpu_max
+    assert ray1.worker_cpu_requests == ray2.worker_cpu_requests
+    assert ray1.worker_cpu_limits == ray2.worker_cpu_limits
     assert ray1.worker_extended_resources == ray2.worker_extended_resources
     try:
         print_clusters([ray1, ray2])
@@ -2362,8 +2362,8 @@ def test_cluster_status(mocker):
         workers=1,
         worker_mem_requests=2,
         worker_mem_limits=2,
-        worker_cpu_min=1,
-        worker_cpu_max=1,
+        worker_cpu_requests=1,
+        worker_cpu_limits=1,
         namespace="ns",
         dashboard="fake-uri",
         head_cpu_requests=2,

@@ -626,12 +626,14 @@ def _fetch_cluster_data(namespace):
         if item.worker_extended_resources else "nvidia.com/gpu: 0"
         for item in rayclusters
     ]
-    head_cpus = [item.head_cpus if item.head_cpus else 0 for item in rayclusters]
-    head_mem = [item.head_mem if item.head_mem else 0 for item in rayclusters]
-    worker_cpu_min = [item.worker_cpu_min if item.worker_cpu_min else 0 for item in rayclusters]
-    worker_cpu_max = [item.worker_cpu_max if item.worker_cpu_max else 0 for item in rayclusters]
-    worker_mem_min = [item.worker_mem_min if item.worker_mem_min else 0 for item in rayclusters]
-    worker_mem_max = [item.worker_mem_max if item.worker_mem_max else 0 for item in rayclusters]
+    head_cpu_requests = [item.head_cpu_requests if item.head_cpu_requests else 0 for item in rayclusters]
+    head_cpu_limits = [item.head_cpu_limits if item.head_cpu_limits else 0 for item in rayclusters]
+    head_mem_requests = [item.head_mem_requests if item.head_mem_requests else 0 for item in rayclusters]
+    head_mem_limits = [item.head_mem_limits if item.head_mem_limits else 0 for item in rayclusters]
+    worker_cpu_requests = [item.worker_cpu_requests if item.worker_cpu_requests else 0 for item in rayclusters]
+    worker_cpu_limits = [item.worker_cpu_limits if item.worker_cpu_limits else 0 for item in rayclusters]
+    worker_mem_requests = [item.worker_mem_requests if item.worker_mem_requests else 0 for item in rayclusters]
+    worker_mem_limits = [item.worker_mem_limits if item.worker_mem_limits else 0 for item in rayclusters]
     status = [item.status.name for item in rayclusters]
 
     status = [format_status(item.status) for item in rayclusters]
@@ -641,12 +643,14 @@ def _fetch_cluster_data(namespace):
         "namespace": namespaces,
         "head gpus": head_extended_resources,
         "worker gpus": worker_extended_resources,
-        "head cpus": head_cpus,
-        "head memory": head_mem,
-        "worker cpu requests": worker_cpu_min,
-        "worker cpu limits": worker_cpu_max,
-        "worker memory requests": worker_mem_min,
-        "worker memory limits": worker_mem_max,
+        "head cpu requests": head_cpu_requests,
+        "head cpu limits": head_cpu_limits,
+        "head memory requests": head_mem_requests,
+        "head memory limits": head_mem_limits,
+        "worker cpu requests": worker_cpu_requests,
+        "worker cpu limits": worker_cpu_limits,
+        "worker memory requests": worker_mem_requests,
+        "worker memory limits": worker_mem_limits,
         "status": status
     }
     return pd.DataFrame(data)
@@ -668,7 +672,7 @@ def list_cluster_details(namespace: str):
             new_value = change["new"]
             my_output.clear_output()
             with my_output:
-                display(HTML(df[df["name"]==new_value][["name", "namespace", "head gpus", "worker gpus", "head cpus", "head memory", "worker memory requests", "worker memory limits", "status"]].to_html(escape=False, index=False, border=2)))
+                display(HTML(df[df["name"]==new_value][["name", "namespace", "head gpus", "worker gpus", "head cpu requests", "head cpu limits", "head memory requests", "head memory limits", "worker memory requests", "worker memory limits", "status"]].to_html(escape=False, index=False, border=2)))
 
         classification_widget.observe(on_cluster_click, names="value")
         display(widgets.VBox([classification_widget, my_output]))
@@ -1041,8 +1045,8 @@ def _map_to_ray_cluster(rc) -> Optional[RayCluster]:
         worker_mem_requests=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"][
             "containers"
         ][0]["resources"]["requests"]["memory"],
-        worker_cpu_min=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"]["containers"][0]["resources"]["requests"]["cpu"],
-        worker_cpu_max=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"]["containers"][
+        worker_cpu_requests=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"]["containers"][0]["resources"]["requests"]["cpu"],
+        worker_cpu_limits=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"]["containers"][
             0
         ]["resources"]["limits"]["cpu"],
         worker_extended_resources=worker_extended_resources,
@@ -1083,8 +1087,8 @@ def _copy_to_ray(cluster: Cluster) -> RayCluster:
         workers=cluster.config.num_workers,
         worker_mem_requests=cluster.config.worker_memory_requests,
         worker_mem_limits=cluster.config.worker_memory_limits,
-        worker_cpu_min=cluster.config.worker_cpu_requests,
-        worker_cpu_max=cluster.config.worker_cpu_limits,
+        worker_cpu_requests=cluster.config.worker_cpu_requests,
+        worker_cpu_limits=cluster.config.worker_cpu_limits,
         worker_extended_resources=cluster.config.worker_extended_resource_requests,
         namespace=cluster.config.namespace,
         dashboard=cluster.cluster_dashboard_uri(),
