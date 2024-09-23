@@ -97,9 +97,10 @@ def is_notebook() -> bool:
     else:
         return False
 
+
 def view_clusters(namespace: str = None):
     """view_clusters function will display existing clusters with their specs, and handle user interactions."""
-    from .cluster import Cluster, get_current_namespace
+    from .cluster import get_current_namespace
     if not namespace:
         namespace = get_current_namespace()
 

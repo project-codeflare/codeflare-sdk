@@ -76,7 +76,18 @@ from codeflare_sdk.utils.generate_yaml import (
     gen_names,
     is_openshift_cluster,
 )
-from codeflare_sdk.cluster.widgets import cluster_up_down_buttons
+
+from codeflare_sdk.cluster.widgets import (
+    cluster_up_down_buttons,
+    view_clusters,
+    _on_cluster_click,
+    _on_delete_button_click,
+    _on_list_jobs_button_click,
+    _on_ray_dashboard_button_click,
+    _format_status,
+    _fetch_cluster_data,
+)
+import pandas as pd
 
 import openshift
 from openshift.selector import Selector
@@ -87,9 +98,6 @@ from unittest.mock import MagicMock, patch
 from pytest_mock import MockerFixture
 from ray.job_submission import JobSubmissionClient
 from codeflare_sdk.job.ray_jobs import RayJobClient
-
-import ipywidgets as widgets
-from IPython.display import display
 
 # For mocking openshift client results
 fake_res = openshift.Result("fake")
@@ -1008,7 +1016,7 @@ def test_ray_details(mocker, capsys):
         " │   ╭── Workers ──╮  ╭───────── Worker specs(each) ─────────╮   │ \n"
         " │   │  # Workers  │  │  Memory      CPU         GPU         │   │ \n"
         " │   │             │  │                                      │   │ \n"
-        " │   │  1          │  │  2G~2G       1           0           │   │ \n"
+        " │   │  1          │  │  2G~2G       1~1         0           │   │ \n"
         " │   │             │  │                                      │   │ \n"
         " │   ╰─────────────╯  ╰──────────────────────────────────────╯   │ \n"
         " ╰───────────────────────────────────────────────────────────────╯ \n"
@@ -1026,7 +1034,7 @@ def test_ray_details(mocker, capsys):
         " │   ╭── Workers ──╮  ╭───────── Worker specs(each) ─────────╮   │ \n"
         " │   │  # Workers  │  │  Memory      CPU         GPU         │   │ \n"
         " │   │             │  │                                      │   │ \n"
-        " │   │  1          │  │  2G~2G       1           0           │   │ \n"
+        " │   │  1          │  │  2G~2G       1~1         0           │   │ \n"
         " │   │             │  │                                      │   │ \n"
         " │   ╰─────────────╯  ╰──────────────────────────────────────╯   │ \n"
         " ╰───────────────────────────────────────────────────────────────╯ \n"
@@ -1042,7 +1050,7 @@ def test_ray_details(mocker, capsys):
         "│   ╭── Workers ──╮  ╭───────── Worker specs(each) ─────────╮   │\n"
         "│   │  # Workers  │  │  Memory      CPU         GPU         │   │\n"
         "│   │             │  │                                      │   │\n"
-        "│   │  1          │  │  2G~2G       1           0           │   │\n"
+        "│   │  1          │  │  2G~2G       1~1         0           │   │\n"
         "│   │             │  │                                      │   │\n"
         "│   ╰─────────────╯  ╰──────────────────────────────────────╯   │\n"
         "╰───────────────────────────────────────────────────────────────╯\n"
@@ -2247,7 +2255,7 @@ def test_list_clusters(mocker, capsys):
         " │   ╭── Workers ──╮  ╭───────── Worker specs(each) ─────────╮   │ \n"
         " │   │  # Workers  │  │  Memory      CPU         GPU         │   │ \n"
         " │   │             │  │                                      │   │ \n"
-        " │   │  1          │  │  2G~2G       1           0           │   │ \n"
+        " │   │  1          │  │  2G~2G       1~1         0           │   │ \n"
         " │   │             │  │                                      │   │ \n"
         " │   ╰─────────────╯  ╰──────────────────────────────────────╯   │ \n"
         " ╰───────────────────────────────────────────────────────────────╯ \n"
@@ -2263,7 +2271,7 @@ def test_list_clusters(mocker, capsys):
         "│   ╭── Workers ──╮  ╭───────── Worker specs(each) ─────────╮   │\n"
         "│   │  # Workers  │  │  Memory      CPU         GPU         │   │\n"
         "│   │             │  │                                      │   │\n"
-        "│   │  1          │  │  2G~2G       1           0           │   │\n"
+        "│   │  1          │  │  2G~2G       1~1         0           │   │\n"
         "│   │             │  │                                      │   │\n"
         "│   ╰─────────────╯  ╰──────────────────────────────────────╯   │\n"
         "╰───────────────────────────────────────────────────────────────╯\n"
@@ -2957,6 +2965,161 @@ def test_is_notebook_true():
 
     assert is_notebook() is True
 
+@patch.dict("os.environ", {"JPY_SESSION_NAME": "example-test"})  # Mock Jupyter environment variable
+def test_view_clusters(mocker):
+    # Mock Kubernetes API responses
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_cluster_custom_object",
+        return_value={"items": []}
+    )
+
+
+    test_df=pd.DataFrame({
+        "Name": ["test-cluster"],
+        "Namespace": ["default"],
+        "Head GPUs": ["0"],
+        "Worker GPUs": ["0"],
+        "Head CPU Req~Lim": ["1~1"],
+        "Head Memory Req~Lim": ["1Gi~1Gi"],
+        "Worker CPU Req~Lim": ["1~1"],
+        "Worker Memory Req~Lim": ["1Gi~1Gi"],
+        "status": ['<span style="color: green;">Ready ✓</span>']
+    })
+
+    # Mock the _fetch_cluster_data function to return a test DataFrame
+    mocker.patch(
+        "codeflare_sdk.cluster.widgets._fetch_cluster_data",
+        return_value=test_df
+    )
+
+    # Mock the Cluster class and related methods
+    mocker.patch("codeflare_sdk.cluster.Cluster")
+    mocker.patch("codeflare_sdk.cluster.ClusterConfiguration")
+
+    with patch("ipywidgets.ToggleButtons") as MockToggleButtons, \
+         patch("ipywidgets.Button") as MockButton, \
+         patch("ipywidgets.Output") as MockOutput, \
+         patch("ipywidgets.HBox"), \
+         patch("ipywidgets.VBox"), \
+         patch("IPython.display.display") as mock_display, \
+         patch("IPython.display.HTML"), \
+         patch("codeflare_sdk.cluster.widgets.Javascript") as mock_javascript:
+
+        # Create mock widget instances
+        mock_toggle = MagicMock()
+        mock_delete_button = MagicMock()
+        mock_list_jobs_button = MagicMock()
+        mock_ray_dashboard_button = MagicMock()
+        mock_output = MagicMock()
+
+        # Set the return values for the mocked widgets
+        MockToggleButtons.return_value = mock_toggle
+        MockButton.side_effect = [mock_delete_button, mock_list_jobs_button, mock_ray_dashboard_button]
+        MockOutput.return_value = mock_output
+
+        # Call the function under test
+        view_clusters(namespace="default")
+
+        # Simulate selecting a cluster
+        mock_toggle.value = "test-cluster"
+        selection_change = {"new": "test-cluster"}
+        _on_cluster_click(selection_change, mock_output, "default", mock_toggle)
+
+        # Assert that the toggle options are set correctly
+        mock_toggle.observe.assert_called()
+
+        # Simulate clicking the delete button
+        _on_delete_button_click(None, mock_toggle, test_df, mock_output, mock_output,
+                                mock_delete_button, mock_list_jobs_button, mock_ray_dashboard_button)
+
+        # Simulate clicking the list jobs button
+        _on_list_jobs_button_click(None, mock_toggle, test_df, mock_output, mock_output)
+        mock_javascript.assert_called()
+
+        # Simulate clicking the Ray dashboard button
+        _on_ray_dashboard_button_click(None, mock_toggle, test_df, mock_output, mock_output)
+        mock_javascript.assert_called()
+
+
+
+def test_format_status():
+    # Test each possible status
+    test_cases = [
+        (RayClusterStatus.READY, '<span style="color: green;">Ready ✓</span>'),
+        (RayClusterStatus.SUSPENDED, '<span style="color: #007BFF;">Suspended ❄️</span>'),
+        (RayClusterStatus.FAILED, '<span style="color: red;">Failed ✗</span>'),
+        (RayClusterStatus.UNHEALTHY, '<span style="color: purple;">Unhealthy</span>'),
+        (RayClusterStatus.UNKNOWN, '<span style="color: purple;">Unknown</span>'),
+    ]
+
+    for status, expected_output in test_cases:
+        assert _format_status(status) == expected_output, f"Failed for status: {status}"
+
+    # Test an unrecognized status
+    unrecognized_status = 'NotAStatus'
+    assert _format_status(unrecognized_status) == 'NotAStatus', "Failed for unrecognized status"
+
+def test_fetch_cluster_data(mocker):
+    # Create mock RayCluster objects
+    mock_raycluster1 = MagicMock(spec=RayCluster)
+    mock_raycluster1.name = 'test-cluster-1'
+    mock_raycluster1.namespace = 'default'
+    mock_raycluster1.head_extended_resources = {'nvidia.com/gpu': '1'}
+    mock_raycluster1.worker_extended_resources = {'nvidia.com/gpu': '2'}
+    mock_raycluster1.head_cpu_requests = '500m'
+    mock_raycluster1.head_cpu_limits = '1000m'
+    mock_raycluster1.head_mem_requests = '1Gi'
+    mock_raycluster1.head_mem_limits = '2Gi'
+    mock_raycluster1.worker_cpu_requests = '1000m'
+    mock_raycluster1.worker_cpu_limits = '2000m'
+    mock_raycluster1.worker_mem_requests = '2Gi'
+    mock_raycluster1.worker_mem_limits = '4Gi'
+    mock_raycluster1.status = MagicMock()
+    mock_raycluster1.status.name = 'READY'
+    mock_raycluster1.status = RayClusterStatus.READY
+
+    mock_raycluster2 = MagicMock(spec=RayCluster)
+    mock_raycluster2.name = 'test-cluster-2'
+    mock_raycluster2.namespace = 'default'
+    mock_raycluster2.head_extended_resources = {}
+    mock_raycluster2.worker_extended_resources = {}
+    mock_raycluster2.head_cpu_requests = None
+    mock_raycluster2.head_cpu_limits = None
+    mock_raycluster2.head_mem_requests = None
+    mock_raycluster2.head_mem_limits = None
+    mock_raycluster2.worker_cpu_requests = None
+    mock_raycluster2.worker_cpu_limits = None
+    mock_raycluster2.worker_mem_requests = None
+    mock_raycluster2.worker_mem_limits = None
+    mock_raycluster2.status = MagicMock()
+    mock_raycluster2.status.name = 'SUSPENDED'
+    mock_raycluster2.status = RayClusterStatus.SUSPENDED
+
+    with patch('codeflare_sdk.cluster.cluster.list_all_clusters', return_value=[mock_raycluster1, mock_raycluster2]):
+        # Call the function under test
+        df = _fetch_cluster_data(namespace='default')
+
+    # Expected DataFrame
+    expected_data = {
+        "Name": ['test-cluster-1', 'test-cluster-2'],
+        "Namespace": ['default', 'default'],
+        "Head GPUs": ['nvidia.com/gpu: 1', '0'],
+        "Worker GPUs": ['nvidia.com/gpu: 2', '0'],
+        "Head CPU Req~Lim": ['500m~1000m', '0~0'],
+        "Head Memory Req~Lim": ['1Gi~2Gi', '0~0'],
+        "Worker CPU Req~Lim": ['1000m~2000m', '0~0'],
+        "Worker Memory Req~Lim": ['2Gi~4Gi', '0~0'],
+        "status": [
+            '<span style="color: green;">Ready ✓</span>',
+            '<span style="color: #007BFF;">Suspended ❄️</span>'
+        ]
+    }
+
+    expected_df = pd.DataFrame(expected_data)
+
+    # Assert that the DataFrame matches expected
+    pd.testing.assert_frame_equal(df.reset_index(drop=True), expected_df.reset_index(drop=True))
 
 # Make sure to always keep this function last
 def test_cleanup():
