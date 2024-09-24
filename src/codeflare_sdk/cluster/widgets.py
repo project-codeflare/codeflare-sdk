@@ -17,8 +17,10 @@ The widgets sub-module contains the ui widgets created using the ipywidgets pack
 """
 import os
 from time import sleep
+import time
 import codeflare_sdk
 from kubernetes import client
+from kubernetes.client.rest import ApiException
 import ipywidgets as widgets
 from IPython.display import display, HTML, Javascript
 import pandas as pd
@@ -160,7 +162,6 @@ def _on_delete_button_click(b, classification_widget: widgets.ToggleButtons, df:
 
     _delete_cluster(cluster_name, namespace)
 
-    sleep(2) # TODO: wait for the cluster to be deleted instead
     with user_output:
         user_output.clear_output()
         print(f"Cluster {cluster_name} in the {namespace} namespace was deleted successfully.")
@@ -209,12 +210,16 @@ def _on_list_jobs_button_click(b, classification_widget: widgets.ToggleButtons, 
 def _delete_cluster(
     cluster_name: str,
     namespace: str,
+    timeout: int = 5,
+    interval: int = 1,
 ):
     from .cluster import _check_aw_exists
-    if _check_aw_exists(cluster_name, namespace):
-        try:
-            config_check()
-            api_instance = client.CustomObjectsApi(api_config_handler())
+
+    try:
+        config_check()
+        api_instance = client.CustomObjectsApi(api_config_handler())
+
+        if _check_aw_exists(cluster_name, namespace):
             api_instance.delete_namespaced_custom_object(
                 group="workload.codeflare.dev",
                 version="v1beta2",
@@ -222,12 +227,10 @@ def _delete_cluster(
                 plural="appwrappers",
                 name=cluster_name,
             )
-        except Exception as e:
-            return _kube_api_error_handling(e)
-    else:
-        try:
-            config_check()
-            api_instance = client.CustomObjectsApi(api_config_handler())
+            group = "workload.codeflare.dev"
+            version = "v1beta2"
+            plural = "appwrappers"
+        else:
             api_instance.delete_namespaced_custom_object(
                 group="ray.io",
                 version="v1",
@@ -235,8 +238,31 @@ def _delete_cluster(
                 plural="rayclusters",
                 name=cluster_name,
             )
-        except Exception as e:
-            return _kube_api_error_handling(e)
+            group = "ray.io"
+            version = "v1"
+            plural = "rayclusters"
+
+        # Wait for the resource to be deleted
+        while True:
+            try:
+                api_instance.get_namespaced_custom_object(
+                    group=group,
+                    version=version,
+                    namespace=namespace,
+                    plural=plural,
+                    name=cluster_name,
+                )
+                # Retry if resource still exists
+                time.sleep(interval)
+                timeout -= interval
+                if timeout <= 0:
+                    raise TimeoutError(f"Timeout waiting for {cluster_name} to be deleted.")
+            except ApiException as e:
+                # Resource is deleted
+                if e.status == 404:
+                    break
+    except Exception as e:
+        return _kube_api_error_handling(e)
 
 
 def _fetch_cluster_data(namespace):
