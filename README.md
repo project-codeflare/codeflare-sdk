@@ -40,9 +40,3 @@ The following instructions apply when doing release manually. This may be requir
 - If not present already, add the API token to Poetry.
 `poetry config pypi-token.pypi API_TOKEN`
 - Publish the Python package. `poetry publish`
-- Change directory to custom-nb-image. `cd custom-nb-image`
-- Set tag `export tag=TAG`
-- Build the container image. `podman build --build-arg SDK_VERSION=<version> -t quay.io/project-codeflare/notebook:${tag} .`
-- Login to quay.io. `podman login quay.io`
-- Push the image. `podman push quay.io/project-codeflare/notebook:${tag}`
-- Push the stable image tag `podman push quay.io/project-codeflare/notebook:${tag} quay.io/project-codeflare/notebook:stable`
