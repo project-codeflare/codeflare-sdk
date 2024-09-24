@@ -2953,7 +2953,6 @@ def test_cluster_up_down_buttons(mocker):
 @patch.dict("os.environ", {}, clear=True)  # Mock environment with no variables
 def test_is_notebook_false():
     from codeflare_sdk.cluster.widgets import is_notebook
-
     assert is_notebook() is False
 
 
@@ -2962,8 +2961,8 @@ def test_is_notebook_false():
 )  # Mock Jupyter environment variable
 def test_is_notebook_true():
     from codeflare_sdk.cluster.widgets import is_notebook
-
     assert is_notebook() is True
+
 
 @patch.dict("os.environ", {"JPY_SESSION_NAME": "example-test"})  # Mock Jupyter environment variable
 def test_view_clusters(mocker):
@@ -2974,6 +2973,10 @@ def test_view_clusters(mocker):
         return_value={"items": []}
     )
 
+    # Return empty dataframe when no clusters are found
+    mocker.patch("codeflare_sdk.cluster.cluster.list_all_clusters", return_value=[])
+    df = _fetch_cluster_data(namespace="default")
+    assert df.empty
 
     test_df=pd.DataFrame({
         "Name": ["test-cluster"],
@@ -3029,10 +3032,6 @@ def test_view_clusters(mocker):
         # Assert that the toggle options are set correctly
         mock_toggle.observe.assert_called()
 
-        # Simulate clicking the delete button
-        _on_delete_button_click(None, mock_toggle, test_df, mock_output, mock_output,
-                                mock_delete_button, mock_list_jobs_button, mock_ray_dashboard_button)
-
         # Simulate clicking the list jobs button
         _on_list_jobs_button_click(None, mock_toggle, test_df, mock_output, mock_output)
         mock_javascript.assert_called()
@@ -3041,26 +3040,17 @@ def test_view_clusters(mocker):
         _on_ray_dashboard_button_click(None, mock_toggle, test_df, mock_output, mock_output)
         mock_javascript.assert_called()
 
+        # Simulate clicking the delete button
+        _on_delete_button_click(None, mock_toggle, test_df, mock_output, mock_output,
+                                mock_delete_button, mock_list_jobs_button, mock_ray_dashboard_button)
 
-
-def test_format_status():
-    # Test each possible status
-    test_cases = [
-        (RayClusterStatus.READY, '<span style="color: green;">Ready ✓</span>'),
-        (RayClusterStatus.SUSPENDED, '<span style="color: #007BFF;">Suspended ❄️</span>'),
-        (RayClusterStatus.FAILED, '<span style="color: red;">Failed ✗</span>'),
-        (RayClusterStatus.UNHEALTHY, '<span style="color: purple;">Unhealthy</span>'),
-        (RayClusterStatus.UNKNOWN, '<span style="color: purple;">Unknown</span>'),
-    ]
-
-    for status, expected_output in test_cases:
-        assert _format_status(status) == expected_output, f"Failed for status: {status}"
-
-    # Test an unrecognized status
-    unrecognized_status = 'NotAStatus'
-    assert _format_status(unrecognized_status) == 'NotAStatus', "Failed for unrecognized status"
 
 def test_fetch_cluster_data(mocker):
+    # Return empty dataframe when no clusters are found
+    mocker.patch("codeflare_sdk.cluster.cluster.list_all_clusters", return_value=[])
+    df = _fetch_cluster_data(namespace="default")
+    assert df.empty
+
     # Create mock RayCluster objects
     mock_raycluster1 = MagicMock(spec=RayCluster)
     mock_raycluster1.name = 'test-cluster-1'
@@ -3120,6 +3110,25 @@ def test_fetch_cluster_data(mocker):
 
     # Assert that the DataFrame matches expected
     pd.testing.assert_frame_equal(df.reset_index(drop=True), expected_df.reset_index(drop=True))
+
+
+def test_format_status():
+    # Test each possible status
+    test_cases = [
+        (RayClusterStatus.READY, '<span style="color: green;">Ready ✓</span>'),
+        (RayClusterStatus.SUSPENDED, '<span style="color: #007BFF;">Suspended ❄️</span>'),
+        (RayClusterStatus.FAILED, '<span style="color: red;">Failed ✗</span>'),
+        (RayClusterStatus.UNHEALTHY, '<span style="color: purple;">Unhealthy</span>'),
+        (RayClusterStatus.UNKNOWN, '<span style="color: purple;">Unknown</span>'),
+    ]
+
+    for status, expected_output in test_cases:
+        assert _format_status(status) == expected_output, f"Failed for status: {status}"
+
+    # Test an unrecognized status
+    unrecognized_status = 'NotAStatus'
+    assert _format_status(unrecognized_status) == 'NotAStatus', "Failed for unrecognized status"
+
 
 # Make sure to always keep this function last
 def test_cleanup():

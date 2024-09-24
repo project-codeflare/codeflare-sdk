@@ -15,6 +15,8 @@
 """
 The widgets sub-module contains the ui widgets created using the ipywidgets package.
 """
+import contextlib
+import io
 import os
 from time import sleep
 import time
@@ -113,38 +115,42 @@ def view_clusters(namespace: str = None):
     df = _fetch_cluster_data(namespace)
     if df.empty:
         print(f"No clusters found in the {namespace} namespace.")
-    else:
-        classification_widget = widgets.ToggleButtons(
-            options=df["Name"].tolist(), value=None,
-            description='Select an existing cluster:',
-        )
+        return
 
-        classification_widget.observe(lambda selection_change: _on_cluster_click(selection_change, raycluster_data_output, namespace, classification_widget), names="value")
+    classification_widget = widgets.ToggleButtons(
+        options=df["Name"].tolist(), value=df["Name"].tolist()[0],
+        description='Select an existing cluster:',
+    )
+    # Setting the initial value to trigger the event handler to display the cluster details.
+    initial_value = classification_widget.value
+    _on_cluster_click({"new": initial_value}, raycluster_data_output, namespace, classification_widget)
+    classification_widget.observe(lambda selection_change: _on_cluster_click(selection_change, raycluster_data_output, namespace, classification_widget), names="value")
 
-        delete_button = widgets.Button(
-                    description='Delete Cluster',
-                    icon='trash',
-                    tooltip="Delete the selected cluster"
-                )
-        delete_button.on_click(lambda b: _on_delete_button_click(b, classification_widget, df, raycluster_data_output, user_output, delete_button, list_jobs_button, ray_dashboard_button))
+    # UI table buttons
+    delete_button = widgets.Button(
+                description='Delete Cluster',
+                icon='trash',
+                tooltip="Delete the selected cluster"
+            )
+    delete_button.on_click(lambda b: _on_delete_button_click(b, classification_widget, df, raycluster_data_output, user_output, delete_button, list_jobs_button, ray_dashboard_button))
 
-        list_jobs_button = widgets.Button(
-                    description='View Jobs',
-                    icon='suitcase',
-                    tooltip="Open the Ray Job Dashboard"
-                )
-        list_jobs_button.on_click(lambda b: _on_list_jobs_button_click(b, classification_widget, df, user_output, url_output))
+    list_jobs_button = widgets.Button(
+                description='View Jobs',
+                icon='suitcase',
+                tooltip="Open the Ray Job Dashboard"
+            )
+    list_jobs_button.on_click(lambda b: _on_list_jobs_button_click(b, classification_widget, df, user_output, url_output))
 
-        ray_dashboard_button = widgets.Button(
-                    description='Open Ray Dashboard',
-                    icon='dashboard',
-                    tooltip="Open the Ray Dashboard in a new tab",
-                    layout=widgets.Layout(width='auto'),
-                )
-        ray_dashboard_button.on_click(lambda b: _on_ray_dashboard_button_click(b, classification_widget, df, user_output, url_output))
+    ray_dashboard_button = widgets.Button(
+                description='Open Ray Dashboard',
+                icon='dashboard',
+                tooltip="Open the Ray Dashboard in a new tab",
+                layout=widgets.Layout(width='auto'),
+            )
+    ray_dashboard_button.on_click(lambda b: _on_ray_dashboard_button_click(b, classification_widget, df, user_output, url_output))
 
-        display(widgets.VBox([classification_widget, raycluster_data_output]))
-        display(widgets.HBox([delete_button, list_jobs_button, ray_dashboard_button]), url_output, user_output)
+    display(widgets.VBox([classification_widget, raycluster_data_output]))
+    display(widgets.HBox([delete_button, list_jobs_button, ray_dashboard_button]), url_output, user_output)
 
 # Handles the event when a cluster is selected from the toggle buttons, updating the output with cluster details.
 def _on_cluster_click(selection_change, raycluster_data_output: widgets.Output, namespace: str, classification_widget: widgets.ToggleButtons):
@@ -184,7 +190,9 @@ def _on_ray_dashboard_button_click(b, classification_widget: widgets.ToggleButto
     cluster_name = classification_widget.value
     namespace = df[df["Name"]==classification_widget.value]["Namespace"].values[0]
 
-    cluster = Cluster(ClusterConfiguration(cluster_name, namespace))
+    # Suppress from Cluster Object initialisation widgets and outputs
+    with widgets.Output(), contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+        cluster = Cluster(ClusterConfiguration(cluster_name, namespace))
     dashboard_url = cluster.cluster_dashboard_uri()
 
     with user_output:
@@ -198,7 +206,9 @@ def _on_list_jobs_button_click(b, classification_widget: widgets.ToggleButtons, 
     cluster_name = classification_widget.value
     namespace = df[df["Name"]==classification_widget.value]["Namespace"].values[0]
 
-    cluster = Cluster(ClusterConfiguration(cluster_name, namespace))
+    # Suppress from Cluster Object initialisation widgets and outputs
+    with widgets.Output(), contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+        cluster = Cluster(ClusterConfiguration(cluster_name, namespace))
     dashboard_url = cluster.cluster_dashboard_uri()
 
     with user_output:
