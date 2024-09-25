@@ -253,7 +253,7 @@ def _delete_cluster(
             plural = "rayclusters"
 
         # Wait for the resource to be deleted
-        while True:
+        while timeout > 0:
             try:
                 api_instance.get_namespaced_custom_object(
                     group=group,
@@ -321,17 +321,13 @@ def _fetch_cluster_data(namespace):
     }
     return pd.DataFrame(data)
 
-# format_status takes a RayCluster status and applies colors and icons based on the status.
+
 def _format_status(status):
-    if status == RayClusterStatus.READY:
-        return '<span style="color: green;">Ready ✓</span>'
-    elif status == RayClusterStatus.SUSPENDED:
-        return '<span style="color: #007BFF;">Suspended ❄️</span>'
-    elif status == RayClusterStatus.FAILED:
-        return '<span style="color: red;">Failed ✗</span>'
-    elif status == RayClusterStatus.UNHEALTHY:
-        return '<span style="color: purple;">Unhealthy</span>'
-    elif status == RayClusterStatus.UNKNOWN:
-        return '<span style="color: purple;">Unknown</span>'
-    else:
-        return status
+    status_map = {
+        RayClusterStatus.READY: '<span style="color: green;">Ready ✓</span>',
+        RayClusterStatus.SUSPENDED: '<span style="color: #007BFF;">Suspended ❄️</span>',
+        RayClusterStatus.FAILED: '<span style="color: red;">Failed ✗</span>',
+        RayClusterStatus.UNHEALTHY: '<span style="color: purple;">Unhealthy</span>',
+        RayClusterStatus.UNKNOWN: '<span style="color: purple;">Unknown</span>'
+    }
+    return status_map.get(status, status)

@@ -77,16 +77,7 @@ from codeflare_sdk.utils.generate_yaml import (
     is_openshift_cluster,
 )
 
-from codeflare_sdk.cluster.widgets import (
-    cluster_up_down_buttons,
-    view_clusters,
-    _on_cluster_click,
-    _on_delete_button_click,
-    _on_list_jobs_button_click,
-    _on_ray_dashboard_button_click,
-    _format_status,
-    _fetch_cluster_data,
-)
+import codeflare_sdk.cluster.widgets as cf_widgets
 import pandas as pd
 
 import openshift
@@ -2933,7 +2924,7 @@ def test_cluster_up_down_buttons(mocker):
         MockButton.side_effect = [mock_up_button, mock_down_button]
 
         # Call the method under test
-        cluster_up_down_buttons(cluster)
+        cf_widgets.cluster_up_down_buttons(cluster)
 
         # Simulate checkbox being checked or unchecked
         mock_wait_ready_check_box.value = True  # Simulate checkbox being checked
@@ -2975,7 +2966,7 @@ def test_view_clusters(mocker):
 
     # Return empty dataframe when no clusters are found
     mocker.patch("codeflare_sdk.cluster.cluster.list_all_clusters", return_value=[])
-    df = _fetch_cluster_data(namespace="default")
+    df = cf_widgets._fetch_cluster_data(namespace="default")
     assert df.empty
 
     test_df=pd.DataFrame({
@@ -3022,33 +3013,33 @@ def test_view_clusters(mocker):
         MockOutput.return_value = mock_output
 
         # Call the function under test
-        view_clusters(namespace="default")
+        cf_widgets.view_clusters(namespace="default")
 
         # Simulate selecting a cluster
         mock_toggle.value = "test-cluster"
         selection_change = {"new": "test-cluster"}
-        _on_cluster_click(selection_change, mock_output, "default", mock_toggle)
+        cf_widgets._on_cluster_click(selection_change, mock_output, "default", mock_toggle)
 
         # Assert that the toggle options are set correctly
         mock_toggle.observe.assert_called()
 
         # Simulate clicking the list jobs button
-        _on_list_jobs_button_click(None, mock_toggle, test_df, mock_output, mock_output)
+        cf_widgets._on_list_jobs_button_click(None, mock_toggle, test_df, mock_output, mock_output)
         mock_javascript.assert_called()
 
         # Simulate clicking the Ray dashboard button
-        _on_ray_dashboard_button_click(None, mock_toggle, test_df, mock_output, mock_output)
+        cf_widgets._on_ray_dashboard_button_click(None, mock_toggle, test_df, mock_output, mock_output)
         mock_javascript.assert_called()
 
         # Simulate clicking the delete button
-        _on_delete_button_click(None, mock_toggle, test_df, mock_output, mock_output,
+        cf_widgets._on_delete_button_click(None, mock_toggle, test_df, mock_output, mock_output,
                                 mock_delete_button, mock_list_jobs_button, mock_ray_dashboard_button)
 
 
 def test_fetch_cluster_data(mocker):
     # Return empty dataframe when no clusters are found
     mocker.patch("codeflare_sdk.cluster.cluster.list_all_clusters", return_value=[])
-    df = _fetch_cluster_data(namespace="default")
+    df = cf_widgets._fetch_cluster_data(namespace="default")
     assert df.empty
 
     # Create mock RayCluster objects
@@ -3088,7 +3079,7 @@ def test_fetch_cluster_data(mocker):
 
     with patch('codeflare_sdk.cluster.cluster.list_all_clusters', return_value=[mock_raycluster1, mock_raycluster2]):
         # Call the function under test
-        df = _fetch_cluster_data(namespace='default')
+        df = cf_widgets._fetch_cluster_data(namespace='default')
 
     # Expected DataFrame
     expected_data = {
@@ -3123,11 +3114,11 @@ def test_format_status():
     ]
 
     for status, expected_output in test_cases:
-        assert _format_status(status) == expected_output, f"Failed for status: {status}"
+        assert cf_widgets._format_status(status) == expected_output, f"Failed for status: {status}"
 
     # Test an unrecognized status
     unrecognized_status = 'NotAStatus'
-    assert _format_status(unrecognized_status) == 'NotAStatus', "Failed for unrecognized status"
+    assert cf_widgets._format_status(unrecognized_status) == 'NotAStatus', "Failed for unrecognized status"
 
 
 # Make sure to always keep this function last

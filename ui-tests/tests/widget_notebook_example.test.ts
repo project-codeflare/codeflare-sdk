@@ -30,11 +30,13 @@ test.describe("Visual Regression", () => {
     tmpPath,
   }) => {
     const notebook = "3_widget_example.ipynb";
+    const namespace = 'default';
     await page.notebook.openByPath(`${tmpPath}/${notebook}`);
     await page.notebook.activate(notebook);
 
     const captures: (Buffer | null)[] = []; // Array to store cell screenshots
     const cellCount = await page.notebook.getCellCount();
+    console.log(`Cell count: ${cellCount}`);
 
     // Run all cells and capture their screenshots
     await page.notebook.runCellByCell({
@@ -59,25 +61,27 @@ test.describe("Visual Regression", () => {
       }
     }
 
-    const widgetCellIndex = 3;
+    // At this point, all cells have been ran, and their screenshots have been captured.
+    // We now interact with the widgets in the notebook.
+    const upDownWidgetCellIndex = 3; // 4 on OpenShift
 
-    await waitForWidget(page, widgetCellIndex, 'input[type="checkbox"]');
-    await waitForWidget(page, widgetCellIndex, 'button:has-text("Cluster Down")');
-    await waitForWidget(page, widgetCellIndex, 'button:has-text("Cluster Up")');
+    await waitForWidget(page, upDownWidgetCellIndex, 'input[type="checkbox"]');
+    await waitForWidget(page, upDownWidgetCellIndex, 'button:has-text("Cluster Down")');
+    await waitForWidget(page, upDownWidgetCellIndex, 'button:has-text("Cluster Up")');
 
-    await interactWithWidget(page, widgetCellIndex, 'input[type="checkbox"]', async (checkbox) => {
+    await interactWithWidget(page, upDownWidgetCellIndex, 'input[type="checkbox"]', async (checkbox) => {
       await checkbox.click();
       const isChecked = await checkbox.isChecked();
       expect(isChecked).toBe(true);
     });
 
-    await interactWithWidget(page, widgetCellIndex, 'button:has-text("Cluster Down")', async (button) => {
+    await interactWithWidget(page, upDownWidgetCellIndex, 'button:has-text("Cluster Down")', async (button) => {
       await button.click();
       const clusterDownMessage = await page.waitForSelector('text=No instances found, nothing to be done.', { timeout: 5000 });
       expect(clusterDownMessage).not.toBeNull();
     });
 
-    await interactWithWidget(page, widgetCellIndex, 'button:has-text("Cluster Up")', async (button) => {
+    await interactWithWidget(page, upDownWidgetCellIndex, 'button:has-text("Cluster Up")', async (button) => {
       await button.click();
 
       const successMessage = await page.waitForSelector('text=Ray Cluster: \'raytest\' has successfully been created', { timeout: 10000 });
@@ -95,10 +99,48 @@ test.describe("Visual Regression", () => {
 
     await runPreviousCell(page, cellCount, '(<CodeFlareClusterStatus.READY: 1>, True)');
 
-    await interactWithWidget(page, widgetCellIndex, 'button:has-text("Cluster Down")', async (button) => {
+    await interactWithWidget(page, upDownWidgetCellIndex, 'button:has-text("Cluster Down")', async (button) => {
       await button.click();
       const clusterDownMessage = await page.waitForSelector('text=Ray Cluster: \'raytest\' has successfully been deleted', { timeout: 5000 });
       expect(clusterDownMessage).not.toBeNull();
+    });
+
+    await runPreviousCell(page, cellCount, '(<CodeFlareClusterStatus.UNKNOWN: 6>, False)');
+
+    // view_clusters table with buttons
+    await interactWithWidget(page, upDownWidgetCellIndex, 'input[type="checkbox"]', async (checkbox) => {
+      await checkbox.click();
+      const isChecked = await checkbox.isChecked();
+      expect(isChecked).toBe(false);
+    });
+
+    await interactWithWidget(page, upDownWidgetCellIndex, 'button:has-text("Cluster Up")', async (button) => {
+      await button.click();
+      const successMessage = await page.waitForSelector('text=Ray Cluster: \'raytest\' has successfully been created', { timeout: 10000 });
+      expect(successMessage).not.toBeNull();
+    });
+    
+    const viewClustersCellIndex = 4; // 5 on OpenShift
+    await page.notebook.runCell(cellCount - 2, true);
+    await interactWithWidget(page, viewClustersCellIndex, 'button:has-text("Open Ray Dashboard")', async (button) => {
+      await button.click();
+      const successMessage = await page.waitForSelector('text=Opening Ray Dashboard for raytest cluster', { timeout: 5000 });
+      expect(successMessage).not.toBeNull();
+    });
+
+    await interactWithWidget(page, viewClustersCellIndex, 'button:has-text("View Jobs")', async (button) => {
+      await button.click();
+      const successMessage = await page.waitForSelector('text=Opening Ray Jobs Dashboard for raytest cluster', { timeout: 5000 });
+      expect(successMessage).not.toBeNull();
+    });
+
+    await interactWithWidget(page, viewClustersCellIndex, 'button:has-text("Delete Cluster")', async (button) => {
+      await button.click();
+
+      const noClustersMessage = await page.waitForSelector(`text=No clusters found in the ${namespace} namespace.`, { timeout: 5000 });
+      expect(noClustersMessage).not.toBeNull();
+      const successMessage = await page.waitForSelector(`text=Cluster raytest in the ${namespace} namespace was deleted successfully.`, { timeout: 5000 });
+      expect(successMessage).not.toBeNull();
     });
 
     await runPreviousCell(page, cellCount, '(<CodeFlareClusterStatus.UNKNOWN: 6>, False)');
