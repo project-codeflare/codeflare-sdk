@@ -34,6 +34,9 @@ test.describe("Visual Regression", () => {
     await page.notebook.openByPath(`${tmpPath}/${notebook}`);
     await page.notebook.activate(notebook);
 
+    // Hide the cell toolbar before capturing the screenshots
+    await page.addStyleTag({ content: '.jp-cell-toolbar { display: none !important; }' });
+
     const captures: (Buffer | null)[] = []; // Array to store cell screenshots
     const cellCount = await page.notebook.getCellCount();
     console.log(`Cell count: ${cellCount}`);
@@ -45,7 +48,6 @@ test.describe("Visual Regression", () => {
         if (cell && (await cell.isVisible())) {
           captures[cellIndex] = await cell.screenshot(); // Save the screenshot by cell index
         }
-        await page.addStyleTag({ content: '.jp-cell-toolbar { display: none !important; }' });
       },
     });
 
