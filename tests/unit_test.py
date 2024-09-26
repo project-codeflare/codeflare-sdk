@@ -2944,6 +2944,7 @@ def test_cluster_up_down_buttons(mocker):
 @patch.dict("os.environ", {}, clear=True)  # Mock environment with no variables
 def test_is_notebook_false():
     from codeflare_sdk.cluster.widgets import is_notebook
+
     assert is_notebook() is False
 
 
@@ -2952,54 +2953,85 @@ def test_is_notebook_false():
 )  # Mock Jupyter environment variable
 def test_is_notebook_true():
     from codeflare_sdk.cluster.widgets import is_notebook
+
     assert is_notebook() is True
 
 
-@patch.dict("os.environ", {"JPY_SESSION_NAME": "example-test"})  # Mock Jupyter environment variable
-def test_view_clusters(mocker):
+def test_view_clusters(mocker, capsys):
+    from kubernetes.client.rest import ApiException
+
+    mocker.patch("codeflare_sdk.cluster.widgets.is_notebook", return_value=False)
+    with pytest.warns(
+        UserWarning,
+        match="view_clusters can only be used in a Jupyter Notebook environment.",
+    ):
+        result = cf_widgets.view_clusters(namespace="default")
+        # Assert the function returns None when not in a notebook environment
+        assert result is None
+
+    mocker.patch("codeflare_sdk.cluster.widgets.is_notebook", return_value=True)
+
     # Mock Kubernetes API responses
     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch(
-        "kubernetes.client.CustomObjectsApi.list_cluster_custom_object",
-        return_value={"items": []}
+        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
+        return_value={"items": []},
     )
+    mocker.patch("codeflare_sdk.cluster.cluster._check_aw_exists", return_value=False)
 
     # Return empty dataframe when no clusters are found
     mocker.patch("codeflare_sdk.cluster.cluster.list_all_clusters", return_value=[])
+    mocker.patch(
+        "codeflare_sdk.cluster.cluster.get_current_namespace",
+        return_value="default",
+    )
     df = cf_widgets._fetch_cluster_data(namespace="default")
     assert df.empty
 
-    test_df=pd.DataFrame({
-        "Name": ["test-cluster"],
-        "Namespace": ["default"],
-        "Head GPUs": ["0"],
-        "Worker GPUs": ["0"],
-        "Head CPU Req~Lim": ["1~1"],
-        "Head Memory Req~Lim": ["1Gi~1Gi"],
-        "Worker CPU Req~Lim": ["1~1"],
-        "Worker Memory Req~Lim": ["1Gi~1Gi"],
-        "status": ['<span style="color: green;">Ready ✓</span>']
-    })
+    cf_widgets.view_clusters()
+    captured = capsys.readouterr()
+    assert f"No clusters found in the default namespace." in captured.out
+
+    # Assert the function returns None
+    assert result is None
+
+    test_df = pd.DataFrame(
+        {
+            "Name": ["test-cluster"],
+            "Namespace": ["default"],
+            "Num Workers": ["1"],
+            "Head GPUs": ["0"],
+            "Worker GPUs": ["0"],
+            "Head CPU Req~Lim": ["1~1"],
+            "Head Memory Req~Lim": ["1Gi~1Gi"],
+            "Worker CPU Req~Lim": ["1~1"],
+            "Worker Memory Req~Lim": ["1Gi~1Gi"],
+            "status": ['<span style="color: green;">Ready ✓</span>'],
+        }
+    )
 
     # Mock the _fetch_cluster_data function to return a test DataFrame
     mocker.patch(
-        "codeflare_sdk.cluster.widgets._fetch_cluster_data",
-        return_value=test_df
+        "codeflare_sdk.cluster.widgets._fetch_cluster_data", return_value=test_df
     )
 
     # Mock the Cluster class and related methods
     mocker.patch("codeflare_sdk.cluster.Cluster")
     mocker.patch("codeflare_sdk.cluster.ClusterConfiguration")
 
-    with patch("ipywidgets.ToggleButtons") as MockToggleButtons, \
-         patch("ipywidgets.Button") as MockButton, \
-         patch("ipywidgets.Output") as MockOutput, \
-         patch("ipywidgets.HBox"), \
-         patch("ipywidgets.VBox"), \
-         patch("IPython.display.display") as mock_display, \
-         patch("IPython.display.HTML"), \
-         patch("codeflare_sdk.cluster.widgets.Javascript") as mock_javascript:
-
+    with patch("ipywidgets.ToggleButtons") as MockToggleButtons, patch(
+        "ipywidgets.Button"
+    ) as MockButton, patch("ipywidgets.Output") as MockOutput, patch(
+        "ipywidgets.HBox"
+    ), patch(
+        "ipywidgets.VBox"
+    ), patch(
+        "IPython.display.display"
+    ) as mock_display, patch(
+        "IPython.display.HTML"
+    ), patch(
+        "codeflare_sdk.cluster.widgets.Javascript"
+    ) as mock_javascript:
         # Create mock widget instances
         mock_toggle = MagicMock()
         mock_delete_button = MagicMock()
@@ -3009,31 +3041,61 @@ def test_view_clusters(mocker):
 
         # Set the return values for the mocked widgets
         MockToggleButtons.return_value = mock_toggle
-        MockButton.side_effect = [mock_delete_button, mock_list_jobs_button, mock_ray_dashboard_button]
+        MockButton.side_effect = [
+            mock_delete_button,
+            mock_list_jobs_button,
+            mock_ray_dashboard_button,
+        ]
         MockOutput.return_value = mock_output
 
         # Call the function under test
-        cf_widgets.view_clusters(namespace="default")
+        cf_widgets.view_clusters()
 
         # Simulate selecting a cluster
         mock_toggle.value = "test-cluster"
         selection_change = {"new": "test-cluster"}
-        cf_widgets._on_cluster_click(selection_change, mock_output, "default", mock_toggle)
+        cf_widgets._on_cluster_click(
+            selection_change, mock_output, "default", mock_toggle
+        )
 
         # Assert that the toggle options are set correctly
         mock_toggle.observe.assert_called()
 
         # Simulate clicking the list jobs button
-        cf_widgets._on_list_jobs_button_click(None, mock_toggle, test_df, mock_output, mock_output)
-        mock_javascript.assert_called()
+        cf_widgets._on_list_jobs_button_click(
+            None, mock_toggle, test_df, mock_output, mock_output
+        )
+        mock_javascript.assert_called_once()
 
         # Simulate clicking the Ray dashboard button
-        cf_widgets._on_ray_dashboard_button_click(None, mock_toggle, test_df, mock_output, mock_output)
-        mock_javascript.assert_called()
+        cf_widgets._on_ray_dashboard_button_click(
+            None, mock_toggle, test_df, mock_output, mock_output
+        )
+        mock_javascript.call_count = 2
+
+        mocker.patch(
+            "kubernetes.client.CustomObjectsApi.delete_namespaced_custom_object",
+        )
+        mock_response = mocker.MagicMock()
+        mock_response.status = 404
+        mock_exception = ApiException(http_resp=mock_response)
+        mocker.patch(
+            "kubernetes.client.CustomObjectsApi.get_namespaced_custom_object",
+            side_effect=mock_exception,
+        )
 
         # Simulate clicking the delete button
-        cf_widgets._on_delete_button_click(None, mock_toggle, test_df, mock_output, mock_output,
-                                mock_delete_button, mock_list_jobs_button, mock_ray_dashboard_button)
+        cf_widgets._on_delete_button_click(
+            None,
+            mock_toggle,
+            test_df,
+            mock_output,
+            mock_output,
+            mock_delete_button,
+            mock_list_jobs_button,
+            mock_ray_dashboard_button,
+        )
+        MockButton.call_count = 3
 
 
 def test_fetch_cluster_data(mocker):
@@ -3044,25 +3106,27 @@ def test_fetch_cluster_data(mocker):
 
     # Create mock RayCluster objects
     mock_raycluster1 = MagicMock(spec=RayCluster)
-    mock_raycluster1.name = 'test-cluster-1'
-    mock_raycluster1.namespace = 'default'
-    mock_raycluster1.head_extended_resources = {'nvidia.com/gpu': '1'}
-    mock_raycluster1.worker_extended_resources = {'nvidia.com/gpu': '2'}
-    mock_raycluster1.head_cpu_requests = '500m'
-    mock_raycluster1.head_cpu_limits = '1000m'
-    mock_raycluster1.head_mem_requests = '1Gi'
-    mock_raycluster1.head_mem_limits = '2Gi'
-    mock_raycluster1.worker_cpu_requests = '1000m'
-    mock_raycluster1.worker_cpu_limits = '2000m'
-    mock_raycluster1.worker_mem_requests = '2Gi'
-    mock_raycluster1.worker_mem_limits = '4Gi'
+    mock_raycluster1.name = "test-cluster-1"
+    mock_raycluster1.namespace = "default"
+    mock_raycluster1.num_workers = 1
+    mock_raycluster1.head_extended_resources = {"nvidia.com/gpu": "1"}
+    mock_raycluster1.worker_extended_resources = {"nvidia.com/gpu": "2"}
+    mock_raycluster1.head_cpu_requests = "500m"
+    mock_raycluster1.head_cpu_limits = "1000m"
+    mock_raycluster1.head_mem_requests = "1Gi"
+    mock_raycluster1.head_mem_limits = "2Gi"
+    mock_raycluster1.worker_cpu_requests = "1000m"
+    mock_raycluster1.worker_cpu_limits = "2000m"
+    mock_raycluster1.worker_mem_requests = "2Gi"
+    mock_raycluster1.worker_mem_limits = "4Gi"
     mock_raycluster1.status = MagicMock()
-    mock_raycluster1.status.name = 'READY'
+    mock_raycluster1.status.name = "READY"
     mock_raycluster1.status = RayClusterStatus.READY
 
     mock_raycluster2 = MagicMock(spec=RayCluster)
-    mock_raycluster2.name = 'test-cluster-2'
-    mock_raycluster2.namespace = 'default'
+    mock_raycluster2.name = "test-cluster-2"
+    mock_raycluster2.namespace = "default"
+    mock_raycluster2.num_workers = 2
     mock_raycluster2.head_extended_resources = {}
     mock_raycluster2.worker_extended_resources = {}
     mock_raycluster2.head_cpu_requests = None
@@ -3074,51 +3138,64 @@ def test_fetch_cluster_data(mocker):
     mock_raycluster2.worker_mem_requests = None
     mock_raycluster2.worker_mem_limits = None
     mock_raycluster2.status = MagicMock()
-    mock_raycluster2.status.name = 'SUSPENDED'
+    mock_raycluster2.status.name = "SUSPENDED"
     mock_raycluster2.status = RayClusterStatus.SUSPENDED
 
-    with patch('codeflare_sdk.cluster.cluster.list_all_clusters', return_value=[mock_raycluster1, mock_raycluster2]):
+    with patch(
+        "codeflare_sdk.cluster.cluster.list_all_clusters",
+        return_value=[mock_raycluster1, mock_raycluster2],
+    ):
         # Call the function under test
-        df = cf_widgets._fetch_cluster_data(namespace='default')
+        df = cf_widgets._fetch_cluster_data(namespace="default")
 
     # Expected DataFrame
     expected_data = {
-        "Name": ['test-cluster-1', 'test-cluster-2'],
-        "Namespace": ['default', 'default'],
-        "Head GPUs": ['nvidia.com/gpu: 1', '0'],
-        "Worker GPUs": ['nvidia.com/gpu: 2', '0'],
-        "Head CPU Req~Lim": ['500m~1000m', '0~0'],
-        "Head Memory Req~Lim": ['1Gi~2Gi', '0~0'],
-        "Worker CPU Req~Lim": ['1000m~2000m', '0~0'],
-        "Worker Memory Req~Lim": ['2Gi~4Gi', '0~0'],
+        "Name": ["test-cluster-1", "test-cluster-2"],
+        "Namespace": ["default", "default"],
+        "Num Workers": [1, 2],
+        "Head GPUs": ["nvidia.com/gpu: 1", "0"],
+        "Worker GPUs": ["nvidia.com/gpu: 2", "0"],
+        "Head CPU Req~Lim": ["500m~1000m", "0~0"],
+        "Head Memory Req~Lim": ["1Gi~2Gi", "0~0"],
+        "Worker CPU Req~Lim": ["1000m~2000m", "0~0"],
+        "Worker Memory Req~Lim": ["2Gi~4Gi", "0~0"],
         "status": [
             '<span style="color: green;">Ready ✓</span>',
-            '<span style="color: #007BFF;">Suspended ❄️</span>'
-        ]
+            '<span style="color: #007BFF;">Suspended ❄️</span>',
+        ],
     }
 
     expected_df = pd.DataFrame(expected_data)
 
     # Assert that the DataFrame matches expected
-    pd.testing.assert_frame_equal(df.reset_index(drop=True), expected_df.reset_index(drop=True))
+    pd.testing.assert_frame_equal(
+        df.reset_index(drop=True), expected_df.reset_index(drop=True)
+    )
 
 
 def test_format_status():
     # Test each possible status
     test_cases = [
         (RayClusterStatus.READY, '<span style="color: green;">Ready ✓</span>'),
-        (RayClusterStatus.SUSPENDED, '<span style="color: #007BFF;">Suspended ❄️</span>'),
+        (
+            RayClusterStatus.SUSPENDED,
+            '<span style="color: #007BFF;">Suspended ❄️</span>',
+        ),
         (RayClusterStatus.FAILED, '<span style="color: red;">Failed ✗</span>'),
         (RayClusterStatus.UNHEALTHY, '<span style="color: purple;">Unhealthy</span>'),
         (RayClusterStatus.UNKNOWN, '<span style="color: purple;">Unknown</span>'),
     ]
 
     for status, expected_output in test_cases:
-        assert cf_widgets._format_status(status) == expected_output, f"Failed for status: {status}"
+        assert (
+            cf_widgets._format_status(status) == expected_output
+        ), f"Failed for status: {status}"
 
     # Test an unrecognized status
-    unrecognized_status = 'NotAStatus'
-    assert cf_widgets._format_status(unrecognized_status) == 'NotAStatus', "Failed for unrecognized status"
+    unrecognized_status = "NotAStatus"
+    assert (
+        cf_widgets._format_status(unrecognized_status) == "NotAStatus"
+    ), "Failed for unrecognized status"
 
 
 # Make sure to always keep this function last

@@ -870,10 +870,12 @@ def _map_to_ray_cluster(rc) -> Optional[RayCluster]:
         worker_mem_requests=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"][
             "containers"
         ][0]["resources"]["requests"]["memory"],
-        worker_cpu_requests=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"]["containers"][0]["resources"]["requests"]["cpu"],
-        worker_cpu_limits=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"]["containers"][
-            0
-        ]["resources"]["limits"]["cpu"],
+        worker_cpu_requests=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"][
+            "containers"
+        ][0]["resources"]["requests"]["cpu"],
+        worker_cpu_limits=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"][
+            "containers"
+        ][0]["resources"]["limits"]["cpu"],
         worker_extended_resources=worker_extended_resources,
         namespace=rc["metadata"]["namespace"],
         head_cpu_requests=rc["spec"]["headGroupSpec"]["template"]["spec"]["containers"][

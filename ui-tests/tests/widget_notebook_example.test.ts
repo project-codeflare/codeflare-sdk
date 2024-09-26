@@ -121,7 +121,7 @@ test.describe("Visual Regression", () => {
       const successMessage = await page.waitForSelector('text=Ray Cluster: \'raytest\' has successfully been created', { timeout: 10000 });
       expect(successMessage).not.toBeNull();
     });
-    
+
     const viewClustersCellIndex = 4; // 5 on OpenShift
     await page.notebook.runCell(cellCount - 2, true);
     await interactWithWidget(page, viewClustersCellIndex, 'button:has-text("Open Ray Dashboard")', async (button) => {
