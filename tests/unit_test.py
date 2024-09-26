@@ -940,7 +940,7 @@ def test_ray_details(mocker, capsys):
     ray1 = RayCluster(
         name="raytest1",
         status=RayClusterStatus.READY,
-        workers=1,
+        num_workers=1,
         worker_mem_requests="2G",
         worker_mem_limits="2G",
         worker_cpu_requests=1,
@@ -979,7 +979,7 @@ def test_ray_details(mocker, capsys):
     assert details == ray2
     assert ray2.name == "raytest2"
     assert ray1.namespace == ray2.namespace
-    assert ray1.workers == ray2.workers
+    assert ray1.num_workers == ray2.num_workers
     assert ray1.worker_mem_requests == ray2.worker_mem_requests
     assert ray1.worker_mem_limits == ray2.worker_mem_limits
     assert ray1.worker_cpu_requests == ray2.worker_cpu_requests
@@ -2358,7 +2358,7 @@ def test_cluster_status(mocker):
     fake_ray = RayCluster(
         name="test",
         status=RayClusterStatus.UNKNOWN,
-        workers=1,
+        num_workers=1,
         worker_mem_requests=2,
         worker_mem_limits=2,
         worker_cpu_requests=1,

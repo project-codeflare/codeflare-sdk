@@ -863,7 +863,7 @@ def _map_to_ray_cluster(rc) -> Optional[RayCluster]:
         name=rc["metadata"]["name"],
         status=status,
         # for now we are not using autoscaling so same replicas is fine
-        workers=rc["spec"]["workerGroupSpecs"][0]["replicas"],
+        num_workers=rc["spec"]["workerGroupSpecs"][0]["replicas"],
         worker_mem_limits=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"][
             "containers"
         ][0]["resources"]["limits"]["memory"],
@@ -909,7 +909,7 @@ def _copy_to_ray(cluster: Cluster) -> RayCluster:
     ray = RayCluster(
         name=cluster.config.name,
         status=cluster.status(print_to_console=False)[0],
-        workers=cluster.config.num_workers,
+        num_workers=cluster.config.num_workers,
         worker_mem_requests=cluster.config.worker_memory_requests,
         worker_mem_limits=cluster.config.worker_memory_limits,
         worker_cpu_requests=cluster.config.worker_cpu_requests,

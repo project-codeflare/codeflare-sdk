@@ -78,7 +78,7 @@ class RayCluster:
     head_cpu_limits: int
     head_mem_requests: str
     head_mem_limits: str
-    workers: int
+    num_workers: int
     worker_mem_requests: str
     worker_mem_limits: str
     worker_cpu_requests: Union[int, str]
