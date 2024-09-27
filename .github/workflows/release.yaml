@@ -21,7 +21,7 @@ on:
               required: true
             poetry_version:
               type: string
-              default: "1.5.1"
+              default: "1.8.3"
               required: true
             codeflare-repository-organization:
               type: string
