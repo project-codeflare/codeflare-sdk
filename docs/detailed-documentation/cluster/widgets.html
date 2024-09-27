@@ -58,7 +58,7 @@ import pandas as pd
 from .config import ClusterConfiguration
 from .model import RayClusterStatus
 from ..utils.kube_api_helpers import _kube_api_error_handling
-from .auth import config_check, api_config_handler
+from .auth import config_check, get_api_client
 
 
 def cluster_up_down_buttons(cluster: &#34;codeflare_sdk.cluster.Cluster&#34;) -&gt; widgets.Button:
@@ -372,7 +372,7 @@ def _delete_cluster(
 
     try:
         config_check()
-        api_instance = client.CustomObjectsApi(api_config_handler())
+        api_instance = client.CustomObjectsApi(get_api_client())
 
         if _check_aw_exists(cluster_name, namespace):
             api_instance.delete_namespaced_custom_object(
