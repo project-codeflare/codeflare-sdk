@@ -92,7 +92,7 @@ jupyterlab-pygments==0.2.2; python_version >= '3.7'
 jupyterlab-s3-browser==0.10.1
 jupyterlab-server==2.15.2; python_version >= '3.7'
 jupyterlab-widgets==3.0.3; python_version >= '3.7'
-jupyterlab==3.4.7; python_version >= '3.7'
+jupyterlab==3.6.8; python_version >= '3.7'
 kiwisolver==1.4.4; python_version >= '3.7'
 kopf==1.35.6
 kubernetes==24.2.0
