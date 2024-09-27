@@ -126,17 +126,7 @@ class TokenAuthentication(Authentication):
         self.token = token
         self.server = server
         self.skip_tls = skip_tls
-        self.ca_cert_path = self._gen_ca_cert_path(ca_cert_path)
-
-    def _gen_ca_cert_path(self, ca_cert_path: str):
-        if ca_cert_path is not None:
-            return ca_cert_path
-        elif &#34;CF_SDK_CA_CERT_PATH&#34; in os.environ:
-            return os.environ.get(&#34;CF_SDK_CA_CERT_PATH&#34;)
-        elif os.path.exists(WORKBENCH_CA_CERT_PATH):
-            return WORKBENCH_CA_CERT_PATH
-        else:
-            return None
+        self.ca_cert_path = _gen_ca_cert_path(ca_cert_path)
 
     def login(self) -&gt; str:
         &#34;&#34;&#34;
@@ -152,25 +142,14 @@ class TokenAuthentication(Authentication):
             configuration.host = self.server
             configuration.api_key[&#34;authorization&#34;] = self.token
 
+            api_client = client.ApiClient(configuration)
             if not self.skip_tls:
-                if self.ca_cert_path is None:
-                    configuration.ssl_ca_cert = None
-                elif os.path.isfile(self.ca_cert_path):
-                    print(
-                        f&#34;Authenticated with certificate located at {self.ca_cert_path}&#34;
-                    )
-                    configuration.ssl_ca_cert = self.ca_cert_path
-                else:
-                    raise FileNotFoundError(
-                        f&#34;Certificate file not found at {self.ca_cert_path}&#34;
-                    )
-                configuration.verify_ssl = True
+                _client_with_cert(api_client, self.ca_cert_path)
             else:
                 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
                 print(&#34;Insecure request warnings have been disabled&#34;)
                 configuration.verify_ssl = False
 
-            api_client = client.ApiClient(configuration)
             client.AuthenticationApi(api_client).get_api_group()
             config_path = None
             return &#34;Logged into %s&#34; % self.server
@@ -244,14 +223,36 @@ def config_check() -&gt; str:
         return config_path
 
 
-def api_config_handler() -&gt; Optional[client.ApiClient]:
-    &#34;&#34;&#34;
-    This function is used to load the api client if the user has logged in
-    &#34;&#34;&#34;
-    if api_client != None and config_path == None:
-        return api_client
+def _client_with_cert(client: client.ApiClient, ca_cert_path: Optional[str] = None):
+    client.configuration.verify_ssl = True
+    cert_path = _gen_ca_cert_path(ca_cert_path)
+    if cert_path is None:
+        client.configuration.ssl_ca_cert = None
+    elif os.path.isfile(cert_path):
+        client.configuration.ssl_ca_cert = cert_path
     else:
-        return None</code></pre>
+        raise FileNotFoundError(f&#34;Certificate file not found at {cert_path}&#34;)
+
+
+def _gen_ca_cert_path(ca_cert_path: Optional[str]):
+    &#34;&#34;&#34;Gets the path to the default CA certificate file either through env config or default path&#34;&#34;&#34;
+    if ca_cert_path is not None:
+        return ca_cert_path
+    elif &#34;CF_SDK_CA_CERT_PATH&#34; in os.environ:
+        return os.environ.get(&#34;CF_SDK_CA_CERT_PATH&#34;)
+    elif os.path.exists(WORKBENCH_CA_CERT_PATH):
+        return WORKBENCH_CA_CERT_PATH
+    else:
+        return None
+
+
+def get_api_client() -&gt; client.ApiClient:
+    &#34;This function should load the api client with defaults&#34;
+    if api_client != None:
+        return api_client
+    to_return = client.ApiClient()
+    _client_with_cert(to_return)
+    return to_return</code></pre>
 </details>
 </section>
 <section>
@@ -261,25 +262,6 @@ def api_config_handler() -&gt; Optional[client.ApiClient]:
 <section>
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
-<dt id="codeflare_sdk.cluster.auth.api_config_handler"><code class="name flex">
-<span>def <span class="ident">api_config_handler</span></span>(<span>) ‑> Optional[kubernetes.client.api_client.ApiClient]</span>
-</code></dt>
-<dd>
-<div class="desc"><p>This function is used to load the api client if the user has logged in</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def api_config_handler() -&gt; Optional[client.ApiClient]:
-    &#34;&#34;&#34;
-    This function is used to load the api client if the user has logged in
-    &#34;&#34;&#34;
-    if api_client != None and config_path == None:
-        return api_client
-    else:
-        return None</code></pre>
-</details>
-</dd>
 <dt id="codeflare_sdk.cluster.auth.config_check"><code class="name flex">
 <span>def <span class="ident">config_check</span></span>(<span>) ‑> str</span>
 </code></dt>
@@ -316,6 +298,24 @@ specified their own config file or has logged in with their token and server.</p
 
     if config_path != None and api_client == None:
         return config_path</code></pre>
+</details>
+</dd>
+<dt id="codeflare_sdk.cluster.auth.get_api_client"><code class="name flex">
+<span>def <span class="ident">get_api_client</span></span>(<span>) ‑> kubernetes.client.api_client.ApiClient</span>
+</code></dt>
+<dd>
+<div class="desc"><p>This function should load the api client with defaults</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_api_client() -&gt; client.ApiClient:
+    &#34;This function should load the api client with defaults&#34;
+    if api_client != None:
+        return api_client
+    to_return = client.ApiClient()
+    _client_with_cert(to_return)
+    return to_return</code></pre>
 </details>
 </dd>
 </dl>
@@ -573,17 +573,7 @@ and <code>server</code>, the API server address for authenticating to a Kubernet
         self.token = token
         self.server = server
         self.skip_tls = skip_tls
-        self.ca_cert_path = self._gen_ca_cert_path(ca_cert_path)
-
-    def _gen_ca_cert_path(self, ca_cert_path: str):
-        if ca_cert_path is not None:
-            return ca_cert_path
-        elif &#34;CF_SDK_CA_CERT_PATH&#34; in os.environ:
-            return os.environ.get(&#34;CF_SDK_CA_CERT_PATH&#34;)
-        elif os.path.exists(WORKBENCH_CA_CERT_PATH):
-            return WORKBENCH_CA_CERT_PATH
-        else:
-            return None
+        self.ca_cert_path = _gen_ca_cert_path(ca_cert_path)
 
     def login(self) -&gt; str:
         &#34;&#34;&#34;
@@ -599,25 +589,14 @@ and <code>server</code>, the API server address for authenticating to a Kubernet
             configuration.host = self.server
             configuration.api_key[&#34;authorization&#34;] = self.token
 
+            api_client = client.ApiClient(configuration)
             if not self.skip_tls:
-                if self.ca_cert_path is None:
-                    configuration.ssl_ca_cert = None
-                elif os.path.isfile(self.ca_cert_path):
-                    print(
-                        f&#34;Authenticated with certificate located at {self.ca_cert_path}&#34;
-                    )
-                    configuration.ssl_ca_cert = self.ca_cert_path
-                else:
-                    raise FileNotFoundError(
-                        f&#34;Certificate file not found at {self.ca_cert_path}&#34;
-                    )
-                configuration.verify_ssl = True
+                _client_with_cert(api_client, self.ca_cert_path)
             else:
                 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
                 print(&#34;Insecure request warnings have been disabled&#34;)
                 configuration.verify_ssl = False
 
-            api_client = client.ApiClient(configuration)
             client.AuthenticationApi(api_client).get_api_group()
             config_path = None
             return &#34;Logged into %s&#34; % self.server
@@ -665,25 +644,14 @@ to <code>True</code> or <code>--certificate-authority</code> by setting <code>sk
         configuration.host = self.server
         configuration.api_key[&#34;authorization&#34;] = self.token
 
+        api_client = client.ApiClient(configuration)
         if not self.skip_tls:
-            if self.ca_cert_path is None:
-                configuration.ssl_ca_cert = None
-            elif os.path.isfile(self.ca_cert_path):
-                print(
-                    f&#34;Authenticated with certificate located at {self.ca_cert_path}&#34;
-                )
-                configuration.ssl_ca_cert = self.ca_cert_path
-            else:
-                raise FileNotFoundError(
-                    f&#34;Certificate file not found at {self.ca_cert_path}&#34;
-                )
-            configuration.verify_ssl = True
+            _client_with_cert(api_client, self.ca_cert_path)
         else:
             urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
             print(&#34;Insecure request warnings have been disabled&#34;)
             configuration.verify_ssl = False
 
-        api_client = client.ApiClient(configuration)
         client.AuthenticationApi(api_client).get_api_group()
         config_path = None
         return &#34;Logged into %s&#34; % self.server
@@ -729,8 +697,8 @@ to <code>True</code> or <code>--certificate-authority</code> by setting <code>sk
 </li>
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
-<li><code><a title="codeflare_sdk.cluster.auth.api_config_handler" href="#codeflare_sdk.cluster.auth.api_config_handler">api_config_handler</a></code></li>
 <li><code><a title="codeflare_sdk.cluster.auth.config_check" href="#codeflare_sdk.cluster.auth.config_check">config_check</a></code></li>
+<li><code><a title="codeflare_sdk.cluster.auth.get_api_client" href="#codeflare_sdk.cluster.auth.get_api_client">get_api_client</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>
