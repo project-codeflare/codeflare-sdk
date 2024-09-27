@@ -47,6 +47,7 @@ The SDK acts as a wrapper for the Ray Job Submission Client.</p>
 The ray_jobs sub-module contains methods needed to submit jobs and connect to Ray Clusters that were not created by CodeFlare.
 The SDK acts as a wrapper for the Ray Job Submission Client.
 &#34;&#34;&#34;
+
 from ray.job_submission import JobSubmissionClient
 from ray.dashboard.modules.job.pydantic_models import JobDetails
 from typing import Iterator, Optional, Dict, Any, Union, List
@@ -93,6 +94,7 @@ class RayJobClient:
         submission_id: Optional[str] = None,
         entrypoint_num_cpus: Optional[Union[int, float]] = None,
         entrypoint_num_gpus: Optional[Union[int, float]] = None,
+        entrypoint_memory: Optional[int] = None,
         entrypoint_resources: Optional[Dict[str, float]] = None,
     ) -&gt; str:
         &#34;&#34;&#34;
@@ -106,6 +108,7 @@ class RayJobClient:
         job_id -- DEPRECATED. This has been renamed to submission_id
         entrypoint_num_cpus -- The quantity of CPU cores to reserve for the execution of the entrypoint command, separately from any tasks or actors launched by it. Defaults to 0.
         entrypoint_num_gpus -- The quantity of GPUs to reserve for the execution of the entrypoint command, separately from any tasks or actors launched by it. Defaults to 0.
+        entrypoint_memory –- The quantity of memory to reserve for the execution of the entrypoint command, separately from any tasks or actors launched by it. Defaults to 0.
         entrypoint_resources -- The quantity of custom resources to reserve for the execution of the entrypoint command, separately from any tasks or actors launched by it.
         &#34;&#34;&#34;
         return self.rayJobClient.submit_job(
@@ -116,6 +119,7 @@ class RayJobClient:
             submission_id=submission_id,
             entrypoint_num_cpus=entrypoint_num_cpus,
             entrypoint_num_gpus=entrypoint_num_gpus,
+            entrypoint_memory=entrypoint_memory,
             entrypoint_resources=entrypoint_resources,
         )
 
@@ -248,6 +252,7 @@ verify &ndash; Boolean indication to verify the server's TLS certificate or a pa
         submission_id: Optional[str] = None,
         entrypoint_num_cpus: Optional[Union[int, float]] = None,
         entrypoint_num_gpus: Optional[Union[int, float]] = None,
+        entrypoint_memory: Optional[int] = None,
         entrypoint_resources: Optional[Dict[str, float]] = None,
     ) -&gt; str:
         &#34;&#34;&#34;
@@ -261,6 +266,7 @@ verify &ndash; Boolean indication to verify the server's TLS certificate or a pa
         job_id -- DEPRECATED. This has been renamed to submission_id
         entrypoint_num_cpus -- The quantity of CPU cores to reserve for the execution of the entrypoint command, separately from any tasks or actors launched by it. Defaults to 0.
         entrypoint_num_gpus -- The quantity of GPUs to reserve for the execution of the entrypoint command, separately from any tasks or actors launched by it. Defaults to 0.
+        entrypoint_memory –- The quantity of memory to reserve for the execution of the entrypoint command, separately from any tasks or actors launched by it. Defaults to 0.
         entrypoint_resources -- The quantity of custom resources to reserve for the execution of the entrypoint command, separately from any tasks or actors launched by it.
         &#34;&#34;&#34;
         return self.rayJobClient.submit_job(
@@ -271,6 +277,7 @@ verify &ndash; Boolean indication to verify the server's TLS certificate or a pa
             submission_id=submission_id,
             entrypoint_num_cpus=entrypoint_num_cpus,
             entrypoint_num_gpus=entrypoint_num_gpus,
+            entrypoint_memory=entrypoint_memory,
             entrypoint_resources=entrypoint_resources,
         )
 
@@ -461,7 +468,7 @@ verify &ndash; Boolean indication to verify the server's TLS certificate or a pa
 </details>
 </dd>
 <dt id="codeflare_sdk.job.ray_jobs.RayJobClient.submit_job"><code class="name flex">
-<span>def <span class="ident">submit_job</span></span>(<span>self, entrypoint: str, job_id: Optional[str] = None, runtime_env: Optional[Dict[str, Any]] = None, metadata: Optional[Dict[str, str]] = None, submission_id: Optional[str] = None, entrypoint_num_cpus: Union[int, float, ForwardRef(None)] = None, entrypoint_num_gpus: Union[int, float, ForwardRef(None)] = None, entrypoint_resources: Optional[Dict[str, float]] = None) ‑> str</span>
+<span>def <span class="ident">submit_job</span></span>(<span>self, entrypoint: str, job_id: Optional[str] = None, runtime_env: Optional[Dict[str, Any]] = None, metadata: Optional[Dict[str, str]] = None, submission_id: Optional[str] = None, entrypoint_num_cpus: Union[int, float, ForwardRef(None)] = None, entrypoint_num_gpus: Union[int, float, ForwardRef(None)] = None, entrypoint_memory: Optional[int] = None, entrypoint_resources: Optional[Dict[str, float]] = None) ‑> str</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Method for submitting jobs to a Ray Cluster and returning the job id with entrypoint being a mandatory field.</p>
@@ -473,6 +480,7 @@ metadata &ndash; Arbitrary data to store along with this job.
 job_id &ndash; DEPRECATED. This has been renamed to submission_id
 entrypoint_num_cpus &ndash; The quantity of CPU cores to reserve for the execution of the entrypoint command, separately from any tasks or actors launched by it. Defaults to 0.
 entrypoint_num_gpus &ndash; The quantity of GPUs to reserve for the execution of the entrypoint command, separately from any tasks or actors launched by it. Defaults to 0.
+entrypoint_memory –- The quantity of memory to reserve for the execution of the entrypoint command, separately from any tasks or actors launched by it. Defaults to 0.
 entrypoint_resources &ndash; The quantity of custom resources to reserve for the execution of the entrypoint command, separately from any tasks or actors launched by it.</p></div>
 <details class="source">
 <summary>
@@ -487,6 +495,7 @@ entrypoint_resources &ndash; The quantity of custom resources to reserve for the
     submission_id: Optional[str] = None,
     entrypoint_num_cpus: Optional[Union[int, float]] = None,
     entrypoint_num_gpus: Optional[Union[int, float]] = None,
+    entrypoint_memory: Optional[int] = None,
     entrypoint_resources: Optional[Dict[str, float]] = None,
 ) -&gt; str:
     &#34;&#34;&#34;
@@ -500,6 +509,7 @@ entrypoint_resources &ndash; The quantity of custom resources to reserve for the
     job_id -- DEPRECATED. This has been renamed to submission_id
     entrypoint_num_cpus -- The quantity of CPU cores to reserve for the execution of the entrypoint command, separately from any tasks or actors launched by it. Defaults to 0.
     entrypoint_num_gpus -- The quantity of GPUs to reserve for the execution of the entrypoint command, separately from any tasks or actors launched by it. Defaults to 0.
+    entrypoint_memory –- The quantity of memory to reserve for the execution of the entrypoint command, separately from any tasks or actors launched by it. Defaults to 0.
     entrypoint_resources -- The quantity of custom resources to reserve for the execution of the entrypoint command, separately from any tasks or actors launched by it.
     &#34;&#34;&#34;
     return self.rayJobClient.submit_job(
@@ -510,6 +520,7 @@ entrypoint_resources &ndash; The quantity of custom resources to reserve for the
         submission_id=submission_id,
         entrypoint_num_cpus=entrypoint_num_cpus,
         entrypoint_num_gpus=entrypoint_num_gpus,
+        entrypoint_memory=entrypoint_memory,
         entrypoint_resources=entrypoint_resources,
     )</code></pre>
 </details>

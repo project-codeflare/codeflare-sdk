@@ -51,6 +51,7 @@ cluster setup queue, a list of all existing clusters, and the user&#39;s working
 &#34;&#34;&#34;
 
 import re
+import subprocess
 from time import sleep
 from typing import List, Optional, Tuple, Dict
 
@@ -73,6 +74,10 @@ from .model import (
     CodeFlareClusterStatus,
     RayCluster,
     RayClusterStatus,
+)
+from .widgets import (
+    cluster_up_down_buttons,
+    is_notebook,
 )
 from kubernetes import client, config
 from kubernetes.utils import parse_quantity
@@ -103,6 +108,8 @@ class Cluster:
         self.app_wrapper_yaml = self.create_app_wrapper()
         self._job_submission_client = None
         self.app_wrapper_name = self.config.name
+        if is_notebook():
+            cluster_up_down_buttons(self)
 
     @property
     def _client_headers(self):
@@ -188,8 +195,12 @@ class Cluster:
                         plural=&#34;appwrappers&#34;,
                         body=aw,
                     )
+                print(f&#34;AppWrapper: &#39;{self.config.name}&#39; has successfully been created&#34;)
             else:
                 self._component_resources_up(namespace, api_instance)
+                print(
+                    f&#34;Ray Cluster: &#39;{self.config.name}&#39; has successfully been created&#34;
+                )
         except Exception as e:  # pragma: no cover
             return _kube_api_error_handling(e)
 
@@ -230,8 +241,12 @@ class Cluster:
                     plural=&#34;appwrappers&#34;,
                     name=self.app_wrapper_name,
                 )
+                print(f&#34;AppWrapper: &#39;{self.config.name}&#39; has successfully been deleted&#34;)
             else:
                 self._component_resources_down(namespace, api_instance)
+                print(
+                    f&#34;Ray Cluster: &#39;{self.config.name}&#39; has successfully been deleted&#34;
+                )
         except Exception as e:  # pragma: no cover
             return _kube_api_error_handling(e)
 
@@ -480,6 +495,18 @@ class Cluster:
             name=rc[&#34;metadata&#34;][&#34;name&#34;],
             namespace=rc[&#34;metadata&#34;][&#34;namespace&#34;],
             machine_types=machine_types,
+            head_cpu_requests=rc[&#34;spec&#34;][&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;][
+                &#34;containers&#34;
+            ][0][&#34;resources&#34;][&#34;requests&#34;][&#34;cpu&#34;],
+            head_cpu_limits=rc[&#34;spec&#34;][&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;][
+                &#34;containers&#34;
+            ][0][&#34;resources&#34;][&#34;limits&#34;][&#34;cpu&#34;],
+            head_memory_requests=rc[&#34;spec&#34;][&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;][
+                &#34;containers&#34;
+            ][0][&#34;resources&#34;][&#34;requests&#34;][&#34;memory&#34;],
+            head_memory_limits=rc[&#34;spec&#34;][&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;][
+                &#34;containers&#34;
+            ][0][&#34;resources&#34;][&#34;limits&#34;][&#34;memory&#34;],
             num_workers=rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;minReplicas&#34;],
             worker_cpu_requests=rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][
                 &#34;containers&#34;
@@ -578,41 +605,25 @@ def list_all_queued(
 
 
 def get_current_namespace():  # pragma: no cover
-    if api_config_handler() != None:
-        if os.path.isfile(&#34;/var/run/secrets/kubernetes.io/serviceaccount/namespace&#34;):
-            try:
-                file = open(
-                    &#34;/var/run/secrets/kubernetes.io/serviceaccount/namespace&#34;, &#34;r&#34;
-                )
-                active_context = file.readline().strip(&#34;\n&#34;)
-                return active_context
-            except Exception as e:
-                print(&#34;Unable to find current namespace&#34;)
-                return None
-        else:
+    if os.path.isfile(&#34;/var/run/secrets/kubernetes.io/serviceaccount/namespace&#34;):
+        try:
+            file = open(&#34;/var/run/secrets/kubernetes.io/serviceaccount/namespace&#34;, &#34;r&#34;)
+            active_context = file.readline().strip(&#34;\n&#34;)
+            return active_context
+        except Exception as e:
             print(&#34;Unable to find current namespace&#34;)
-            return None
-    else:
-        if os.path.isfile(&#34;/var/run/secrets/kubernetes.io/serviceaccount/namespace&#34;):
-            try:
-                file = open(
-                    &#34;/var/run/secrets/kubernetes.io/serviceaccount/namespace&#34;, &#34;r&#34;
-                )
-                active_context = file.readline().strip(&#34;\n&#34;)
-                return active_context
-            except Exception as e:
-                print(
-                    &#34;unable to gather namespace from /var/run/secrets/kubernetes.io/serviceaccount/namespace trying to gather from current context&#34;
-                )
-        else:
-            try:
-                _, active_context = config.list_kube_config_contexts(config_check())
-            except Exception as e:
-                return _kube_api_error_handling(e)
-            try:
-                return active_context[&#34;context&#34;][&#34;namespace&#34;]
-            except KeyError:
-                return None
+
+    if api_config_handler() != None:
+        return None
+    print(&#34;trying to gather from current context&#34;)
+    try:
+        _, active_context = config.list_kube_config_contexts(config_check())
+    except Exception as e:
+        return _kube_api_error_handling(e)
+    try:
+        return active_context[&#34;context&#34;][&#34;namespace&#34;]
+    except KeyError:
+        return None
 
 
 def get_cluster(
@@ -884,24 +895,33 @@ def _map_to_ray_cluster(rc) -&gt; Optional[RayCluster]:
         name=rc[&#34;metadata&#34;][&#34;name&#34;],
         status=status,
         # for now we are not using autoscaling so same replicas is fine
-        workers=rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;replicas&#34;],
-        worker_mem_max=rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][
+        num_workers=rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;replicas&#34;],
+        worker_mem_limits=rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][
             &#34;containers&#34;
         ][0][&#34;resources&#34;][&#34;limits&#34;][&#34;memory&#34;],
-        worker_mem_min=rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][
+        worker_mem_requests=rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][
             &#34;containers&#34;
         ][0][&#34;resources&#34;][&#34;requests&#34;][&#34;memory&#34;],
-        worker_cpu=rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][&#34;containers&#34;][
-            0
-        ][&#34;resources&#34;][&#34;limits&#34;][&#34;cpu&#34;],
+        worker_cpu_requests=rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][
+            &#34;containers&#34;
+        ][0][&#34;resources&#34;][&#34;requests&#34;][&#34;cpu&#34;],
+        worker_cpu_limits=rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][
+            &#34;containers&#34;
+        ][0][&#34;resources&#34;][&#34;limits&#34;][&#34;cpu&#34;],
         worker_extended_resources=worker_extended_resources,
         namespace=rc[&#34;metadata&#34;][&#34;namespace&#34;],
-        head_cpus=rc[&#34;spec&#34;][&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;][&#34;containers&#34;][0][
-            &#34;resources&#34;
-        ][&#34;limits&#34;][&#34;cpu&#34;],
-        head_mem=rc[&#34;spec&#34;][&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;][&#34;containers&#34;][0][
-            &#34;resources&#34;
-        ][&#34;limits&#34;][&#34;memory&#34;],
+        head_cpu_requests=rc[&#34;spec&#34;][&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;][&#34;containers&#34;][
+            0
+        ][&#34;resources&#34;][&#34;requests&#34;][&#34;cpu&#34;],
+        head_cpu_limits=rc[&#34;spec&#34;][&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;][&#34;containers&#34;][
+            0
+        ][&#34;resources&#34;][&#34;limits&#34;][&#34;cpu&#34;],
+        head_mem_requests=rc[&#34;spec&#34;][&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;][&#34;containers&#34;][
+            0
+        ][&#34;resources&#34;][&#34;requests&#34;][&#34;memory&#34;],
+        head_mem_limits=rc[&#34;spec&#34;][&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;][&#34;containers&#34;][
+            0
+        ][&#34;resources&#34;][&#34;limits&#34;][&#34;memory&#34;],
         head_extended_resources=head_extended_resources,
         dashboard=dashboard_url,
     )
@@ -923,15 +943,18 @@ def _copy_to_ray(cluster: Cluster) -&gt; RayCluster:
     ray = RayCluster(
         name=cluster.config.name,
         status=cluster.status(print_to_console=False)[0],
-        workers=cluster.config.num_workers,
-        worker_mem_min=cluster.config.worker_memory_requests,
-        worker_mem_max=cluster.config.worker_memory_limits,
-        worker_cpu=cluster.config.worker_cpu_requests,
+        num_workers=cluster.config.num_workers,
+        worker_mem_requests=cluster.config.worker_memory_requests,
+        worker_mem_limits=cluster.config.worker_memory_limits,
+        worker_cpu_requests=cluster.config.worker_cpu_requests,
+        worker_cpu_limits=cluster.config.worker_cpu_limits,
         worker_extended_resources=cluster.config.worker_extended_resource_requests,
         namespace=cluster.config.namespace,
         dashboard=cluster.cluster_dashboard_uri(),
-        head_cpus=cluster.config.head_cpus,
-        head_mem=cluster.config.head_memory,
+        head_mem_requests=cluster.config.head_memory_requests,
+        head_mem_limits=cluster.config.head_memory_limits,
+        head_cpu_requests=cluster.config.head_cpu_requests,
+        head_cpu_limits=cluster.config.head_cpu_limits,
         head_extended_resources=cluster.config.head_extended_resource_requests,
     )
     if ray.status == CodeFlareClusterStatus.READY:
@@ -997,41 +1020,25 @@ def _copy_to_ray(cluster: Cluster) -&gt; RayCluster:
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def get_current_namespace():  # pragma: no cover
-    if api_config_handler() != None:
-        if os.path.isfile(&#34;/var/run/secrets/kubernetes.io/serviceaccount/namespace&#34;):
-            try:
-                file = open(
-                    &#34;/var/run/secrets/kubernetes.io/serviceaccount/namespace&#34;, &#34;r&#34;
-                )
-                active_context = file.readline().strip(&#34;\n&#34;)
-                return active_context
-            except Exception as e:
-                print(&#34;Unable to find current namespace&#34;)
-                return None
-        else:
+    if os.path.isfile(&#34;/var/run/secrets/kubernetes.io/serviceaccount/namespace&#34;):
+        try:
+            file = open(&#34;/var/run/secrets/kubernetes.io/serviceaccount/namespace&#34;, &#34;r&#34;)
+            active_context = file.readline().strip(&#34;\n&#34;)
+            return active_context
+        except Exception as e:
             print(&#34;Unable to find current namespace&#34;)
-            return None
-    else:
-        if os.path.isfile(&#34;/var/run/secrets/kubernetes.io/serviceaccount/namespace&#34;):
-            try:
-                file = open(
-                    &#34;/var/run/secrets/kubernetes.io/serviceaccount/namespace&#34;, &#34;r&#34;
-                )
-                active_context = file.readline().strip(&#34;\n&#34;)
-                return active_context
-            except Exception as e:
-                print(
-                    &#34;unable to gather namespace from /var/run/secrets/kubernetes.io/serviceaccount/namespace trying to gather from current context&#34;
-                )
-        else:
-            try:
-                _, active_context = config.list_kube_config_contexts(config_check())
-            except Exception as e:
-                return _kube_api_error_handling(e)
-            try:
-                return active_context[&#34;context&#34;][&#34;namespace&#34;]
-            except KeyError:
-                return None</code></pre>
+
+    if api_config_handler() != None:
+        return None
+    print(&#34;trying to gather from current context&#34;)
+    try:
+        _, active_context = config.list_kube_config_contexts(config_check())
+    except Exception as e:
+        return _kube_api_error_handling(e)
+    try:
+        return active_context[&#34;context&#34;][&#34;namespace&#34;]
+    except KeyError:
+        return None</code></pre>
 </details>
 </dd>
 <dt id="codeflare_sdk.cluster.cluster.list_all_clusters"><code class="name flex">
@@ -1123,6 +1130,8 @@ request.</p></div>
         self.app_wrapper_yaml = self.create_app_wrapper()
         self._job_submission_client = None
         self.app_wrapper_name = self.config.name
+        if is_notebook():
+            cluster_up_down_buttons(self)
 
     @property
     def _client_headers(self):
@@ -1208,8 +1217,12 @@ request.</p></div>
                         plural=&#34;appwrappers&#34;,
                         body=aw,
                     )
+                print(f&#34;AppWrapper: &#39;{self.config.name}&#39; has successfully been created&#34;)
             else:
                 self._component_resources_up(namespace, api_instance)
+                print(
+                    f&#34;Ray Cluster: &#39;{self.config.name}&#39; has successfully been created&#34;
+                )
         except Exception as e:  # pragma: no cover
             return _kube_api_error_handling(e)
 
@@ -1250,8 +1263,12 @@ request.</p></div>
                     plural=&#34;appwrappers&#34;,
                     name=self.app_wrapper_name,
                 )
+                print(f&#34;AppWrapper: &#39;{self.config.name}&#39; has successfully been deleted&#34;)
             else:
                 self._component_resources_down(namespace, api_instance)
+                print(
+                    f&#34;Ray Cluster: &#39;{self.config.name}&#39; has successfully been deleted&#34;
+                )
         except Exception as e:  # pragma: no cover
             return _kube_api_error_handling(e)
 
@@ -1500,6 +1517,18 @@ request.</p></div>
             name=rc[&#34;metadata&#34;][&#34;name&#34;],
             namespace=rc[&#34;metadata&#34;][&#34;namespace&#34;],
             machine_types=machine_types,
+            head_cpu_requests=rc[&#34;spec&#34;][&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;][
+                &#34;containers&#34;
+            ][0][&#34;resources&#34;][&#34;requests&#34;][&#34;cpu&#34;],
+            head_cpu_limits=rc[&#34;spec&#34;][&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;][
+                &#34;containers&#34;
+            ][0][&#34;resources&#34;][&#34;limits&#34;][&#34;cpu&#34;],
+            head_memory_requests=rc[&#34;spec&#34;][&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;][
+                &#34;containers&#34;
+            ][0][&#34;resources&#34;][&#34;requests&#34;][&#34;memory&#34;],
+            head_memory_limits=rc[&#34;spec&#34;][&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;][
+                &#34;containers&#34;
+            ][0][&#34;resources&#34;][&#34;limits&#34;][&#34;memory&#34;],
             num_workers=rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;minReplicas&#34;],
             worker_cpu_requests=rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][
                 &#34;containers&#34;
@@ -1742,8 +1771,12 @@ associated with the cluster.</p></div>
                 plural=&#34;appwrappers&#34;,
                 name=self.app_wrapper_name,
             )
+            print(f&#34;AppWrapper: &#39;{self.config.name}&#39; has successfully been deleted&#34;)
         else:
             self._component_resources_down(namespace, api_instance)
+            print(
+                f&#34;Ray Cluster: &#39;{self.config.name}&#39; has successfully been deleted&#34;
+            )
     except Exception as e:  # pragma: no cover
         return _kube_api_error_handling(e)</code></pre>
 </details>
@@ -1779,6 +1812,18 @@ associated with the cluster.</p></div>
         name=rc[&#34;metadata&#34;][&#34;name&#34;],
         namespace=rc[&#34;metadata&#34;][&#34;namespace&#34;],
         machine_types=machine_types,
+        head_cpu_requests=rc[&#34;spec&#34;][&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;][
+            &#34;containers&#34;
+        ][0][&#34;resources&#34;][&#34;requests&#34;][&#34;cpu&#34;],
+        head_cpu_limits=rc[&#34;spec&#34;][&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;][
+            &#34;containers&#34;
+        ][0][&#34;resources&#34;][&#34;limits&#34;][&#34;cpu&#34;],
+        head_memory_requests=rc[&#34;spec&#34;][&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;][
+            &#34;containers&#34;
+        ][0][&#34;resources&#34;][&#34;requests&#34;][&#34;memory&#34;],
+        head_memory_limits=rc[&#34;spec&#34;][&#34;headGroupSpec&#34;][&#34;template&#34;][&#34;spec&#34;][
+            &#34;containers&#34;
+        ][0][&#34;resources&#34;][&#34;limits&#34;][&#34;memory&#34;],
         num_workers=rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;minReplicas&#34;],
         worker_cpu_requests=rc[&#34;spec&#34;][&#34;workerGroupSpecs&#34;][0][&#34;template&#34;][&#34;spec&#34;][
             &#34;containers&#34;
@@ -2022,8 +2067,12 @@ the Kueue localqueue.</p></div>
                     plural=&#34;appwrappers&#34;,
                     body=aw,
                 )
+            print(f&#34;AppWrapper: &#39;{self.config.name}&#39; has successfully been created&#34;)
         else:
             self._component_resources_up(namespace, api_instance)
+            print(
+                f&#34;Ray Cluster: &#39;{self.config.name}&#39; has successfully been created&#34;
+            )
     except Exception as e:  # pragma: no cover
         return _kube_api_error_handling(e)</code></pre>
 </details>
