@@ -146,22 +146,22 @@ def update_env(spec, env):
 
 def update_resources(
     spec,
-    worker_cpu_requests,
-    worker_cpu_limits,
-    worker_memory_requests,
-    worker_memory_limits,
+    cpu_requests,
+    cpu_limits,
+    memory_requests,
+    memory_limits,
     custom_resources,
 ):
     container = spec.get(&#34;containers&#34;)
     for resource in container:
         requests = resource.get(&#34;resources&#34;).get(&#34;requests&#34;)
         if requests is not None:
-            requests[&#34;cpu&#34;] = worker_cpu_requests
-            requests[&#34;memory&#34;] = worker_memory_requests
+            requests[&#34;cpu&#34;] = cpu_requests
+            requests[&#34;memory&#34;] = memory_requests
         limits = resource.get(&#34;resources&#34;).get(&#34;limits&#34;)
         if limits is not None:
-            limits[&#34;cpu&#34;] = worker_cpu_limits
-            limits[&#34;memory&#34;] = worker_memory_limits
+            limits[&#34;cpu&#34;] = cpu_limits
+            limits[&#34;memory&#34;] = memory_limits
         for k in custom_resources.keys():
             limits[k] = custom_resources[k]
             requests[k] = custom_resources[k]
@@ -241,10 +241,10 @@ def update_nodes(
             # TODO: Eventually add head node configuration outside of template
             update_resources(
                 spec,
-                cluster.config.head_cpus,
-                cluster.config.head_cpus,
-                cluster.config.head_memory,
-                cluster.config.head_memory,
+                cluster.config.head_cpu_requests,
+                cluster.config.head_cpu_limits,
+                cluster.config.head_memory_requests,
+                cluster.config.head_memory_limits,
                 cluster.config.head_extended_resource_requests,
             )
         else:
@@ -812,10 +812,10 @@ def generate_appwrapper(cluster: &#34;codeflare_sdk.cluster.Cluster&#34;):
             # TODO: Eventually add head node configuration outside of template
             update_resources(
                 spec,
-                cluster.config.head_cpus,
-                cluster.config.head_cpus,
-                cluster.config.head_memory,
-                cluster.config.head_memory,
+                cluster.config.head_cpu_requests,
+                cluster.config.head_cpu_limits,
+                cluster.config.head_memory_requests,
+                cluster.config.head_memory_limits,
                 cluster.config.head_extended_resource_requests,
             )
         else:
@@ -830,7 +830,7 @@ def generate_appwrapper(cluster: &#34;codeflare_sdk.cluster.Cluster&#34;):
 </details>
 </dd>
 <dt id="codeflare_sdk.utils.generate_yaml.update_resources"><code class="name flex">
-<span>def <span class="ident">update_resources</span></span>(<span>spec, worker_cpu_requests, worker_cpu_limits, worker_memory_requests, worker_memory_limits, custom_resources)</span>
+<span>def <span class="ident">update_resources</span></span>(<span>spec, cpu_requests, cpu_limits, memory_requests, memory_limits, custom_resources)</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -840,22 +840,22 @@ def generate_appwrapper(cluster: &#34;codeflare_sdk.cluster.Cluster&#34;):
 </summary>
 <pre><code class="python">def update_resources(
     spec,
-    worker_cpu_requests,
-    worker_cpu_limits,
-    worker_memory_requests,
-    worker_memory_limits,
+    cpu_requests,
+    cpu_limits,
+    memory_requests,
+    memory_limits,
     custom_resources,
 ):
     container = spec.get(&#34;containers&#34;)
     for resource in container:
         requests = resource.get(&#34;resources&#34;).get(&#34;requests&#34;)
         if requests is not None:
-            requests[&#34;cpu&#34;] = worker_cpu_requests
-            requests[&#34;memory&#34;] = worker_memory_requests
+            requests[&#34;cpu&#34;] = cpu_requests
+            requests[&#34;memory&#34;] = memory_requests
         limits = resource.get(&#34;resources&#34;).get(&#34;limits&#34;)
         if limits is not None:
-            limits[&#34;cpu&#34;] = worker_cpu_limits
-            limits[&#34;memory&#34;] = worker_memory_limits
+            limits[&#34;cpu&#34;] = cpu_limits
+            limits[&#34;memory&#34;] = memory_limits
         for k in custom_resources.keys():
             limits[k] = custom_resources[k]
             requests[k] = custom_resources[k]</code></pre>

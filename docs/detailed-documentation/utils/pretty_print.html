@@ -166,9 +166,9 @@ def print_clusters(clusters: List[RayCluster]):
         )
         name = cluster.name
         dashboard = cluster.dashboard
-        workers = str(cluster.workers)
-        memory = f&#34;{cluster.worker_mem_min}~{cluster.worker_mem_max}&#34;
-        cpu = str(cluster.worker_cpu)
+        workers = str(cluster.num_workers)
+        memory = f&#34;{cluster.worker_mem_requests}~{cluster.worker_mem_limits}&#34;
+        cpu = f&#34;{cluster.worker_cpu_requests}~{cluster.worker_cpu_limits}&#34;
         gpu = str(cluster.worker_extended_resources.get(&#34;nvidia.com/gpu&#34;, 0))
 
         #&#39;table0&#39; to display the cluster name, status, url, and dashboard link
@@ -344,9 +344,9 @@ def print_clusters(clusters: List[RayCluster]):
         )
         name = cluster.name
         dashboard = cluster.dashboard
-        workers = str(cluster.workers)
-        memory = f&#34;{cluster.worker_mem_min}~{cluster.worker_mem_max}&#34;
-        cpu = str(cluster.worker_cpu)
+        workers = str(cluster.num_workers)
+        memory = f&#34;{cluster.worker_mem_requests}~{cluster.worker_mem_limits}&#34;
+        cpu = f&#34;{cluster.worker_cpu_requests}~{cluster.worker_cpu_limits}&#34;
         gpu = str(cluster.worker_extended_resources.get(&#34;nvidia.com/gpu&#34;, 0))
 
         #&#39;table0&#39; to display the cluster name, status, url, and dashboard link
