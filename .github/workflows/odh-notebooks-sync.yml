@@ -62,10 +62,8 @@ jobs:
               mv "${1}" Pipfile
               mv "${2}" Pipfile.lock
             fi
-            if ! pipenv install ${package_name}~="${CODEFLARE_RELEASE_VERSION}"; then
-              echo "Failed to install ${package_name} with version ${CODEFLARE_RELEASE_VERSION} in $dir"
-              exit 1
-            fi
+            # replace existing version of cf-sdk with new version in Pipfile
+            sed -i "s/codeflare-sdk = .*$/codeflare-sdk = \"~=$CODEFLARE_RELEASE_VERSION\"/g" Pipfile
             # Lock dependencies, ensuring pre-release are included and clear previous state
             if ! pipenv lock --pre --clear ; then
               echo "Failed to lock dependencies"
