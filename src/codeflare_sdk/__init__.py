@@ -14,6 +14,7 @@ from .cluster import (
     get_cluster,
     list_all_queued,
     list_all_clusters,
+    view_clusters,
 )
 
 from .job import RayJobClient

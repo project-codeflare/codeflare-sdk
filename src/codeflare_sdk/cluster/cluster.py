@@ -19,6 +19,7 @@ cluster setup queue, a list of all existing clusters, and the user's working nam
 """
 
 import re
+import subprocess
 from time import sleep
 from typing import List, Optional, Tuple, Dict
 
@@ -862,16 +863,19 @@ def _map_to_ray_cluster(rc) -> Optional[RayCluster]:
         name=rc["metadata"]["name"],
         status=status,
         # for now we are not using autoscaling so same replicas is fine
-        workers=rc["spec"]["workerGroupSpecs"][0]["replicas"],
+        num_workers=rc["spec"]["workerGroupSpecs"][0]["replicas"],
         worker_mem_limits=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"][
             "containers"
         ][0]["resources"]["limits"]["memory"],
         worker_mem_requests=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"][
             "containers"
         ][0]["resources"]["requests"]["memory"],
-        worker_cpu=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"]["containers"][
-            0
-        ]["resources"]["limits"]["cpu"],
+        worker_cpu_requests=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"][
+            "containers"
+        ][0]["resources"]["requests"]["cpu"],
+        worker_cpu_limits=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"][
+            "containers"
+        ][0]["resources"]["limits"]["cpu"],
         worker_extended_resources=worker_extended_resources,
         namespace=rc["metadata"]["namespace"],
         head_cpu_requests=rc["spec"]["headGroupSpec"]["template"]["spec"]["containers"][
@@ -907,10 +911,11 @@ def _copy_to_ray(cluster: Cluster) -> RayCluster:
     ray = RayCluster(
         name=cluster.config.name,
         status=cluster.status(print_to_console=False)[0],
-        workers=cluster.config.num_workers,
+        num_workers=cluster.config.num_workers,
         worker_mem_requests=cluster.config.worker_memory_requests,
         worker_mem_limits=cluster.config.worker_memory_limits,
-        worker_cpu=cluster.config.worker_cpu_requests,
+        worker_cpu_requests=cluster.config.worker_cpu_requests,
+        worker_cpu_limits=cluster.config.worker_cpu_limits,
         worker_extended_resources=cluster.config.worker_extended_resource_requests,
         namespace=cluster.config.namespace,
         dashboard=cluster.cluster_dashboard_uri(),

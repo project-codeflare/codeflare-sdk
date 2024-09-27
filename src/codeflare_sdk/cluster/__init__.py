@@ -21,4 +21,8 @@ from .cluster import (
     list_all_clusters,
 )
 
+from .widgets import (
+    view_clusters,
+)
+
 from .awload import AWManager

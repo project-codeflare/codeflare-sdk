@@ -86,7 +86,8 @@ jobs:
           jq -r 'del(.cells[] | select(.source[] | contains("Create authentication object for user permissions")))' 3_widget_example.ipynb > 3_widget_example.ipynb.tmp && mv 3_widget_example.ipynb.tmp 3_widget_example.ipynb
           jq -r 'del(.cells[] | select(.source[] | contains("auth.logout()")))' 3_widget_example.ipynb > 3_widget_example.ipynb.tmp && mv 3_widget_example.ipynb.tmp 3_widget_example.ipynb
           # Set explicit namespace as SDK need it (currently) to resolve local queues
-          sed -i "s/head_memory_limits=2,/head_memory_limits=2, namespace='default',/" 3_widget_example.ipynb
+          sed -i "s|head_memory_limits=2,|head_memory_limits=2, namespace='default', image='quay.io/modh/ray:2.35.0-py39-cu121',|" 3_widget_example.ipynb
+          sed -i "s|view_clusters()|view_clusters('default')|" 3_widget_example.ipynb
         working-directory: demo-notebooks/guided-demos
 
       - name: Run UI notebook tests
