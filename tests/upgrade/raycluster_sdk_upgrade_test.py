@@ -7,7 +7,7 @@ from codeflare_sdk.job import RayJobClient
 from tests.e2e.support import *
 from codeflare_sdk.cluster.cluster import get_cluster
 
-from codeflare_sdk.utils.kube_api_helpers import _kube_api_error_handling
+from codeflare_sdk.common import _kube_api_error_handling
 
 namespace = "test-ns-rayupgrade"
 # Global variables for kueue resources

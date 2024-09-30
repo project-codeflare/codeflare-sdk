@@ -21,16 +21,14 @@ import json
 from typing import Optional
 import typing
 import yaml
-import sys
 import os
-import argparse
 import uuid
-from kubernetes import client, config
-from .kube_api_helpers import _kube_api_error_handling
-from ..cluster.auth import get_api_client, config_check
-from os import urandom
-from base64 import b64encode
-from urllib3.util import parse_url
+from kubernetes import client
+from ..common import _kube_api_error_handling
+from ..common.kubernetes_cluster.auth import (
+    get_api_client,
+    config_check,
+)
 from kubernetes.client.exceptions import ApiException
 import codeflare_sdk
 

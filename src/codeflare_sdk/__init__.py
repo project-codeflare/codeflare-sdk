@@ -1,8 +1,4 @@
 from .cluster import (
-    Authentication,
-    KubeConfiguration,
-    TokenAuthentication,
-    KubeConfigFileAuthentication,
     AWManager,
     Cluster,
     ClusterConfiguration,
@@ -15,6 +11,13 @@ from .cluster import (
     list_all_queued,
     list_all_clusters,
     view_clusters,
+)
+
+from .common import (
+    Authentication,
+    KubeConfiguration,
+    TokenAuthentication,
+    KubeConfigFileAuthentication,
 )
 
 from .job import RayJobClient

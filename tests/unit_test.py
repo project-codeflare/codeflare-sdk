@@ -39,7 +39,7 @@ from codeflare_sdk.cluster.cluster import (
     _app_wrapper_status,
     _ray_cluster_status,
 )
-from codeflare_sdk.cluster.auth import (
+from codeflare_sdk.common.kubernetes_cluster import (
     TokenAuthentication,
     Authentication,
     KubeConfigFileAuthentication,
@@ -71,7 +71,7 @@ from tests.unit_test_support import (
     get_package_and_version,
 )
 
-import codeflare_sdk.utils.kube_api_helpers
+import codeflare_sdk.common.kubernetes_cluster.kube_api_helpers
 from codeflare_sdk.utils.generate_yaml import (
     gen_names,
     is_openshift_cluster,
@@ -198,8 +198,8 @@ def test_token_auth_login_tls(mocker):
 def test_config_check_no_config_file(mocker):
     mocker.patch("os.path.expanduser", return_value="/mock/home/directory")
     mocker.patch("os.path.isfile", return_value=False)
-    mocker.patch("codeflare_sdk.cluster.auth.config_path", None)
-    mocker.patch("codeflare_sdk.cluster.auth.api_client", None)
+    mocker.patch("codeflare_sdk.common.kubernetes_cluster.auth.config_path", None)
+    mocker.patch("codeflare_sdk.common.kubernetes_cluster.auth.api_client", None)
 
     with pytest.raises(PermissionError) as e:
         config_check()
@@ -210,8 +210,8 @@ def test_config_check_with_incluster_config(mocker):
     mocker.patch("os.path.isfile", return_value=False)
     mocker.patch.dict(os.environ, {"KUBERNETES_PORT": "number"})
     mocker.patch("kubernetes.config.load_incluster_config", side_effect=None)
-    mocker.patch("codeflare_sdk.cluster.auth.config_path", None)
-    mocker.patch("codeflare_sdk.cluster.auth.api_client", None)
+    mocker.patch("codeflare_sdk.common.kubernetes_cluster.auth.config_path", None)
+    mocker.patch("codeflare_sdk.common.kubernetes_cluster.auth.api_client", None)
 
     result = config_check()
     assert result == None
@@ -221,16 +221,18 @@ def test_config_check_with_existing_config_file(mocker):
     mocker.patch("os.path.expanduser", return_value="/mock/home/directory")
     mocker.patch("os.path.isfile", return_value=True)
     mocker.patch("kubernetes.config.load_kube_config", side_effect=None)
-    mocker.patch("codeflare_sdk.cluster.auth.config_path", None)
-    mocker.patch("codeflare_sdk.cluster.auth.api_client", None)
+    mocker.patch("codeflare_sdk.common.kubernetes_cluster.auth.config_path", None)
+    mocker.patch("codeflare_sdk.common.kubernetes_cluster.auth.api_client", None)
 
     result = config_check()
     assert result == None
 
 
 def test_config_check_with_config_path_and_no_api_client(mocker):
-    mocker.patch("codeflare_sdk.cluster.auth.config_path", "/mock/config/path")
-    mocker.patch("codeflare_sdk.cluster.auth.api_client", None)
+    mocker.patch(
+        "codeflare_sdk.common.kubernetes_cluster.auth.config_path", "/mock/config/path"
+    )
+    mocker.patch("codeflare_sdk.common.kubernetes_cluster.auth.api_client", None)
     result = config_check()
     assert result == "/mock/config/path"
 
@@ -2170,7 +2172,8 @@ def test_map_to_ray_cluster(mocker):
 
     mock_api_client = mocker.MagicMock(spec=client.ApiClient)
     mocker.patch(
-        "codeflare_sdk.cluster.auth.get_api_client", return_value=mock_api_client
+        "codeflare_sdk.common.kubernetes_cluster.auth.get_api_client",
+        return_value=mock_api_client,
     )
 
     mock_routes = {

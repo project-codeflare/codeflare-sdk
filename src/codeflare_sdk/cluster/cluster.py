@@ -18,21 +18,21 @@ the resources requested by the user. It also contains functions for checking the
 cluster setup queue, a list of all existing clusters, and the user's working namespace.
 """
 
-import re
-import subprocess
 from time import sleep
 from typing import List, Optional, Tuple, Dict
 
-from kubernetes import config
 from ray.job_submission import JobSubmissionClient
 
-from .auth import config_check, get_api_client
+from ..common.kubernetes_cluster.auth import (
+    config_check,
+    get_api_client,
+)
 from ..utils import pretty_print
 from ..utils.generate_yaml import (
     generate_appwrapper,
     head_worker_gpu_count_from_cluster,
 )
-from ..utils.kube_api_helpers import _kube_api_error_handling
+from ..common import _kube_api_error_handling
 from ..utils.generate_yaml import is_openshift_cluster
 
 from .config import ClusterConfiguration
@@ -47,8 +47,7 @@ from .widgets import (
     cluster_up_down_buttons,
     is_notebook,
 )
-from kubernetes import client, config
-from kubernetes.utils import parse_quantity
+from kubernetes import client
 import yaml
 import os
 import requests

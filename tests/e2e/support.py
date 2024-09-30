@@ -4,7 +4,9 @@ import string
 import subprocess
 from kubernetes import client, config
 import kubernetes.client
-from codeflare_sdk.utils.kube_api_helpers import _kube_api_error_handling
+from codeflare_sdk.common.kubernetes_cluster.kube_api_helpers import (
+    _kube_api_error_handling,
+)
 
 
 def get_ray_image():
