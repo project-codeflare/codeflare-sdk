@@ -22,9 +22,12 @@ import errno
 import os
 import yaml
 
-from kubernetes import client, config
-from ..utils.kube_api_helpers import _kube_api_error_handling
-from .auth import config_check, get_api_client
+from kubernetes import client
+from ..common import _kube_api_error_handling
+from ..common.kubernetes_cluster.auth import (
+    config_check,
+    get_api_client,
+)
 
 
 class AWManager:

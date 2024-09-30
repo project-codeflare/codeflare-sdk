@@ -28,8 +28,11 @@ from IPython.display import display, HTML, Javascript
 import pandas as pd
 from .config import ClusterConfiguration
 from .model import RayClusterStatus
-from ..utils.kube_api_helpers import _kube_api_error_handling
-from .auth import config_check, get_api_client
+from ..common import _kube_api_error_handling
+from ..common.kubernetes_cluster.auth import (
+    config_check,
+    get_api_client,
+)
 
 
 def cluster_up_down_buttons(cluster: "codeflare_sdk.cluster.Cluster") -> widgets.Button:

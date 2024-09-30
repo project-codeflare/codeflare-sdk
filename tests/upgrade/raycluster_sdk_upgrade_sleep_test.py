@@ -12,7 +12,7 @@ from codeflare_sdk.job import RayJobClient
 from tests.e2e.support import *
 
 
-from codeflare_sdk.utils.kube_api_helpers import _kube_api_error_handling
+from codeflare_sdk.common import _kube_api_error_handling
 
 namespace = "test-ns-rayupgrade-sleep"
 # Global variables for kueue resources
