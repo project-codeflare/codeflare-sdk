@@ -968,7 +968,7 @@ def test_ray_details(mocker, capsys):
         return_value="",
     )
     mocker.patch(
-        "codeflare_sdk.ray.cluster.generate_yaml.local_queue_exists",
+        "codeflare_sdk.common.kueue.kueue.local_queue_exists",
         return_value="true",
     )
     cf = Cluster(
@@ -2007,7 +2007,7 @@ def test_get_cluster_openshift(mocker):
     ]
     mocker.patch("kubernetes.client.ApisApi", return_value=mock_api)
     mocker.patch(
-        "codeflare_sdk.ray.cluster.generate_yaml.local_queue_exists",
+        "codeflare_sdk.common.kueue.kueue.local_queue_exists",
         return_value="true",
     )
 
@@ -2042,7 +2042,7 @@ def test_get_cluster_openshift(mocker):
         ],
     )
     mocker.patch(
-        "codeflare_sdk.ray.cluster.generate_yaml.local_queue_exists",
+        "codeflare_sdk.common.kueue.kueue.local_queue_exists",
         return_value="true",
     )
 
@@ -2085,7 +2085,7 @@ def test_get_cluster(mocker):
         return_value=ingress_retrieval(cluster_name="quicktest", client_ing=True),
     )
     mocker.patch(
-        "codeflare_sdk.ray.cluster.generate_yaml.local_queue_exists",
+        "codeflare_sdk.common.kueue.kueue.local_queue_exists",
         return_value="true",
     )
     cluster = get_cluster("quicktest")
@@ -2123,7 +2123,7 @@ def test_get_cluster_no_mcad(mocker):
         return_value=ingress_retrieval(cluster_name="quicktest", client_ing=True),
     )
     mocker.patch(
-        "codeflare_sdk.ray.cluster.generate_yaml.local_queue_exists",
+        "codeflare_sdk.common.kueue.kueue.local_queue_exists",
         return_value="true",
     )
     cluster = get_cluster("quicktest")
@@ -2359,7 +2359,7 @@ def test_cluster_status(mocker):
     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
     mocker.patch(
-        "codeflare_sdk.ray.cluster.generate_yaml.local_queue_exists",
+        "codeflare_sdk.common.kueue.kueue.local_queue_exists",
         return_value="true",
     )
     fake_aw = AppWrapper("test", AppWrapperStatus.FAILED)
@@ -2462,7 +2462,7 @@ def test_wait_ready(mocker, capsys):
         "codeflare_sdk.ray.cluster.cluster._ray_cluster_status", return_value=None
     )
     mocker.patch(
-        "codeflare_sdk.ray.cluster.generate_yaml.local_queue_exists",
+        "codeflare_sdk.common.kueue.kueue.local_queue_exists",
         return_value="true",
     )
     mocker.patch.object(
@@ -2694,11 +2694,11 @@ def test_cluster_throw_for_no_raycluster(mocker: MockerFixture):
         return_value="opendatahub",
     )
     mocker.patch(
-        "codeflare_sdk.ray.cluster.generate_yaml.get_default_kueue_name",
+        "codeflare_sdk.common.kueue.kueue.get_default_kueue_name",
         return_value="default",
     )
     mocker.patch(
-        "codeflare_sdk.ray.cluster.generate_yaml.local_queue_exists",
+        "codeflare_sdk.common.kueue.kueue.local_queue_exists",
         return_value="true",
     )
 
