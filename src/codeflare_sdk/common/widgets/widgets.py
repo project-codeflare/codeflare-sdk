@@ -26,10 +26,10 @@ from kubernetes.client.rest import ApiException
 import ipywidgets as widgets
 from IPython.display import display, HTML, Javascript
 import pandas as pd
-from ..ray.cluster.config import ClusterConfiguration
-from ..ray.cluster.status import RayClusterStatus
-from ..common import _kube_api_error_handling
-from ..common.kubernetes_cluster.auth import (
+from ...ray.cluster.config import ClusterConfiguration
+from ...ray.cluster.status import RayClusterStatus
+from ..kubernetes_cluster import _kube_api_error_handling
+from ..kubernetes_cluster.auth import (
     config_check,
     get_api_client,
 )
@@ -58,7 +58,7 @@ def cluster_up_down_buttons(
         icon="trash",
     )
 
-    wait_ready_check = wait_ready_check_box()
+    wait_ready_check = _wait_ready_check_box()
     output = widgets.Output()
 
     # Display the buttons in an HBox wrapped in a VBox which includes the wait_ready Checkbox
@@ -83,7 +83,7 @@ def cluster_up_down_buttons(
     delete_button.on_click(on_down_button_clicked)
 
 
-def wait_ready_check_box():
+def _wait_ready_check_box():
     """
     The wait_ready_check_box function will return a checkbox widget used for waiting for the resource to be in the state READY.
     """
@@ -117,7 +117,7 @@ def view_clusters(namespace: str = None):
         )
         return  # Exit function if not in Jupyter Notebook
 
-    from ..ray.cluster.cluster import get_current_namespace
+    from ...ray.cluster.cluster import get_current_namespace
 
     if not namespace:
         namespace = get_current_namespace()
@@ -280,7 +280,7 @@ def _on_ray_dashboard_button_click(
     """
     _on_ray_dashboard_button_click handles the event when the Open Ray Dashboard button is clicked, opening the Ray Dashboard in a new tab
     """
-    from codeflare_sdk.ray.cluster import Cluster
+    from codeflare_sdk import Cluster
 
     cluster_name = classification_widget.value
     namespace = ray_clusters_df[ray_clusters_df["Name"] == classification_widget.value][
@@ -311,7 +311,7 @@ def _on_list_jobs_button_click(
     """
     _on_list_jobs_button_click handles the event when the View Jobs button is clicked, opening the Ray Jobs Dashboard in a new tab
     """
-    from codeflare_sdk.ray.cluster import Cluster
+    from codeflare_sdk import Cluster
 
     cluster_name = classification_widget.value
     namespace = ray_clusters_df[ray_clusters_df["Name"] == classification_widget.value][
@@ -344,7 +344,7 @@ def _delete_cluster(
     _delete_cluster function deletes the cluster with the given name and namespace.
     It optionally waits for the cluster to be deleted.
     """
-    from ..ray.cluster.cluster import _check_aw_exists
+    from ...ray.cluster.cluster import _check_aw_exists
 
     try:
         config_check()
@@ -402,7 +402,7 @@ def _fetch_cluster_data(namespace):
     """
     _fetch_cluster_data function fetches all clusters and their spec in a given namespace and returns a DataFrame.
     """
-    from ..ray.cluster.cluster import list_all_clusters
+    from ...ray.cluster.cluster import list_all_clusters
 
     rayclusters = list_all_clusters(namespace, False)
     if not rayclusters:

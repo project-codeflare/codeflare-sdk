@@ -1,4 +1,4 @@
-# Copyright 2022 IBM, Red Hat
+# Copyright 2024 IBM, Red Hat
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -45,7 +45,7 @@ from ..appwrapper import (
     AppWrapper,
     AppWrapperStatus,
 )
-from ...cluster.widgets import (
+from ...common.widgets.widgets import (
     cluster_up_down_buttons,
     is_notebook,
 )

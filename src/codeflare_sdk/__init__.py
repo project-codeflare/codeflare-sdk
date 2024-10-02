@@ -12,7 +12,7 @@ from .ray import (
     RayJobClient,
 )
 
-from .cluster import view_clusters
+from .common.widgets import view_clusters
 
 from .common import (
     Authentication,
