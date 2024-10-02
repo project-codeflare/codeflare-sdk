@@ -16,12 +16,12 @@
 These were the old tests used during initial demo building, and they will soon be fully deprecated.
 """
 
-from codeflare_sdk.cluster.cluster import (
+from codeflare_sdk.ray.cluster.cluster import (
     list_all_clusters,
     list_all_queued,
     _app_wrapper_status,
 )
-from codeflare_sdk.cluster.cluster import Cluster, ClusterConfiguration
+from codeflare_sdk.ray.cluster.cluster import Cluster, ClusterConfiguration
 
 import time
 
@@ -53,7 +53,7 @@ def test_cluster_down():
 
 
 def test_no_resources_found():
-    from codeflare_sdk.utils import pretty_print
+    from codeflare_sdk.ray.cluster import pretty_print
 
     pretty_print.print_no_resources_found()
 

@@ -24,8 +24,8 @@ import yaml
 import os
 import uuid
 from kubernetes import client
-from ..common import _kube_api_error_handling
-from ..common.kubernetes_cluster.auth import (
+from ...common import _kube_api_error_handling
+from ...common.kubernetes_cluster.auth import (
     get_api_client,
     config_check,
 )
@@ -80,7 +80,7 @@ def is_kind_cluster():
 
 def update_names(
     cluster_yaml: dict,
-    cluster: "codeflare_sdk.cluster.Cluster",
+    cluster: "codeflare_sdk.ray.cluster.cluster.Cluster",
 ):
     metadata = cluster_yaml.get("metadata")
     metadata["name"] = cluster.config.name
@@ -135,7 +135,7 @@ def update_resources(
 
 
 def head_worker_gpu_count_from_cluster(
-    cluster: "codeflare_sdk.cluster.Cluster",
+    cluster: "codeflare_sdk.ray.cluster.cluster.Cluster",
 ) -> typing.Tuple[int, int]:
     head_gpus = 0
     worker_gpus = 0
@@ -155,7 +155,7 @@ FORBIDDEN_CUSTOM_RESOURCE_TYPES = ["GPU", "CPU", "memory"]
 
 
 def head_worker_resources_from_cluster(
-    cluster: "codeflare_sdk.cluster.Cluster",
+    cluster: "codeflare_sdk.ray.cluster.cluster.Cluster",
 ) -> typing.Tuple[dict, dict]:
     to_return = {}, {}
     for k in cluster.config.head_extended_resource_requests.keys():
@@ -178,7 +178,7 @@ def head_worker_resources_from_cluster(
 
 def update_nodes(
     ray_cluster_dict: dict,
-    cluster: "codeflare_sdk.cluster.Cluster",
+    cluster: "codeflare_sdk.ray.cluster.cluster.Cluster",
 ):
     head = ray_cluster_dict.get("spec").get("headGroupSpec")
     worker = ray_cluster_dict.get("spec").get("workerGroupSpecs")[0]
@@ -325,7 +325,7 @@ def write_user_yaml(user_yaml, output_file_name):
     print(f"Written to: {output_file_name}")
 
 
-def generate_appwrapper(cluster: "codeflare_sdk.cluster.Cluster"):
+def generate_appwrapper(cluster: "codeflare_sdk.ray.cluster.cluster.Cluster"):
     cluster_yaml = read_template(cluster.config.template)
     appwrapper_name, _ = gen_names(cluster.config.name)
     update_names(

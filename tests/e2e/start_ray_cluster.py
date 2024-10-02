@@ -3,7 +3,7 @@ import os
 
 from time import sleep
 
-from codeflare_sdk.cluster.cluster import Cluster, ClusterConfiguration
+from codeflare_sdk.ray.cluster.cluster import Cluster, ClusterConfiguration
 
 namespace = sys.argv[1]
 ray_image = os.getenv("RAY_IMAGE")

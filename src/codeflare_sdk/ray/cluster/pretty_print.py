@@ -24,7 +24,8 @@ from rich.layout import Layout
 from rich.panel import Panel
 from rich import box
 from typing import List
-from ..cluster.model import RayCluster, AppWrapper, RayClusterStatus
+from .status import RayCluster, RayClusterStatus
+from ..appwrapper.status import AppWrapper
 
 
 def print_no_resources_found():

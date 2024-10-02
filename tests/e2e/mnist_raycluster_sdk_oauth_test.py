@@ -3,7 +3,7 @@ import requests
 from time import sleep
 
 from codeflare_sdk import Cluster, ClusterConfiguration, TokenAuthentication
-from codeflare_sdk.job import RayJobClient
+from codeflare_sdk.ray.client import RayJobClient
 
 import pytest
 

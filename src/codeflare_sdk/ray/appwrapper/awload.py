@@ -23,8 +23,8 @@ import os
 import yaml
 
 from kubernetes import client
-from ..common import _kube_api_error_handling
-from ..common.kubernetes_cluster.auth import (
+from ...common import _kube_api_error_handling
+from ...common.kubernetes_cluster.auth import (
     config_check,
     get_api_client,
 )

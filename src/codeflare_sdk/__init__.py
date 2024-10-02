@@ -1,17 +1,18 @@
-from .cluster import (
-    AWManager,
+from .ray import (
     Cluster,
     ClusterConfiguration,
     RayClusterStatus,
-    AppWrapperStatus,
     CodeFlareClusterStatus,
     RayCluster,
-    AppWrapper,
     get_cluster,
     list_all_queued,
     list_all_clusters,
-    view_clusters,
+    AWManager,
+    AppWrapperStatus,
+    RayJobClient,
 )
+
+from .cluster import view_clusters
 
 from .common import (
     Authentication,
@@ -20,10 +21,8 @@ from .common import (
     KubeConfigFileAuthentication,
 )
 
-from .job import RayJobClient
-
-from .utils import generate_cert
-from .utils.demos import copy_demo_nbs
+from .common.utils import generate_cert
+from .common.utils.demos import copy_demo_nbs
 
 from importlib.metadata import version, PackageNotFoundError
 

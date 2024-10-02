@@ -1,4 +1,4 @@
-from codeflare_sdk.cluster.cluster import (
+from codeflare_sdk.ray.cluster.cluster import (
     Cluster,
     ClusterConfiguration,
 )

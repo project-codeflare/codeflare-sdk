@@ -19,12 +19,12 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography import x509
 from cryptography.x509.oid import NameOID
 import datetime
-from ..common.kubernetes_cluster.auth import (
+from ..kubernetes_cluster.auth import (
     config_check,
     get_api_client,
 )
 from kubernetes import client
-from ..common import _kube_api_error_handling
+from .. import _kube_api_error_handling
 
 
 def generate_ca_cert(days: int = 30):
