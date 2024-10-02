@@ -23,27 +23,29 @@ from typing import List, Optional, Tuple, Dict
 
 from ray.job_submission import JobSubmissionClient
 
-from ..common.kubernetes_cluster.auth import (
+from ...common.kubernetes_cluster.auth import (
     config_check,
     get_api_client,
 )
-from ..utils import pretty_print
-from ..utils.generate_yaml import (
+from . import pretty_print
+from .generate_yaml import (
     generate_appwrapper,
     head_worker_gpu_count_from_cluster,
 )
-from ..common import _kube_api_error_handling
-from ..utils.generate_yaml import is_openshift_cluster
+from ...common import _kube_api_error_handling
+from .generate_yaml import is_openshift_cluster
 
 from .config import ClusterConfiguration
-from .model import (
-    AppWrapper,
-    AppWrapperStatus,
+from .status import (
     CodeFlareClusterStatus,
     RayCluster,
     RayClusterStatus,
 )
-from .widgets import (
+from ..appwrapper import (
+    AppWrapper,
+    AppWrapperStatus,
+)
+from ...cluster.widgets import (
     cluster_up_down_buttons,
     is_notebook,
 )

@@ -1,4 +1,4 @@
-# Copyright 2022 IBM, Red Hat
+# Copyright 2024 IBM, Red Hat
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,9 +13,9 @@
 # limitations under the License.
 
 """
-The model sub-module defines Enums containing information for Ray cluster
-states and AppWrapper states, and CodeFlare cluster states, as well as
-dataclasses to store information for Ray clusters and AppWrappers.
+The status sub-module defines Enums containing information for Ray cluster
+states states, and CodeFlare cluster states, as well as
+dataclasses to store information for Ray clusters.
 """
 
 from dataclasses import dataclass, field
@@ -35,21 +35,6 @@ class RayClusterStatus(Enum):
     FAILED = "failed"
     UNKNOWN = "unknown"
     SUSPENDED = "suspended"
-
-
-class AppWrapperStatus(Enum):
-    """
-    Defines the possible reportable phases of an AppWrapper.
-    """
-
-    SUSPENDED = "suspended"
-    RESUMING = "resuming"
-    RUNNING = "running"
-    RESETTING = "resetting"
-    SUSPENDING = "suspending"
-    SUCCEEDED = "succeeded"
-    FAILED = "failed"
-    TERMINATING = "terminating"
 
 
 class CodeFlareClusterStatus(Enum):
@@ -87,13 +72,3 @@ class RayCluster:
     dashboard: str
     worker_extended_resources: typing.Dict[str, int] = field(default_factory=dict)
     head_extended_resources: typing.Dict[str, int] = field(default_factory=dict)
-
-
-@dataclass
-class AppWrapper:
-    """
-    For storing information about an AppWrapper.
-    """
-
-    name: str
-    status: AppWrapperStatus

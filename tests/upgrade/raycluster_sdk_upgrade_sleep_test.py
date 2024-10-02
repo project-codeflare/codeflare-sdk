@@ -7,7 +7,7 @@ from codeflare_sdk import (
     TokenAuthentication,
     get_cluster,
 )
-from codeflare_sdk.job import RayJobClient
+from codeflare_sdk.ray.client import RayJobClient
 
 from tests.e2e.support import *
 

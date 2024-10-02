@@ -4,8 +4,8 @@ from time import sleep
 
 from support import *
 
-from codeflare_sdk.cluster.cluster import get_cluster
-from codeflare_sdk.job import RayJobClient
+from codeflare_sdk.ray.cluster.cluster import get_cluster
+from codeflare_sdk.ray.client import RayJobClient
 
 namespace = sys.argv[1]
 
