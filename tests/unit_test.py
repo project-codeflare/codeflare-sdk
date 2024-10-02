@@ -1,4 +1,4 @@
-# Copyright 2022 IBM, Red Hat
+# Copyright 2024 IBM, Red Hat
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -79,7 +79,7 @@ from codeflare_sdk.ray.cluster.generate_yaml import (
     is_openshift_cluster,
 )
 
-import codeflare_sdk.cluster.widgets as cf_widgets
+import codeflare_sdk.common.widgets.widgets as cf_widgets
 import pandas as pd
 
 import openshift
@@ -2959,24 +2959,20 @@ def test_cluster_up_down_buttons(mocker):
 
 @patch.dict("os.environ", {}, clear=True)  # Mock environment with no variables
 def test_is_notebook_false():
-    from codeflare_sdk.cluster.widgets import is_notebook
-
-    assert is_notebook() is False
+    assert cf_widgets.is_notebook() is False
 
 
 @patch.dict(
     "os.environ", {"JPY_SESSION_NAME": "example-test"}
 )  # Mock Jupyter environment variable
 def test_is_notebook_true():
-    from codeflare_sdk.cluster.widgets import is_notebook
-
-    assert is_notebook() is True
+    assert cf_widgets.is_notebook() is True
 
 
 def test_view_clusters(mocker, capsys):
     from kubernetes.client.rest import ApiException
 
-    mocker.patch("codeflare_sdk.cluster.widgets.is_notebook", return_value=False)
+    mocker.patch("codeflare_sdk.common.widgets.widgets.is_notebook", return_value=False)
     with pytest.warns(
         UserWarning,
         match="view_clusters can only be used in a Jupyter Notebook environment.",
@@ -2985,7 +2981,7 @@ def test_view_clusters(mocker, capsys):
         # Assert the function returns None when not in a notebook environment
         assert result is None
 
-    mocker.patch("codeflare_sdk.cluster.widgets.is_notebook", return_value=True)
+    mocker.patch("codeflare_sdk.common.widgets.widgets.is_notebook", return_value=True)
 
     # Mock Kubernetes API responses
     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
@@ -3030,7 +3026,7 @@ def test_view_clusters(mocker, capsys):
 
     # Mock the _fetch_cluster_data function to return a test DataFrame
     mocker.patch(
-        "codeflare_sdk.cluster.widgets._fetch_cluster_data", return_value=test_df
+        "codeflare_sdk.common.widgets.widgets._fetch_cluster_data", return_value=test_df
     )
 
     # Mock the Cluster class and related methods
@@ -3048,7 +3044,7 @@ def test_view_clusters(mocker, capsys):
     ) as mock_display, patch(
         "IPython.display.HTML"
     ), patch(
-        "codeflare_sdk.cluster.widgets.Javascript"
+        "codeflare_sdk.common.widgets.widgets.Javascript"
     ) as mock_javascript:
         # Create mock widget instances
         mock_toggle = MagicMock()
