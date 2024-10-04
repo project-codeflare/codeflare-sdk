@@ -1,4 +1,4 @@
-# Copyright 2024 IBM, Red Hat
+# Copyright 2022 IBM, Red Hat
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,85 +13,72 @@
 # limitations under the License.
 
 
-from pathlib import Path
-import sys
 import filecmp
 import os
 import re
+import sys
 import uuid
-from io import StringIO
-
-from codeflare_sdk.ray.cluster import cluster
+from pathlib import Path
 
 parent = Path(__file__).resolve().parents[1]
 aw_dir = os.path.expanduser("~/.codeflare/resources/")
 sys.path.append(str(parent) + "/src")
 
-from kubernetes import client, config, dynamic
+from unittest.mock import MagicMock, patch
+
+import openshift
+import pandas as pd
+import pytest
+import ray
+import yaml
+from kubernetes import client, config
+from pytest_mock import MockerFixture
+from ray.job_submission import JobSubmissionClient
+
+import codeflare_sdk.common.widgets.widgets as cf_widgets
+from codeflare_sdk.common.kubernetes_cluster import (
+    Authentication,
+    KubeConfigFileAuthentication,
+    TokenAuthentication,
+    config_check,
+)
+from codeflare_sdk.common.utils.generate_cert import (
+    export_env,
+    generate_ca_cert,
+    generate_tls_cert,
+)
 from codeflare_sdk.ray.appwrapper.awload import AWManager
+from codeflare_sdk.ray.appwrapper.status import AppWrapper, AppWrapperStatus
+from codeflare_sdk.ray.client.ray_jobs import RayJobClient
 from codeflare_sdk.ray.cluster.cluster import (
     Cluster,
     ClusterConfiguration,
+    _app_wrapper_status,
+    _copy_to_ray,
     _map_to_ray_cluster,
+    _ray_cluster_status,
+    get_cluster,
     list_all_clusters,
     list_all_queued,
-    _copy_to_ray,
-    get_cluster,
-    _app_wrapper_status,
-    _ray_cluster_status,
 )
-from codeflare_sdk.common.kubernetes_cluster import (
-    TokenAuthentication,
-    Authentication,
-    KubeConfigFileAuthentication,
-    config_check,
-)
+from codeflare_sdk.ray.cluster.generate_yaml import gen_names, is_openshift_cluster
 from codeflare_sdk.ray.cluster.pretty_print import (
-    print_no_resources_found,
     print_app_wrappers_status,
     print_cluster_status,
     print_clusters,
-)
-from codeflare_sdk.ray.appwrapper.status import (
-    AppWrapper,
-    AppWrapperStatus,
+    print_no_resources_found,
 )
 from codeflare_sdk.ray.cluster.status import (
+    CodeFlareClusterStatus,
     RayCluster,
     RayClusterStatus,
-    CodeFlareClusterStatus,
 )
-from codeflare_sdk.common.utils.generate_cert import (
-    generate_ca_cert,
-    generate_tls_cert,
-    export_env,
-)
-
 from tests.unit_test_support import (
-    createClusterWithConfig,
     createClusterConfig,
+    createClusterWithConfig,
     createClusterWrongType,
     get_package_and_version,
 )
-
-import codeflare_sdk.common.kubernetes_cluster.kube_api_helpers
-from codeflare_sdk.ray.cluster.generate_yaml import (
-    gen_names,
-    is_openshift_cluster,
-)
-
-import codeflare_sdk.common.widgets.widgets as cf_widgets
-import pandas as pd
-
-import openshift
-from openshift.selector import Selector
-import ray
-import pytest
-import yaml
-from unittest.mock import MagicMock, patch
-from pytest_mock import MockerFixture
-from ray.job_submission import JobSubmissionClient
-from codeflare_sdk.ray.client.ray_jobs import RayJobClient
 
 # For mocking openshift client results
 fake_res = openshift.Result("fake")
@@ -156,7 +143,7 @@ def test_token_auth_creation():
         assert token_auth.skip_tls == False
         assert token_auth.ca_cert_path == f"{parent}/tests/auth-test.crt"
 
-    except Exception as e:
+    except Exception:
         assert 0 == 1
 
 
@@ -204,7 +191,7 @@ def test_config_check_no_config_file(mocker):
     mocker.patch("codeflare_sdk.common.kubernetes_cluster.auth.config_path", None)
     mocker.patch("codeflare_sdk.common.kubernetes_cluster.auth.api_client", None)
 
-    with pytest.raises(PermissionError) as e:
+    with pytest.raises(PermissionError):
         config_check()
 
 
@@ -282,7 +269,7 @@ def test_config_creation():
 
 def test_config_creation_wrong_type():
     with pytest.raises(TypeError):
-        config = createClusterWrongType()
+        createClusterWrongType()
 
 
 def test_cluster_creation(mocker):
@@ -890,7 +877,7 @@ def test_ray_job_wrapping(mocker):
 def test_print_no_resources(capsys):
     try:
         print_no_resources_found()
-    except:
+    except Exception:
         assert 1 == 0
     captured = capsys.readouterr()
     assert captured.out == (
@@ -903,7 +890,7 @@ def test_print_no_resources(capsys):
 def test_print_no_cluster(capsys):
     try:
         print_cluster_status(None)
-    except:
+    except Exception:
         assert 1 == 0
     captured = capsys.readouterr()
     assert captured.out == (
@@ -924,7 +911,7 @@ def test_print_appwrappers(capsys):
     )
     try:
         print_app_wrappers_status([aw1, aw2])
-    except:
+    except Exception:
         assert 1 == 0
     captured = capsys.readouterr()
     assert captured.out == (
@@ -997,7 +984,7 @@ def test_ray_details(mocker, capsys):
         print_clusters([ray1, ray2])
         print_cluster_status(ray1)
         print_cluster_status(ray2)
-    except:
+    except Exception:
         assert 0 == 1
     captured = capsys.readouterr()
     assert captured.out == (
@@ -2602,13 +2589,14 @@ def test_AWManager_submit_remove(mocker, capsys):
     assert testaw.submitted == False
 
 
-from cryptography.x509 import load_pem_x509_certificate
 import base64
+
 from cryptography.hazmat.primitives.serialization import (
-    load_pem_private_key,
     Encoding,
     PublicFormat,
+    load_pem_private_key,
 )
+from cryptography.x509 import load_pem_x509_certificate
 
 
 def test_generate_ca_cert():
