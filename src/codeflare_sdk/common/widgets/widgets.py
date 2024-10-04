@@ -36,6 +36,12 @@ from ..kubernetes_cluster.auth import (
 
 
 class RayClusterManagerWidgets:
+    """
+    The RayClusterManagerWidgets class is responsible for initialising the ToggleButtons, Button, and Output widgets.
+    It also handles the user interactions and displays the cluster details.
+    Used when calling the view_clusters function.
+    """
+
     def __init__(self, ray_clusters_df: pd.DataFrame, namespace: str = None):
         from ...ray.cluster.cluster import get_current_namespace
 
@@ -74,6 +80,10 @@ class RayClusterManagerWidgets:
         self._trigger_initial_display()
 
     def _initialize_callbacks(self):
+        """
+        Called upon RayClusterManagerWidgets initialisation.
+        Sets up event handlers and callbacks for UI interactions.
+        """
         # Observe cluster selection
         self.classification_widget.observe(
             lambda selection_change: self._on_cluster_click(selection_change),
@@ -87,6 +97,10 @@ class RayClusterManagerWidgets:
         )
 
     def _trigger_initial_display(self):
+        """
+        Called upon RayClusterManagerWidgets initialisation.
+        Triggers an initial display update with the current cluster value.
+        """
         # Trigger display with initial cluster value
         initial_value = self.classification_widget.value
         self._on_cluster_click({"new": initial_value})
