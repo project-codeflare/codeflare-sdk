@@ -34,6 +34,7 @@ from ..kubernetes_cluster.auth import (
     get_api_client,
 )
 
+
 class RayClusterManagerWidgets:
     def __init__(self, ray_clusters_df: pd.DataFrame, namespace: str = None):
         from ...ray.cluster.cluster import get_current_namespace
@@ -137,6 +138,7 @@ class RayClusterManagerWidgets:
 
         # Refresh the dataframe
         new_df = _fetch_cluster_data(namespace)
+        self.ray_clusters_df = new_df
         if new_df.empty:
             self.classification_widget.close()
             self.delete_button.close()
@@ -387,15 +389,19 @@ def _fetch_cluster_data(namespace):
     namespaces = [item.namespace for item in rayclusters]
     num_workers = [item.num_workers for item in rayclusters]
     head_extended_resources = [
-        f"{list(item.head_extended_resources.keys())[0]}: {list(item.head_extended_resources.values())[0]}"
-        if item.head_extended_resources
-        else "0"
+        (
+            f"{list(item.head_extended_resources.keys())[0]}: {list(item.head_extended_resources.values())[0]}"
+            if item.head_extended_resources
+            else "0"
+        )
         for item in rayclusters
     ]
     worker_extended_resources = [
-        f"{list(item.worker_extended_resources.keys())[0]}: {list(item.worker_extended_resources.values())[0]}"
-        if item.worker_extended_resources
-        else "0"
+        (
+            f"{list(item.worker_extended_resources.keys())[0]}: {list(item.worker_extended_resources.values())[0]}"
+            if item.worker_extended_resources
+            else "0"
+        )
         for item in rayclusters
     ]
     head_cpu_requests = [

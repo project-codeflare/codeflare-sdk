@@ -19,6 +19,7 @@ import filecmp
 import os
 import re
 import uuid
+from io import StringIO
 
 from codeflare_sdk.ray.cluster import cluster
 
@@ -2970,146 +2971,282 @@ def test_is_notebook_true():
 
 
 def test_view_clusters(mocker, capsys):
-    from kubernetes.client.rest import ApiException
-
-    mocker.patch("codeflare_sdk.common.widgets.widgets.is_notebook", return_value=False)
+    # If is not a notebook environment, a warning should be raised
     with pytest.warns(
         UserWarning,
         match="view_clusters can only be used in a Jupyter Notebook environment.",
     ):
-        result = cf_widgets.view_clusters(namespace="default")
+        result = cf_widgets.view_clusters("default")
+
         # Assert the function returns None when not in a notebook environment
         assert result is None
 
+    # Prepare to run view_clusters when notebook environment is detected
     mocker.patch("codeflare_sdk.common.widgets.widgets.is_notebook", return_value=True)
-
-    # Mock Kubernetes API responses
-    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
-    mocker.patch(
-        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
-        return_value={"items": []},
-    )
-    mocker.patch(
-        "codeflare_sdk.ray.cluster.cluster._check_aw_exists", return_value=False
-    )
-
-    # Return empty dataframe when no clusters are found
-    mocker.patch("codeflare_sdk.ray.cluster.cluster.list_all_clusters", return_value=[])
-    mocker.patch(
+    mock_get_current_namespace = mocker.patch(
         "codeflare_sdk.ray.cluster.cluster.get_current_namespace",
         return_value="default",
     )
-    df = cf_widgets._fetch_cluster_data(namespace="default")
-    assert df.empty
+    namespace = mock_get_current_namespace.return_value
 
-    cf_widgets.view_clusters()
+    # Assert the function returns None when no clusters are found
+    mock_fetch_cluster_data = mocker.patch(
+        "codeflare_sdk.common.widgets.widgets._fetch_cluster_data",
+        return_value=pd.DataFrame(),
+    )
+    result = cf_widgets.view_clusters()
     captured = capsys.readouterr()
-    assert f"No clusters found in the default namespace." in captured.out
-
-    # Assert the function returns None
+    assert mock_fetch_cluster_data.return_value.empty
+    assert "No clusters found in the default namespace." in captured.out
     assert result is None
 
-    test_df = pd.DataFrame(
+    # Prepare to run view_clusters with a test DataFrame
+    mock_fetch_cluster_data = mocker.patch(
+        "codeflare_sdk.common.widgets.widgets._fetch_cluster_data",
+        return_value=pd.DataFrame(
+            {
+                "Name": ["test-cluster"],
+                "Namespace": ["default"],
+                "Num Workers": ["1"],
+                "Head GPUs": ["0"],
+                "Worker GPUs": ["0"],
+                "Head CPU Req~Lim": ["1~1"],
+                "Head Memory Req~Lim": ["1Gi~1Gi"],
+                "Worker CPU Req~Lim": ["1~1"],
+                "Worker Memory Req~Lim": ["1Gi~1Gi"],
+                "status": ['<span style="color: green;">Ready ✓</span>'],
+            }
+        ),
+    )
+    # Create a RayClusterManagerWidgets instance
+    ray_cluster_manager_instance = cf_widgets.RayClusterManagerWidgets(
+        ray_clusters_df=mock_fetch_cluster_data.return_value, namespace=namespace
+    )
+    # Patch the constructor of RayClusterManagerWidgets to return our initialized instance
+    mock_constructor = mocker.patch(
+        "codeflare_sdk.common.widgets.widgets.RayClusterManagerWidgets",
+        return_value=ray_cluster_manager_instance,
+    )
+
+    # Use a spy to track calls to display_widgets without replacing it
+    spy_display_widgets = mocker.spy(ray_cluster_manager_instance, "display_widgets")
+
+    cf_widgets.view_clusters()
+
+    mock_constructor.assert_called_once_with(
+        ray_clusters_df=mock_fetch_cluster_data.return_value, namespace=namespace
+    )
+
+    spy_display_widgets.assert_called_once()
+
+
+def test_delete_cluster(mocker, capsys):
+    name = "test-cluster"
+    namespace = "default"
+
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+
+    mock_ray_cluster = MagicMock()
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.get_namespaced_custom_object",
+        side_effect=[
+            mock_ray_cluster,
+            client.ApiException(status=404),
+            client.ApiException(status=404),
+            mock_ray_cluster,
+        ],
+    )
+
+    # In this scenario, the RayCluster exists and the AppWrapper does not.
+    mocker.patch(
+        "codeflare_sdk.ray.cluster.cluster._check_aw_exists", return_value=False
+    )
+    mock_delete_rc = mocker.patch(
+        "kubernetes.client.CustomObjectsApi.delete_namespaced_custom_object"
+    )
+    cf_widgets._delete_cluster(name, namespace)
+
+    mock_delete_rc.assert_called_once_with(
+        group="ray.io",
+        version="v1",
+        namespace=namespace,
+        plural="rayclusters",
+        name=name,
+    )
+
+    # In this scenario, the AppWrapper exists and the RayCluster does not
+    mocker.patch(
+        "codeflare_sdk.ray.cluster.cluster._check_aw_exists", return_value=True
+    )
+    mock_delete_aw = mocker.patch(
+        "kubernetes.client.CustomObjectsApi.delete_namespaced_custom_object"
+    )
+    cf_widgets._delete_cluster(name, namespace)
+
+    mock_delete_aw.assert_called_once_with(
+        group="workload.codeflare.dev",
+        version="v1beta2",
+        namespace=namespace,
+        plural="appwrappers",
+        name=name,
+    )
+
+    # In this scenario, the deletion of the resource times out.
+    with pytest.raises(
+        TimeoutError, match=f"Timeout waiting for {name} to be deleted."
+    ):
+        cf_widgets._delete_cluster(name, namespace, 1)
+
+
+def test_ray_cluster_manager_widgets_init(mocker, capsys):
+    namespace = "default"
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
+        return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
+    )
+    test_ray_clusters_df = pd.DataFrame(
         {
-            "Name": ["test-cluster"],
-            "Namespace": ["default"],
-            "Num Workers": ["1"],
-            "Head GPUs": ["0"],
-            "Worker GPUs": ["0"],
-            "Head CPU Req~Lim": ["1~1"],
-            "Head Memory Req~Lim": ["1Gi~1Gi"],
-            "Worker CPU Req~Lim": ["1~1"],
-            "Worker Memory Req~Lim": ["1Gi~1Gi"],
-            "status": ['<span style="color: green;">Ready ✓</span>'],
+            "Name": ["test-cluster-1", "test-cluster-2"],
+            "Namespace": [namespace, namespace],
+            "Num Workers": ["1", "2"],
+            "Head GPUs": ["0", "0"],
+            "Worker GPUs": ["0", "0"],
+            "Head CPU Req~Lim": ["1~1", "1~1"],
+            "Head Memory Req~Lim": ["1Gi~1Gi", "1Gi~1Gi"],
+            "Worker CPU Req~Lim": ["1~1", "1~1"],
+            "Worker Memory Req~Lim": ["1Gi~1Gi", "1Gi~1Gi"],
+            "status": [
+                '<span style="color: green;">Ready ✓</span>',
+                '<span style="color: green;">Ready ✓</span>',
+            ],
         }
     )
-
-    # Mock the _fetch_cluster_data function to return a test DataFrame
+    mock_fetch_cluster_data = mocker.patch(
+        "codeflare_sdk.common.widgets.widgets._fetch_cluster_data",
+        return_value=test_ray_clusters_df,
+    )
     mocker.patch(
-        "codeflare_sdk.common.widgets.widgets._fetch_cluster_data", return_value=test_df
+        "codeflare_sdk.ray.cluster.cluster.get_current_namespace",
+        return_value=namespace,
+    )
+    mock_delete_cluster = mocker.patch(
+        "codeflare_sdk.common.widgets.widgets._delete_cluster"
     )
 
-    # Mock the Cluster class and related methods
-    mocker.patch("codeflare_sdk.ray.cluster.Cluster")
-    mocker.patch("codeflare_sdk.ray.cluster.ClusterConfiguration")
+    # # Mock ToggleButtons
+    mock_toggle_buttons = mocker.patch("ipywidgets.ToggleButtons")
+    mock_button = mocker.patch("ipywidgets.Button")
+    mock_output = mocker.patch("ipywidgets.Output")
 
-    with patch("ipywidgets.ToggleButtons") as MockToggleButtons, patch(
-        "ipywidgets.Button"
-    ) as MockButton, patch("ipywidgets.Output") as MockOutput, patch(
-        "ipywidgets.HBox"
-    ), patch(
-        "ipywidgets.VBox"
-    ), patch(
-        "IPython.display.display"
-    ) as mock_display, patch(
-        "IPython.display.HTML"
-    ), patch(
-        "codeflare_sdk.common.widgets.widgets.Javascript"
-    ) as mock_javascript:
-        # Create mock widget instances
-        mock_toggle = MagicMock()
-        mock_delete_button = MagicMock()
-        mock_list_jobs_button = MagicMock()
-        mock_ray_dashboard_button = MagicMock()
-        mock_output = MagicMock()
+    # Initialize the RayClusterManagerWidgets instance
+    ray_cluster_manager_instance = cf_widgets.RayClusterManagerWidgets(
+        ray_clusters_df=test_ray_clusters_df, namespace=namespace
+    )
 
-        # Set the return values for the mocked widgets
-        MockToggleButtons.return_value = mock_toggle
-        MockButton.side_effect = [
-            mock_delete_button,
-            mock_list_jobs_button,
-            mock_ray_dashboard_button,
-        ]
-        MockOutput.return_value = mock_output
+    # Assertions for DataFrame and attributes
+    assert ray_cluster_manager_instance.ray_clusters_df.equals(
+        test_ray_clusters_df
+    ), "ray_clusters_df attribute does not match the input DataFrame"
+    assert (
+        ray_cluster_manager_instance.namespace == namespace
+    ), f"Expected namespace to be '{namespace}', but got '{ray_cluster_manager_instance.namespace}'"
+    assert (
+        ray_cluster_manager_instance.classification_widget.options
+        == test_ray_clusters_df["Name"].tolist()
+    ), "classification_widget options do not match the input DataFrame"
 
-        # Call the function under test
-        cf_widgets.view_clusters()
+    # Assertions for widgets
+    mock_toggle_buttons.assert_called_once_with(
+        options=test_ray_clusters_df["Name"].tolist(),
+        value=test_ray_clusters_df["Name"].tolist()[0],
+        description="Select an existing cluster:",
+    )
+    assert (
+        ray_cluster_manager_instance.classification_widget
+        == mock_toggle_buttons.return_value
+    ), "classification_widget is not set correctly"
+    assert (
+        ray_cluster_manager_instance.delete_button == mock_button.return_value
+    ), "delete_button is not set correctly"
+    assert (
+        ray_cluster_manager_instance.list_jobs_button == mock_button.return_value
+    ), "list_jobs_button is not set correctly"
+    assert (
+        ray_cluster_manager_instance.ray_dashboard_button == mock_button.return_value
+    ), "ray_dashboard_button is not set correctly"
+    assert (
+        ray_cluster_manager_instance.raycluster_data_output == mock_output.return_value
+    ), "raycluster_data_output is not set correctly"
+    assert (
+        ray_cluster_manager_instance.user_output == mock_output.return_value
+    ), "user_output is not set correctly"
+    assert (
+        ray_cluster_manager_instance.url_output == mock_output.return_value
+    ), "url_output is not set correctly"
 
-        # Simulate selecting a cluster
-        mock_toggle.value = "test-cluster"
-        selection_change = {"new": "test-cluster"}
-        cf_widgets._on_cluster_click(
-            selection_change, mock_output, "default", mock_toggle
-        )
+    ### Test button click events
+    mock_delete_button = MagicMock()
+    mock_list_jobs_button = MagicMock()
+    mock_ray_dashboard_button = MagicMock()
 
-        # Assert that the toggle options are set correctly
-        mock_toggle.observe.assert_called()
+    mock_javascript = mocker.patch("codeflare_sdk.common.widgets.widgets.Javascript")
+    ray_cluster_manager_instance.url_output = MagicMock()
 
-        # Simulate clicking the list jobs button
-        cf_widgets._on_list_jobs_button_click(
-            None, mock_toggle, test_df, mock_output, mock_output
-        )
-        mock_javascript.assert_called_once()
+    mock_dashboard_uri = mocker.patch(
+        "codeflare_sdk.ray.cluster.cluster.Cluster.cluster_dashboard_uri",
+        return_value="https://ray-dashboard-test-cluster-1-ns.apps.cluster.awsroute.org",
+    )
 
-        # Simulate clicking the Ray dashboard button
-        cf_widgets._on_ray_dashboard_button_click(
-            None, mock_toggle, test_df, mock_output, mock_output
-        )
-        mock_javascript.call_count = 2
+    # Simulate clicking the list jobs button
+    ray_cluster_manager_instance.classification_widget.value = "test-cluster-1"
+    ray_cluster_manager_instance._on_list_jobs_button_click(mock_list_jobs_button)
 
-        mocker.patch(
-            "kubernetes.client.CustomObjectsApi.delete_namespaced_custom_object",
-        )
-        mock_response = mocker.MagicMock()
-        mock_response.status = 404
-        mock_exception = ApiException(http_resp=mock_response)
-        mocker.patch(
-            "kubernetes.client.CustomObjectsApi.get_namespaced_custom_object",
-            side_effect=mock_exception,
-        )
+    captured = capsys.readouterr()
+    assert (
+        f"Opening Ray Jobs Dashboard for test-cluster-1 cluster:\n{mock_dashboard_uri.return_value}/#/jobs"
+        in captured.out
+    )
+    mock_javascript.assert_called_with(
+        f'window.open("{mock_dashboard_uri.return_value}/#/jobs", "_blank");'
+    )
 
-        # Simulate clicking the delete button
-        cf_widgets._on_delete_button_click(
-            None,
-            mock_toggle,
-            test_df,
-            mock_output,
-            mock_output,
-            mock_delete_button,
-            mock_list_jobs_button,
-            mock_ray_dashboard_button,
-        )
-        MockButton.call_count = 3
+    # Simulate clicking the Ray dashboard button
+    ray_cluster_manager_instance.classification_widget.value = "test-cluster-1"
+    ray_cluster_manager_instance._on_ray_dashboard_button_click(
+        mock_ray_dashboard_button
+    )
+
+    captured = capsys.readouterr()
+    assert (
+        f"Opening Ray Dashboard for test-cluster-1 cluster:\n{mock_dashboard_uri.return_value}"
+        in captured.out
+    )
+    mock_javascript.assert_called_with(
+        f'window.open("{mock_dashboard_uri.return_value}", "_blank");'
+    )
+
+    # Simulate clicking the delete button
+    ray_cluster_manager_instance.classification_widget.value = "test-cluster-1"
+    ray_cluster_manager_instance._on_delete_button_click(mock_delete_button)
+    mock_delete_cluster.assert_called_with("test-cluster-1", namespace)
+
+    mock_fetch_cluster_data.return_value = pd.DataFrame()
+    ray_cluster_manager_instance.classification_widget.value = "test-cluster-2"
+    ray_cluster_manager_instance._on_delete_button_click(mock_delete_button)
+    mock_delete_cluster.assert_called_with("test-cluster-2", namespace)
+
+    # Assert on deletion that the dataframe is empty
+    assert (
+        ray_cluster_manager_instance.ray_clusters_df.empty
+    ), "Expected DataFrame to be empty after deletion"
+
+    captured = capsys.readouterr()
+    assert (
+        f"Cluster test-cluster-1 in the {namespace} namespace was deleted successfully."
+        in captured.out
+    )
 
 
 def test_fetch_cluster_data(mocker):
