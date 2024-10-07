@@ -109,13 +109,14 @@ class TokenAuthentication(Authentication):
             configuration.host = self.server
             configuration.api_key["authorization"] = self.token
 
-            api_client = client.ApiClient(configuration)
-            if not self.skip_tls:
-                _client_with_cert(api_client, self.ca_cert_path)
-            else:
+            if self.skip_tls:
                 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
                 print("Insecure request warnings have been disabled")
                 configuration.verify_ssl = False
+
+            api_client = client.ApiClient(configuration)
+            if not self.skip_tls:
+                _client_with_cert(api_client, self.ca_cert_path)
 
             client.AuthenticationApi(api_client).get_api_group()
             config_path = None
