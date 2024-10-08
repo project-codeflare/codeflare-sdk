@@ -3,7 +3,7 @@ kind: AppWrapper
 metadata:
   labels:
     kueue.x-k8s.io/queue-name: local-queue-default
-  name: unit-test-cluster
+  name: unit-test-aw-kueue
   namespace: ns
 spec:
   components:
@@ -13,7 +13,7 @@ spec:
       metadata:
         labels:
           controller-tools.k8s.io: '1.0'
-        name: unit-test-cluster
+        name: unit-test-aw-kueue
         namespace: ns
       spec:
         autoscalerOptions:
@@ -76,8 +76,7 @@ spec:
                 - mountPath: /etc/ssl/certs/odh-ca-bundle.crt
                   name: odh-ca-cert
                   subPath: odh-ca-bundle.crt
-              imagePullSecrets:
-              - name: unit-test-pull-secret
+              imagePullSecrets: []
               volumes:
               - configMap:
                   items:
@@ -95,12 +94,12 @@ spec:
                 name: odh-ca-cert
         rayVersion: 2.35.0
         workerGroupSpecs:
-        - groupName: small-group-unit-test-cluster
+        - groupName: small-group-unit-test-aw-kueue
           maxReplicas: 2
           minReplicas: 2
           rayStartParams:
             block: 'true'
-            num-gpus: '7'
+            num-gpus: '0'
             resources: '"{}"'
           replicas: 2
           template:
@@ -124,11 +123,9 @@ spec:
                   limits:
                     cpu: 4
                     memory: 6G
-                    nvidia.com/gpu: 7
                   requests:
                     cpu: 3
                     memory: 5G
-                    nvidia.com/gpu: 7
                 volumeMounts:
                 - mountPath: /etc/pki/tls/certs/odh-trusted-ca-bundle.crt
                   name: odh-trusted-ca-cert
@@ -142,8 +139,7 @@ spec:
                 - mountPath: /etc/ssl/certs/odh-ca-bundle.crt
                   name: odh-ca-cert
                   subPath: odh-ca-bundle.crt
-              imagePullSecrets:
-              - name: unit-test-pull-secret
+              imagePullSecrets: []
               volumes:
               - configMap:
                   items:

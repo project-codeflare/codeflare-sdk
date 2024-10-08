@@ -3,8 +3,8 @@ kind: AppWrapper
 metadata:
   labels:
     kueue.x-k8s.io/queue-name: local-queue-default
-  name: unit-test-default-cluster
-  namespace: opendatahub
+  name: unit-test-cluster-kueue
+  namespace: ns
 spec:
   components:
   - template:
@@ -13,8 +13,8 @@ spec:
       metadata:
         labels:
           controller-tools.k8s.io: '1.0'
-        name: unit-test-default-cluster
-        namespace: opendatahub
+        name: unit-test-cluster-kueue
+        namespace: ns
       spec:
         autoscalerOptions:
           idleTimeoutSeconds: 60
@@ -38,7 +38,6 @@ spec:
           serviceType: ClusterIP
           template:
             spec:
-              imagePullSecrets: []
               containers:
               - image: quay.io/modh/ray@sha256:0d715f92570a2997381b7cafc0e224cfa25323f18b9545acfd23bc2b71576d06
                 imagePullPolicy: Always
@@ -77,6 +76,7 @@ spec:
                 - mountPath: /etc/ssl/certs/odh-ca-bundle.crt
                   name: odh-ca-cert
                   subPath: odh-ca-bundle.crt
+              imagePullSecrets: []
               volumes:
               - configMap:
                   items:
@@ -94,14 +94,14 @@ spec:
                 name: odh-ca-cert
         rayVersion: 2.35.0
         workerGroupSpecs:
-        - groupName: small-group-unit-test-default-cluster
-          maxReplicas: 1
-          minReplicas: 1
+        - groupName: small-group-unit-test-cluster-kueue
+          maxReplicas: 2
+          minReplicas: 2
           rayStartParams:
             block: 'true'
             num-gpus: '0'
             resources: '"{}"'
-          replicas: 1
+          replicas: 2
           template:
             metadata:
               annotations:
@@ -109,7 +109,6 @@ spec:
               labels:
                 key: value
             spec:
-              imagePullSecrets: []
               containers:
               - image: quay.io/modh/ray@sha256:0d715f92570a2997381b7cafc0e224cfa25323f18b9545acfd23bc2b71576d06
                 lifecycle:
@@ -122,11 +121,11 @@ spec:
                 name: machine-learning
                 resources:
                   limits:
-                    cpu: 1
-                    memory: 2G
+                    cpu: 4
+                    memory: 6G
                   requests:
-                    cpu: 1
-                    memory: 2G
+                    cpu: 3
+                    memory: 5G
                 volumeMounts:
                 - mountPath: /etc/pki/tls/certs/odh-trusted-ca-bundle.crt
                   name: odh-trusted-ca-cert
@@ -140,6 +139,7 @@ spec:
                 - mountPath: /etc/ssl/certs/odh-ca-bundle.crt
                   name: odh-ca-cert
                   subPath: odh-ca-bundle.crt
+              imagePullSecrets: []
               volumes:
               - configMap:
                   items:

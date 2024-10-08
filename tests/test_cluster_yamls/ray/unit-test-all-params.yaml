@@ -5,7 +5,10 @@ metadata:
     app.kubernetes.io/managed-by: test-prefix
   labels:
     controller-tools.k8s.io: '1.0'
-  name: unit-test-no-kueue
+    key1: value1
+    key2: value2
+    kueue.x-k8s.io/queue-name: local-queue-default
+  name: test-all-params
   namespace: ns
 spec:
   autoscalerOptions:
@@ -25,13 +28,16 @@ spec:
     rayStartParams:
       block: 'true'
       dashboard-host: 0.0.0.0
-      num-gpus: '0'
+      num-gpus: '1'
       resources: '"{}"'
     serviceType: ClusterIP
     template:
       spec:
         containers:
-        - image: quay.io/modh/ray@sha256:0d715f92570a2997381b7cafc0e224cfa25323f18b9545acfd23bc2b71576d06
+        - env: &id001
+            key1: value1
+            key2: value2
+          image: example/ray:tag
           imagePullPolicy: Always
           lifecycle:
             preStop:
@@ -50,11 +56,13 @@ spec:
             name: client
           resources:
             limits:
-              cpu: 2
-              memory: 8G
+              cpu: 8
+              memory: 16G
+              nvidia.com/gpu: 1
             requests:
-              cpu: 2
-              memory: 8G
+              cpu: 4
+              memory: 12G
+              nvidia.com/gpu: 1
           volumeMounts:
           - mountPath: /etc/pki/tls/certs/odh-trusted-ca-bundle.crt
             name: odh-trusted-ca-cert
@@ -69,7 +77,8 @@ spec:
             name: odh-ca-cert
             subPath: odh-ca-bundle.crt
         imagePullSecrets:
-        - name: unit-test-pull-secret
+        - name: secret1
+        - name: secret2
         volumes:
         - configMap:
             items:
@@ -87,14 +96,14 @@ spec:
           name: odh-ca-cert
   rayVersion: 2.35.0
   workerGroupSpecs:
-  - groupName: small-group-unit-test-no-kueue
-    maxReplicas: 2
-    minReplicas: 2
+  - groupName: small-group-test-all-params
+    maxReplicas: 10
+    minReplicas: 10
     rayStartParams:
       block: 'true'
-      num-gpus: '7'
+      num-gpus: '1'
       resources: '"{}"'
-    replicas: 2
+    replicas: 10
     template:
       metadata:
         annotations:
@@ -103,7 +112,8 @@ spec:
           key: value
       spec:
         containers:
-        - image: quay.io/modh/ray@sha256:0d715f92570a2997381b7cafc0e224cfa25323f18b9545acfd23bc2b71576d06
+        - env: *id001
+          image: example/ray:tag
           lifecycle:
             preStop:
               exec:
@@ -114,13 +124,13 @@ spec:
           name: machine-learning
           resources:
             limits:
-              cpu: 4
-              memory: 6G
-              nvidia.com/gpu: 7
+              cpu: 8
+              memory: 16G
+              nvidia.com/gpu: 1
             requests:
-              cpu: 3
-              memory: 5G
-              nvidia.com/gpu: 7
+              cpu: 4
+              memory: 12G
+              nvidia.com/gpu: 1
           volumeMounts:
           - mountPath: /etc/pki/tls/certs/odh-trusted-ca-bundle.crt
             name: odh-trusted-ca-cert
@@ -135,7 +145,8 @@ spec:
             name: odh-ca-cert
             subPath: odh-ca-bundle.crt
         imagePullSecrets:
-        - name: unit-test-pull-secret
+        - name: secret1
+        - name: secret2
         volumes:
         - configMap:
             items:

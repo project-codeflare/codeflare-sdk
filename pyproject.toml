@@ -57,3 +57,5 @@ markers = [
     "nvidia_gpu"
 ]
 addopts = "--timeout=900"
+testpaths = ["src/codeflare_sdk"]
+collect_ignore = ["src/codeflare_sdk/common/utils/unit_test_support.py"]
