@@ -71,7 +71,7 @@ pip install -e .
 To run the unit tests, execute:
 
 ```sh
-pytest -v tests/unit_test.py
+pytest -v src/codeflare_sdk
 ```
 
 ### Local e2e Testing
@@ -80,7 +80,7 @@ pytest -v tests/unit_test.py
 
 #### Code Coverage
 
-- Run tests with the following command: `coverage run -m --source=src pytest tests/unit_test.py`
+- Run tests with the following command: `coverage run -m pytest`
 - To then view a code coverage report w/ missing lines, run `coverage report -m`
 
 ### Code Formatting
