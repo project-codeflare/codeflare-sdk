@@ -120,9 +120,9 @@ class ClusterConfiguration:
             )
 
         self._validate_types()
+        self._memory_to_resource()
         self._memory_to_string()
         self._str_mem_no_unit_add_GB()
-        self._memory_to_resource()
         self._cpu_to_resource()
         self._gpu_to_resource()
         self._combine_extended_resource_mapping()
