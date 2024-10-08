@@ -1,14 +1,10 @@
 apiVersion: ray.io/v1
 kind: RayCluster
 metadata:
-  annotations:
-    app.kubernetes.io/managed-by: test-prefix
   labels:
     controller-tools.k8s.io: '1.0'
-    kueue.x-k8s.io/queue-name: local-queue-default
-    testlabel: test
-    testlabel2: test
-  name: unit-test-cluster-ray
+    kueue.x-k8s.io/queue-name: local_default_queue
+  name: test-rc-b
   namespace: ns
 spec:
   autoscalerOptions:
@@ -71,8 +67,7 @@ spec:
           - mountPath: /etc/ssl/certs/odh-ca-bundle.crt
             name: odh-ca-cert
             subPath: odh-ca-bundle.crt
-        imagePullSecrets:
-        - name: unit-test-pull-secret
+        imagePullSecrets: []
         volumes:
         - configMap:
             items:
@@ -90,14 +85,14 @@ spec:
           name: odh-ca-cert
   rayVersion: 2.35.0
   workerGroupSpecs:
-  - groupName: small-group-unit-test-cluster-ray
-    maxReplicas: 2
-    minReplicas: 2
+  - groupName: small-group-test-rc-b
+    maxReplicas: 1
+    minReplicas: 1
     rayStartParams:
       block: 'true'
-      num-gpus: '7'
+      num-gpus: '0'
       resources: '"{}"'
-    replicas: 2
+    replicas: 1
     template:
       metadata:
         annotations:
@@ -117,13 +112,11 @@ spec:
           name: machine-learning
           resources:
             limits:
-              cpu: 4
-              memory: 6G
-              nvidia.com/gpu: 7
+              cpu: 1
+              memory: 2G
             requests:
-              cpu: 3
-              memory: 5G
-              nvidia.com/gpu: 7
+              cpu: 1
+              memory: 2G
           volumeMounts:
           - mountPath: /etc/pki/tls/certs/odh-trusted-ca-bundle.crt
             name: odh-trusted-ca-cert
@@ -137,8 +130,7 @@ spec:
           - mountPath: /etc/ssl/certs/odh-ca-bundle.crt
             name: odh-ca-cert
             subPath: odh-ca-bundle.crt
-        imagePullSecrets:
-        - name: unit-test-pull-secret
+        imagePullSecrets: []
         volumes:
         - configMap:
             items:
