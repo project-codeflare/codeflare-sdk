@@ -21,6 +21,10 @@ from .common import (
     KubeConfigFileAuthentication,
 )
 
+from .common.kueue import (
+    list_local_queues,
+)
+
 from .common.utils import generate_cert
 from .common.utils.demos import copy_demo_nbs
 

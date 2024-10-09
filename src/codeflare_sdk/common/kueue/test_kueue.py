@@ -18,6 +18,7 @@ import yaml
 import os
 import filecmp
 from pathlib import Path
+from .kueue import list_local_queues
 
 parent = Path(__file__).resolve().parents[4]  # project directory
 aw_dir = os.path.expanduser("~/.codeflare/resources/")
@@ -129,6 +130,47 @@ def test_get_local_queue_exists_fail(mocker):
             str(e)
             == "local_queue provided does not exist or is not in this namespace. Please provide the correct local_queue name in Cluster Configuration"
         )
+
+
+def test_list_local_queues(mocker):
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
+        return_value={
+            "items": [
+                {
+                    "metadata": {"name": "lq1"},
+                    "status": {"flavors": [{"name": "default"}]},
+                },
+                {
+                    "metadata": {"name": "lq2"},
+                    "status": {
+                        "flavors": [{"name": "otherflavor"}, {"name": "default"}]
+                    },
+                },
+            ]
+        },
+    )
+    lqs = list_local_queues("ns")
+    assert lqs == [
+        {"name": "lq1", "flavors": ["default"]},
+        {"name": "lq2", "flavors": ["otherflavor", "default"]},
+    ]
+    lqs = list_local_queues("ns", flavors=["otherflavor"])
+    assert lqs == [{"name": "lq2", "flavors": ["otherflavor", "default"]}]
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
+        return_value={
+            "items": [
+                {
+                    "metadata": {"name": "lq1"},
+                    "status": {},
+                },
+            ]
+        },
+    )
+    lqs = list_local_queues("ns", flavors=["default"])
+    assert lqs == []
 
 
 # Make sure to always keep this function last
