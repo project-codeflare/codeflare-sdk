@@ -51,7 +51,10 @@ jobs:
             - name: Run poetry install
               run: poetry install --with docs
             - name: Create new documentation
-              run: poetry run pdoc --html -o docs/detailed-documentation src/codeflare_sdk && pushd docs/detailed-documentation && rm -rf cluster job utils && mv codeflare_sdk/* . && rm -rf codeflare_sdk && popd && find docs/detailed-documentation -type f -name "*.html" -exec bash -c "echo '' >> {}" \;
+              run: |
+                sphinx-apidoc -o docs/sphinx src/codeflare_sdk "**/*test_*" --force
+                make clean -C docs/sphinx
+                make html -C docs/sphinx
             - name: Copy demo notebooks into SDK package
               run: cp -r demo-notebooks src/codeflare_sdk/demo-notebooks
             - name: Run poetry build
