@@ -1,0 +1,45 @@
+name: Publish Documentation
+
+on:
+  workflow_dispatch:
+    inputs:
+      codeflare_sdk_release_version:
+        type: string
+        required: true
+        description: 'Version number (for example: 0.1.0)'
+
+permissions:
+  contents: write
+
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.9
+      - name: Install Sphinx
+        run: |
+            sudo apt-get update
+            sudo apt-get install python3-sphinx
+      - name: Install Poetry
+        uses: abatilo/actions-poetry@v2
+        with:
+          poetry-version: 1.8.3
+      - name: Create new documentation
+        run: |
+          python3 -m venv .venv
+          source .venv/bin/activate
+          poetry install --with docs
+          sed -i 's/release = "v[0-9]\+\.[0-9]\+\.[0-9]\+"/release = "${{ github.event.inputs.codeflare_sdk_release_version }}"/' docs/sphinx/conf.py
+          sphinx-apidoc -o docs/sphinx src/codeflare_sdk "**/*test_*" --force # Generate docs but ignore test files
+          make html -C docs/sphinx
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          publish_branch: gh-pages
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: docs/sphinx/_build/html
+          force_orphan: true
