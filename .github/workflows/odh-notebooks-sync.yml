@@ -7,7 +7,14 @@ on:
         required: true
         description: "Owner of target upstream notebooks repository used to open a PR against"
         default: "opendatahub-io"
-
+      notebooks-target-branch:
+        required: true
+        description: "Target branch of upstream repository"
+        default: "main"
+      python-version:
+        required: true
+        description: "Provide the python version to be used for the notebooks"
+        default: "3.11"
       codeflare-repository-organization:
         required: true
         description: "Owner of origin notebooks repository used to open a PR"
@@ -18,7 +25,8 @@ on:
         description: "Provide version of the Codeflare-SDK release"
 
 env:
-  BRANCH_NAME: main
+  BRANCH_NAME: ${{ github.event.inputs.notebooks-target-branch }}
+  PYTHON_VERSION: ${{ github.event.inputs.python-version }}
   CODEFLARE_RELEASE_VERSION: ${{ github.event.inputs.codeflare_sdk_release_version }}
   UPDATER_BRANCH: odh-sync-updater-${{ github.run_id }}
   UPSTREAM_OWNER: ${{ github.event.inputs.upstream-repository-organization }}
@@ -39,23 +47,24 @@ jobs:
           git config --global user.email "138894154+codeflare-machine-account@users.noreply.github.com"
           git config --global user.name "codeflare-machine-account"
           git remote -v
-          git pull upstream main && git push origin main
+          git fetch upstream $BRANCH_NAME
+          git checkout $BRANCH_NAME
 
       - name: Setup Python environment
         uses: actions/setup-python@v4
         with:
-          python-version: |
-            3.9
-            3.11
+          python-version: ${{ env.PYTHON_VERSION }}
           cache: 'pipenv'
 
+      # Sync fails with pipenv 2024.1.0 (current latest version)
+      # TODO: We should retry with later versions of pipenv once they are available.
       - name: Install pipenv and pip-versions
-        run: pip install pipenv pip-versions
+        run: pip install pipenv==2024.0.3 pip-versions
 
       - name: Update Pipfiles in accordance with Codeflare-SDK latest release
         run: |
           package_name=codeflare-sdk
-          available_python_versions=("3.9" "3.11") # add space separated python versions according to 'python-versions' specified in 'Setup Python Environment' step
+          available_python_versions=("$PYTHON_VERSION") # add space separated python versions according to 'python-versions' specified in 'Setup Python Environment' step
           install_package_using_pipenv(){
             # args allow custom names for Pipfile and Pipfile.lock
             if [ $# -eq 2 ]; then
