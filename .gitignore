@@ -13,3 +13,4 @@ node_modules
 ui-tests/playwright-report
 ui-tests/test-results
 /src/codeflare_sdk.egg-info/
+docs/sphinx/_build

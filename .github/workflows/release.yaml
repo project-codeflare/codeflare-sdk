@@ -33,8 +33,6 @@ jobs:
         permissions:
             contents: write
             id-token: write  # This permission is required for trusted publishing
-        env:
-            PR_BRANCH_NAME: adjustments-release-${{ github.event.inputs.release-version }}
         steps:
             - name: Checkout the repository
               uses: actions/checkout@v4
@@ -52,35 +50,16 @@ jobs:
               run: poetry install --with docs
             - name: Create new documentation
               run: |
-                sphinx-apidoc -o docs/sphinx src/codeflare_sdk "**/*test_*" --force
-                make clean -C docs/sphinx
-                make html -C docs/sphinx
+                gh workflow run publish-documentation.yaml \
+                  --repo ${{ github.event.inputs.codeflare-repository-organization }}/codeflare-sdk \
+                  --ref ${{ github.ref }} \
+                  --field codeflare_sdk_release_version=${{ github.event.inputs.release-version }}
             - name: Copy demo notebooks into SDK package
               run: cp -r demo-notebooks src/codeflare_sdk/demo-notebooks
             - name: Run poetry build
               run: poetry build
-            - name: Commit changes in docs
-              uses: stefanzweifel/git-auto-commit-action@v4
-              with:
-                file_pattern: 'docs'
-                commit_message: "Changes in docs for release: v${{ github.event.inputs.release-version }}"
-                create_branch: true
-                branch: ${{ env.PR_BRANCH_NAME }}
-            - name: Create a PR with code changes
-              run: |
-                  if git branch -a | grep "${{ env.PR_BRANCH_NAME }}"; then
-                    GIT_BRANCH=${GITHUB_REF#refs/heads/}
-                    gh pr create --base "$GIT_BRANCH" --fill --head "${{ env.PR_BRANCH_NAME }}" --label "lgtm" --label "approved"
-                  fi
               env:
                 GITHUB_TOKEN: ${{ secrets.CODEFLARE_MACHINE_ACCOUNT_TOKEN }}
-            - name: Wait until PR with code changes is merged
-              run: |
-                  if git branch -a | grep "${{ env.PR_BRANCH_NAME }}"; then
-                    timeout 3600 bash -c 'until [[ $(gh pr view '${{ env.PR_BRANCH_NAME }}' --json state --jq .state) == "MERGED" ]]; do sleep 5 && echo "$(gh pr view '${{ env.PR_BRANCH_NAME }}' --json state --jq .state)"; done'
-                  fi
-              env:
-                GITHUB_TOKEN: ${{ github.TOKEN }}
             - name: Create Github release
               uses: ncipollo/release-action@v1
               with:
