@@ -4,18 +4,15 @@
 version: 2
 updates:
   # This is to update requirements.txt files in the guided-demos, and e2e directories.
-  # The group configuration option is used to group updates for consistency across related directories.
   - package-ecosystem: "pip"
     directories:
       - "**/demo-notebooks/guided-demos*"
       - "/tests/e2e"
     schedule:
-      interval: "weekly"
-    groups:
-      requirements.txt:
-        patterns:
-          - "*"
-    open-pull-requests-limit: 10
+      interval: "daily"
+    ignore:
+      update-types: ["version-update:semver-patch"]
+    open-pull-requests-limit: 4
     labels:
       - "test-guided-notebooks"
 
@@ -23,7 +20,20 @@ updates:
   - package-ecosystem: "pip"
     directory: "/"
     schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 10
+      interval: "daily"
+    ignore:
+      update-types: ["version-update:semver-patch"]
+    open-pull-requests-limit: 1
     labels:
       - "test-guided-notebooks"
+
+  # npm means yarn in this case, this keeps yarn.lock up to date with constraints in package.json.
+  - package-ecosystem: "npm"
+    directory: "/ui-tests"
+    schedule:
+      interval: "daily"
+    ignore:
+      update-types: ["version-update:semver-patch"]
+    open-pull-requests-limit: 1
+    labels:
+      - "test-ui-notebooks"
