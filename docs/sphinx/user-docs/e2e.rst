@@ -11,7 +11,7 @@ On KinD clusters
 
 Pre-requisite for KinD clusters: please add in your local ``/etc/hosts``
 file ``127.0.0.1 kind``. This will map your localhost IP address to the
-KinD cluster’s hostname. This is already performed on `GitHub
+KinD cluster's hostname. This is already performed on `GitHub
 Actions <https://github.com/project-codeflare/codeflare-common/blob/1edd775e2d4088a5a0bfddafb06ff3a773231c08/github-actions/kind/action.yml#L70-L72>`__
 
 If the system you run on contains NVidia GPU then you can enable the GPU
@@ -91,7 +91,7 @@ instructions <https://www.substratus.ai/blog/kind-with-gpus>`__.
       poetry install --with test,docs
       poetry run pytest -v -s ./tests/e2e/mnist_raycluster_sdk_kind_test.py
 
-   -  If the cluster doesn’t have NVidia GPU support then we need to
+   -  If the cluster doesn't have NVidia GPU support then we need to
       disable NVidia GPU tests by providing proper marker:
 
    ::
@@ -124,8 +124,8 @@ If the system you run on contains NVidia GPU then you can enable the GPU
 support on OpenShift, this will allow you to run also GPU tests. To
 enable GPU on OpenShift follow `these
 instructions <https://docs.nvidia.com/datacenter/cloud-native/openshift/latest/introduction.html>`__.
-Currently the SDK doesn’t support tolerations, so e2e tests can’t be
-executed on nodes with taint (i.e. GPU taint).
+Currently the SDK doesn't support tolerations, so e2e tests can't be
+executed on nodes with taint (i.e. GPU taint).
 
 -  Test Phase:
 
@@ -203,8 +203,9 @@ On OpenShift Disconnected clusters
             AWS_STORAGE_BUCKET=<storage-bucket-name>
             AWS_STORAGE_BUCKET_MNIST_DIR=<storage-bucket-MNIST-datasets-directory>
 
-         Note : When using the Python Minio client to connect to a minio
-         storage bucket, the ``AWS_DEFAULT_ENDPOINT`` environment
-         variable by default expects secure endpoint where user can use
-         endpoint url with https/http prefix for autodetection of
-         secure/insecure endpoint.
+         .. note::
+            When using the Python Minio client to connect to a minio
+            storage bucket, the ``AWS_DEFAULT_ENDPOINT`` environment
+            variable by default expects secure endpoint where user can use
+            endpoint url with https/http prefix for autodetection of
+            secure/insecure endpoint.

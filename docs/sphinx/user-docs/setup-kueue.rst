@@ -11,10 +11,9 @@ Kueue resources, namely Cluster Queue, Resource Flavor, and Local Queue.
 1. Resource Flavor:
 -------------------
 
-Resource Flavors allow the cluster admin to define different types of
-resources with specific characteristics, such as CPU, memory, GPU, etc.
-These can then be assigned to workloads to ensure they are executed on
-appropriate resources.
+Resource Flavors allow the cluster admin to reflect differing resource capabilities
+of nodes within a clusters, such as CPU, memory, GPU, etc. These can then be assigned
+to workloads to ensure they are executed on nodes with appropriate resources.
 
 The YAML configuration provided below creates an empty Resource Flavor
 named default-flavor. It serves as a starting point and does not specify
