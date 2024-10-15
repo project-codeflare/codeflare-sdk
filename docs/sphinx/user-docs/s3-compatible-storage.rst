@@ -82,5 +82,5 @@ Lastly the new ``run_config`` must be added to the Trainer:
 To find more information on creating a Minio Bucket compatible with
 RHOAI you can refer to this
 `documentation <https://ai-on-openshift.io/tools-and-applications/minio/minio/>`__.
-Note: You must have ``sf3s`` and ``pyarrow`` installed in your
+Note: You must have ``s3fs`` and ``pyarrow`` installed in your
 environment for this method.

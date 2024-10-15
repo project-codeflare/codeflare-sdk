@@ -39,7 +39,7 @@ a login command like ``oc login --token=<token> --server=<server>``
 their kubernetes config file should have updated. If the user has not
 specifically authenticated through the SDK by other means such as
 ``TokenAuthentication`` then the SDK will try to use their default
-Kubernetes config file located at ``"/HOME/.kube/config"``.
+Kubernetes config file located at ``"$HOME/.kube/config"``.
 
 Method 3 Specifying a Kubernetes Config File
 --------------------------------------------
@@ -62,5 +62,5 @@ Method 4 In-Cluster Authentication
 ----------------------------------
 
 If a user does not authenticate by any of the means detailed above and
-does not have a config file at ``"/HOME/.kube/config"`` the SDK will try
+does not have a config file at ``"$HOME/.kube/config"`` the SDK will try
 to authenticate with the in-cluster configuration file.
