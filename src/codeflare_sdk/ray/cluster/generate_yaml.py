@@ -18,6 +18,7 @@ This sub-module exists primarily to be used internally by the Cluster object
 """
 
 import json
+import sys
 import typing
 import yaml
 import os
@@ -30,6 +31,11 @@ from ...common.kubernetes_cluster.auth import (
     config_check,
 )
 import codeflare_sdk
+
+SUPPORTED_PYTHON_VERSIONS = {
+    "3.9": "quay.io/modh/ray@sha256:0d715f92570a2997381b7cafc0e224cfa25323f18b9545acfd23bc2b71576d06",
+    "3.11": "quay.io/modh/ray:2.35.0-py311-cu121",
+}
 
 
 def read_template(template):
@@ -88,9 +94,17 @@ def update_names(
 
 def update_image(spec, image):
     containers = spec.get("containers")
-    if image != "":
-        for container in containers:
-            container["image"] = image
+    if not image:
+        python_version = f"{sys.version_info.major}.{sys.version_info.minor}"
+        try:
+            if python_version in SUPPORTED_PYTHON_VERSIONS:
+                image = SUPPORTED_PYTHON_VERSIONS[python_version]
+        except Exception:  # pragma: no cover
+            print(
+                f"Python version '{python_version}' is not supported. Only {', '.join(SUPPORTED_PYTHON_VERSIONS.keys())} are supported."
+            )
+    for container in containers:
+        container["image"] = image
 
 
 def update_image_pull_secrets(spec, image_pull_secrets):
