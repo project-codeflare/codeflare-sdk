@@ -20,6 +20,7 @@ This sub-module exists primarily to be used internally by the Cluster object
 import json
 import sys
 import typing
+import warnings
 import yaml
 import os
 import uuid
@@ -34,7 +35,7 @@ import codeflare_sdk
 
 SUPPORTED_PYTHON_VERSIONS = {
     "3.9": "quay.io/modh/ray@sha256:0d715f92570a2997381b7cafc0e224cfa25323f18b9545acfd23bc2b71576d06",
-    "3.11": "quay.io/modh/ray:2.35.0-py311-cu121",
+    "3.11": "quay.io/modh/ray@sha256:db667df1bc437a7b0965e8031e905d3ab04b86390d764d120e05ea5a5c18d1b4",
 }
 
 
@@ -96,12 +97,11 @@ def update_image(spec, image):
     containers = spec.get("containers")
     if not image:
         python_version = f"{sys.version_info.major}.{sys.version_info.minor}"
-        try:
-            if python_version in SUPPORTED_PYTHON_VERSIONS:
-                image = SUPPORTED_PYTHON_VERSIONS[python_version]
-        except Exception:  # pragma: no cover
-            print(
-                f"Python version '{python_version}' is not supported. Only {', '.join(SUPPORTED_PYTHON_VERSIONS.keys())} are supported."
+        if python_version in SUPPORTED_PYTHON_VERSIONS:
+            image = SUPPORTED_PYTHON_VERSIONS[python_version]
+        else:
+            warnings.warn(
+                f"No default Ray image defined for {python_version}. Please provide your own image or use one of the following python versions: {', '.join(SUPPORTED_PYTHON_VERSIONS.keys())}."
             )
     for container in containers:
         container["image"] = image
