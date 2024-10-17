@@ -16,16 +16,14 @@ The CodeFlare SDK is an intuitive, easy-to-use python interface for batch resour
    modules
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 2
    :caption: User Documentation:
 
    user-docs/authentication
    user-docs/cluster-configuration
-   user-docs/ray-cluster-interaction
    user-docs/e2e
    user-docs/s3-compatible-storage
    user-docs/setup-kueue
-   user-docs/ui-widgets
 
 Quick Links
 ===========
