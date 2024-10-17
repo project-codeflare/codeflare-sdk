@@ -47,8 +47,8 @@ jobs:
           git config --global user.email "138894154+codeflare-machine-account@users.noreply.github.com"
           git config --global user.name "codeflare-machine-account"
           git remote -v
-          git fetch upstream $BRANCH_NAME
           git checkout $BRANCH_NAME
+          git pull upstream $BRANCH_NAME && git push origin $BRANCH_NAME
 
       - name: Setup Python environment
         uses: actions/setup-python@v4
