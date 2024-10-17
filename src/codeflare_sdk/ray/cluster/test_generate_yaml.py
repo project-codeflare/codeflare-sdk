@@ -11,7 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from codeflare_sdk.ray.cluster.generate_yaml import gen_names
+from collections import namedtuple
+import sys
+from .generate_yaml import gen_names, update_image
 import uuid
 
 
@@ -32,3 +34,37 @@ def test_gen_names_without_name(mocker):
     appwrapper_name, cluster_name = gen_names(None)
     assert appwrapper_name.startswith("appwrapper-")
     assert cluster_name.startswith("cluster-")
+
+
+def test_update_image_without_supported_python_version(mocker):
+    # Mock SUPPORTED_PYTHON_VERSIONS
+    mocker.patch.dict(
+        "codeflare_sdk.ray.cluster.generate_yaml.SUPPORTED_PYTHON_VERSIONS",
+        {
+            "3.9": "ray-py3.9",
+            "3.11": "ray-py3.11",
+        },
+    )
+
+    # Create a namedtuple to mock sys.version_info
+    VersionInfo = namedtuple(
+        "version_info", ["major", "minor", "micro", "releaselevel", "serial"]
+    )
+    mocker.patch.object(sys, "version_info", VersionInfo(3, 8, 0, "final", 0))
+
+    # Mock warnings.warn to check if it gets called
+    warn_mock = mocker.patch("warnings.warn")
+
+    # Create a sample spec
+    spec = {"containers": [{"image": None}]}
+
+    # Call the update_image function with no image provided
+    update_image(spec, None)
+
+    # Assert that the warning was called with the expected message
+    warn_mock.assert_called_once_with(
+        "No default Ray image defined for 3.8. Please provide your own image or use one of the following python versions: 3.9, 3.11."
+    )
+
+    # Assert that no image was set in the containers since the Python version is not supported
+    assert spec["containers"][0]["image"] is None
