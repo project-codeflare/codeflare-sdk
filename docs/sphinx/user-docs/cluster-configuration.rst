@@ -30,10 +30,15 @@ requirements for creating the Ray Cluster.
    ))
 
 .. note::
-  `quay.io/modh/ray:2.35.0-py39-cu121` is the default image used by
-  the CodeFlare SDK for creating a RayCluster resource. If you have your
-  own Ray image which suits your purposes, specify it in image field to
-  override the default image. If you are using ROCm compatible GPUs you
+  The default images used by the CodeFlare SDK for creating
+  a RayCluster resource depend on the installed Python version:
+
+  - For Python 3.9: `quay.io/modh/ray:2.35.0-py39-cu121`
+  - For Python 3.11: `quay.io/modh/ray:2.35.0-py311-cu121`
+
+  If you prefer to use a custom Ray image that better suits your
+  needs, you can specify it in the image field to override the default.
+  If you are using ROCm compatible GPUs you
   can use `quay.io/modh/ray:2.35.0-py39-rocm61`. You can also find
   documentation on building a custom image
   `here <https://github.com/opendatahub-io/distributed-workloads/tree/main/images/runtime/examples>`__.
