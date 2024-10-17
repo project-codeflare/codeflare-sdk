@@ -34,8 +34,7 @@ ipywidgets = "8.1.2"
 optional = true
 
 [tool.poetry.group.docs.dependencies]
-sphinx = "7.4.7"
-sphinx-rtd-theme = "2.0.0"
+pdoc3 = "0.10.0"
 
 [tool.poetry.group.test]
 optional = true
