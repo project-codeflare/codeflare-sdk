@@ -54,6 +54,8 @@ jobs:
                   --repo ${{ github.event.inputs.codeflare-repository-organization }}/codeflare-sdk \
                   --ref ${{ github.ref }} \
                   --field codeflare_sdk_release_version=${{ github.event.inputs.release-version }}
+              env:
+                GITHUB_TOKEN: ${{ secrets.CODEFLARE_MACHINE_ACCOUNT_TOKEN }}
             - name: Copy demo notebooks into SDK package
               run: cp -r demo-notebooks src/codeflare_sdk/demo-notebooks
             - name: Run poetry build
