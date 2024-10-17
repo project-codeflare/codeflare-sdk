@@ -73,6 +73,8 @@ jobs:
 
       - name: Setup and start KinD cluster
         uses: ./common/github-actions/kind
+        with:
+          worker-nodes: 1
 
       - name: Install NVidia GPU operator for KinD
         uses: ./common/github-actions/nvidia-gpu-operator
