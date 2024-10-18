@@ -19,6 +19,7 @@ on:
       - '**.adoc'
       - '**.md'
       - 'LICENSE'
+  merge_group:
 
 concurrency:
   group: ${{ github.head_ref }}-${{ github.workflow }}
