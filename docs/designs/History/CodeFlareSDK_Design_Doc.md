@@ -1,3 +1,4 @@
+> 📄 **Note**: This is an older version of the document. The latest version is available [here](../CodeFlare-SDK-design-doc).
 # CodeFlare SDK Design Doc
 
 ## Context and Scope
