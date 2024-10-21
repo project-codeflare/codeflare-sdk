@@ -1,7 +1,7 @@
 import requests
 from time import sleep
 
-from codeflare_sdk import Cluster, ClusterConfiguration, TokenAuthentication
+from codeflare_sdk import Cluster, ClusterConfiguration
 from codeflare_sdk.job import RayJobClient
 
 from tests.e2e.support import *
@@ -35,13 +35,6 @@ class TestMNISTRayClusterUp:
 
     def run_mnist_raycluster_sdk_oauth(self):
         ray_image = get_ray_image()
-
-        auth = TokenAuthentication(
-            token=run_oc_command(["whoami", "--show-token=true"]),
-            server=run_oc_command(["whoami", "--show-server=true"]),
-            skip_tls=True,
-        )
-        auth.login()
 
         cluster = Cluster(
             ClusterConfiguration(
@@ -83,12 +76,6 @@ class TestMNISTRayClusterUp:
 class TestMnistJobSubmit:
     def setup_method(self):
         initialize_kubernetes_client(self)
-        auth = TokenAuthentication(
-            token=run_oc_command(["whoami", "--show-token=true"]),
-            server=run_oc_command(["whoami", "--show-server=true"]),
-            skip_tls=True,
-        )
-        auth.login()
         self.namespace = namespace
         self.cluster = get_cluster("mnist", self.namespace)
         if not self.cluster:
