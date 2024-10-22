@@ -28,10 +28,20 @@ from .. import _kube_api_error_handling
 
 
 def generate_ca_cert(days: int = 30):
-    # Generate base64 encoded ca.key and ca.cert
-    # Similar to:
-    # openssl req -x509 -nodes -newkey rsa:2048 -keyout ca.key -days 1826 -out ca.crt -subj '/CN=root-ca'
-    # base64 -i ca.crt -i ca.key
+    """
+    Generates a self-signed CA certificate and private key, encoded in base64 format.
+
+    Similar to:
+        openssl req -x509 -nodes -newkey rsa:2048 -keyout ca.key -days 1826 -out ca.crt -subj '/CN=root-ca'
+
+    Args:
+        days (int):
+            The number of days for which the CA certificate will be valid. Default is 30.
+
+    Returns:
+        Tuple[str, str]:
+            A tuple containing the base64-encoded private key and CA certificate.
+    """
 
     private_key = rsa.generate_private_key(
         public_exponent=65537,
@@ -79,6 +89,25 @@ def generate_ca_cert(days: int = 30):
 
 
 def get_secret_name(cluster_name, namespace, api_instance):
+    """
+    Retrieves the name of the Kubernetes secret containing the CA certificate for the given Ray cluster.
+
+    Args:
+        cluster_name (str):
+            The name of the Ray cluster.
+        namespace (str):
+            The Kubernetes namespace where the Ray cluster is located.
+        api_instance (client.CoreV1Api):
+            An instance of the Kubernetes CoreV1Api.
+
+    Returns:
+        str:
+            The name of the Kubernetes secret containing the CA certificate.
+
+    Raises:
+        KeyError:
+            If no secret matching the cluster name is found.
+    """
     label_selector = f"ray.openshift.ai/cluster-name={cluster_name}"
     try:
         secrets = api_instance.list_namespaced_secret(
@@ -97,7 +126,26 @@ def get_secret_name(cluster_name, namespace, api_instance):
 
 
 def generate_tls_cert(cluster_name, namespace, days=30):
-    # Create a folder tls-<cluster>-<namespace> and store three files: ca.crt, tls.crt, and tls.key
+    """
+    Generates a TLS certificate and key for a Ray cluster, saving them locally along with the CA certificate.
+
+    Args:
+        cluster_name (str):
+            The name of the Ray cluster.
+        namespace (str):
+            The Kubernetes namespace where the Ray cluster is located.
+        days (int):
+            The number of days for which the TLS certificate will be valid. Default is 30.
+
+    Files Created:
+        - ca.crt: The CA certificate.
+        - tls.crt: The TLS certificate signed by the CA.
+        - tls.key: The private key for the TLS certificate.
+
+    Raises:
+        Exception:
+            If an error occurs while retrieving the CA secret.
+    """
     tls_dir = os.path.join(os.getcwd(), f"tls-{cluster_name}-{namespace}")
     if not os.path.exists(tls_dir):
         os.makedirs(tls_dir)
@@ -181,6 +229,21 @@ def generate_tls_cert(cluster_name, namespace, days=30):
 
 
 def export_env(cluster_name, namespace):
+    """
+    Sets environment variables to configure TLS for a Ray cluster.
+
+    Args:
+        cluster_name (str):
+            The name of the Ray cluster.
+        namespace (str):
+            The Kubernetes namespace where the Ray cluster is located.
+
+    Environment Variables Set:
+        - RAY_USE_TLS: Enables TLS for Ray.
+        - RAY_TLS_SERVER_CERT: Path to the TLS server certificate.
+        - RAY_TLS_SERVER_KEY: Path to the TLS server private key.
+        - RAY_TLS_CA_CERT: Path to the CA certificate.
+    """
     tls_dir = os.path.join(os.getcwd(), f"tls-{cluster_name}-{namespace}")
     os.environ["RAY_USE_TLS"] = "1"
     os.environ["RAY_TLS_SERVER_CERT"] = os.path.join(tls_dir, "tls.crt")
