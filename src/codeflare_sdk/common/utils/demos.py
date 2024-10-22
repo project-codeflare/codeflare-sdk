@@ -13,10 +13,14 @@ def copy_demo_nbs(dir: str = "./demo-notebooks", overwrite: bool = False):
     Any files that exist in the directory that don't match these values will remain untouched.
 
     Args:
-        dir (str): The directory to copy the demo notebooks to. Defaults to "./demo-notebooks". overwrite (bool):
-        overwrite (bool): Whether to overwrite files in the directory if it already exists. Defaults to False.
+        dir (str):
+            The directory to copy the demo notebooks to. Defaults to "./demo-notebooks".
+        overwrite (bool):
+            Whether to overwrite files in the directory if it already exists. Defaults to False.
+
     Raises:
-        FileExistsError: If the directory already exists.
+        FileExistsError:
+            If the directory already exists.
     """
     # does dir exist already?
     if overwrite is False and pathlib.Path(dir).exists():

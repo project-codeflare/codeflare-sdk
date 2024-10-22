@@ -165,8 +165,20 @@ class KubeConfigFileAuthentication(KubeConfiguration):
 
 def config_check() -> str:
     """
-    Function for loading the config file at the default config location ~/.kube/config if the user has not
-    specified their own config file or has logged in with their token and server.
+    Check and load the Kubernetes config from the default location.
+
+    This function checks if a Kubernetes config file exists at the default path
+    (`~/.kube/config`). If none is provided, it tries to load in-cluster config.
+    If the `config_path` global variable is set by an external module (e.g., `auth.py`),
+    this path will be used directly.
+
+    Returns:
+        str:
+            The loaded config path if successful.
+
+    Raises:
+        PermissionError:
+            If no valid credentials or config file is found.
     """
     global config_path
     global api_client
@@ -215,7 +227,16 @@ def _gen_ca_cert_path(ca_cert_path: Optional[str]):
 
 
 def get_api_client() -> client.ApiClient:
-    "This function should load the api client with defaults"
+    """
+    Retrieve the Kubernetes API client with the default configuration.
+
+    This function returns the current API client instance if already loaded,
+    or creates a new API client with the default configuration.
+
+    Returns:
+        client.ApiClient:
+            The Kubernetes API client object.
+    """
     if api_client != None:
         return api_client
     to_return = client.ApiClient()
