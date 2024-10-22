@@ -7,7 +7,7 @@ on:
 
 jobs:
     add-approve-lgtm-label:
-        if: github.actor == 'dependabot[bot]'
+        if: github.actor == 'dependabot[bot]' && contains(github.event.pull_request.labels.*.name, 'dependabot')
         runs-on: ubuntu-latest
         steps:
             - name: Add approve and lgtm labels to Dependabot PR
