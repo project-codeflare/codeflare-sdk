@@ -1,7 +1,7 @@
 import pathlib
 import shutil
 
-package_dir = pathlib.Path(__file__).parent.parent.resolve()
+package_dir = pathlib.Path(__file__).parent.parent.parent.resolve()
 demo_dir = f"{package_dir}/demo-notebooks"
 
 
