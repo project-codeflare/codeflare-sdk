@@ -4,12 +4,22 @@ name: Dependabot Labeler
 
 on:
   pull_request:
+    types: [ labeled, synchronize, opened, reopened ]
 
 jobs:
     add-approve-lgtm-label:
-        if: github.actor == 'dependabot[bot]' && contains(github.event.pull_request.labels.*.name, 'dependabot')
+        if: ${{ github.actor == 'dependabot[bot]' && contains(github.event.pull_request.labels.*.name, 'dependabot') }}
         runs-on: ubuntu-latest
+
+        # Permission required to edit a PR
+        permissions:
+          pull-requests: write
+          issues: write
+
         steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
             - name: Add approve and lgtm labels to Dependabot PR
               run: |
                   gh pr edit ${{ github.event.pull_request.number }} --add-label "lgtm" --add-label "approved"
