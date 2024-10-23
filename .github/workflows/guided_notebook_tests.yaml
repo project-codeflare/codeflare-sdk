@@ -1,5 +1,4 @@
 name: Guided notebooks tests
-# hi
 
 on:
   pull_request:
