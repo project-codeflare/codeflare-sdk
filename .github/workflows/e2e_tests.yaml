@@ -31,7 +31,6 @@ env:
 
 jobs:
   kubernetes:
-    if: contains(github.event.pull_request.labels.*.name, 'e2e') || github.event_name == 'merge_group'
     runs-on: ubuntu-20.04-4core-gpu
 
     steps:

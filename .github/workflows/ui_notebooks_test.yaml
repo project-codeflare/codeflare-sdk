@@ -13,7 +13,7 @@ env:
 
 jobs:
   verify-3_widget_example:
-    if: contains(github.event.pull_request.labels.*.name, 'test-guided-notebooks') || contains(github.event.pull_request.labels.*.name, 'test-ui-notebooks')
+    if: ${{ contains(github.event.pull_request.labels.*.name, 'test-guided-notebooks') || contains(github.event.pull_request.labels.*.name, 'test-ui-notebooks') }}
     runs-on: ubuntu-20.04-4core
 
     steps:
