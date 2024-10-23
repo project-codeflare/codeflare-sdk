@@ -1,3 +1,4 @@
+# e2e tests workflow for CodeFlare-SDK
 name: e2e
 
 on:
