@@ -1151,12 +1151,12 @@
   dependencies:
     exenv-es6 "^1.1.1"
 
-"@playwright/test@^1.32.0", "@playwright/test@^1.43.1":
-  version "1.47.0"
-  resolved "https://registry.npmjs.org/@playwright/test/-/test-1.47.0.tgz#69fc55b10754147cc20021afbfa05747d4961bf0"
-  integrity sha512-SgAdlSwYVpToI4e/IH19IHHWvoijAYH5hu2MWSXptRypLSnzj51PcGD+rsOXFayde4P9ZLi+loXVwArg6IUkCA==
+"@playwright/test@^1.43.1", "@playwright/test@^1.48.1":
+  version "1.48.1"
+  resolved "https://registry.npmjs.org/@playwright/test/-/test-1.48.1.tgz#343e710fcf2e559529e3ec8d7782e09f325b9396"
+  integrity sha512-s9RtWoxkOLmRJdw3oFvhFbs9OJS0BzrLUc8Hf6l2UdCNd1rqeEyD4BhCJkvzeEoD1FsK4mirsWwGerhVmYKtZg==
   dependencies:
-    playwright "1.47.0"
+    playwright "1.48.1"
 
 "@rjsf/core@^5.13.4":
   version "5.21.0"
@@ -2079,17 +2079,17 @@ picocolors@^1.0.1:
   resolved "https://registry.npmjs.org/picocolors/-/picocolors-1.1.0.tgz#5358b76a78cde483ba5cef6a9dc9671440b27d59"
   integrity sha512-TQ92mBOW0l3LeMeyLV6mzy/kWr8lkd/hp3mTg7wYK7zJhuBStmGMBG0BdeDZS/dZx1IukaX6Bk11zcln25o1Aw==
 
-playwright-core@1.47.0:
-  version "1.47.0"
-  resolved "https://registry.npmjs.org/playwright-core/-/playwright-core-1.47.0.tgz#b54ec060fd83e5c2e46b63986b5ebb5e96ace427"
-  integrity sha512-1DyHT8OqkcfCkYUD9zzUTfg7EfTd+6a8MkD/NWOvjo0u/SCNd5YmY/lJwFvUZOxJbWNds+ei7ic2+R/cRz/PDg==
+playwright-core@1.48.1:
+  version "1.48.1"
+  resolved "https://registry.npmjs.org/playwright-core/-/playwright-core-1.48.1.tgz#5fe28fb9a9326dae88d4608c35e819163cceeb23"
+  integrity sha512-Yw/t4VAFX/bBr1OzwCuOMZkY1Cnb4z/doAFSwf4huqAGWmf9eMNjmK7NiOljCdLmxeRYcGPPmcDgU0zOlzP0YA==
 
-playwright@1.47.0:
-  version "1.47.0"
-  resolved "https://registry.npmjs.org/playwright/-/playwright-1.47.0.tgz#fb9b028883fad11362f9ff63ce7ba44bda0bf626"
-  integrity sha512-jOWiRq2pdNAX/mwLiwFYnPHpEZ4rM+fRSQpRHwEwZlP2PUANvL3+aJOF/bvISMhFD30rqMxUB4RJx9aQbfh4Ww==
+playwright@1.48.1:
+  version "1.48.1"
+  resolved "https://registry.npmjs.org/playwright/-/playwright-1.48.1.tgz#2a920cfbec4572c84789e757d8b044baaed49435"
+  integrity sha512-j8CiHW/V6HxmbntOfyB4+T/uk08tBy6ph0MpBXwuoofkSnLmlfdYNNkFTYD6ofzzlSqLA1fwH4vwvVFvJgLN0w==
   dependencies:
-    playwright-core "1.47.0"
+    playwright-core "1.48.1"
   optionalDependencies:
     fsevents "2.3.2"
 
