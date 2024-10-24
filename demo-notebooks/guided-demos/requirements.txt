@@ -1,4 +1,4 @@
 pytorch_lightning==2.2.5
 ray_lightning
 torchmetrics==1.4.0
-torchvision==0.18.0
+torchvision==0.20.0
