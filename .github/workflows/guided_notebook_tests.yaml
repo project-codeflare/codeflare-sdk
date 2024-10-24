@@ -1,4 +1,4 @@
-name: Guided notebooks tests
+name: Guided notebooks testss
 
 on:
   pull_request:
