@@ -1,4 +1,4 @@
-name: UI notebooks tests
+name: UI notebooks testss
 
 on:
   pull_request:
