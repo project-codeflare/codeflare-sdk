@@ -2,7 +2,7 @@ name: Guided notebooks tests
 
 on:
   pull_request:
-    types: [ labeled, synchronize, opened, reopened ]
+    branches: [ main ]
 
 concurrency:
   group: ${{ github.head_ref }}-${{ github.workflow }}
@@ -13,7 +13,7 @@ env:
 
 jobs:
   verify-0_basic_ray:
-    if: contains(github.event.pull_request.labels.*.name, 'test-guided-notebooks')
+    if: ${{ contains(github.event.pull_request.labels.*.name, 'test-guided-notebooks') }}
     runs-on: ubuntu-20.04-4core
 
     steps:
