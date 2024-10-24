@@ -13,7 +13,7 @@ updates:
     ignore:
       - dependency-name: "*"
         update-types: ["version-update:semver-patch"]
-    open-pull-requests-limit: 4
+    open-pull-requests-limit: 1
     labels:
       - "dependabot"
       - "test-guided-notebooks"

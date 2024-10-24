@@ -3,7 +3,6 @@ name: e2e
 
 on:
   pull_request:
-    types: [ labeled, synchronize, opened, reopened ]
     branches:
       - main
       - 'release-*'
@@ -12,16 +11,6 @@ on:
       - '**.adoc'
       - '**.md'
       - 'LICENSE'
-  push:
-    branches:
-      - main
-      - 'release-*'
-    paths-ignore:
-      - 'docs/**'
-      - '**.adoc'
-      - '**.md'
-      - 'LICENSE'
-  merge_group:
 
 concurrency:
   group: ${{ github.head_ref }}-${{ github.workflow }}
@@ -32,7 +21,6 @@ env:
 
 jobs:
   kubernetes:
-    if: contains(github.event.pull_request.labels.*.name, 'e2e') || github.event_name == 'merge_group'
     runs-on: ubuntu-20.04-4core-gpu
 
     steps:
