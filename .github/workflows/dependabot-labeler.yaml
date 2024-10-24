@@ -1,14 +1,15 @@
 # This workflow file adds the 'lgtm' and 'approved' labels to Dependabot PRs
-# This is done to ensure that the PRs that pass e2e are automatically merged/added to merge-queues by the CodeFlare bot
+# This is done to ensure that the PRs that pass required status checks are automatically merged by the CodeFlare bot
 name: Dependabot Labeler
 
 on:
-  pull_request:
-    types: [ labeled, synchronize, opened, reopened ]
+  pull_request_target:
+    # branches: [ main ]
 
+    # CHANGE THIS BACK
 jobs:
     add-approve-lgtm-label:
-        if: ${{ github.actor == 'dependabot[bot]' && contains(github.event.pull_request.labels.*.name, 'dependabot') }}
+        if: ${{ contains(github.event.pull_request.labels.*.name, 'dependabot') }}
         runs-on: ubuntu-latest
 
         # Permission required to edit a PR
@@ -24,4 +25,4 @@ jobs:
               run: |
                   gh pr edit ${{ github.event.pull_request.number }} --add-label "lgtm" --add-label "approved"
               env:
-                GITHUB_TOKEN: ${{ secrets.CODEFLARE_MACHINE_ACCOUNT_TOKEN }}
+                GITHUB_TOKEN: ${{ secrets.GH_CLI_TOKEN }}
