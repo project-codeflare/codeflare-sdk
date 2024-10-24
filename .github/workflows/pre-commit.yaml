@@ -1,13 +1,7 @@
 name: Pre-commit
 on:
-  push:
-    branches:
-      - '**'
-    tags-ignore:
-      - 'v*'
   pull_request:
   workflow_dispatch:
-  merge_group:
 
 jobs:
   precommit:
