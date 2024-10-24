@@ -1,5 +1,5 @@
 # This workflow file adds the 'lgtm' and 'approved' labels to Dependabot PRs
-# This is done to ensure that the PRs that pass e2e are automatically merged/added to merge-queues by the CodeFlare bot
+# This is done to ensure that the PRs that pass e2e are automatically merged/added to merge-queues by the CodeFlare bots
 name: Dependabot Labeler
 
 on:
