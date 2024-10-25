@@ -297,6 +297,9 @@ def test_ray_cluster_manager_widgets_init(mocker, capsys):
         ray_cluster_manager_instance.ray_dashboard_button == mock_button.return_value
     ), "ray_dashboard_button is not set correctly"
     assert (
+        ray_cluster_manager_instance.refresh_data_button == mock_button.return_value
+    ), "refresh_data_button is not set correctly"
+    assert (
         ray_cluster_manager_instance.raycluster_data_output == mock_output.return_value
     ), "raycluster_data_output is not set correctly"
     assert (
@@ -310,6 +313,7 @@ def test_ray_cluster_manager_widgets_init(mocker, capsys):
     mock_delete_button = MagicMock()
     mock_list_jobs_button = MagicMock()
     mock_ray_dashboard_button = MagicMock()
+    mock_refresh_dataframe_button = MagicMock()
 
     mock_javascript = mocker.patch("codeflare_sdk.common.widgets.widgets.Javascript")
     ray_cluster_manager_instance.url_output = MagicMock()
@@ -331,6 +335,12 @@ def test_ray_cluster_manager_widgets_init(mocker, capsys):
     mock_javascript.assert_called_with(
         f'window.open("{mock_dashboard_uri.return_value}/#/jobs", "_blank");'
     )
+
+    # Simulate clicking the refresh data button
+    ray_cluster_manager_instance._on_refresh_data_button_click(
+        mock_refresh_dataframe_button
+    )
+    mock_fetch_cluster_data.assert_called_with(namespace)
 
     # Simulate clicking the Ray dashboard button
     ray_cluster_manager_instance.classification_widget.value = "test-cluster-1"
