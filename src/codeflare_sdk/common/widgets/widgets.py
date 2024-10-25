@@ -74,6 +74,12 @@ class RayClusterManagerWidgets:
             tooltip="Open the Ray Dashboard in a new tab",
             layout=widgets.Layout(width="auto"),
         )
+        self.refresh_data_button = widgets.Button(
+            description="Refresh Data",
+            icon="refresh",
+            tooltip="Refresh the list of Ray Clusters",
+            layout=widgets.Layout(width="auto", left="1em"),
+        )
 
         # Set up interactions
         self._initialize_callbacks()
@@ -94,6 +100,9 @@ class RayClusterManagerWidgets:
         self.list_jobs_button.on_click(lambda b: self._on_list_jobs_button_click(b))
         self.ray_dashboard_button.on_click(
             lambda b: self._on_ray_dashboard_button_click(b)
+        )
+        self.refresh_data_button.on_click(
+            lambda b: self._on_refresh_data_button_click(b)
         )
 
     def _trigger_initial_display(self):
@@ -138,31 +147,17 @@ class RayClusterManagerWidgets:
         _on_delete_button_click handles the event when the Delete Button is clicked, deleting the selected cluster.
         """
         cluster_name = self.classification_widget.value
-        namespace = self.ray_clusters_df[
-            self.ray_clusters_df["Name"] == self.classification_widget.value
-        ]["Namespace"].values[0]
 
-        _delete_cluster(cluster_name, namespace)
+        _delete_cluster(cluster_name, self.namespace)
 
         with self.user_output:
             self.user_output.clear_output()
             print(
-                f"Cluster {cluster_name} in the {namespace} namespace was deleted successfully."
+                f"Cluster {cluster_name} in the {self.namespace} namespace was deleted successfully."
             )
 
         # Refresh the dataframe
-        new_df = _fetch_cluster_data(namespace)
-        self.ray_clusters_df = new_df
-        if new_df.empty:
-            self.classification_widget.close()
-            self.delete_button.close()
-            self.list_jobs_button.close()
-            self.ray_dashboard_button.close()
-            with self.raycluster_data_output:
-                self.raycluster_data_output.clear_output()
-                print(f"No clusters found in the {namespace} namespace.")
-        else:
-            self.classification_widget.options = new_df["Name"].tolist()
+        self._refresh_dataframe()
 
     def _on_list_jobs_button_click(self, b):
         """
@@ -171,15 +166,12 @@ class RayClusterManagerWidgets:
         from codeflare_sdk import Cluster
 
         cluster_name = self.classification_widget.value
-        namespace = self.ray_clusters_df[
-            self.ray_clusters_df["Name"] == self.classification_widget.value
-        ]["Namespace"].values[0]
 
         # Suppress from Cluster Object initialisation widgets and outputs
         with widgets.Output(), contextlib.redirect_stdout(
             io.StringIO()
         ), contextlib.redirect_stderr(io.StringIO()):
-            cluster = Cluster(ClusterConfiguration(cluster_name, namespace))
+            cluster = Cluster(ClusterConfiguration(cluster_name, self.namespace))
         dashboard_url = cluster.cluster_dashboard_uri()
 
         with self.user_output:
@@ -197,15 +189,12 @@ class RayClusterManagerWidgets:
         from codeflare_sdk import Cluster
 
         cluster_name = self.classification_widget.value
-        namespace = self.ray_clusters_df[
-            self.ray_clusters_df["Name"] == self.classification_widget.value
-        ]["Namespace"].values[0]
 
         # Suppress from Cluster Object initialisation widgets and outputs
         with widgets.Output(), contextlib.redirect_stdout(
             io.StringIO()
         ), contextlib.redirect_stderr(io.StringIO()):
-            cluster = Cluster(ClusterConfiguration(cluster_name, namespace))
+            cluster = Cluster(ClusterConfiguration(cluster_name, self.namespace))
         dashboard_url = cluster.cluster_dashboard_uri()
 
         with self.user_output:
@@ -214,11 +203,42 @@ class RayClusterManagerWidgets:
         with self.url_output:
             display(Javascript(f'window.open("{dashboard_url}", "_blank");'))
 
+    def _on_refresh_data_button_click(self, b):
+        """
+        _on_refresh_button_click handles the event when the Refresh Data button is clicked, refreshing the list of Ray Clusters.
+        """
+        self.refresh_data_button.disabled = True
+        self._refresh_dataframe()
+        self.refresh_data_button.disabled = False
+
+    def _refresh_dataframe(self):
+        """
+        _refresh_data function refreshes the list of Ray Clusters.
+        """
+        new_df = _fetch_cluster_data(self.namespace)
+        self.ray_clusters_df = new_df
+        if new_df.empty:
+            self.classification_widget.close()
+            self.delete_button.close()
+            self.list_jobs_button.close()
+            self.ray_dashboard_button.close()
+            self.refresh_data_button.close()
+            with self.raycluster_data_output:
+                self.raycluster_data_output.clear_output()
+                print(f"No clusters found in the {self.namespace} namespace.")
+        else:
+            self.classification_widget.options = new_df["Name"].tolist()
+
     def display_widgets(self):
         display(widgets.VBox([self.classification_widget, self.raycluster_data_output]))
         display(
             widgets.HBox(
-                [self.delete_button, self.list_jobs_button, self.ray_dashboard_button]
+                [
+                    self.delete_button,
+                    self.list_jobs_button,
+                    self.ray_dashboard_button,
+                    self.refresh_data_button,
+                ]
             ),
             self.url_output,
             self.user_output,
