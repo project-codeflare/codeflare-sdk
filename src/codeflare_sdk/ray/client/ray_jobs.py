@@ -24,16 +24,28 @@ from typing import Iterator, Optional, Dict, Any, Union, List
 
 class RayJobClient:
     """
-    A class that functions as a wrapper for the Ray Job Submission Client.
+    A wrapper class for the Ray Job Submission Client, used for interacting with Ray clusters to manage job
+    submissions, deletions, and other job-related information.
 
-    parameters:
-    address -- Either (1) the address of the Ray cluster, or (2) the HTTP address of the dashboard server on the head node, e.g. “http://<head-node-ip>:8265”. In case (1) it must be specified as an address that can be passed to ray.init(),
-    e.g. a Ray Client address (ray://<head_node_host>:10001), or “auto”, or “localhost:<port>”. If unspecified, will try to connect to a running local Ray cluster. This argument is always overridden by the RAY_ADDRESS environment variable.
-    create_cluster_if_needed -- Indicates whether the cluster at the specified address needs to already be running. Ray doesn't start a cluster before interacting with jobs, but third-party job managers may do so.
-    cookies -- Cookies to use when sending requests to the HTTP job server.
-    metadata -- Arbitrary metadata to store along with all jobs. New metadata specified per job will be merged with the global metadata provided here via a simple dict update.
-    headers -- Headers to use when sending requests to the HTTP job server, used for cases like authentication to a remote cluster.
-    verify -- Boolean indication to verify the server's TLS certificate or a path to a file or directory of trusted certificates. Default: True.
+    Args:
+        address (Optional[str]):
+            The Ray cluster's address, which may be either the Ray Client address, HTTP address
+            of the dashboard server on the head node, or "auto" / "localhost:<port>" for a local cluster.
+            This is overridden by the RAY_ADDRESS environment variable if set.
+        create_cluster_if_needed (bool):
+            If True, a new cluster will be created if not already running at the
+            specified address. By default, Ray requires an existing cluster.
+        cookies (Optional[Dict[str, Any]]):
+            HTTP cookies to send with requests to the job server.
+        metadata (Optional[Dict[str, Any]]):
+            Global metadata to store with all jobs, merged with job-specific
+            metadata during job submission.
+        headers (Optional[Dict[str, Any]]):
+            HTTP headers to send with requests to the job server, can be used for
+            authentication.
+        verify (Optional[Union[str, bool]]):
+            If True, verifies the server's TLS certificate. Can also be a path
+            to trusted certificates. Default is True.
     """
 
     def __init__(
@@ -67,18 +79,35 @@ class RayJobClient:
         entrypoint_resources: Optional[Dict[str, float]] = None,
     ) -> str:
         """
-        Method for submitting jobs to a Ray Cluster and returning the job id with entrypoint being a mandatory field.
+        Submits a job to the Ray cluster with specified resources and returns the job ID.
 
-        Parameters:
-        entrypoint -- The shell command to run for this job.
-        submission_id -- A unique ID for this job.
-        runtime_env -- The runtime environment to install and run this job in.
-        metadata -- Arbitrary data to store along with this job.
-        job_id -- DEPRECATED. This has been renamed to submission_id
-        entrypoint_num_cpus -- The quantity of CPU cores to reserve for the execution of the entrypoint command, separately from any tasks or actors launched by it. Defaults to 0.
-        entrypoint_num_gpus -- The quantity of GPUs to reserve for the execution of the entrypoint command, separately from any tasks or actors launched by it. Defaults to 0.
-        entrypoint_memory –- The quantity of memory to reserve for the execution of the entrypoint command, separately from any tasks or actors launched by it. Defaults to 0.
-        entrypoint_resources -- The quantity of custom resources to reserve for the execution of the entrypoint command, separately from any tasks or actors launched by it.
+        Args:
+            entrypoint (str):
+                The command to execute for this job.
+            job_id (Optional[str]):
+                Deprecated, use `submission_id`. A unique job identifier.
+            runtime_env (Optional[Dict[str, Any]]):
+                The runtime environment for this job.
+            metadata (Optional[Dict[str, str]]):
+                Metadata associated with the job, merged with global metadata.
+            submission_id (Optional[str]):
+                Unique ID for the job submission.
+            entrypoint_num_cpus (Optional[Union[int, float]]):
+                The quantity of CPU cores to reserve for the execution of the entrypoint command,
+                separately from any tasks or actors launched by it. Defaults to 0.
+            entrypoint_num_gpus (Optional[Union[int, float]]):
+                The quantity of GPUs to reserve for the execution of the entrypoint command,
+                separately from any tasks or actors launched by it. Defaults to 0.
+            entrypoint_memory (Optional[int]):
+                The quantity of memory to reserve for the execution of the entrypoint command,
+                separately from any tasks or actors launched by it. Defaults to 0.
+            entrypoint_resources (Optional[Dict[str, float]]):
+                The quantity of custom resources to reserve for the execution of the entrypoint command,
+                separately from any tasks or actors launched by it.
+
+        Returns:
+            str:
+                The unique identifier for the submitted job.
         """
         return self.rayJobClient.submit_job(
             entrypoint=entrypoint,
@@ -94,7 +123,15 @@ class RayJobClient:
 
     def delete_job(self, job_id: str) -> (bool, str):
         """
-        Method for deleting jobs with the job id being a mandatory field.
+        Deletes a job by job ID.
+
+        Args:
+            job_id (str):
+                The unique identifier of the job to delete.
+
+        Returns:
+            tuple(bool, str):
+                A tuple with deletion status and a message.
         """
         deletion_status = self.rayJobClient.delete_job(job_id=job_id)
 
@@ -107,37 +144,77 @@ class RayJobClient:
 
     def get_address(self) -> str:
         """
-        Method for getting the address from the RayJobClient
+        Retrieves the address of the connected Ray cluster.
+
+        Returns:
+            str:
+                The Ray cluster's address.
         """
         return self.rayJobClient.get_address()
 
     def get_job_info(self, job_id: str):
         """
-        Method for getting the job info with the job id being a mandatory field.
+        Fetches information about a job by job ID.
+
+        Args:
+            job_id (str):
+                The unique identifier of the job.
+
+        Returns:
+            JobInfo:
+                Information about the job's status, progress, and other details.
         """
         return self.rayJobClient.get_job_info(job_id=job_id)
 
     def get_job_logs(self, job_id: str) -> str:
         """
-        Method for getting the job logs with the job id being a mandatory field.
+        Retrieves the logs for a specific job by job ID.
+
+        Args:
+            job_id (str):
+                The unique identifier of the job.
+
+        Returns:
+            str:
+                Logs output from the job.
         """
         return self.rayJobClient.get_job_logs(job_id=job_id)
 
     def get_job_status(self, job_id: str) -> str:
         """
-        Method for getting the job's status with the job id being a mandatory field.
+        Fetches the current status of a job by job ID.
+
+        Args:
+            job_id (str):
+                The unique identifier of the job.
+
+        Returns:
+            str:
+                The job's status.
         """
         return self.rayJobClient.get_job_status(job_id=job_id)
 
     def list_jobs(self) -> List[JobDetails]:
         """
-        Method for getting a list of current jobs in the Ray Cluster.
+        Lists all current jobs in the Ray cluster.
+
+        Returns:
+            List[JobDetails]:
+                A list of job details for each current job in the cluster.
         """
         return self.rayJobClient.list_jobs()
 
     def stop_job(self, job_id: str) -> (bool, str):
         """
-        Method for stopping a job with the job id being a mandatory field.
+        Stops a running job by job ID.
+
+        Args:
+            job_id (str):
+                The unique identifier of the job to stop.
+
+        Returns:
+            tuple(bool, str):
+                A tuple with the stop status and a message.
         """
         stop_job_status = self.rayJobClient.stop_job(job_id=job_id)
         if stop_job_status:
@@ -148,6 +225,14 @@ class RayJobClient:
 
     def tail_job_logs(self, job_id: str) -> Iterator[str]:
         """
-        Method for getting an iterator that follows the logs of a job with the job id being a mandatory field.
+        Continuously streams the logs of a job.
+
+        Args:
+            job_id (str):
+                The unique identifier of the job.
+
+        Returns:
+            Iterator[str]:
+                An iterator that yields log entries in real-time.
         """
         return self.rayJobClient.tail_job_logs(job_id=job_id)
