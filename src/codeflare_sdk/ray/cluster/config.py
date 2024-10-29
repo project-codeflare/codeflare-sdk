@@ -44,29 +44,51 @@ class ClusterConfiguration:
     This dataclass is used to specify resource requirements and other details, and
     is passed in as an argument when creating a Cluster object.
 
-    Attributes:
-    - name: The name of the cluster.
-    - namespace: The namespace in which the cluster should be created.
-    - head_cpus: The number of CPUs to allocate to the head node.
-    - head_memory: The amount of memory to allocate to the head node.
-    - head_gpus: The number of GPUs to allocate to the head node. (Deprecated, use head_extended_resource_requests)
-    - head_extended_resource_requests: A dictionary of extended resource requests for the head node. ex: {"nvidia.com/gpu": 1}
-    - min_cpus: The minimum number of CPUs to allocate to each worker.
-    - max_cpus: The maximum number of CPUs to allocate to each worker.
-    - num_workers: The number of workers to create.
-    - min_memory: The minimum amount of memory to allocate to each worker.
-    - max_memory: The maximum amount of memory to allocate to each worker.
-    - num_gpus: The number of GPUs to allocate to each worker. (Deprecated, use worker_extended_resource_requests)
-    - appwrapper: A boolean indicating whether to use an AppWrapper.
-    - envs: A dictionary of environment variables to set for the cluster.
-    - image: The image to use for the cluster.
-    - image_pull_secrets: A list of image pull secrets to use for the cluster.
-    - write_to_file: A boolean indicating whether to write the cluster configuration to a file.
-    - verify_tls: A boolean indicating whether to verify TLS when connecting to the cluster.
-    - labels: A dictionary of labels to apply to the cluster.
-    - worker_extended_resource_requests: A dictionary of extended resource requests for each worker. ex: {"nvidia.com/gpu": 1}
-    - extended_resource_mapping: A dictionary of custom resource mappings to map extended resource requests to RayCluster resource names
-    - overwrite_default_resource_mapping: A boolean indicating whether to overwrite the default resource mapping.
+    Args:
+        name:
+            The name of the cluster.
+        namespace:
+            The namespace in which the cluster should be created.
+        head_cpus:
+            The number of CPUs to allocate to the head node.
+        head_memory:
+            The amount of memory to allocate to the head node.
+        head_gpus:
+            The number of GPUs to allocate to the head node. (Deprecated, use head_extended_resource_requests)
+        head_extended_resource_requests:
+            A dictionary of extended resource requests for the head node. ex: {"nvidia.com/gpu": 1}
+        min_cpus:
+            The minimum number of CPUs to allocate to each worker.
+        max_cpus:
+            The maximum number of CPUs to allocate to each worker.
+        num_workers:
+            The number of workers to create.
+        min_memory:
+            The minimum amount of memory to allocate to each worker.
+        max_memory:
+            The maximum amount of memory to allocate to each worker.
+        num_gpus:
+            The number of GPUs to allocate to each worker. (Deprecated, use worker_extended_resource_requests)
+        appwrapper:
+            A boolean indicating whether to use an AppWrapper.
+        envs:
+            A dictionary of environment variables to set for the cluster.
+        image:
+            The image to use for the cluster.
+        image_pull_secrets:
+            A list of image pull secrets to use for the cluster.
+        write_to_file:
+            A boolean indicating whether to write the cluster configuration to a file.
+        verify_tls:
+            A boolean indicating whether to verify TLS when connecting to the cluster.
+        labels:
+            A dictionary of labels to apply to the cluster.
+        worker_extended_resource_requests:
+            A dictionary of extended resource requests for each worker. ex: {"nvidia.com/gpu": 1}
+        extended_resource_mapping:
+            A dictionary of custom resource mappings to map extended resource requests to RayCluster resource names
+        overwrite_default_resource_mapping:
+            A boolean indicating whether to overwrite the default resource mapping.
     """
 
     name: str

@@ -296,6 +296,17 @@ class Cluster:
         return status, ready
 
     def is_dashboard_ready(self) -> bool:
+        """
+        Checks if the cluster's dashboard is ready and accessible.
+
+        This method attempts to send a GET request to the cluster dashboard URI.
+        If the request is successful (HTTP status code 200), it returns True.
+        If an SSL error occurs, it returns False, indicating the dashboard is not ready.
+
+        Returns:
+            bool:
+                True if the dashboard is ready, False otherwise.
+        """
         try:
             response = requests.get(
                 self.cluster_dashboard_uri(),
@@ -313,8 +324,22 @@ class Cluster:
 
     def wait_ready(self, timeout: Optional[int] = None, dashboard_check: bool = True):
         """
-        Waits for requested cluster to be ready, up to an optional timeout (s).
-        Checks every five seconds.
+        Waits for the requested cluster to be ready, up to an optional timeout.
+
+        This method checks the status of the cluster every five seconds until it is
+        ready or the timeout is reached. If dashboard_check is enabled, it will also
+        check for the readiness of the dashboard.
+
+        Args:
+            timeout (Optional[int]):
+                The maximum time to wait for the cluster to be ready in seconds. If None, waits indefinitely.
+            dashboard_check (bool):
+                Flag to determine if the dashboard readiness should
+                be checked. Defaults to True.
+
+        Raises:
+            TimeoutError:
+                If the timeout is reached before the cluster or dashboard is ready.
         """
         print("Waiting for requested resources to be set up...")
         time = 0
@@ -346,6 +371,21 @@ class Cluster:
             time += 5
 
     def details(self, print_to_console: bool = True) -> RayCluster:
+        """
+        Retrieves details about the Ray Cluster.
+
+        This method returns a copy of the Ray Cluster information and optionally prints
+        the details to the console.
+
+        Args:
+            print_to_console (bool):
+                Flag to determine if the cluster details should be
+                printed to the console. Defaults to True.
+
+        Returns:
+            RayCluster:
+                A copy of the Ray Cluster details.
+        """
         cluster = _copy_to_ray(self)
         if print_to_console:
             pretty_print.print_clusters([cluster])
@@ -447,6 +487,13 @@ class Cluster:
         return head_extended_resources, worker_extended_resources
 
     def local_client_url(self):
+        """
+        Constructs the URL for the local Ray client.
+
+        Returns:
+            str:
+                The Ray client URL based on the ingress domain.
+        """
         ingress_domain = _get_ingress_domain(self)
         return f"ray://{ingress_domain}"
 
@@ -504,6 +551,13 @@ def list_all_queued(
 
 
 def get_current_namespace():  # pragma: no cover
+    """
+    Retrieves the current Kubernetes namespace.
+
+    Returns:
+        str:
+            The current namespace or None if not found.
+    """
     if os.path.isfile("/var/run/secrets/kubernetes.io/serviceaccount/namespace"):
         try:
             file = open("/var/run/secrets/kubernetes.io/serviceaccount/namespace", "r")
@@ -528,26 +582,29 @@ def get_cluster(
     verify_tls: bool = True,
     write_to_file: bool = False,
 ):
-    """Returns the given Ray Cluster/AppWrapper as a Cluster Object
+    """
+    Retrieves an existing Ray Cluster or AppWrapper as a Cluster object.
 
-    The get_cluster() method is used for retrieving a Ray Cluster that already exists in your K8s Cluster.
-    Returned is a basic Cluster object which includes the exact yaml for your Ray Cluster under Cluster.resource_yaml.
+    This function fetches an existing Ray Cluster or AppWrapper from the Kubernetes cluster and returns
+    it as a `Cluster` object, including its YAML configuration under `Cluster.resource_yaml`.
 
-    Parameters
-    ----------
-    cluster_name : str
-        The name of the Ray Cluster/AppWrapper
-    namespace : str
-        The namespace of the Ray Cluster/AppWrapper
-    verify_tls : bool
-        A boolean indicating whether to verify TLS when connecting to the cluster
-    write_to_file : bool
-        A boolean indicating whether or not to write the resource to a Yaml file
+    Args:
+        cluster_name (str):
+            The name of the Ray Cluster or AppWrapper.
+        namespace (str, optional):
+            The Kubernetes namespace where the Ray Cluster or AppWrapper is located. Default is "default".
+        verify_tls (bool, optional):
+            Whether to verify TLS when connecting to the cluster. Default is True.
+        write_to_file (bool, optional):
+            If True, writes the resource configuration to a YAML file. Default is False.
 
-    Raises
-    ------
-    Exception
-        If the Ray Cluster/AppWrapper cannot be found/does not exist
+    Returns:
+        Cluster:
+            A Cluster object representing the retrieved Ray Cluster or AppWrapper.
+
+    Raises:
+        Exception:
+            If the Ray Cluster or AppWrapper cannot be found or does not exist.
     """
     config_check()
     api_instance = client.CustomObjectsApi(get_api_client())
