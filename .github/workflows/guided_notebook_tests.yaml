@@ -124,7 +124,7 @@ jobs:
             ${{ env.TEMP_DIR }}/**/*.log
 
   verify-1_cluster_job_client:
-    if: ${{ github.event.label.name == 'test-guided-notebooks' }}
+    if: ${{ contains(github.event.pull_request.labels.*.name, 'test-guided-notebooks') }}
     runs-on: ubuntu-20.04-4core-gpu
 
     steps:
@@ -246,7 +246,7 @@ jobs:
             ${{ env.TEMP_DIR }}/**/*.log
 
   verify-2_basic_interactive:
-    if: ${{ github.event.label.name == 'test-guided-notebooks' }}
+    if: ${{ contains(github.event.pull_request.labels.*.name, 'test-guided-notebooks') }}
     runs-on: ubuntu-20.04-4core-gpu
 
     steps:
