@@ -39,13 +39,15 @@ requests and limits along with the clusters status.
 
 Above is a list of two Ray Clusters ``raytest`` and ``raytest2`` each of
 those headings is clickable and will update the table to view the
-selected Cluster's information. There are three buttons under the table
-``Cluster Down``, ``View Jobs`` and ``Open Ray Dashboard``. \* The
+selected Cluster's information. There are four buttons under the table
+``Cluster Down``, ``View Jobs``, ``Open Ray Dashboard``, and ``Refresh Data``. \* The
 ``Cluster Down`` button will delete the selected Cluster. \* The
 ``View Jobs`` button will try to open the Ray Dashboard's Jobs view in a
 Web Browser. The link will also be printed to the console. \* The
 ``Open Ray Dashboard`` button will try to open the Ray Dashboard view in
-a Web Browser. The link will also be printed to the console.
+a Web Browser. The link will also be printed to the console. \* The
+``Refresh Data`` button will refresh the list of RayClusters, the spec, and
+the status of the Ray Cluster.
 
 The UI Table can be viewed by calling the following function.
 

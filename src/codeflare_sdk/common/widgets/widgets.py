@@ -119,28 +119,8 @@ class RayClusterManagerWidgets:
         _on_cluster_click handles the event when a cluster is selected from the toggle buttons, updating the output with cluster details.
         """
         new_value = selection_change["new"]
-        self.raycluster_data_output.clear_output()
-        ray_clusters_df = _fetch_cluster_data(self.namespace)
-        self.classification_widget.options = ray_clusters_df["Name"].tolist()
-        with self.raycluster_data_output:
-            display(
-                HTML(
-                    ray_clusters_df[ray_clusters_df["Name"] == new_value][
-                        [
-                            "Name",
-                            "Namespace",
-                            "Num Workers",
-                            "Head GPUs",
-                            "Head CPU Req~Lim",
-                            "Head Memory Req~Lim",
-                            "Worker GPUs",
-                            "Worker CPU Req~Lim",
-                            "Worker Memory Req~Lim",
-                            "status",
-                        ]
-                    ].to_html(escape=False, index=False, border=2)
-                )
-            )
+        self.classification_widget.value = new_value
+        self._refresh_dataframe()
 
     def _on_delete_button_click(self, b):
         """
@@ -215,9 +195,8 @@ class RayClusterManagerWidgets:
         """
         _refresh_data function refreshes the list of Ray Clusters.
         """
-        new_df = _fetch_cluster_data(self.namespace)
-        self.ray_clusters_df = new_df
-        if new_df.empty:
+        self.ray_clusters_df = _fetch_cluster_data(self.namespace)
+        if self.ray_clusters_df.empty:
             self.classification_widget.close()
             self.delete_button.close()
             self.list_jobs_button.close()
@@ -227,7 +206,54 @@ class RayClusterManagerWidgets:
                 self.raycluster_data_output.clear_output()
                 print(f"No clusters found in the {self.namespace} namespace.")
         else:
-            self.classification_widget.options = new_df["Name"].tolist()
+            # Store the current selection if it still exists (Was not previously deleted).
+            selected_cluster = (
+                self.classification_widget.value
+                if self.classification_widget.value
+                in self.ray_clusters_df["Name"].tolist()
+                else None
+            )
+
+            # Update list of Ray Clusters.
+            self.classification_widget.options = self.ray_clusters_df["Name"].tolist()
+
+            # If the selected cluster exists, preserve the selection to remain viewing the currently selected cluster.
+            # If it does not exist, default to the first available cluster.
+            if selected_cluster:
+                self.classification_widget.value = selected_cluster
+            else:
+                self.classification_widget.value = self.ray_clusters_df["Name"].iloc[0]
+
+            # Update the output with the current Ray Cluster details.
+            self._display_cluster_details()
+
+    def _display_cluster_details(self):
+        """
+        _display_cluster_details function displays the selected cluster details in the output widget.
+        """
+        self.raycluster_data_output.clear_output()
+        selected_cluster = self.ray_clusters_df[
+            self.ray_clusters_df["Name"] == self.classification_widget.value
+        ]
+        with self.raycluster_data_output:
+            display(
+                HTML(
+                    selected_cluster[
+                        [
+                            "Name",
+                            "Namespace",
+                            "Num Workers",
+                            "Head GPUs",
+                            "Head CPU Req~Lim",
+                            "Head Memory Req~Lim",
+                            "Worker GPUs",
+                            "Worker CPU Req~Lim",
+                            "Worker Memory Req~Lim",
+                            "status",
+                        ]
+                    ].to_html(escape=False, index=False, border=2)
+                )
+            )
 
     def display_widgets(self):
         display(widgets.VBox([self.classification_widget, self.raycluster_data_output]))

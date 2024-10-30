@@ -36,6 +36,8 @@ test.describe("Visual Regression", () => {
 
     // Hide the cell toolbar before capturing the screenshots
     await page.addStyleTag({ content: '.jp-cell-toolbar { display: none !important; }' });
+    // Hide the file explorer
+    await page.keyboard.press('Control+Shift+F');
 
     const captures: (Buffer | null)[] = []; // Array to store cell screenshots
     const cellCount = await page.notebook.getCellCount();
@@ -109,30 +111,48 @@ test.describe("Visual Regression", () => {
 
     await runPreviousCell(page, cellCount, '(<CodeFlareClusterStatus.UNKNOWN: 6>, False)');
 
-    // view_clusters table with buttons
-    await interactWithWidget(page, upDownWidgetCellIndex, 'input[type="checkbox"]', async (checkbox) => {
-      await checkbox.click();
-      const isChecked = await checkbox.isChecked();
-      expect(isChecked).toBe(false);
-    });
+    // Replace text in ClusterConfiguration to run a new RayCluster
+    const cell = page.getByText('raytest').first();
+    await cell.fill('"raytest-1"');
+    await page.notebook.runCell(cellCount - 3, true); // Run ClusterConfiguration cell
 
     await interactWithWidget(page, upDownWidgetCellIndex, 'button:has-text("Cluster Up")', async (button) => {
       await button.click();
-      const successMessage = await page.waitForSelector('text=Ray Cluster: \'raytest\' has successfully been created', { timeout: 10000 });
+      const successMessage = await page.waitForSelector('text=Ray Cluster: \'raytest-1\' has successfully been created', { timeout: 10000 });
       expect(successMessage).not.toBeNull();
     });
 
     const viewClustersCellIndex = 4; // 5 on OpenShift
     await page.notebook.runCell(cellCount - 2, true);
+
+    // Wait until the RayCluster status in the table updates to "Ready"
+    await interactWithWidget(page, viewClustersCellIndex, 'button:has-text("Refresh Data")', async (button) => {
+      let clusterReady = false;
+      const maxRefreshRetries = 24; // 24 retries * 5 seconds = 120 seconds
+      let numRefreshRetries = 0;
+      while (!clusterReady && numRefreshRetries < maxRefreshRetries) {
+        await button.click();
+        try {
+          await page.waitForSelector('text=Ready ✓', { timeout: 5000 });
+          clusterReady = true;
+        }
+        catch (e) {
+          console.log(`Cluster not ready yet. Retrying...`);
+          numRefreshRetries++;
+        }
+      }
+      expect(clusterReady).toBe(true);
+    });
+
     await interactWithWidget(page, viewClustersCellIndex, 'button:has-text("Open Ray Dashboard")', async (button) => {
       await button.click();
-      const successMessage = await page.waitForSelector('text=Opening Ray Dashboard for raytest cluster', { timeout: 5000 });
+      const successMessage = await page.waitForSelector('text=Opening Ray Dashboard for raytest-1 cluster', { timeout: 5000 });
       expect(successMessage).not.toBeNull();
     });
 
     await interactWithWidget(page, viewClustersCellIndex, 'button:has-text("View Jobs")', async (button) => {
       await button.click();
-      const successMessage = await page.waitForSelector('text=Opening Ray Jobs Dashboard for raytest cluster', { timeout: 5000 });
+      const successMessage = await page.waitForSelector('text=Opening Ray Jobs Dashboard for raytest-1 cluster', { timeout: 5000 });
       expect(successMessage).not.toBeNull();
     });
 
@@ -141,7 +161,7 @@ test.describe("Visual Regression", () => {
 
       const noClustersMessage = await page.waitForSelector(`text=No clusters found in the ${namespace} namespace.`, { timeout: 5000 });
       expect(noClustersMessage).not.toBeNull();
-      const successMessage = await page.waitForSelector(`text=Cluster raytest in the ${namespace} namespace was deleted successfully.`, { timeout: 5000 });
+      const successMessage = await page.waitForSelector(`text=Cluster raytest-1 in the ${namespace} namespace was deleted successfully.`, { timeout: 5000 });
       expect(successMessage).not.toBeNull();
     });
 
