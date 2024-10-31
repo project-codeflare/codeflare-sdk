@@ -47,19 +47,16 @@ class ClusterConfiguration:
     Attributes:
     - name: The name of the cluster.
     - namespace: The namespace in which the cluster should be created.
-    - head_info: A list of strings containing information about the head node.
     - head_cpus: The number of CPUs to allocate to the head node.
     - head_memory: The amount of memory to allocate to the head node.
     - head_gpus: The number of GPUs to allocate to the head node. (Deprecated, use head_extended_resource_requests)
     - head_extended_resource_requests: A dictionary of extended resource requests for the head node. ex: {"nvidia.com/gpu": 1}
-    - machine_types: A list of machine types to use for the cluster.
     - min_cpus: The minimum number of CPUs to allocate to each worker.
     - max_cpus: The maximum number of CPUs to allocate to each worker.
     - num_workers: The number of workers to create.
     - min_memory: The minimum amount of memory to allocate to each worker.
     - max_memory: The maximum amount of memory to allocate to each worker.
     - num_gpus: The number of GPUs to allocate to each worker. (Deprecated, use worker_extended_resource_requests)
-    - template: The path to the template file to use for the cluster.
     - appwrapper: A boolean indicating whether to use an AppWrapper.
     - envs: A dictionary of environment variables to set for the cluster.
     - image: The image to use for the cluster.
@@ -74,7 +71,6 @@ class ClusterConfiguration:
 
     name: str
     namespace: Optional[str] = None
-    head_info: List[str] = field(default_factory=list)
     head_cpu_requests: Union[int, str] = 2
     head_cpu_limits: Union[int, str] = 2
     head_cpus: Optional[Union[int, str]] = None  # Deprecating
@@ -85,9 +81,6 @@ class ClusterConfiguration:
     head_extended_resource_requests: Dict[str, Union[str, int]] = field(
         default_factory=dict
     )
-    machine_types: List[str] = field(
-        default_factory=list
-    )  # ["m4.xlarge", "g4dn.xlarge"]
     worker_cpu_requests: Union[int, str] = 1
     worker_cpu_limits: Union[int, str] = 1
     min_cpus: Optional[Union[int, str]] = None  # Deprecating
@@ -98,7 +91,6 @@ class ClusterConfiguration:
     min_memory: Optional[Union[int, str]] = None  # Deprecating
     max_memory: Optional[Union[int, str]] = None  # Deprecating
     num_gpus: Optional[int] = None  # Deprecating
-    template: str = f"{dir}/templates/base-template.yaml"
     appwrapper: bool = False
     envs: Dict[str, str] = field(default_factory=dict)
     image: str = ""
