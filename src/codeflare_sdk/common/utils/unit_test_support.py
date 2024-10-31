@@ -20,6 +20,7 @@ import os
 import yaml
 from pathlib import Path
 from kubernetes import client
+from unittest.mock import patch
 
 parent = Path(__file__).resolve().parents[4]  # project directory
 aw_dir = os.path.expanduser("~/.codeflare/resources/")
@@ -381,3 +382,38 @@ def mocked_ingress(port, cluster_name="unit-test-cluster", annotations: dict = N
         ),
     )
     return mock_ingress
+
+
+@patch.dict("os.environ", {"NB_PREFIX": "test-prefix"})
+def create_cluster_all_config_params(mocker, cluster_name, is_appwrapper) -> Cluster:
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
+        return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
+    )
+
+    config = ClusterConfiguration(
+        name=cluster_name,
+        namespace="ns",
+        head_cpu_requests=4,
+        head_cpu_limits=8,
+        head_memory_requests=12,
+        head_memory_limits=16,
+        head_extended_resource_requests={"nvidia.com/gpu": 1, "intel.com/gpu": 2},
+        worker_cpu_requests=4,
+        worker_cpu_limits=8,
+        num_workers=10,
+        worker_memory_requests=12,
+        worker_memory_limits=16,
+        appwrapper=is_appwrapper,
+        envs={"key1": "value1", "key2": "value2"},
+        image="example/ray:tag",
+        image_pull_secrets=["secret1", "secret2"],
+        write_to_file=True,
+        verify_tls=True,
+        labels={"key1": "value1", "key2": "value2"},
+        worker_extended_resource_requests={"nvidia.com/gpu": 1},
+        extended_resource_mapping={"example.com/gpu": "GPU", "intel.com/gpu": "TPU"},
+        overwrite_default_resource_mapping=True,
+        local_queue="local-queue-default",
+    )
+    return Cluster(config)

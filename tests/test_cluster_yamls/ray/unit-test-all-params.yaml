@@ -13,7 +13,6 @@ metadata:
 spec:
   autoscalerOptions:
     idleTimeoutSeconds: 60
-    imagePullPolicy: Always
     resources:
       limits:
         cpu: 500m
@@ -29,14 +28,16 @@ spec:
       block: 'true'
       dashboard-host: 0.0.0.0
       num-gpus: '1'
-      resources: '"{}"'
+      resources: '"{\"TPU\": 2}"'
     serviceType: ClusterIP
     template:
       spec:
         containers:
-        - env: &id001
-            key1: value1
-            key2: value2
+        - env:
+          - name: key1
+            value: value1
+          - name: key2
+            value: value2
           image: example/ray:tag
           imagePullPolicy: Always
           lifecycle:
@@ -57,10 +58,12 @@ spec:
           resources:
             limits:
               cpu: 8
+              intel.com/gpu: 2
               memory: 16G
               nvidia.com/gpu: 1
             requests:
               cpu: 4
+              intel.com/gpu: 2
               memory: 12G
               nvidia.com/gpu: 1
           volumeMounts:
@@ -105,15 +108,15 @@ spec:
       resources: '"{}"'
     replicas: 10
     template:
-      metadata:
-        annotations:
-          key: value
-        labels:
-          key: value
       spec:
         containers:
-        - env: *id001
+        - env:
+          - name: key1
+            value: value1
+          - name: key2
+            value: value2
           image: example/ray:tag
+          imagePullPolicy: Always
           lifecycle:
             preStop:
               exec:

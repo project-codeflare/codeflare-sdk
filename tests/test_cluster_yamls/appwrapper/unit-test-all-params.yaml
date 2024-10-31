@@ -1,7 +1,9 @@
 apiVersion: workload.codeflare.dev/v1beta2
 kind: AppWrapper
 metadata:
-  name: default-appwrapper
+  labels:
+    kueue.x-k8s.io/queue-name: local-queue-default
+  name: aw-all-params
   namespace: ns
 spec:
   components:
@@ -9,9 +11,13 @@ spec:
       apiVersion: ray.io/v1
       kind: RayCluster
       metadata:
+        annotations:
+          app.kubernetes.io/managed-by: test-prefix
         labels:
           controller-tools.k8s.io: '1.0'
-        name: default-appwrapper
+          key1: value1
+          key2: value2
+        name: aw-all-params
         namespace: ns
       spec:
         autoscalerOptions:
@@ -30,13 +36,18 @@ spec:
           rayStartParams:
             block: 'true'
             dashboard-host: 0.0.0.0
-            num-gpus: '0'
-            resources: '"{}"'
+            num-gpus: '1'
+            resources: '"{\"TPU\": 2}"'
           serviceType: ClusterIP
           template:
             spec:
               containers:
-              - image: quay.io/modh/ray@sha256:0d715f92570a2997381b7cafc0e224cfa25323f18b9545acfd23bc2b71576d06
+              - env:
+                - name: key1
+                  value: value1
+                - name: key2
+                  value: value2
+                image: example/ray:tag
                 imagePullPolicy: Always
                 lifecycle:
                   preStop:
@@ -55,11 +66,15 @@ spec:
                   name: client
                 resources:
                   limits:
-                    cpu: 2
-                    memory: 8G
+                    cpu: 8
+                    intel.com/gpu: 2
+                    memory: 16G
+                    nvidia.com/gpu: 1
                   requests:
-                    cpu: 2
-                    memory: 8G
+                    cpu: 4
+                    intel.com/gpu: 2
+                    memory: 12G
+                    nvidia.com/gpu: 1
                 volumeMounts:
                 - mountPath: /etc/pki/tls/certs/odh-trusted-ca-bundle.crt
                   name: odh-trusted-ca-cert
@@ -73,6 +88,9 @@ spec:
                 - mountPath: /etc/ssl/certs/odh-ca-bundle.crt
                   name: odh-ca-cert
                   subPath: odh-ca-bundle.crt
+              imagePullSecrets:
+              - name: secret1
+              - name: secret2
               volumes:
               - configMap:
                   items:
@@ -90,18 +108,23 @@ spec:
                 name: odh-ca-cert
         rayVersion: 2.35.0
         workerGroupSpecs:
-        - groupName: small-group-default-appwrapper
-          maxReplicas: 1
-          minReplicas: 1
+        - groupName: small-group-aw-all-params
+          maxReplicas: 10
+          minReplicas: 10
           rayStartParams:
             block: 'true'
-            num-gpus: '0'
+            num-gpus: '1'
             resources: '"{}"'
-          replicas: 1
+          replicas: 10
           template:
             spec:
               containers:
-              - image: quay.io/modh/ray@sha256:0d715f92570a2997381b7cafc0e224cfa25323f18b9545acfd23bc2b71576d06
+              - env:
+                - name: key1
+                  value: value1
+                - name: key2
+                  value: value2
+                image: example/ray:tag
                 imagePullPolicy: Always
                 lifecycle:
                   preStop:
@@ -113,11 +136,13 @@ spec:
                 name: machine-learning
                 resources:
                   limits:
-                    cpu: 1
-                    memory: 2G
+                    cpu: 8
+                    memory: 16G
+                    nvidia.com/gpu: 1
                   requests:
-                    cpu: 1
-                    memory: 2G
+                    cpu: 4
+                    memory: 12G
+                    nvidia.com/gpu: 1
                 volumeMounts:
                 - mountPath: /etc/pki/tls/certs/odh-trusted-ca-bundle.crt
                   name: odh-trusted-ca-cert
@@ -131,6 +156,9 @@ spec:
                 - mountPath: /etc/ssl/certs/odh-ca-bundle.crt
                   name: odh-ca-cert
                   subPath: odh-ca-bundle.crt
+              imagePullSecrets:
+              - name: secret1
+              - name: secret2
               volumes:
               - configMap:
                   items:

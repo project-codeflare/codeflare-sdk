@@ -29,6 +29,7 @@ from codeflare_sdk.ray.cluster.cluster import (
     ClusterConfiguration,
     _copy_to_ray,
 )
+from codeflare_sdk.common.utils.unit_test_support import get_local_queue
 
 
 def test_print_no_resources(capsys):
@@ -100,15 +101,15 @@ def test_ray_details(mocker, capsys):
         return_value="",
     )
     mocker.patch(
-        "codeflare_sdk.common.kueue.kueue.local_queue_exists",
-        return_value="true",
+        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
+        return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
     )
     cf = Cluster(
         ClusterConfiguration(
             name="raytest2",
             namespace="ns",
             appwrapper=True,
-            local_queue="local_default_queue",
+            local_queue="local-queue-default",
         )
     )
     captured = capsys.readouterr()
