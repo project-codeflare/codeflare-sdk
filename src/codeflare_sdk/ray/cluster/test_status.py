@@ -23,6 +23,7 @@ from codeflare_sdk.ray.cluster.status import (
     RayCluster,
 )
 import os
+from ...common.utils.unit_test_support import get_local_queue
 
 aw_dir = os.path.expanduser("~/.codeflare/resources/")
 
@@ -30,10 +31,6 @@ aw_dir = os.path.expanduser("~/.codeflare/resources/")
 def test_cluster_status(mocker):
     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
-    mocker.patch(
-        "codeflare_sdk.common.kueue.kueue.local_queue_exists",
-        return_value="true",
-    )
 
     fake_ray = RayCluster(
         name="test",
@@ -50,13 +47,19 @@ def test_cluster_status(mocker):
         head_mem_requests=8,
         head_mem_limits=8,
     )
+
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
+        return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
+    )
+
     cf = Cluster(
         ClusterConfiguration(
             name="test",
             namespace="ns",
             write_to_file=True,
             appwrapper=False,
-            local_queue="local_default_queue",
+            local_queue="local-queue-default",
         )
     )
     mocker.patch(

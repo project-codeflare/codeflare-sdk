@@ -19,6 +19,7 @@ from codeflare_sdk.ray.cluster.cluster import (
 )
 from codeflare_sdk.ray.appwrapper import AppWrapper, AppWrapperStatus
 from codeflare_sdk.ray.cluster.status import CodeFlareClusterStatus
+from codeflare_sdk.common.utils.unit_test_support import get_local_queue
 import os
 
 aw_dir = os.path.expanduser("~/.codeflare/resources/")
@@ -28,8 +29,8 @@ def test_cluster_status(mocker):
     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
     mocker.patch(
-        "codeflare_sdk.common.kueue.kueue.local_queue_exists",
-        return_value="true",
+        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
+        return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
     )
     fake_aw = AppWrapper("test", AppWrapperStatus.FAILED)
 
@@ -39,7 +40,7 @@ def test_cluster_status(mocker):
             namespace="ns",
             write_to_file=True,
             appwrapper=True,
-            local_queue="local_default_queue",
+            local_queue="local-queue-default",
         )
     )
     mocker.patch(

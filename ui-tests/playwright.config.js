@@ -2,7 +2,7 @@ const baseConfig = require('@jupyterlab/galata/lib/playwright-config');
 
 module.exports = {
   ...baseConfig,
-  timeout: 460000,
+  timeout: 600000,
   webServer: {
     command: 'yarn start',
     url: 'http://localhost:8888/lab',

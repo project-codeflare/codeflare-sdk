@@ -8,7 +8,6 @@ metadata:
 spec:
   autoscalerOptions:
     idleTimeoutSeconds: 60
-    imagePullPolicy: Always
     resources:
       limits:
         cpu: 500m
@@ -66,7 +65,6 @@ spec:
           - mountPath: /etc/ssl/certs/odh-ca-bundle.crt
             name: odh-ca-cert
             subPath: odh-ca-bundle.crt
-        imagePullSecrets: []
         volumes:
         - configMap:
             items:
@@ -93,14 +91,10 @@ spec:
       resources: '"{}"'
     replicas: 1
     template:
-      metadata:
-        annotations:
-          key: value
-        labels:
-          key: value
       spec:
         containers:
         - image: quay.io/modh/ray@sha256:0d715f92570a2997381b7cafc0e224cfa25323f18b9545acfd23bc2b71576d06
+          imagePullPolicy: Always
           lifecycle:
             preStop:
               exec:
@@ -129,7 +123,6 @@ spec:
           - mountPath: /etc/ssl/certs/odh-ca-bundle.crt
             name: odh-ca-cert
             subPath: odh-ca-bundle.crt
-        imagePullSecrets: []
         volumes:
         - configMap:
             items:

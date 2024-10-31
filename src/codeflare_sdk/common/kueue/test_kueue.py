@@ -51,8 +51,7 @@ def test_cluster_creation_no_aw_local_queue(mocker):
     config.write_to_file = True
     config.local_queue = "local-queue-default"
     cluster = Cluster(config)
-    assert cluster.app_wrapper_yaml == f"{aw_dir}unit-test-cluster-kueue.yaml"
-    assert cluster.app_wrapper_name == "unit-test-cluster-kueue"
+    assert cluster.resource_yaml == f"{aw_dir}unit-test-cluster-kueue.yaml"
     assert filecmp.cmp(
         f"{aw_dir}unit-test-cluster-kueue.yaml",
         f"{parent}/tests/test_cluster_yamls/kueue/ray_cluster_kueue.yaml",
@@ -65,10 +64,9 @@ def test_cluster_creation_no_aw_local_queue(mocker):
     config.write_to_file = False
     cluster = Cluster(config)
 
-    test_rc = yaml.load(cluster.app_wrapper_yaml, Loader=yaml.FullLoader)
     with open(f"{parent}/tests/test_cluster_yamls/kueue/ray_cluster_kueue.yaml") as f:
         expected_rc = yaml.load(f, Loader=yaml.FullLoader)
-        assert test_rc == expected_rc
+        assert cluster.resource_yaml == expected_rc
 
 
 def test_aw_creation_local_queue(mocker):
@@ -87,8 +85,7 @@ def test_aw_creation_local_queue(mocker):
     config.write_to_file = True
     config.local_queue = "local-queue-default"
     cluster = Cluster(config)
-    assert cluster.app_wrapper_yaml == f"{aw_dir}unit-test-aw-kueue.yaml"
-    assert cluster.app_wrapper_name == "unit-test-aw-kueue"
+    assert cluster.resource_yaml == f"{aw_dir}unit-test-aw-kueue.yaml"
     assert filecmp.cmp(
         f"{aw_dir}unit-test-aw-kueue.yaml",
         f"{parent}/tests/test_cluster_yamls/kueue/aw_kueue.yaml",
@@ -102,10 +99,9 @@ def test_aw_creation_local_queue(mocker):
     config.write_to_file = False
     cluster = Cluster(config)
 
-    test_rc = yaml.load(cluster.app_wrapper_yaml, Loader=yaml.FullLoader)
     with open(f"{parent}/tests/test_cluster_yamls/kueue/aw_kueue.yaml") as f:
         expected_rc = yaml.load(f, Loader=yaml.FullLoader)
-        assert test_rc == expected_rc
+        assert cluster.resource_yaml == expected_rc
 
 
 def test_get_local_queue_exists_fail(mocker):

@@ -25,21 +25,17 @@ from codeflare_sdk.common.utils.unit_test_support import (
     arg_check_apply_effect,
     get_local_queue,
     createClusterConfig,
-    route_list_retrieval,
     get_ray_obj,
-    get_aw_obj,
-    get_named_aw,
     get_obj_none,
     get_ray_obj_with_status,
     get_aw_obj_with_status,
 )
-from codeflare_sdk.ray.cluster.generate_yaml import (
-    is_openshift_cluster,
-    is_kind_cluster,
-)
+from codeflare_sdk.ray.cluster.cluster import _is_openshift_cluster
 from pathlib import Path
 from unittest.mock import MagicMock
 from kubernetes import client
+import yaml
+import filecmp
 import os
 
 parent = Path(__file__).resolve().parents[4]  # project directory
@@ -205,7 +201,7 @@ def test_local_client_url(mocker):
         return_value="rayclient-unit-test-cluster-localinter-ns.apps.cluster.awsroute.org",
     )
     mocker.patch(
-        "codeflare_sdk.ray.cluster.cluster.Cluster.create_app_wrapper",
+        "codeflare_sdk.ray.cluster.cluster.Cluster.create_resource",
         return_value="unit-test-cluster-localinter.yaml",
     )
 
@@ -225,120 +221,51 @@ get_cluster tests
 """
 
 
-def test_get_cluster_openshift(mocker):
-    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
-    # Mock the client.ApisApi function to return a mock object
-    mock_api = MagicMock()
-    mock_api.get_api_versions.return_value.groups = [
-        MagicMock(versions=[MagicMock(group_version="route.openshift.io/v1")])
-    ]
-    mocker.patch("kubernetes.client.ApisApi", return_value=mock_api)
-    mocker.patch(
-        "codeflare_sdk.common.kueue.kueue.local_queue_exists",
-        return_value="true",
-    )
-
-    assert is_openshift_cluster()
-
-    def custom_side_effect(group, version, namespace, plural, **kwargs):
-        if plural == "routes":
-            return route_list_retrieval("route.openshift.io", "v1", "ns", "routes")
-        elif plural == "rayclusters":
-            return get_ray_obj("ray.io", "v1", "ns", "rayclusters")
-        elif plural == "appwrappers":
-            return get_aw_obj("workload.codeflare.dev", "v1beta2", "ns", "appwrappers")
-        elif plural == "localqueues":
-            return get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues")
-
-    mocker.patch(
-        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object", get_aw_obj
-    )
-
-    mocker.patch(
-        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
-        side_effect=custom_side_effect,
-    )
-    mocker.patch(
-        "kubernetes.client.CustomObjectsApi.get_namespaced_custom_object",
-        return_value=get_named_aw,
-    )
-    mocker.patch(
-        "kubernetes.client.CustomObjectsApi.get_namespaced_custom_object",
-        side_effect=route_list_retrieval("route.openshift.io", "v1", "ns", "routes")[
-            "items"
-        ],
-    )
-    mocker.patch(
-        "codeflare_sdk.common.kueue.kueue.local_queue_exists",
-        return_value="true",
-    )
-
-    cluster = get_cluster(
-        "test-cluster-a", "ns"
-    )  # see tests/test_cluster_yamls/support_clusters
-    cluster_config = cluster.config
-
-    assert cluster_config.name == "test-cluster-a" and cluster_config.namespace == "ns"
-    assert cluster_config.head_cpu_requests == 2 and cluster_config.head_cpu_limits == 2
-    assert (
-        cluster_config.head_memory_requests == "8G"
-        and cluster_config.head_memory_limits == "8G"
-    )
-    assert (
-        cluster_config.worker_cpu_requests == 1
-        and cluster_config.worker_cpu_limits == 1
-    )
-    assert (
-        cluster_config.worker_memory_requests == "2G"
-        and cluster_config.worker_memory_limits == "2G"
-    )
-    assert cluster_config.num_workers == 1
-    assert cluster_config.write_to_file == False
-    assert cluster_config.local_queue == "local_default_queue"
-
-
-def test_get_cluster(mocker):
-    # test get_cluster for Kind Clusters
+def test_get_cluster_no_appwrapper(mocker):
+    """
+    This test uses the "test all params" unit test file as a comparison
+    """
     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
     mocker.patch(
-        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
-        side_effect=get_ray_obj,
+        "codeflare_sdk.ray.cluster.cluster._check_aw_exists",
+        return_value=False,
     )
-    mocker.patch(
-        "kubernetes.client.CustomObjectsApi.get_namespaced_custom_object",
-        side_effect=get_named_aw,
-    )
-    mocker.patch(
-        "kubernetes.client.NetworkingV1Api.list_namespaced_ingress",
-        return_value=ingress_retrieval(cluster_name="quicktest", client_ing=True),
-    )
-    mocker.patch(
-        "codeflare_sdk.common.kueue.kueue.local_queue_exists",
-        return_value="true",
-    )
-    cluster = get_cluster(
-        "test-cluster-a"
-    )  # see tests/test_cluster_yamls/support_clusters
-    cluster_config = cluster.config
 
-    assert cluster_config.name == "test-cluster-a" and cluster_config.namespace == "ns"
-    assert cluster_config.head_cpu_requests == 2 and cluster_config.head_cpu_limits == 2
-    assert (
-        cluster_config.head_memory_requests == "8G"
-        and cluster_config.head_memory_limits == "8G"
+    with open(f"{expected_clusters_dir}/ray/unit-test-all-params.yaml") as f:
+        expected_rc = yaml.load(f, Loader=yaml.FullLoader)
+        mocker.patch(
+            "kubernetes.client.CustomObjectsApi.get_namespaced_custom_object",
+            return_value=expected_rc,
+        )
+        get_cluster("test-all-params", "ns", write_to_file=True)
+        assert filecmp.cmp(
+            f"{aw_dir}test-all-params.yaml",
+            f"{expected_clusters_dir}/ray/unit-test-all-params.yaml",
+            shallow=True,
+        )
+
+
+def test_get_cluster_with_appwrapper(mocker):
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+    mocker.patch(
+        "codeflare_sdk.ray.cluster.cluster._check_aw_exists",
+        return_value=True,
     )
-    assert (
-        cluster_config.worker_cpu_requests == 1
-        and cluster_config.worker_cpu_limits == 1
-    )
-    assert (
-        cluster_config.worker_memory_requests == "2G"
-        and cluster_config.worker_memory_limits == "2G"
-    )
-    assert cluster_config.num_workers == 1
-    assert cluster_config.write_to_file == False
-    assert cluster_config.local_queue == "local_default_queue"
+
+    with open(f"{expected_clusters_dir}/appwrapper/unit-test-all-params.yaml") as f:
+        expected_aw = yaml.load(f, Loader=yaml.FullLoader)
+        mocker.patch(
+            "kubernetes.client.CustomObjectsApi.get_namespaced_custom_object",
+            return_value=expected_aw,
+        )
+        get_cluster("aw-all-params", "ns", write_to_file=True)
+        assert filecmp.cmp(
+            f"{aw_dir}aw-all-params.yaml",
+            f"{expected_clusters_dir}/appwrapper/unit-test-all-params.yaml",
+            shallow=True,
+        )
 
 
 def test_wait_ready(mocker, capsys):
@@ -355,10 +282,6 @@ def test_wait_ready(mocker, capsys):
     )
     mocker.patch(
         "codeflare_sdk.ray.cluster.cluster._ray_cluster_status", return_value=None
-    )
-    mocker.patch(
-        "codeflare_sdk.common.kueue.kueue.local_queue_exists",
-        return_value="true",
     )
     mocker.patch.object(
         client.CustomObjectsApi,
@@ -381,7 +304,6 @@ def test_wait_ready(mocker, capsys):
             namespace="ns",
             write_to_file=False,
             appwrapper=True,
-            local_queue="local-queue-default",
         )
     )
     try:
@@ -460,7 +382,7 @@ def test_list_queue_rayclusters(mocker, capsys):
     ]
     mocker.patch("kubernetes.client.ApisApi", return_value=mock_api)
 
-    assert is_openshift_cluster() == True
+    assert _is_openshift_cluster() == True
     mocker.patch(
         "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
         return_value=get_obj_none("ray.io", "v1", "ns", "rayclusters"),
@@ -566,7 +488,7 @@ def test_map_to_ray_cluster(mocker):
     mocker.patch("kubernetes.config.load_kube_config")
 
     mocker.patch(
-        "codeflare_sdk.ray.cluster.cluster.is_openshift_cluster", return_value=True
+        "codeflare_sdk.ray.cluster.cluster._is_openshift_cluster", return_value=True
     )
 
     mock_api_client = mocker.MagicMock(spec=client.ApiClient)
@@ -608,3 +530,9 @@ def test_map_to_ray_cluster(mocker):
 
     assert result is not None
     assert result.dashboard == rc_dashboard
+
+
+# Make sure to always keep this function last
+def test_cleanup():
+    os.remove(f"{aw_dir}test-all-params.yaml")
+    os.remove(f"{aw_dir}aw-all-params.yaml")
