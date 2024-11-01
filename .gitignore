@@ -14,4 +14,7 @@ ui-tests/playwright-report
 ui-tests/test-results
 /src/codeflare_sdk.egg-info/
 docs/sphinx/_build
+docs/sphinx/codeflare_sdk.*.rst
+docs/sphinx/codeflare_sdk.rst
+docs/sphinx/modules.rst
 .idea/
