@@ -11,12 +11,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js to cache dependencies
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: 'npm'
-
       - name: Install Snyk CLI
         run: npm install -g snyk
 
@@ -33,13 +27,3 @@ jobs:
 
           echo "Scanning project: codeflare-sdk/main"
           snyk monitor --all-projects --exclude=requirements.txt --org=${SNYK_ORG} --target-reference="main"
-
-          # This list is based off RHOAI Supported versions: https://access.redhat.com/support/policy/updates/rhoai-sm/lifecycle
-          # Compared to the tags in the ImageStream annotations: https://github.com/red-hat-data-services/notebooks/blob/rhoai-2.8/manifests/base/jupyter-datascience-notebook-imagestream.yaml
-          # Loop through the list of released tags and scan each project
-          list_of_released_tags=("v0.22.0" "v0.21.1" "v0.19.1", "v0.16.4", "vv0.14.1")
-          for project in "${list_of_released_tags[@]}"; do
-            echo "Scanning project: codeflare-sdk/$project"
-            git checkout $project
-            snyk monitor --all-projects --exclude=requirements.txt --org=${SNYK_ORG} --target-reference="$(git describe --tags)"
-          done
