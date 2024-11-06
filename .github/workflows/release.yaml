@@ -41,7 +41,6 @@ jobs:
             - name: Checkout the repository
               uses: actions/checkout@v4
               with:
-                  submodules: recursive
                   token: ${{ secrets.GH_CLI_TOKEN }}
             - name: Install Python
               uses: actions/setup-python@v5
@@ -95,8 +94,8 @@ jobs:
 
             - name: Commit and push changes
               run: |
-                git config --global user.email "138894154+codeflare-machine-account@users.noreply.github.com"
-                git config --global user.name "codeflare-machine-account"
+                git config --global user.email "${{ vars.CODEFLARE_MACHINE_EMAIL }}"
+                git config --global user.name "${{ vars.CODEFLARE_MACHINE_NAME }}"
                 git checkout -b $PR_BRANCH_NAME
                 git commit -am "Update snyk-security.yaml"
                 git push --set-upstream origin "$PR_BRANCH_NAME"
