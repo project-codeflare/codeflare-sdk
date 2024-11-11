@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - main
+      - test-odh-notebooks-sync
 
 jobs:
   snyk-scan:
@@ -21,9 +22,11 @@ jobs:
         run: |
           echo "Fetching tags"
           git fetch origin 'refs/tags/*:refs/tags/*'
-
           echo "Authenticating with Snyk"
           snyk auth ${SNYK_TOKEN}
-
-          echo "Scanning project: codeflare-sdk/main"
-          snyk monitor --all-projects --exclude=requirements.txt --org=${SNYK_ORG} --target-reference="main"
+          list_of_released_tags=("v0.23.1")
+          for project in "${list_of_released_tags[@]}"; do
+            echo "Scanning project: codeflare-sdk/$project"
+            git checkout $project
+            snyk monitor --all-projects --exclude=requirements.txt --org=${SNYK_ORG} --target-reference="$(git describe --tags)"
+          done
