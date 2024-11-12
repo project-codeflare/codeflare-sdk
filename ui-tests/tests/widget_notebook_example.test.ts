@@ -88,7 +88,7 @@ test.describe("Visual Regression", () => {
     await interactWithWidget(page, upDownWidgetCellIndex, 'button:has-text("Cluster Up")', async (button) => {
       await button.click();
 
-      const successMessage = await page.waitForSelector('text=Ray Cluster: \'raytest\' has successfully been created', { timeout: 10000 });
+      const successMessage = await page.waitForSelector('text=Ray Cluster: \'widgettest\' has successfully been created', { timeout: 10000 });
       expect(successMessage).not.toBeNull();
 
       const resourcesMessage = await page.waitForSelector('text=Waiting for requested resources to be set up...');
@@ -105,20 +105,20 @@ test.describe("Visual Regression", () => {
 
     await interactWithWidget(page, upDownWidgetCellIndex, 'button:has-text("Cluster Down")', async (button) => {
       await button.click();
-      const clusterDownMessage = await page.waitForSelector('text=Ray Cluster: \'raytest\' has successfully been deleted', { timeout: 5000 });
+      const clusterDownMessage = await page.waitForSelector('text=Ray Cluster: \'widgettest\' has successfully been deleted', { timeout: 5000 });
       expect(clusterDownMessage).not.toBeNull();
     });
 
     await runPreviousCell(page, cellCount, '(<CodeFlareClusterStatus.UNKNOWN: 6>, False)');
 
     // Replace text in ClusterConfiguration to run a new RayCluster
-    const cell = page.getByText('raytest').first();
-    await cell.fill('"raytest-1"');
+    const cell = page.getByText('widgettest').first();
+    await cell.fill('"widgettest-1"');
     await page.notebook.runCell(cellCount - 3, true); // Run ClusterConfiguration cell
 
     await interactWithWidget(page, upDownWidgetCellIndex, 'button:has-text("Cluster Up")', async (button) => {
       await button.click();
-      const successMessage = await page.waitForSelector('text=Ray Cluster: \'raytest-1\' has successfully been created', { timeout: 10000 });
+      const successMessage = await page.waitForSelector('text=Ray Cluster: \'widgettest-1\' has successfully been created', { timeout: 10000 });
       expect(successMessage).not.toBeNull();
     });
 
@@ -146,13 +146,13 @@ test.describe("Visual Regression", () => {
 
     await interactWithWidget(page, viewClustersCellIndex, 'button:has-text("Open Ray Dashboard")', async (button) => {
       await button.click();
-      const successMessage = await page.waitForSelector('text=Opening Ray Dashboard for raytest-1 cluster', { timeout: 5000 });
+      const successMessage = await page.waitForSelector('text=Opening Ray Dashboard for widgettest-1 cluster', { timeout: 5000 });
       expect(successMessage).not.toBeNull();
     });
 
     await interactWithWidget(page, viewClustersCellIndex, 'button:has-text("View Jobs")', async (button) => {
       await button.click();
-      const successMessage = await page.waitForSelector('text=Opening Ray Jobs Dashboard for raytest-1 cluster', { timeout: 5000 });
+      const successMessage = await page.waitForSelector('text=Opening Ray Jobs Dashboard for widgettest-1 cluster', { timeout: 5000 });
       expect(successMessage).not.toBeNull();
     });
 
@@ -161,7 +161,7 @@ test.describe("Visual Regression", () => {
 
       const noClustersMessage = await page.waitForSelector(`text=No clusters found in the ${namespace} namespace.`, { timeout: 5000 });
       expect(noClustersMessage).not.toBeNull();
-      const successMessage = await page.waitForSelector(`text=Cluster raytest-1 in the ${namespace} namespace was deleted successfully.`, { timeout: 5000 });
+      const successMessage = await page.waitForSelector(`text=Cluster widgettest-1 in the ${namespace} namespace was deleted successfully.`, { timeout: 5000 });
       expect(successMessage).not.toBeNull();
     });
 
