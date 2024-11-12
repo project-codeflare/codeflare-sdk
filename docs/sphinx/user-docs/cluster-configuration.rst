@@ -25,7 +25,6 @@ requirements for creating the Ray Cluster.
        worker_memory_requests=2, # Default 2
        worker_memory_limits=2, # Default 2
        # image="", # Optional Field
-       machine_types=["m5.xlarge", "g4dn.xlarge"],
        labels={"exampleLabel": "example", "secondLabel": "example"},
    ))
 
