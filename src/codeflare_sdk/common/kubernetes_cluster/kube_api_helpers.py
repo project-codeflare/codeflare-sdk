@@ -19,34 +19,45 @@ API error handling or wrapping.
 
 import executing
 from kubernetes import client, config
-from urllib3.util import parse_url
-import os
+
+ERROR_MESSAGES = {
+    "Not Found": "The requested resource could not be located.\n"
+    "Please verify the resource name and namespace.",
+    "Unauthorized": "Access to the API is unauthorized.\n"
+    "Check your credentials or permissions.",
+    "Forbidden": "Access denied to the Kubernetes resource.\n"
+    "Ensure your role has sufficient permissions for this operation.",
+    "Conflict": "A conflict occurred with the RayCluster resource.\n"
+    "Only one RayCluster with the same name is allowed. "
+    "Please delete or rename the existing RayCluster before creating a new one with the desired name.",
+}
 
 
 # private methods
 def _kube_api_error_handling(
     e: Exception, print_error: bool = True
 ):  # pragma: no cover
-    perm_msg = (
-        "Action not permitted, have you put in correct/up-to-date auth credentials?"
-    )
-    nf_msg = "No instances found, nothing to be done."
-    exists_msg = "Resource with this name already exists."
-    if type(e) == config.ConfigException:
-        raise PermissionError(perm_msg)
-    if type(e) == executing.executing.NotOneValueFound:
+    def print_message(message: str):
         if print_error:
-            print(nf_msg)
-        return
-    if type(e) == client.ApiException:
-        if e.reason == "Not Found":
-            if print_error:
-                print(nf_msg)
-            return
-        elif e.reason == "Unauthorized" or e.reason == "Forbidden":
-            if print_error:
-                print(perm_msg)
-            return
-        elif e.reason == "Conflict":
-            raise FileExistsError(exists_msg)
-    raise e
+            print(message)
+
+    if isinstance(e, client.ApiException):
+        # Retrieve message based on reason, defaulting if reason is not known
+        message = ERROR_MESSAGES.get(
+            e.reason, f"Unexpected API error encountered (Reason: {e.reason})"
+        )
+        full_message = f"{message}\nResponse: {e.body}"
+        print_message(full_message)
+
+    elif isinstance(e, config.ConfigException):
+        message = "Configuration error: Unable to load Kubernetes configuration. Verify the config file path and format."
+        print_message(message)
+
+    elif isinstance(e, executing.executing.NotOneValueFound):
+        message = "Execution error: Expected exactly one value in the operation but found none or multiple."
+        print_message(message)
+
+    else:
+        message = f"Unexpected error:\n{str(e)}"
+        print_message(message)
+        raise e
