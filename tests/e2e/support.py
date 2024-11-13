@@ -66,12 +66,14 @@ def create_namespace(self):
         return RuntimeError(e)
 
 
-def create_new_resource_flavor(self, num_flavors):
+def create_new_resource_flavor(self, num_flavors, with_labels, with_tolerations):
     self.resource_flavors = []
     for i in range(num_flavors):
         default = i < 1
         resource_flavor = f"test-resource-flavor-{random_choice()}"
-        create_resource_flavor(self, resource_flavor, default)
+        create_resource_flavor(
+            self, resource_flavor, default, with_labels, with_tolerations
+        )
         self.resource_flavors.append(resource_flavor)
 
 
@@ -173,7 +175,9 @@ def create_cluster_queue(self, cluster_queue, flavor):
     self.cluster_queue = cluster_queue
 
 
-def create_resource_flavor(self, flavor, default=True):
+def create_resource_flavor(
+    self, flavor, default=True, with_labels=False, with_tolerations=False
+):
     worker_label, worker_value = os.getenv("WORKER_LABEL", "worker-1=true").split("=")
     control_label, control_value = os.getenv(
         "CONTROL_LABEL", "ingress-ready=true"
@@ -182,9 +186,11 @@ def create_resource_flavor(self, flavor, default=True):
         "TOLERATION_KEY", "node-role.kubernetes.io/control-plane"
     )
 
-    node_labels = (
-        {worker_label: worker_value} if default else {control_label: control_value}
-    )
+    node_labels = {}
+    if with_labels:
+        node_labels = (
+            {worker_label: worker_value} if default else {control_label: control_value}
+        )
 
     resource_flavor_json = {
         "apiVersion": "kueue.x-k8s.io/v1beta1",
@@ -192,13 +198,19 @@ def create_resource_flavor(self, flavor, default=True):
         "metadata": {"name": flavor},
         "spec": {
             "nodeLabels": node_labels,
-            "tolerations": [
+            **(
                 {
-                    "key": toleration_key,
-                    "operator": "Exists",
-                    "effect": "NoSchedule",
+                    "tolerations": [
+                        {
+                            "key": toleration_key,
+                            "operator": "Exists",
+                            "effect": "NoSchedule",
+                        }
+                    ]
                 }
-            ],
+                if with_tolerations
+                else {}
+            ),
         },
     }
 
@@ -260,9 +272,11 @@ def create_local_queue(self, cluster_queue, local_queue, is_default=True):
     self.local_queue = local_queue
 
 
-def create_kueue_resources(self, resource_ammount=1):
+def create_kueue_resources(
+    self, resource_ammount=1, with_labels=False, with_tolerations=False
+):
     print("creating Kueue resources ...")
-    create_new_resource_flavor(self, resource_ammount)
+    create_new_resource_flavor(self, resource_ammount, with_labels, with_tolerations)
     create_new_cluster_queue(self, resource_ammount)
     create_new_local_queue(self, resource_ammount)
 
