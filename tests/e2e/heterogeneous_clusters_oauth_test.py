@@ -24,7 +24,7 @@ class TestHeterogeneousClustersOauth:
 
     def test_heterogeneous_clusters(self):
         create_namespace(self)
-        create_kueue_resources(self, 2)
+        create_kueue_resources(self, 2, with_labels=True, with_tolerations=True)
         self.run_heterogeneous_clusters()
 
     def run_heterogeneous_clusters(
