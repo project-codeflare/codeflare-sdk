@@ -29,7 +29,6 @@ jobs:
           coverage run -m pytest
           coverage=$(coverage report -m | tail -1 | tail -c 4 | head -c 2)
           if (( $coverage < 90 )); then echo "Coverage failed at ${coverage}%"; exit 1; else echo "Coverage passed, ${coverage}%"; fi
-        continue-on-error: true
       - name: Upload to Codecov
         uses: codecov/codecov-action@v4
         with:
