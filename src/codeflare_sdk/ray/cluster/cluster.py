@@ -72,6 +72,7 @@ class Cluster:
         request.
         """
         self.config = config
+        self._job_submission_client = None
         if self.config is None:
             warnings.warn(
                 "Please provide a ClusterConfiguration to initialise the Cluster object"
@@ -80,7 +81,6 @@ class Cluster:
         else:
             self.resource_yaml = self.create_resource()
 
-        self._job_submission_client = None
         if is_notebook():
             cluster_up_down_buttons(self)
 
