@@ -249,7 +249,7 @@ def get_pod_spec(cluster: "codeflare_sdk.ray.cluster.Cluster", containers):
     """
     pod_spec = V1PodSpec(
         containers=containers,
-        volumes=VOLUMES,
+        volumes=generate_custom_storage(cluster.config.volumes, VOLUMES),
     )
     if cluster.config.image_pull_secrets != []:
         pod_spec.image_pull_secrets = generate_image_pull_secrets(cluster)
@@ -295,7 +295,9 @@ def get_head_container_spec(
             cluster.config.head_memory_limits,
             cluster.config.head_extended_resource_requests,
         ),
-        volume_mounts=VOLUME_MOUNTS,
+        volume_mounts=generate_custom_storage(
+            cluster.config.volume_mounts, VOLUME_MOUNTS
+        ),
     )
     if cluster.config.envs != {}:
         head_container.env = generate_env_vars(cluster)
@@ -337,7 +339,9 @@ def get_worker_container_spec(
             cluster.config.worker_memory_limits,
             cluster.config.worker_extended_resource_requests,
         ),
-        volume_mounts=VOLUME_MOUNTS,
+        volume_mounts=generate_custom_storage(
+            cluster.config.volume_mounts, VOLUME_MOUNTS
+        ),
     )
 
     if cluster.config.envs != {}:
@@ -521,6 +525,22 @@ def wrap_cluster(
 
 
 # Etc.
+def generate_custom_storage(provided_storage: list, default_storage: list):
+    """
+    The generate_custom_storage function updates the volumes/volume mounts configs with the default volumes/volume mounts.
+    """
+    storage_list = provided_storage.copy()
+
+    if storage_list == []:
+        storage_list = default_storage
+    else:
+        # We append the list of volumes/volume mounts with the defaults and return the full list
+        for storage in default_storage:
+            storage_list.append(storage)
+
+    return storage_list
+
+
 def write_to_file(cluster: "codeflare_sdk.ray.cluster.Cluster", resource: dict):
     """
     The write_to_file function writes the built Ray Cluster/AppWrapper dict as a yaml file in the .codeflare folder
