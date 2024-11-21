@@ -78,6 +78,12 @@ spec:
                     memory: 12G
                     nvidia.com/gpu: 1
                 volumeMounts:
+                - mountPath: /home/ray/test1
+                  name: test
+                - mountPath: /home/ray/test2
+                  name: test2
+                - mountPath: /home/ray/test2
+                  name: test3
                 - mountPath: /etc/pki/tls/certs/odh-trusted-ca-bundle.crt
                   name: odh-trusted-ca-cert
                   subPath: odh-trusted-ca-bundle.crt
@@ -94,6 +100,18 @@ spec:
               - name: secret1
               - name: secret2
               volumes:
+              - emptyDir:
+                  sizeLimit: 500Gi
+                name: test
+              - configMap:
+                  items:
+                  - key: test
+                    path: /home/ray/test2/data.txt
+                  name: config-map-test
+                name: test2
+              - name: test3
+                secret:
+                  secretName: test-secret
               - configMap:
                   items:
                   - key: ca-bundle.crt
@@ -146,6 +164,12 @@ spec:
                     memory: 12G
                     nvidia.com/gpu: 1
                 volumeMounts:
+                - mountPath: /home/ray/test1
+                  name: test
+                - mountPath: /home/ray/test2
+                  name: test2
+                - mountPath: /home/ray/test2
+                  name: test3
                 - mountPath: /etc/pki/tls/certs/odh-trusted-ca-bundle.crt
                   name: odh-trusted-ca-cert
                   subPath: odh-trusted-ca-bundle.crt
@@ -162,6 +186,18 @@ spec:
               - name: secret1
               - name: secret2
               volumes:
+              - emptyDir:
+                  sizeLimit: 500Gi
+                name: test
+              - configMap:
+                  items:
+                  - key: test
+                    path: /home/ray/test2/data.txt
+                  name: config-map-test
+                name: test2
+              - name: test3
+                secret:
+                  secretName: test-secret
               - configMap:
                   items:
                   - key: ca-bundle.crt

@@ -417,6 +417,7 @@ def create_cluster_all_config_params(mocker, cluster_name, is_appwrapper) -> Clu
         "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
         return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
     )
+    volumes, volume_mounts = get_example_extended_storage_opts()
 
     config = ClusterConfiguration(
         name=cluster_name,
@@ -443,5 +444,46 @@ def create_cluster_all_config_params(mocker, cluster_name, is_appwrapper) -> Clu
         overwrite_default_resource_mapping=True,
         local_queue="local-queue-default",
         annotations={"key1": "value1", "key2": "value2"},
+        volumes=volumes,
+        volume_mounts=volume_mounts,
     )
     return Cluster(config)
+
+
+def get_example_extended_storage_opts():
+    from kubernetes.client import (
+        V1Volume,
+        V1VolumeMount,
+        V1EmptyDirVolumeSource,
+        V1ConfigMapVolumeSource,
+        V1KeyToPath,
+        V1SecretVolumeSource,
+    )
+
+    volume_mounts = [
+        V1VolumeMount(mount_path="/home/ray/test1", name="test"),
+        V1VolumeMount(
+            mount_path="/home/ray/test2",
+            name="test2",
+        ),
+        V1VolumeMount(
+            mount_path="/home/ray/test2",
+            name="test3",
+        ),
+    ]
+
+    volumes = [
+        V1Volume(
+            name="test",
+            empty_dir=V1EmptyDirVolumeSource(size_limit="500Gi"),
+        ),
+        V1Volume(
+            name="test2",
+            config_map=V1ConfigMapVolumeSource(
+                name="config-map-test",
+                items=[V1KeyToPath(key="test", path="/home/ray/test2/data.txt")],
+            ),
+        ),
+        V1Volume(name="test3", secret=V1SecretVolumeSource(secret_name="test-secret")),
+    ]
+    return volumes, volume_mounts
