@@ -17,6 +17,7 @@ spec:
           controller-tools.k8s.io: '1.0'
           key1: value1
           key2: value2
+          resource.owner: appwrapper
         name: aw-all-params
         namespace: ns
       spec:

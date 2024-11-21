@@ -182,7 +182,7 @@ def build_ray_cluster(cluster: "codeflare_sdk.ray.cluster.Cluster"):
 # Metadata related functions
 def get_metadata(cluster: "codeflare_sdk.ray.cluster.Cluster"):
     """
-    The get_metadata() function builds and returns a V1ObjectMeta Object using cluster configurtation parameters
+    The get_metadata() function builds and returns a V1ObjectMeta Object using cluster configuration parameters
     """
     object_meta = V1ObjectMeta(
         name=cluster.config.name,
@@ -206,6 +206,9 @@ def get_labels(cluster: "codeflare_sdk.ray.cluster.Cluster"):
     }
     if cluster.config.labels != {}:
         labels.update(cluster.config.labels)
+
+    if cluster.config.appwrapper is True:
+        labels.update({"resource.owner": "appwrapper"})
 
     if cluster.config.appwrapper is False:
         add_queue_label(cluster, labels)

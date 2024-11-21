@@ -13,6 +13,7 @@ spec:
       metadata:
         labels:
           controller-tools.k8s.io: '1.0'
+          resource.owner: appwrapper
         name: unit-test-aw-kueue
         namespace: ns
       spec:
