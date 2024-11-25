@@ -2,7 +2,7 @@ import requests
 
 from time import sleep
 
-from codeflare_sdk import Cluster, ClusterConfiguration, TokenAuthentication
+from codeflare_sdk import Cluster, ClusterConfiguration
 from codeflare_sdk.ray.client import RayJobClient
 
 import pytest
@@ -68,6 +68,9 @@ class TestRayClusterSDKAppWrapperKind:
         cluster.details()
 
         self.assert_jobsubmit_withoutlogin_kind(cluster, accelerator, number_of_gpus)
+        assert_get_cluster_and_jobsubmit(
+            self, "mnist", accelerator="gpu", number_of_gpus=1
+        )
 
     # Assertions
 
@@ -105,8 +108,6 @@ class TestRayClusterSDKAppWrapperKind:
         self.assert_job_completion(status)
 
         client.delete_job(submission_id)
-
-        cluster.down()
 
     def assert_job_completion(self, status):
         if status == "SUCCEEDED":
