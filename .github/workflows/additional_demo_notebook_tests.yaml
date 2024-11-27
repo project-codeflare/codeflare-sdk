@@ -1,0 +1,255 @@
+name: Additional demo notebooks tests
+
+on:
+  pull_request:
+    types: [ labeled ]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.head_ref }}-${{ github.workflow }}
+  cancel-in-progress: true
+
+env:
+  CODEFLARE_OPERATOR_IMG: "quay.io/project-codeflare/codeflare-operator:dev"
+
+jobs:
+  verify-local_interactive:
+    if: ${{ github.event.label.name == 'test-additional-notebooks' }}
+    runs-on: ubuntu-20.04-4core
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Checkout common repo code
+        uses: actions/checkout@v4
+        with:
+          repository: 'project-codeflare/codeflare-common'
+          ref: 'main'
+          path: 'common'
+
+      - name: Checkout CodeFlare operator repository
+        uses: actions/checkout@v4
+        with:
+          repository: project-codeflare/codeflare-operator
+          path: codeflare-operator
+
+      - name: Set Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: './codeflare-operator/go.mod'
+          cache-dependency-path: "./codeflare-operator/go.sum"
+
+      - name: Set up gotestfmt
+        uses: gotesttools/gotestfmt-action@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up specific Python version
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+          cache: 'pip' # caching pip dependencies
+
+      - name: Setup and start KinD cluster
+        uses: ./common/github-actions/kind
+
+      - name: Deploy CodeFlare stack
+        id: deploy
+        run: |
+          cd codeflare-operator
+          echo Setting up CodeFlare stack
+          make setup-e2e
+          echo Deploying CodeFlare operator
+          make deploy -e IMG="${CODEFLARE_OPERATOR_IMG}" -e ENV="e2e"
+          kubectl wait --timeout=120s --for=condition=Available=true deployment -n openshift-operators codeflare-operator-manager
+          cd ..
+
+      - name: Setup Additional demo notebooks execution
+        run: |
+          echo "Installing papermill and dependencies..."
+          pip install poetry papermill ipython ipykernel
+          # Disable virtualenv due to problems using packaged in virtualenv in papermill
+          poetry config virtualenvs.create false
+
+          echo "Installing SDK..."
+          poetry install --with test,docs
+
+      - name: Run local_interactive.ipynb
+        run: |
+          set -euo pipefail
+
+          # Remove login/logout cells, as KinD doesn't support authentication using token
+          jq -r 'del(.cells[] | select(.source[] | contains("Create authentication object and log in to desired user account")))' local_interactive.ipynb > local_interactive.ipynb.tmp && mv local_interactive.ipynb.tmp local_interactive.ipynb
+          jq -r 'del(.cells[] | select(.source[] | contains("auth.logout()")))' local_interactive.ipynb > local_interactive.ipynb.tmp && mv local_interactive.ipynb.tmp local_interactive.ipynb
+          # Rewrite cluster_uri() to local_client_url() to retrieve client URL available out of cluster, as the test is executed outside of cluster
+          sed -i "s/cluster_uri()/local_client_url()/g" local_interactive.ipynb
+          # Replace async logs with waiting for job to finish, async logs don't work properly in papermill
+          JOB_WAIT=$(jq -r '.' ${GITHUB_WORKSPACE}/.github/resources/wait_for_job_cell.json)
+          jq --argjson job_wait "$JOB_WAIT" -r '(.cells[] | select(.source[] | contains("async for lines in client.tail_job_logs"))) |= $job_wait' local_interactive.ipynb > local_interactive.ipynb.tmp && mv local_interactive.ipynb.tmp local_interactive.ipynb
+          # Set explicit namespace as SDK need it (currently) to resolve local queues
+          sed -i "s/worker_cpu_requests=1,/worker_cpu_requests='250m', namespace='default',/" local_interactive.ipynb
+          # Run notebook
+          poetry run papermill local_interactive.ipynb local_interactive_out.ipynb --log-output --execution-timeout 1200
+        env:
+           GRPC_DNS_RESOLVER: "native"
+        working-directory: demo-notebooks/additional-demos
+
+      - name: Print CodeFlare operator logs
+        if: always() && steps.deploy.outcome == 'success'
+        run: |
+          echo "Printing CodeFlare operator logs"
+          kubectl logs -n openshift-operators --tail -1 -l app.kubernetes.io/name=codeflare-operator | tee ${TEMP_DIR}/codeflare-operator.log
+
+      - name: Print Kueue operator logs
+        if: always() && steps.deploy.outcome == 'success'
+        run: |
+          echo "Printing Kueue operator logs"
+          KUEUE_CONTROLLER_POD=$(kubectl get pods -n kueue-system | grep kueue-controller | awk '{print $1}')
+          kubectl logs -n kueue-system --tail -1 ${KUEUE_CONTROLLER_POD} | tee ${TEMP_DIR}/kueue.log
+
+      - name: Print KubeRay operator logs
+        if: always() && steps.deploy.outcome == 'success'
+        run: |
+          echo "Printing KubeRay operator logs"
+          kubectl logs -n ray-system --tail -1 -l app.kubernetes.io/name=kuberay | tee ${TEMP_DIR}/kuberay.log
+
+      - name: Export all KinD pod logs
+        uses: ./common/github-actions/kind-export-logs
+        if: always() && steps.deploy.outcome == 'success'
+        with:
+          output-directory: ${TEMP_DIR}
+
+      - name: Upload logs
+        uses: actions/upload-artifact@v4
+        if: always() && steps.deploy.outcome == 'success'
+        with:
+          name: logs-local_interactive
+          retention-days: 10
+          path: |
+            ${{ env.TEMP_DIR }}/**/*.log
+
+  verify-ray_job_client:
+    if: ${{ github.event.label.name == 'test-additional-notebooks' }}
+    runs-on: ubuntu-20.04-4core
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Checkout common repo code
+        uses: actions/checkout@v4
+        with:
+          repository: 'project-codeflare/codeflare-common'
+          ref: 'main'
+          path: 'common'
+
+      - name: Checkout CodeFlare operator repository
+        uses: actions/checkout@v4
+        with:
+          repository: project-codeflare/codeflare-operator
+          path: codeflare-operator
+
+      - name: Set Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: './codeflare-operator/go.mod'
+          cache-dependency-path: "./codeflare-operator/go.sum"
+
+      - name: Set up gotestfmt
+        uses: gotesttools/gotestfmt-action@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up specific Python version
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+          cache: 'pip' # caching pip dependencies
+
+      - name: Setup and start KinD cluster
+        uses: ./common/github-actions/kind
+
+      - name: Deploy CodeFlare stack
+        id: deploy
+        run: |
+          cd codeflare-operator
+          echo Setting up CodeFlare stack
+          make setup-e2e
+          echo Deploying CodeFlare operator
+          make deploy -e IMG="${CODEFLARE_OPERATOR_IMG}" -e ENV="e2e"
+          kubectl wait --timeout=120s --for=condition=Available=true deployment -n openshift-operators codeflare-operator-manager
+          cd ..
+
+      - name: Setup Additional demo notebooks execution
+        run: |
+          echo "Installing papermill and dependencies..."
+          pip install poetry papermill ipython ipykernel
+          # Disable virtualenv due to problems using packaged in virtualenv in papermill
+          poetry config virtualenvs.create false
+
+          echo "Installing SDK..."
+          poetry install --with test,docs
+
+      - name: Run ray_job_client.ipynb
+        run: |
+          set -euo pipefail
+
+          # Remove login/logout cells, as KinD doesn't support authentication using token
+          jq -r 'del(.cells[] | select(.source[] | contains("Create authentication object for user permissions")))' ray_job_client.ipynb > ray_job_client.ipynb.tmp && mv ray_job_client.ipynb.tmp ray_job_client.ipynb
+          jq -r 'del(.cells[] | select(.source[] | contains("auth.logout()")))' ray_job_client.ipynb > ray_job_client.ipynb.tmp && mv ray_job_client.ipynb.tmp ray_job_client.ipynb
+          # Rewrite cluster_uri() to local_client_url() to retrieve client URL available out of cluster, as the test is executed outside of cluster
+          sed -i "s/cluster_uri()/local_client_url()/g" ray_job_client.ipynb
+          # Replace async logs with waiting for job to finish, async logs don't work properly in papermill
+          JOB_WAIT=$(jq -r '.' ${GITHUB_WORKSPACE}/.github/resources/wait_for_job_cell.json)
+          jq --argjson job_wait "$JOB_WAIT" -r '(.cells[] | select(.source[] | contains("async for lines in client.tail_job_logs"))) |= $job_wait' ray_job_client.ipynb > ray_job_client.ipynb.tmp && mv ray_job_client.ipynb.tmp ray_job_client.ipynb
+          # Set explicit namespace as SDK need it (currently) to resolve local queues
+          sed -i "s/worker_cpu_requests=1,/worker_cpu_requests='250m', namespace='default',/" ray_job_client.ipynb
+          sed -i "s/worker_memory_requests=4,/worker_memory_requests=1,/" ray_job_client.ipynb
+          sed -i "s/worker_memory_limits=4,/worker_memory_limits=1,/" ray_job_client.ipynb
+          sed -i "s/'Authorization': .*/'Authorization': None\",/" ray_job_client.ipynb
+          sed -i "s/num_workers=2/num_workers=1/" ray_job_client.ipynb
+          sed -i "s/RayJobClient(address=ray_dashboard, headers=header, verify=True)/RayJobClient(address=ray_dashboard, verify=False)/" ray_job_client.ipynb
+          # Run notebook
+          poetry run papermill ray_job_client.ipynb hf_interactive_out.ipynb --log-output --execution-timeout 1200
+        env:
+           GRPC_DNS_RESOLVER: "native"
+        working-directory: demo-notebooks/additional-demos
+
+      - name: Print CodeFlare operator logs
+        if: always() && steps.deploy.outcome == 'success'
+        run: |
+          echo "Printing CodeFlare operator logs"
+          kubectl logs -n openshift-operators --tail -1 -l app.kubernetes.io/name=codeflare-operator | tee ${TEMP_DIR}/codeflare-operator.log
+
+      - name: Print Kueue operator logs
+        if: always() && steps.deploy.outcome == 'success'
+        run: |
+          echo "Printing Kueue operator logs"
+          KUEUE_CONTROLLER_POD=$(kubectl get pods -n kueue-system | grep kueue-controller | awk '{print $1}')
+          kubectl logs -n kueue-system --tail -1 ${KUEUE_CONTROLLER_POD} | tee ${TEMP_DIR}/kueue.log
+
+      - name: Print KubeRay operator logs
+        if: always() && steps.deploy.outcome == 'success'
+        run: |
+          echo "Printing KubeRay operator logs"
+          kubectl logs -n ray-system --tail -1 -l app.kubernetes.io/name=kuberay | tee ${TEMP_DIR}/kuberay.log
+
+      - name: Export all KinD pod logs
+        uses: ./common/github-actions/kind-export-logs
+        if: always() && steps.deploy.outcome == 'success'
+        with:
+          output-directory: ${TEMP_DIR}
+
+      - name: Upload logs
+        uses: actions/upload-artifact@v4
+        if: always() && steps.deploy.outcome == 'success'
+        with:
+          name: logs-ray_job_client
+          retention-days: 10
+          path: |
+            ${{ env.TEMP_DIR }}/**/*.log
