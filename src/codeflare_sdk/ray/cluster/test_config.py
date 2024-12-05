@@ -14,7 +14,7 @@
 
 from codeflare_sdk.common.utils.unit_test_support import (
     createClusterWrongType,
-    get_local_queue,
+    get_example_extended_storage_opts,
     create_cluster_all_config_params,
 )
 from codeflare_sdk.ray.cluster.cluster import ClusterConfiguration, Cluster
@@ -61,6 +61,7 @@ def test_config_creation_all_parameters(mocker):
     expected_extended_resource_mapping = DEFAULT_RESOURCE_MAPPING
     expected_extended_resource_mapping.update({"example.com/gpu": "GPU"})
     expected_extended_resource_mapping["intel.com/gpu"] = "TPU"
+    volumes, volume_mounts = get_example_extended_storage_opts()
 
     cluster = create_cluster_all_config_params(mocker, "test-all-params", False)
     assert cluster.config.name == "test-all-params" and cluster.config.namespace == "ns"
@@ -90,6 +91,8 @@ def test_config_creation_all_parameters(mocker):
     )
     assert cluster.config.overwrite_default_resource_mapping == True
     assert cluster.config.local_queue == "local-queue-default"
+    assert cluster.config.volumes == volumes
+    assert cluster.config.volume_mounts == volume_mounts
 
     assert filecmp.cmp(
         f"{aw_dir}test-all-params.yaml",
