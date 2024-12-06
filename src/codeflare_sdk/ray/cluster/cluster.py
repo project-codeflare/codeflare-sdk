@@ -52,6 +52,10 @@ import os
 import requests
 
 from kubernetes import config
+from kubernetes.dynamic import DynamicClient
+from kubernetes import client as k8s_client
+from kubernetes.client.rest import ApiException
+
 from kubernetes.client.rest import ApiException
 import warnings
 
@@ -84,6 +88,14 @@ class Cluster:
         if is_notebook():
             cluster_up_down_buttons(self)
 
+    def get_dynamic_client(self):  # pragma: no cover
+        """Return a dynamic client, optionally mocked in tests."""
+        return DynamicClient(get_api_client())
+
+    def config_check(self):
+        """Return a dynamic client, optionally mocked in tests."""
+        return config_check()
+
     @property
     def _client_headers(self):
         k8_client = get_api_client()
@@ -95,9 +107,7 @@ class Cluster:
 
     @property
     def _client_verify_tls(self):
-        if not _is_openshift_cluster or not self.config.verify_tls:
-            return False
-        return True
+        return _is_openshift_cluster and self.config.verify_tls
 
     @property
     def job_client(self):
@@ -121,7 +131,6 @@ class Cluster:
         Called upon cluster object creation, creates an AppWrapper yaml based on
         the specifications of the ClusterConfiguration.
         """
-
         if self.config.namespace is None:
             self.config.namespace = get_current_namespace()
             if self.config.namespace is None:
@@ -130,7 +139,6 @@ class Cluster:
                 raise TypeError(
                     f"Namespace {self.config.namespace} is of type {type(self.config.namespace)}. Check your Kubernetes Authentication."
                 )
-
         return build_ray_cluster(self)
 
     # creates a new cluster with the provided or default spec
@@ -139,10 +147,11 @@ class Cluster:
         Applies the Cluster yaml, pushing the resource request onto
         the Kueue localqueue.
         """
-
+        print(
+            "WARNING: The up() function is planned for deprecation in favor of apply()."
+        )
         # check if RayCluster CustomResourceDefinition exists if not throw RuntimeError
         self._throw_for_no_raycluster()
-
         namespace = self.config.namespace
 
         try:
@@ -176,6 +185,52 @@ class Cluster:
         except Exception as e:  # pragma: no cover
             return _kube_api_error_handling(e)
 
+    # Applies a new cluster with the provided or default spec
+    def apply(self, force=False):
+        """
+        Applies the Cluster yaml using server-side apply.
+        If 'force' is set to True, conflicts will be forced.
+        """
+        # check if RayCluster CustomResourceDefinition exists if not throw RuntimeError
+        self._throw_for_no_raycluster()
+        namespace = self.config.namespace
+
+        try:
+            self.config_check()
+            api_instance = client.CustomObjectsApi(get_api_client())
+            crds = self.get_dynamic_client().resources
+            api_instance = crds.get(
+                api_version="workload.codeflare.dev/v1beta2", kind="AppWrapper"
+            )
+            if self.config.appwrapper:
+                if self.config.write_to_file:
+                    with open(self.resource_yaml) as f:
+                        aw = yaml.load(f, Loader=yaml.FullLoader)
+                        api_instance.server_side_apply(
+                            group="workload.codeflare.dev",
+                            version="v1beta2",
+                            namespace=namespace,
+                            plural="appwrappers",
+                            body=aw,
+                        )
+                else:
+                    api_instance.server_side_apply(
+                        group="workload.codeflare.dev",
+                        version="v1beta2",
+                        namespace=namespace,
+                        plural="appwrappers",
+                        body=self.resource_yaml,
+                    )
+                print(f"AppWrapper: '{self.config.name}' has successfully been created")
+            else:
+                api_instance = crds.get(api_version="ray.io/v1", kind="RayCluster")
+                self._component_resources_apply(namespace, api_instance)
+                print(
+                    f"Ray Cluster: '{self.config.name}' has successfully been applied"
+                )
+        except Exception as e:  # pragma: no cover
+            return _kube_api_error_handling(e)
+
     def _throw_for_no_raycluster(self):
         api_instance = client.CustomObjectsApi(get_api_client())
         try:
@@ -204,7 +259,7 @@ class Cluster:
         resource_name = self.config.name
         self._throw_for_no_raycluster()
         try:
-            config_check()
+            self.config_check()
             api_instance = client.CustomObjectsApi(get_api_client())
             if self.config.appwrapper:
                 api_instance.delete_namespaced_custom_object(
@@ -507,6 +562,16 @@ class Cluster:
         else:
             _create_resources(self.resource_yaml, namespace, api_instance)
 
+    def _component_resources_apply(
+        self, namespace: str, api_instance: client.CustomObjectsApi
+    ):
+        if self.config.write_to_file:
+            with open(self.resource_yaml) as f:
+                ray_cluster = yaml.safe_load(f)
+                _apply_resources(ray_cluster, namespace, api_instance)
+        else:
+            _apply_resources(self.resource_yaml, namespace, api_instance)
+
     def _component_resources_down(
         self, namespace: str, api_instance: client.CustomObjectsApi
     ):
@@ -741,6 +806,20 @@ def _create_resources(yamls, namespace: str, api_instance: client.CustomObjectsA
         namespace=namespace,
         plural="rayclusters",
         body=yamls,
+    )
+
+
+def _apply_resources(
+    yamls, namespace: str, api_instance: client.CustomObjectsApi, force=False
+):
+    api_instance.server_side_apply(
+        field_manager="cluster-manager",
+        group="ray.io",
+        version="v1",
+        namespace=namespace,
+        plural="rayclusters",
+        body=yamls,
+        force_conflicts=force,  # Allow forcing conflicts if needed
     )
 
 
