@@ -13,7 +13,7 @@
 # limitations under the License.
 
 from codeflare_sdk.common.utils.unit_test_support import (
-    createClusterWrongType,
+    create_cluster_wrong_type,
     get_local_queue,
     create_cluster_all_config_params,
 )
@@ -55,6 +55,7 @@ def test_default_appwrapper_creation(mocker):
         assert cluster.resource_yaml == expected_aw
 
 
+@pytest.mark.filterwarnings("ignore::UserWarning")
 def test_config_creation_all_parameters(mocker):
     from codeflare_sdk.ray.cluster.config import DEFAULT_RESOURCE_MAPPING
 
@@ -98,6 +99,7 @@ def test_config_creation_all_parameters(mocker):
     )
 
 
+@pytest.mark.filterwarnings("ignore::UserWarning")
 def test_all_config_params_aw(mocker):
     create_cluster_all_config_params(mocker, "aw-all-params", True)
     assert filecmp.cmp(
@@ -109,11 +111,12 @@ def test_all_config_params_aw(mocker):
 
 def test_config_creation_wrong_type():
     with pytest.raises(TypeError) as error_info:
-        createClusterWrongType()
+        create_cluster_wrong_type()
 
     assert len(str(error_info.value).splitlines()) == 4
 
 
+@pytest.mark.filterwarnings("ignore::UserWarning")
 def test_cluster_config_deprecation_conversion(mocker):
     config = ClusterConfiguration(
         name="test",
