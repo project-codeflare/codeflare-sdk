@@ -52,6 +52,10 @@ import os
 import requests
 
 from kubernetes import config
+from kubernetes.dynamic import DynamicClient
+from kubernetes import client as k8s_client
+from kubernetes.client.rest import ApiException
+
 from kubernetes.client.rest import ApiException
 import warnings
 
@@ -175,6 +179,62 @@ class Cluster:
                 )
         except Exception as e:  # pragma: no cover
             return _kube_api_error_handling(e)
+
+
+    def apply(self, force=False):
+        """
+        Applies the Cluster yaml using server-side apply.
+        If 'force' is set to True, conflicts will be forced.
+        """
+        # Ensure Kubernetes configuration is loaded
+        config_check()
+
+        # Create a dynamic client for interacting with custom resources
+        dynamic_client = DynamicClient(get_api_client())
+
+        try:
+            # Get the RayCluster custom resource definition
+            api = dynamic_client.resources.get(
+                api_version="ray.io/v1",
+                kind="RayCluster"
+            )
+        except Exception as e:
+            raise RuntimeError("Failed to get RayCluster resource: " + str(e))
+
+        # Read the YAML file and parse it into a dictionary
+        try:
+            with open(self.resource_yaml, 'r') as f:
+                resource_body = yaml.safe_load(f)
+        except FileNotFoundError:
+            raise RuntimeError(f"Resource YAML file '{self.resource_yaml}' not found.")
+        except yaml.YAMLError as e:
+            raise ValueError(f"Failed to parse resource YAML: {e}")
+
+        # Extract the resource name from the metadata
+        resource_name = resource_body.get("metadata", {}).get("name")
+        if not resource_name:
+            raise ValueError("The resource must have a 'metadata.name' field.")
+
+        try:
+            # Use server-side apply
+            resp = api.server_side_apply(
+                body=resource_body,
+                name=resource_name,
+                namespace=self.config.namespace,
+                field_manager="cluster-manager",
+                force_conflicts=force  # Allow forcing conflicts if needed
+            )
+            print(f"Cluster '{self.config.name}' applied successfully.")
+        except ApiException as e:
+            if e.status == 403:
+                print(
+                    "Immutable fields detected in the configuration. The cluster cannot be patched normally. "
+                    "To force the patch, set 'force=True' in the apply() method."
+                )
+            elif e.status == 404:
+                print(f"Namespace '{self.config.namespace}' or resource '{resource_name}' not found. Verify the namespace or CRD.")
+            else:
+                raise RuntimeError(f"Failed to apply cluster: {e.reason}")
 
     def _throw_for_no_raycluster(self):
         api_instance = client.CustomObjectsApi(get_api_client())
