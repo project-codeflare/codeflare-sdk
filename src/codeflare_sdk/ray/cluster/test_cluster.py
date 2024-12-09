@@ -20,6 +20,7 @@ from codeflare_sdk.ray.cluster.cluster import (
 )
 from codeflare_sdk.common.utils.unit_test_support import (
     createClusterWithConfig,
+    createClusterWithConfigAndNumWorkers,
     arg_check_del_effect,
     ingress_retrieval,
     arg_check_apply_effect,
@@ -67,8 +68,46 @@ def test_cluster_up_down(mocker):
         "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
         return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
     )
-    cluster = cluster = createClusterWithConfig(mocker)
+    cluster = createClusterWithConfig(mocker)
     cluster.up()
+    cluster.down()
+
+
+def test_cluster_apply_scale_up_scale_down(mocker):
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+    mocker.patch("codeflare_sdk.ray.cluster.cluster.Cluster._throw_for_no_raycluster")
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.get_cluster_custom_object",
+        return_value={"spec": {"domain": ""}},
+    )
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.create_namespaced_custom_object",
+        side_effect=arg_check_apply_effect,
+    )
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.delete_namespaced_custom_object",
+        side_effect=arg_check_del_effect,
+    )
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_cluster_custom_object",
+        return_value={"items": []},
+    )
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
+        return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
+    )
+    initial_num_workers = 1
+    scaled_up_num_workers = 2
+    cluster = createClusterWithConfigAndNumWorkers(mocker, initial_num_workers)
+    cluster.apply()
+    cluster.wait_ready(timeout=5)
+    cluster = createClusterWithConfigAndNumWorkers(mocker, scaled_up_num_workers)
+    cluster.apply()
+    cluster.wait_ready(timeout=5)
+    cluster = createClusterWithConfigAndNumWorkers(mocker, initial_num_workers)
+    cluster.apply()
+    cluster.wait_ready(timeout=5)
     cluster.down()
 
 
@@ -117,7 +156,7 @@ def test_cluster_uris(mocker):
         "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
         return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
     )
-    cluster = cluster = createClusterWithConfig(mocker)
+    cluster = createClusterWithConfig(mocker)
     mocker.patch(
         "kubernetes.client.NetworkingV1Api.list_namespaced_ingress",
         return_value=ingress_retrieval(
@@ -159,7 +198,7 @@ def test_ray_job_wrapping(mocker):
         "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
         return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
     )
-    cluster = cluster = createClusterWithConfig(mocker)
+    cluster = createClusterWithConfig(mocker)
     mocker.patch(
         "ray.job_submission.JobSubmissionClient._check_connection_and_version_with_url",
         return_value="None",

@@ -62,7 +62,7 @@ class TestRayClusterApply:
         updated_config = ClusterConfiguration(
             name=cluster_name,
             namespace=namespace,
-            num_workers=3,
+            num_workers=2,
             head_cpu_requests="500m",
             head_cpu_limits="1",
             head_memory_requests="1Gi",
@@ -82,12 +82,14 @@ class TestRayClusterApply:
         # Wait for the updated cluster to be ready
         cluster.wait_ready()
         updated_status = cluster.status()
-        assert updated_status["ready"], f"Cluster {cluster_name} is not ready after update: {updated_status}"
+        assert updated_status[
+            "ready"
+        ], f"Cluster {cluster_name} is not ready after update: {updated_status}"
 
         # Verify the cluster is updated
         updated_ray_cluster = get_ray_cluster(cluster_name, namespace)
         assert (
-            updated_ray_cluster["spec"]["workerGroupSpecs"][0]["replicas"] == 3
+            updated_ray_cluster["spec"]["workerGroupSpecs"][0]["replicas"] == 2
         ), "Worker count was not updated"
 
         # Clean up
@@ -152,4 +154,3 @@ class TestRayClusterApply:
 
         # Clean up
         cluster.down()
-

@@ -144,7 +144,7 @@ class Cluster:
         the Kueue localqueue.
         """
         # TODO: Add deprecation message in favor of apply()
-        # print( "WARNING: The up() is planned for deprecation in favor of apply().")        
+        # print( "WARNING: The up() is planned for deprecation in favor of apply().")
 
         # check if RayCluster CustomResourceDefinition exists if not throw RuntimeError
         self._throw_for_no_raycluster()
@@ -182,7 +182,6 @@ class Cluster:
         except Exception as e:  # pragma: no cover
             return _kube_api_error_handling(e)
 
-
     def apply(self, force=False):
         """
         Applies the Cluster yaml using server-side apply.
@@ -197,15 +196,14 @@ class Cluster:
         try:
             # Get the RayCluster custom resource definition
             api = dynamic_client.resources.get(
-                api_version="ray.io/v1",
-                kind="RayCluster"
+                api_version="ray.io/v1", kind="RayCluster"
             )
         except Exception as e:
             raise RuntimeError("Failed to get RayCluster resource: " + str(e))
 
         # Read the YAML file and parse it into a dictionary
         try:
-            with open(self.resource_yaml, 'r') as f:
+            with open(self.resource_yaml, "r") as f:
                 resource_body = yaml.safe_load(f)
         except FileNotFoundError:
             raise RuntimeError(f"Resource YAML file '{self.resource_yaml}' not found.")
@@ -224,7 +222,7 @@ class Cluster:
                 name=resource_name,
                 namespace=self.config.namespace,
                 field_manager="cluster-manager",
-                force_conflicts=force  # Allow forcing conflicts if needed
+                force_conflicts=force,  # Allow forcing conflicts if needed
             )
             print(f"Cluster '{self.config.name}' applied successfully.")
         except ApiException as e:
@@ -234,7 +232,9 @@ class Cluster:
                     "To force the patch, set 'force=True' in the apply() method."
                 )
             elif e.status == 404:
-                print(f"Namespace '{self.config.namespace}' or resource '{resource_name}' not found. Verify the namespace or CRD.")
+                print(
+                    f"Namespace '{self.config.namespace}' or resource '{resource_name}' not found. Verify the namespace or CRD."
+                )
             else:
                 raise RuntimeError(f"Failed to apply cluster: {e.reason}")
 

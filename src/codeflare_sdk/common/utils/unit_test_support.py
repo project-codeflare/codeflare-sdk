@@ -27,10 +27,15 @@ aw_dir = os.path.expanduser("~/.codeflare/resources/")
 
 
 def createClusterConfig():
+    config = createClusterConfigWithNumWorkers()
+    return config
+
+
+def createClusterConfigWithNumWorkers(num_workers=2):
     config = ClusterConfiguration(
         name="unit-test-cluster",
         namespace="ns",
-        num_workers=2,
+        num_workers=num_workers,
         worker_cpu_requests=3,
         worker_cpu_limits=4,
         worker_memory_requests=5,
@@ -41,13 +46,18 @@ def createClusterConfig():
     return config
 
 
-def createClusterWithConfig(mocker):
+def createClusterWithConfigAndNumWorkers(mocker, num_workers=2):
     mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
     mocker.patch(
         "kubernetes.client.CustomObjectsApi.get_cluster_custom_object",
         return_value={"spec": {"domain": "apps.cluster.awsroute.org"}},
     )
-    cluster = Cluster(createClusterConfig())
+    cluster = Cluster(createClusterConfigWithNumWorkers(num_workers))
+    return cluster
+
+
+def createClusterWithConfig(mocker):
+    cluster = createClusterWithConfigAndNumWorkers(mocker)
     return cluster
 
 
