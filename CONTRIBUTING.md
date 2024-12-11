@@ -76,7 +76,7 @@ pytest -v src/codeflare_sdk
 
 ### Local e2e Testing
 
-- Please follow the [e2e documentation](https://github.com/project-codeflare/codeflare-sdk/blob/main/docs/e2e.md)
+- Please follow the [e2e documentation](https://github.com/project-codeflare/codeflare-sdk/blob/main/docs/sphinx/user-docs/e2e.rst)
 
 #### Code Coverage
 

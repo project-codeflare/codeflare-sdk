@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from ..utils.unit_test_support import get_local_queue, createClusterConfig
+from ..utils.unit_test_support import get_local_queue, create_cluster_config
 from unittest.mock import patch
 from codeflare_sdk.ray.cluster.cluster import Cluster, ClusterConfiguration
 import yaml
@@ -46,7 +46,7 @@ def test_cluster_creation_no_aw_local_queue(mocker):
         "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
         return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
     )
-    config = createClusterConfig()
+    config = create_cluster_config()
     config.name = "unit-test-cluster-kueue"
     config.write_to_file = True
     config.local_queue = "local-queue-default"
@@ -59,7 +59,7 @@ def test_cluster_creation_no_aw_local_queue(mocker):
     )
 
     # With resources loaded in memory, no Local Queue specified.
-    config = createClusterConfig()
+    config = create_cluster_config()
     config.name = "unit-test-cluster-kueue"
     config.write_to_file = False
     cluster = Cluster(config)
@@ -79,7 +79,7 @@ def test_aw_creation_local_queue(mocker):
         "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
         return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
     )
-    config = createClusterConfig()
+    config = create_cluster_config()
     config.name = "unit-test-aw-kueue"
     config.appwrapper = True
     config.write_to_file = True
@@ -93,7 +93,7 @@ def test_aw_creation_local_queue(mocker):
     )
 
     # With resources loaded in memory, no Local Queue specified.
-    config = createClusterConfig()
+    config = create_cluster_config()
     config.name = "unit-test-aw-kueue"
     config.appwrapper = True
     config.write_to_file = False
@@ -114,7 +114,7 @@ def test_get_local_queue_exists_fail(mocker):
         "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
         return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
     )
-    config = createClusterConfig()
+    config = create_cluster_config()
     config.name = "unit-test-aw-kueue"
     config.appwrapper = True
     config.write_to_file = True
