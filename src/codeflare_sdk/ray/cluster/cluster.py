@@ -194,40 +194,33 @@ class Cluster:
         # check if RayCluster CustomResourceDefinition exists if not throw RuntimeError
         self._throw_for_no_raycluster()
         namespace = self.config.namespace
-
+        name = self.config.name
         try:
             self.config_check()
             api_instance = client.CustomObjectsApi(get_api_client())
             crds = self.get_dynamic_client().resources
-            api_instance = crds.get(
-                api_version="workload.codeflare.dev/v1beta2", kind="AppWrapper"
-            )
             if self.config.appwrapper:
+                api_version = "workload.codeflare.dev/v1beta2"
+                api_instance = crds.get(api_version, kind="AppWrapper")
+                # defaulting body to resource_yaml
+                body = self.resource_yaml
                 if self.config.write_to_file:
+                    # if write_to_file is True, load the file from AppWrapper yaml and update body
                     with open(self.resource_yaml) as f:
                         aw = yaml.load(f, Loader=yaml.FullLoader)
-                        api_instance.server_side_apply(
-                            group="workload.codeflare.dev",
-                            version="v1beta2",
-                            namespace=namespace,
-                            plural="appwrappers",
-                            body=aw,
-                        )
-                else:
-                    api_instance.server_side_apply(
-                        group="workload.codeflare.dev",
-                        version="v1beta2",
-                        namespace=namespace,
-                        plural="appwrappers",
-                        body=self.resource_yaml,
-                    )
-                print(f"AppWrapper: '{self.config.name}' has successfully been created")
+                    body = aw
+                api_instance.server_side_apply(
+                    group="workload.codeflare.dev",
+                    version="v1beta2",
+                    namespace=namespace,
+                    plural="appwrappers",
+                    body=body,
+                )
+                print(f"AppWrapper: '{name}' has successfully been created")
             else:
                 api_instance = crds.get(api_version="ray.io/v1", kind="RayCluster")
                 self._component_resources_apply(namespace, api_instance)
-                print(
-                    f"Ray Cluster: '{self.config.name}' has successfully been applied"
-                )
+                print(f"Ray Cluster: '{name}' has successfully been applied")
         except Exception as e:  # pragma: no cover
             return _kube_api_error_handling(e)
 

@@ -11,7 +11,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from ..utils.unit_test_support import get_local_queue, create_cluster_config, get_template_variables, apply_template
+from ..utils.unit_test_support import (
+    get_local_queue,
+    create_cluster_config,
+    get_template_variables,
+    apply_template,
+)
 from unittest.mock import patch
 from codeflare_sdk.ray.cluster.cluster import Cluster, ClusterConfiguration
 import yaml
