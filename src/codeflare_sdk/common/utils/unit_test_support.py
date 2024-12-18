@@ -26,32 +26,34 @@ parent = Path(__file__).resolve().parents[4]  # project directory
 aw_dir = os.path.expanduser("~/.codeflare/resources/")
 
 
-def createClusterConfig():
+def create_cluster_config(num_workers=2, write_to_file=False):
     config = ClusterConfiguration(
         name="unit-test-cluster",
         namespace="ns",
-        num_workers=2,
+        num_workers=num_workers,
         worker_cpu_requests=3,
         worker_cpu_limits=4,
         worker_memory_requests=5,
         worker_memory_limits=6,
         appwrapper=True,
-        write_to_file=False,
+        write_to_file=write_to_file,
     )
     return config
 
 
-def createClusterWithConfig(mocker):
-    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
-    mocker.patch(
-        "kubernetes.client.CustomObjectsApi.get_cluster_custom_object",
-        return_value={"spec": {"domain": "apps.cluster.awsroute.org"}},
-    )
-    cluster = Cluster(createClusterConfig())
+def create_cluster(mocker, num_workers=2, write_to_file=False):
+    cluster = Cluster(create_cluster_config(num_workers, write_to_file))
     return cluster
 
 
-def createClusterWrongType():
+def patch_cluster_with_dynamic_client(mocker, cluster, dynamic_client=None):
+    mocker.patch.object(cluster, "get_dynamic_client", return_value=dynamic_client)
+    mocker.patch.object(cluster, "down", return_value=None)
+    mocker.patch.object(cluster, "config_check", return_value=None)
+    # mocker.patch.object(cluster, "_throw_for_no_raycluster", return_value=None)
+
+
+def create_cluster_wrong_type():
     config = ClusterConfiguration(
         name="unit-test-cluster",
         namespace="ns",
@@ -381,6 +383,48 @@ def mocked_ingress(port, cluster_name="unit-test-cluster", annotations: dict = N
         ),
     )
     return mock_ingress
+
+
+# Global dictionary to maintain state in the mock
+cluster_state = {}
+
+
+# The mock side_effect function for server_side_apply
+def mock_server_side_apply(resource, body=None, name=None, namespace=None, **kwargs):
+    # Simulate the behavior of server_side_apply:
+    # Update a mock state that represents the cluster's current configuration.
+    # Stores the state in a global dictionary for simplicity.
+
+    global cluster_state
+
+    if not resource or not body or not name or not namespace:
+        raise ValueError("Missing required parameters for server_side_apply")
+
+    # Extract worker count from the body if it exists
+    try:
+        worker_count = (
+            body["spec"]["workerGroupSpecs"][0]["replicas"]
+            if "spec" in body and "workerGroupSpecs" in body["spec"]
+            else None
+        )
+    except KeyError:
+        worker_count = None
+
+    # Apply changes to the cluster_state mock
+    cluster_state[name] = {
+        "namespace": namespace,
+        "worker_count": worker_count,
+        "body": body,
+    }
+
+    # Return a response that mimics the behavior of a successful apply
+    return {
+        "status": "success",
+        "applied": True,
+        "name": name,
+        "namespace": namespace,
+        "worker_count": worker_count,
+    }
 
 
 @patch.dict("os.environ", {"NB_PREFIX": "test-prefix"})
