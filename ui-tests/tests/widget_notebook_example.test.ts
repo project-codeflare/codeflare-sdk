@@ -81,8 +81,8 @@ test.describe("Visual Regression", () => {
 
     await interactWithWidget(page, upDownWidgetCellIndex, 'button:has-text("Cluster Down")', async (button) => {
       await button.click();
-      const clusterDownMessage = await page.waitForSelector('text=No instances found, nothing to be done.', { timeout: 5000 });
-      expect(clusterDownMessage).not.toBeNull();
+      const clusterDownMessage = await page.waitForSelector('text=The requested resource could not be located.', { timeout: 5000 });
+      expect(await clusterDownMessage.innerText()).toContain('The requested resource could not be located.');
     });
 
     await interactWithWidget(page, upDownWidgetCellIndex, 'button:has-text("Cluster Up")', async (button) => {
