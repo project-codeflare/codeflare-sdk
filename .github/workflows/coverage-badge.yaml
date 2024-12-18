@@ -26,7 +26,7 @@ jobs:
         poetry install --with test
     - name: Generate coverage report
       run: |
-        coverage run -m pytest --omit="src/**/test_*.py,src/codeflare_sdk/common/utils/unit_test_support.py"
+        coverage run --omit="src/**/test_*.py,src/codeflare_sdk/common/utils/unit_test_support.py" -m pytest
 
     - name: Coverage Badge
       uses: tj-actions/coverage-badge-py@v2
