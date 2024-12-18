@@ -26,7 +26,7 @@ jobs:
           poetry install --with test
       - name: Test with pytest and check coverage
         run: |
-          coverage run -m pytest
+          coverage run --omit="src/**/test_*.py,src/codeflare_sdk/common/utils/unit_test_support.py" -m pytest
           coverage=$(coverage report -m | tail -1 | tail -c 4 | head -c 2)
           if (( $coverage < 90 )); then echo "Coverage failed at ${coverage}%"; exit 1; else echo "Coverage passed, ${coverage}%"; fi
       - name: Upload to Codecov
