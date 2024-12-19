@@ -6,7 +6,7 @@ Thank you for your interest in contributing to the CodeFlare SDK!
 
 ### Prerequisites
 
-- Python 3.9
+- Python 3.11
 - [Poetry](https://python-poetry.org/)
 
 ### Setting Up Your Development Environment
