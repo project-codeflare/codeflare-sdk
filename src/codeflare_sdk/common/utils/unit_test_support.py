@@ -442,5 +442,6 @@ def create_cluster_all_config_params(mocker, cluster_name, is_appwrapper) -> Clu
         extended_resource_mapping={"example.com/gpu": "GPU", "intel.com/gpu": "TPU"},
         overwrite_default_resource_mapping=True,
         local_queue="local-queue-default",
+        annotations={"key1": "value1", "key2": "value2"},
     )
     return Cluster(config)
