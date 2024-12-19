@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import string
+import sys
 from codeflare_sdk.ray.cluster.cluster import (
     Cluster,
     ClusterConfiguration,
@@ -253,6 +255,32 @@ def arg_check_del_effect(group, version, namespace, plural, name, *args):
         assert group == "networking.k8s.io"
         assert version == "v1"
         assert name == "ray-dashboard-unit-test-cluster-ray"
+
+
+def apply_template(yaml_file_path, variables):
+    with open(yaml_file_path, "r") as file:
+        yaml_content = file.read()
+
+    # Create a Template instance and substitute the variables
+    template = string.Template(yaml_content)
+    filled_yaml = template.substitute(variables)
+
+    # Now load the filled YAML into a Python object
+    return yaml.load(filled_yaml, Loader=yaml.FullLoader)
+
+
+def get_expected_image():
+    python_version = sys.version_info
+    if python_version.major == 3 and python_version.minor == 9:
+        return "quay.io/modh/ray@sha256:0d715f92570a2997381b7cafc0e224cfa25323f18b9545acfd23bc2b71576d06"
+    else:
+        return "quay.io/modh/ray@sha256:db667df1bc437a7b0965e8031e905d3ab04b86390d764d120e05ea5a5c18d1b4"
+
+
+def get_template_variables():
+    return {
+        "image": get_expected_image(),
+    }
 
 
 def arg_check_apply_effect(group, version, namespace, plural, body, *args):

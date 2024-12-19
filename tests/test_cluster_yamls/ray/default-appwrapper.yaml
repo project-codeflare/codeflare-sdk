@@ -36,7 +36,7 @@ spec:
           template:
             spec:
               containers:
-              - image: quay.io/modh/ray@sha256:0d715f92570a2997381b7cafc0e224cfa25323f18b9545acfd23bc2b71576d06
+              - image: "${image}"
                 imagePullPolicy: Always
                 lifecycle:
                   preStop:
@@ -101,7 +101,7 @@ spec:
           template:
             spec:
               containers:
-              - image: quay.io/modh/ray@sha256:0d715f92570a2997381b7cafc0e224cfa25323f18b9545acfd23bc2b71576d06
+              - image: "${image}"
                 imagePullPolicy: Always
                 lifecycle:
                   preStop:

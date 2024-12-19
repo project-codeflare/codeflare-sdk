@@ -11,7 +11,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from ..utils.unit_test_support import get_local_queue, createClusterConfig
+from ..utils.unit_test_support import (
+    apply_template,
+    get_local_queue,
+    createClusterConfig,
+    get_template_variables,
+)
 from unittest.mock import patch
 from codeflare_sdk.ray.cluster.cluster import Cluster, ClusterConfiguration
 import yaml
@@ -52,21 +57,21 @@ def test_cluster_creation_no_aw_local_queue(mocker):
     config.local_queue = "local-queue-default"
     cluster = Cluster(config)
     assert cluster.resource_yaml == f"{aw_dir}unit-test-cluster-kueue.yaml"
-    assert filecmp.cmp(
-        f"{aw_dir}unit-test-cluster-kueue.yaml",
+    expected_rc = apply_template(
         f"{parent}/tests/test_cluster_yamls/kueue/ray_cluster_kueue.yaml",
-        shallow=True,
+        get_template_variables(),
     )
+
+    with open(f"{aw_dir}unit-test-cluster-kueue.yaml", "r") as f:
+        cluster_kueue = yaml.load(f, Loader=yaml.FullLoader)
+        assert cluster_kueue == expected_rc
 
     # With resources loaded in memory, no Local Queue specified.
     config = createClusterConfig()
     config.name = "unit-test-cluster-kueue"
     config.write_to_file = False
     cluster = Cluster(config)
-
-    with open(f"{parent}/tests/test_cluster_yamls/kueue/ray_cluster_kueue.yaml") as f:
-        expected_rc = yaml.load(f, Loader=yaml.FullLoader)
-        assert cluster.resource_yaml == expected_rc
+    assert cluster.resource_yaml == expected_rc
 
 
 def test_aw_creation_local_queue(mocker):
@@ -86,11 +91,14 @@ def test_aw_creation_local_queue(mocker):
     config.local_queue = "local-queue-default"
     cluster = Cluster(config)
     assert cluster.resource_yaml == f"{aw_dir}unit-test-aw-kueue.yaml"
-    assert filecmp.cmp(
-        f"{aw_dir}unit-test-aw-kueue.yaml",
+    expected_rc = apply_template(
         f"{parent}/tests/test_cluster_yamls/kueue/aw_kueue.yaml",
-        shallow=True,
+        get_template_variables(),
     )
+
+    with open(f"{aw_dir}unit-test-aw-kueue.yaml", "r") as f:
+        aw_kueue = yaml.load(f, Loader=yaml.FullLoader)
+        assert aw_kueue == expected_rc
 
     # With resources loaded in memory, no Local Queue specified.
     config = createClusterConfig()
@@ -99,9 +107,7 @@ def test_aw_creation_local_queue(mocker):
     config.write_to_file = False
     cluster = Cluster(config)
 
-    with open(f"{parent}/tests/test_cluster_yamls/kueue/aw_kueue.yaml") as f:
-        expected_rc = yaml.load(f, Loader=yaml.FullLoader)
-        assert cluster.resource_yaml == expected_rc
+    assert cluster.resource_yaml == expected_rc
 
 
 def test_get_local_queue_exists_fail(mocker):
