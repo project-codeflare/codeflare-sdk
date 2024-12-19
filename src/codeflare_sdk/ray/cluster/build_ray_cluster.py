@@ -191,7 +191,7 @@ def get_metadata(cluster: "codeflare_sdk.ray.cluster.Cluster"):
     )
 
     # Get the NB annotation if it exists - could be useful in future for a "annotations" parameter.
-    annotations = get_nb_annotations()
+    annotations = with_nb_annotations(cluster.config.annotations)
     if annotations != {}:
         object_meta.annotations = annotations  # As annotations are not a guarantee they are appended to the metadata after creation.
     return object_meta
@@ -213,11 +213,10 @@ def get_labels(cluster: "codeflare_sdk.ray.cluster.Cluster"):
     return labels
 
 
-def get_nb_annotations():
+def with_nb_annotations(annotations: dict):
     """
-    The get_nb_annotations() function generates the annotation for NB Prefix if the SDK is running in a notebook
+    The with_nb_annotations() function generates the annotation for NB Prefix if the SDK is running in a notebook and appends any user set annotations
     """
-    annotations = {}
 
     # Notebook annotation
     nb_prefix = os.environ.get("NB_PREFIX")
