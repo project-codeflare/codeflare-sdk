@@ -22,6 +22,7 @@ import pathlib
 import warnings
 from dataclasses import dataclass, field, fields
 from typing import Dict, List, Optional, Union, get_args, get_origin
+from kubernetes.client import V1Volume, V1VolumeMount
 
 dir = pathlib.Path(__file__).parent.parent.resolve()
 
@@ -89,6 +90,10 @@ class ClusterConfiguration:
             A dictionary of custom resource mappings to map extended resource requests to RayCluster resource names
         overwrite_default_resource_mapping:
             A boolean indicating whether to overwrite the default resource mapping.
+        volumes:
+            A list of V1Volume objects to add to the Cluster
+        volume_mounts:
+            A list of V1VolumeMount objects to add to the Cluster
     """
 
     name: str
@@ -126,6 +131,8 @@ class ClusterConfiguration:
     extended_resource_mapping: Dict[str, str] = field(default_factory=dict)
     overwrite_default_resource_mapping: bool = False
     local_queue: Optional[str] = None
+    volumes: list[V1Volume] = field(default_factory=list)
+    volume_mounts: list[V1VolumeMount] = field(default_factory=list)
 
     def __post_init__(self):
         if not self.verify_tls:
