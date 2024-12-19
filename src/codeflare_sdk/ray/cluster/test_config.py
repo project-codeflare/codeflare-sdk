@@ -13,15 +13,15 @@
 # limitations under the License.
 
 from codeflare_sdk.common.utils.unit_test_support import (
+    apply_template,
     createClusterWrongType,
-    get_local_queue,
     create_cluster_all_config_params,
+    get_template_variables,
 )
 from codeflare_sdk.ray.cluster.cluster import ClusterConfiguration, Cluster
 from pathlib import Path
 import filecmp
 import pytest
-import yaml
 import os
 
 parent = Path(__file__).resolve().parents[4]  # project directory
@@ -36,9 +36,11 @@ def test_default_cluster_creation(mocker):
 
     cluster = Cluster(ClusterConfiguration(name="default-cluster", namespace="ns"))
 
-    with open(f"{expected_clusters_dir}/ray/default-ray-cluster.yaml") as f:
-        expected_rc = yaml.load(f, Loader=yaml.FullLoader)
-        assert cluster.resource_yaml == expected_rc
+    expected_rc = apply_template(
+        f"{expected_clusters_dir}/ray/default-ray-cluster.yaml",
+        get_template_variables(),
+    )
+    assert cluster.resource_yaml == expected_rc
 
 
 def test_default_appwrapper_creation(mocker):
@@ -50,9 +52,10 @@ def test_default_appwrapper_creation(mocker):
         ClusterConfiguration(name="default-appwrapper", namespace="ns", appwrapper=True)
     )
 
-    with open(f"{expected_clusters_dir}/ray/default-appwrapper.yaml") as f:
-        expected_aw = yaml.load(f, Loader=yaml.FullLoader)
-        assert cluster.resource_yaml == expected_aw
+    expected_aw = apply_template(
+        f"{expected_clusters_dir}/ray/default-appwrapper.yaml", get_template_variables()
+    )
+    assert cluster.resource_yaml == expected_aw
 
 
 def test_config_creation_all_parameters(mocker):

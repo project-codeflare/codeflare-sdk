@@ -17,7 +17,7 @@ on:
               default: 'project-codeflare'
             python_version:
               type: string
-              default: "3.8"
+              default: "3.11"
               required: true
             poetry_version:
               type: string

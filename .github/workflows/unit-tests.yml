@@ -10,16 +10,16 @@ jobs:
   unit-tests:
 
     runs-on: ubuntu-latest
-    container:
-      image: quay.io/project-codeflare/codeflare-sdk-precommit:v0.0.3
     steps:
       - uses: actions/checkout@v4
+
+      - name: Set up python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
       - name: Install poetry
         run: pip install poetry
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.8'
-      - name: Install dependencies
+      - name: Install dependencies with poetry
         run: |
           poetry config virtualenvs.create false
           poetry lock --no-update

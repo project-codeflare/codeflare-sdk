@@ -4,7 +4,7 @@ Running e2e tests locally
 Pre-requisites
 ^^^^^^^^^^^^^^
 
--  We recommend using Python 3.9, along with Poetry.
+-  We recommend using Python 3.11, along with Poetry.
 
 On KinD clusters
 ----------------
