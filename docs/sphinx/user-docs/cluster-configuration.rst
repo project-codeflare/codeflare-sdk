@@ -26,6 +26,7 @@ requirements for creating the Ray Cluster.
        worker_memory_limits=2, # Default 2
        # image="", # Optional Field
        labels={"exampleLabel": "example", "secondLabel": "example"},
+       annotations={"key1":"value1", "key2":"value2"},
    ))
 
 .. note::
