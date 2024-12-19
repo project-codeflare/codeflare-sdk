@@ -93,6 +93,11 @@ def test_config_creation_all_parameters(mocker):
     )
     assert cluster.config.overwrite_default_resource_mapping == True
     assert cluster.config.local_queue == "local-queue-default"
+    assert cluster.config.annotations == {
+        "app.kubernetes.io/managed-by": "test-prefix",
+        "key1": "value1",
+        "key2": "value2",
+    }
 
     assert filecmp.cmp(
         f"{aw_dir}test-all-params.yaml",

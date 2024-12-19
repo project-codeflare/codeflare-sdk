@@ -3,6 +3,8 @@ kind: RayCluster
 metadata:
   annotations:
     app.kubernetes.io/managed-by: test-prefix
+    key1: value1
+    key2: value2
   labels:
     controller-tools.k8s.io: '1.0'
     key1: value1
