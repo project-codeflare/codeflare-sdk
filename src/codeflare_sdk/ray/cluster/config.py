@@ -89,6 +89,8 @@ class ClusterConfiguration:
             A dictionary of custom resource mappings to map extended resource requests to RayCluster resource names
         overwrite_default_resource_mapping:
             A boolean indicating whether to overwrite the default resource mapping.
+        annotations:
+            A dictionary of annotations to apply to the cluster.
     """
 
     name: str
@@ -126,6 +128,7 @@ class ClusterConfiguration:
     extended_resource_mapping: Dict[str, str] = field(default_factory=dict)
     overwrite_default_resource_mapping: bool = False
     local_queue: Optional[str] = None
+    annotations: Dict[str, str] = field(default_factory=dict)
 
     def __post_init__(self):
         if not self.verify_tls:
