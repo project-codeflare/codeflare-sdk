@@ -3,6 +3,7 @@ name: UI notebooks tests
 on:
   pull_request:
     branches: [ main ]
+    types: [ labeled ]
 
 concurrency:
   group: ${{ github.head_ref }}-${{ github.workflow }}
