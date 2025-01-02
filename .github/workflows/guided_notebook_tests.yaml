@@ -125,7 +125,7 @@ jobs:
 
   verify-1_cluster_job_client:
     if: ${{ contains(github.event.pull_request.labels.*.name, 'test-guided-notebooks') }}
-    runs-on: ubuntu-20.04-4core-gpu
+    runs-on: gpu-t4-4-core
 
     steps:
       - name: Checkout code
@@ -247,7 +247,7 @@ jobs:
 
   verify-2_basic_interactive:
     if: ${{ contains(github.event.pull_request.labels.*.name, 'test-guided-notebooks') }}
-    runs-on: ubuntu-20.04-4core-gpu
+    runs-on: gpu-t4-4-core
 
     steps:
       - name: Checkout code
