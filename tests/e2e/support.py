@@ -11,6 +11,22 @@ from codeflare_sdk.common.kubernetes_cluster.kube_api_helpers import (
 )
 
 
+def get_ray_cluster(cluster_name, namespace):
+    api = client.CustomObjectsApi()
+    try:
+        return api.get_namespaced_custom_object(
+            group="ray.io",
+            version="v1",
+            namespace=namespace,
+            plural="rayclusters",
+            name=cluster_name,
+        )
+    except client.exceptions.ApiException as e:
+        if e.status == 404:
+            return None
+        raise
+
+
 def get_ray_image():
     default_ray_image = "quay.io/modh/ray@sha256:0d715f92570a2997381b7cafc0e224cfa25323f18b9545acfd23bc2b71576d06"
     return os.getenv("RAY_IMAGE", default_ray_image)
