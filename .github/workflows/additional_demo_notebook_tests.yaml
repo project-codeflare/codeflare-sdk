@@ -15,7 +15,7 @@ env:
 jobs:
   verify-local_interactive:
     if: ${{ github.event.label.name == 'test-additional-notebooks' }}
-    runs-on: ubuntu-20.04-4core
+    runs-on: ubuntu-latest-4core
 
     steps:
       - name: Checkout code
@@ -133,7 +133,7 @@ jobs:
 
   verify-ray_job_client:
     if: ${{ github.event.label.name == 'test-additional-notebooks' }}
-    runs-on: ubuntu-20.04-4core
+    runs-on: ubuntu-latest-4core
 
     steps:
       - name: Checkout code
