@@ -90,6 +90,11 @@ spec:
         imagePullSecrets:
         - name: secret1
         - name: secret2
+        tolerations:
+        - effect: NoSchedule
+          key: key1
+          operator: Equal
+          value: value1
         volumes:
         - emptyDir:
             sizeLimit: 500Gi
@@ -176,6 +181,11 @@ spec:
         imagePullSecrets:
         - name: secret1
         - name: secret2
+        tolerations:
+        - effect: NoSchedule
+          key: key2
+          operator: Equal
+          value: value2
         volumes:
         - emptyDir:
             sizeLimit: 500Gi

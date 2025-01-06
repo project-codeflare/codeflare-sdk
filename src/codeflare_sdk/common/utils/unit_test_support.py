@@ -22,6 +22,7 @@ import os
 import yaml
 from pathlib import Path
 from kubernetes import client
+from kubernetes.client import V1Toleration
 from unittest.mock import patch
 
 parent = Path(__file__).resolve().parents[4]  # project directory
@@ -427,8 +428,18 @@ def create_cluster_all_config_params(mocker, cluster_name, is_appwrapper) -> Clu
         head_memory_requests=12,
         head_memory_limits=16,
         head_extended_resource_requests={"nvidia.com/gpu": 1, "intel.com/gpu": 2},
+        head_tolerations=[
+            V1Toleration(
+                key="key1", operator="Equal", value="value1", effect="NoSchedule"
+            )
+        ],
         worker_cpu_requests=4,
         worker_cpu_limits=8,
+        worker_tolerations=[
+            V1Toleration(
+                key="key2", operator="Equal", value="value2", effect="NoSchedule"
+            )
+        ],
         num_workers=10,
         worker_memory_requests=12,
         worker_memory_limits=16,
