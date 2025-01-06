@@ -22,7 +22,7 @@ jobs:
       - name: Install dependencies with poetry
         run: |
           poetry config virtualenvs.create false
-          poetry lock --no-update
+          poetry lock
           poetry install --with test
       - name: Test with pytest and check coverage
         run: |
