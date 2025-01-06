@@ -22,7 +22,7 @@ import pathlib
 import warnings
 from dataclasses import dataclass, field, fields
 from typing import Dict, List, Optional, Union, get_args, get_origin
-from kubernetes.client import V1Volume, V1VolumeMount
+from kubernetes.client import V1Toleration, V1Volume, V1VolumeMount
 
 dir = pathlib.Path(__file__).parent.parent.resolve()
 
@@ -58,6 +58,8 @@ class ClusterConfiguration:
             The number of GPUs to allocate to the head node. (Deprecated, use head_extended_resource_requests)
         head_extended_resource_requests:
             A dictionary of extended resource requests for the head node. ex: {"nvidia.com/gpu": 1}
+        head_tolerations:
+            List of tolerations for head nodes.
         min_cpus:
             The minimum number of CPUs to allocate to each worker.
         max_cpus:
@@ -70,6 +72,8 @@ class ClusterConfiguration:
             The maximum amount of memory to allocate to each worker.
         num_gpus:
             The number of GPUs to allocate to each worker. (Deprecated, use worker_extended_resource_requests)
+        worker_tolerations:
+            List of tolerations for worker nodes.
         appwrapper:
             A boolean indicating whether to use an AppWrapper.
         envs:
@@ -110,6 +114,7 @@ class ClusterConfiguration:
     head_extended_resource_requests: Dict[str, Union[str, int]] = field(
         default_factory=dict
     )
+    head_tolerations: Optional[List[V1Toleration]] = None
     worker_cpu_requests: Union[int, str] = 1
     worker_cpu_limits: Union[int, str] = 1
     min_cpus: Optional[Union[int, str]] = None  # Deprecating
@@ -120,6 +125,7 @@ class ClusterConfiguration:
     min_memory: Optional[Union[int, str]] = None  # Deprecating
     max_memory: Optional[Union[int, str]] = None  # Deprecating
     num_gpus: Optional[int] = None  # Deprecating
+    worker_tolerations: Optional[List[V1Toleration]] = None
     appwrapper: bool = False
     envs: Dict[str, str] = field(default_factory=dict)
     image: str = ""
@@ -272,7 +278,10 @@ class ClusterConfiguration:
             if origin_type is Union:
                 return any(check_type(value, union_type) for union_type in args)
             if origin_type is list:
-                return all(check_type(elem, args[0]) for elem in value)
+                if value is not None:
+                    return all(check_type(elem, args[0]) for elem in (value or []))
+                else:
+                    return True
             if origin_type is dict:
                 return all(
                     check_type(k, args[0]) and check_type(v, args[1])

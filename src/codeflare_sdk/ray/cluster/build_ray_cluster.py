@@ -16,7 +16,7 @@
     This sub-module exists primarily to be used internally by the Cluster object
     (in the cluster sub-module) for RayCluster/AppWrapper generation.
 """
-from typing import Union, Tuple, Dict
+from typing import List, Union, Tuple, Dict
 from ...common import _kube_api_error_handling
 from ...common.kubernetes_cluster import get_api_client, config_check
 from kubernetes.client.exceptions import ApiException
@@ -40,6 +40,7 @@ from kubernetes.client import (
     V1PodTemplateSpec,
     V1PodSpec,
     V1LocalObjectReference,
+    V1Toleration,
 )
 
 import yaml
@@ -139,7 +140,11 @@ def build_ray_cluster(cluster: "codeflare_sdk.ray.cluster.Cluster"):
                     "resources": head_resources,
                 },
                 "template": {
-                    "spec": get_pod_spec(cluster, [get_head_container_spec(cluster)])
+                    "spec": get_pod_spec(
+                        cluster,
+                        [get_head_container_spec(cluster)],
+                        cluster.config.head_tolerations,
+                    )
                 },
             },
             "workerGroupSpecs": [
@@ -154,7 +159,11 @@ def build_ray_cluster(cluster: "codeflare_sdk.ray.cluster.Cluster"):
                         "resources": worker_resources,
                     },
                     "template": V1PodTemplateSpec(
-                        spec=get_pod_spec(cluster, [get_worker_container_spec(cluster)])
+                        spec=get_pod_spec(
+                            cluster,
+                            [get_worker_container_spec(cluster)],
+                            cluster.config.worker_tolerations,
+                        )
                     ),
                 }
             ],
@@ -243,14 +252,21 @@ def update_image(image) -> str:
     return image
 
 
-def get_pod_spec(cluster: "codeflare_sdk.ray.cluster.Cluster", containers):
+def get_pod_spec(
+    cluster: "codeflare_sdk.ray.cluster.Cluster",
+    containers: List,
+    tolerations: List[V1Toleration],
+) -> V1PodSpec:
     """
     The get_pod_spec() function generates a V1PodSpec for the head/worker containers
     """
+
     pod_spec = V1PodSpec(
         containers=containers,
         volumes=generate_custom_storage(cluster.config.volumes, VOLUMES),
+        tolerations=tolerations or None,
     )
+
     if cluster.config.image_pull_secrets != []:
         pod_spec.image_pull_secrets = generate_image_pull_secrets(cluster)
 
