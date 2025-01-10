@@ -56,10 +56,8 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: 'pipenv'
 
-      # Sync fails with pipenv 2024.1.0 (current latest version)
-      # TODO: We should retry with later versions of pipenv once they are available.
       - name: Install pipenv and pip-versions
-        run: pip install pipenv==2024.0.3 pip-versions
+        run: pip install pipenv==2024.4.0 pip-versions
 
       - name: Update Pipfiles in accordance with Codeflare-SDK latest release
         run: |
@@ -74,7 +72,7 @@ jobs:
             # replace existing version of cf-sdk with new version in Pipfile
             sed -i "s/codeflare-sdk = .*$/codeflare-sdk = \"~=$CODEFLARE_RELEASE_VERSION\"/g" Pipfile
             # Lock dependencies, ensuring pre-release are included and clear previous state
-            if ! pipenv lock --pre --clear ; then
+            if ! pipenv lock --verbose --pre --clear ; then
               echo "Failed to lock dependencies"
               exit 1
             fi
@@ -98,7 +96,8 @@ jobs:
             echo "Version ${CODEFLARE_RELEASE_VERSION} is available for $package_name"
             # list all Pipfile paths having Codeflare-SDK listed
             # Extracting only directories from file paths, excluding a `.gitworkflow` and `.git` directory
-            directories+=($(grep --exclude-dir=.git --exclude-dir=.github --include="Pipfile*" -rl "${package_name} = \"~=.*\"" | xargs dirname | sort | uniq))
+            # Extracting Intel directories as they are not supported in RHOAI
+            directories+=($(grep --exclude-dir=.git --exclude-dir=.github --exclude-dir=intel --exclude-dir=jupyter/intel --include="Pipfile*" -rl "${package_name} = \"~=.*\"" | xargs dirname | sort | uniq))
             counter=0
             total=${#directories[@]}
             for dir in "${directories[@]}"; do
