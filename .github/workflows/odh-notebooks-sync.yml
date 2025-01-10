@@ -97,7 +97,8 @@ jobs:
             # list all Pipfile paths having Codeflare-SDK listed
             # Extracting only directories from file paths, excluding a `.gitworkflow` and `.git` directory
             # Extracting Intel directories as they are not supported in RHOAI
-            directories+=($(grep --exclude-dir=.git --exclude-dir=.github --exclude-dir=intel --exclude-dir=jupyter/intel --include="Pipfile*" -rl "${package_name} = \"~=.*\"" | xargs dirname | sort | uniq))
+            # Removing tensorflow image TEMPORARILY until solution has been made for the tf2onnx package dependency resolution
+            directories+=($(grep --exclude-dir=.git --exclude-dir=.github --exclude-dir=intel --exclude-dir=tensorflow --exclude-dir=rocm-tensorflow --include="Pipfile*" -rl "${package_name} = \"~=.*\"" | xargs dirname | sort | uniq))
             counter=0
             total=${#directories[@]}
             for dir in "${directories[@]}"; do
