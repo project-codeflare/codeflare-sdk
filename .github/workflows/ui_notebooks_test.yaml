@@ -3,6 +3,7 @@ name: UI notebooks tests
 on:
   pull_request:
     branches: [ main ]
+    types: [ labeled ]
 
 concurrency:
   group: ${{ github.head_ref }}-${{ github.workflow }}
@@ -14,7 +15,7 @@ env:
 jobs:
   verify-3_widget_example:
     if: ${{ contains(github.event.pull_request.labels.*.name, 'test-guided-notebooks') || contains(github.event.pull_request.labels.*.name, 'test-ui-notebooks') }}
-    runs-on: ubuntu-20.04-4core
+    runs-on: ubuntu-latest-4core
 
     steps:
       - name: Checkout code
@@ -49,7 +50,7 @@ jobs:
       - name: Set up specific Python version
         uses: actions/setup-python@v5
         with:
-          python-version: "3.9"
+          python-version: "3.11"
           cache: "pip" # caching pip dependencies
 
       - name: Setup and start KinD cluster

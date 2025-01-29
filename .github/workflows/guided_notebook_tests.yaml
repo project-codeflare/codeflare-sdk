@@ -3,6 +3,7 @@ name: Guided notebooks tests
 on:
   pull_request:
     branches: [ main ]
+    types: [ labeled ]
 
 concurrency:
   group: ${{ github.head_ref }}-${{ github.workflow }}
@@ -14,7 +15,7 @@ env:
 jobs:
   verify-0_basic_ray:
     if: ${{ contains(github.event.pull_request.labels.*.name, 'test-guided-notebooks') }}
-    runs-on: ubuntu-20.04-4core
+    runs-on: ubuntu-latest-4core
 
     steps:
       - name: Checkout code
@@ -49,7 +50,7 @@ jobs:
       - name: Set up specific Python version
         uses: actions/setup-python@v5
         with:
-          python-version: '3.9'
+          python-version: '3.11'
           cache: 'pip' # caching pip dependencies
 
       - name: Setup and start KinD cluster
@@ -125,7 +126,7 @@ jobs:
 
   verify-1_cluster_job_client:
     if: ${{ contains(github.event.pull_request.labels.*.name, 'test-guided-notebooks') }}
-    runs-on: ubuntu-20.04-4core-gpu
+    runs-on: gpu-t4-4-core
 
     steps:
       - name: Checkout code
@@ -160,7 +161,7 @@ jobs:
       - name: Set up specific Python version
         uses: actions/setup-python@v5
         with:
-          python-version: '3.9'
+          python-version: '3.11'
           cache: 'pip' # caching pip dependencies
 
       - name: Setup NVidia GPU environment for KinD
@@ -247,7 +248,7 @@ jobs:
 
   verify-2_basic_interactive:
     if: ${{ contains(github.event.pull_request.labels.*.name, 'test-guided-notebooks') }}
-    runs-on: ubuntu-20.04-4core-gpu
+    runs-on: gpu-t4-4-core
 
     steps:
       - name: Checkout code
@@ -282,7 +283,7 @@ jobs:
       - name: Set up specific Python version
         uses: actions/setup-python@v5
         with:
-          python-version: '3.9'
+          python-version: '3.11'
           cache: 'pip' # caching pip dependencies
 
       - name: Setup NVidia GPU environment for KinD

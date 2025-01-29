@@ -6,7 +6,7 @@ Thank you for your interest in contributing to the CodeFlare SDK!
 
 ### Prerequisites
 
-- Python 3.9
+- Python 3.11
 - [Poetry](https://python-poetry.org/)
 
 ### Setting Up Your Development Environment
@@ -76,7 +76,7 @@ pytest -v src/codeflare_sdk
 
 ### Local e2e Testing
 
-- Please follow the [e2e documentation](https://github.com/project-codeflare/codeflare-sdk/blob/main/docs/e2e.md)
+- Please follow the [e2e documentation](https://github.com/project-codeflare/codeflare-sdk/blob/main/docs/sphinx/user-docs/e2e.rst)
 
 #### Code Coverage
 

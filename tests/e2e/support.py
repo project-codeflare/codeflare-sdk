@@ -3,11 +3,28 @@ import os
 import random
 import string
 import subprocess
+from codeflare_sdk import get_cluster
 from kubernetes import client, config
 import kubernetes.client
 from codeflare_sdk.common.kubernetes_cluster.kube_api_helpers import (
     _kube_api_error_handling,
 )
+
+
+def get_ray_cluster(cluster_name, namespace):
+    api = client.CustomObjectsApi()
+    try:
+        return api.get_namespaced_custom_object(
+            group="ray.io",
+            version="v1",
+            namespace=namespace,
+            plural="rayclusters",
+            name=cluster_name,
+        )
+    except client.exceptions.ApiException as e:
+        if e.status == 404:
+            return None
+        raise
 
 
 def get_ray_image():
@@ -348,3 +365,45 @@ def get_nodes_by_label(self, node_labels):
     label_selector = ",".join(f"{k}={v}" for k, v in node_labels.items())
     nodes = self.api_instance.list_node(label_selector=label_selector)
     return [node.metadata.name for node in nodes.items]
+
+
+def assert_get_cluster_and_jobsubmit(
+    self, cluster_name, accelerator=None, number_of_gpus=None
+):
+    # Retrieve the cluster
+    cluster = get_cluster(cluster_name, self.namespace, False)
+
+    cluster.details()
+
+    # Initialize the job client
+    client = cluster.job_client
+
+    # Submit a job and get the submission ID
+    env_vars = (
+        get_setup_env_variables(ACCELERATOR=accelerator)
+        if accelerator
+        else get_setup_env_variables()
+    )
+    submission_id = client.submit_job(
+        entrypoint="python mnist.py",
+        runtime_env={
+            "working_dir": "./tests/e2e/",
+            "pip": "./tests/e2e/mnist_pip_requirements.txt",
+            "env_vars": env_vars,
+        },
+        entrypoint_num_cpus=1 if number_of_gpus is None else None,
+        entrypoint_num_gpus=number_of_gpus,
+    )
+    print(f"Submitted job with ID: {submission_id}")
+
+    # Fetch the list of jobs and validate
+    job_list = client.list_jobs()
+    print(f"List of Jobs: {job_list}")
+
+    # Validate the number of jobs in the list
+    assert len(job_list) == 1
+
+    # Validate the submission ID matches
+    assert job_list[0].submission_id == submission_id
+
+    cluster.down()

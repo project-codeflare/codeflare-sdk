@@ -66,6 +66,12 @@ cluster.up()
 
 | The ``cluster.up()`` function creates a Ray Cluster in the given namespace.
 
+cluster.apply()
+------------
+
+| The ``cluster.apply()`` function applies a Ray Cluster in the given namespace. If the cluster already exists, it is updated.
+| If it does not exist it is created.
+
 cluster.down()
 --------------
 

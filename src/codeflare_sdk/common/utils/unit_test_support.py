@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import string
+import sys
 from codeflare_sdk.ray.cluster.cluster import (
     Cluster,
     ClusterConfiguration,
@@ -20,42 +22,45 @@ import os
 import yaml
 from pathlib import Path
 from kubernetes import client
+from kubernetes.client import V1Toleration
 from unittest.mock import patch
 
 parent = Path(__file__).resolve().parents[4]  # project directory
 aw_dir = os.path.expanduser("~/.codeflare/resources/")
 
 
-def createClusterConfig():
+def create_cluster_config(num_workers=2, write_to_file=False):
     config = ClusterConfiguration(
         name="unit-test-cluster",
         namespace="ns",
-        num_workers=2,
+        num_workers=num_workers,
         worker_cpu_requests=3,
         worker_cpu_limits=4,
         worker_memory_requests=5,
         worker_memory_limits=6,
         appwrapper=True,
-        write_to_file=False,
+        write_to_file=write_to_file,
     )
     return config
 
 
-def createClusterWithConfig(mocker):
-    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
-    mocker.patch(
-        "kubernetes.client.CustomObjectsApi.get_cluster_custom_object",
-        return_value={"spec": {"domain": "apps.cluster.awsroute.org"}},
-    )
-    cluster = Cluster(createClusterConfig())
+def create_cluster(mocker, num_workers=2, write_to_file=False):
+    cluster = Cluster(create_cluster_config(num_workers, write_to_file))
     return cluster
 
 
-def createClusterWrongType():
+def patch_cluster_with_dynamic_client(mocker, cluster, dynamic_client=None):
+    mocker.patch.object(cluster, "get_dynamic_client", return_value=dynamic_client)
+    mocker.patch.object(cluster, "down", return_value=None)
+    mocker.patch.object(cluster, "config_check", return_value=None)
+    # mocker.patch.object(cluster, "_throw_for_no_raycluster", return_value=None)
+
+
+def create_cluster_wrong_type():
     config = ClusterConfiguration(
         name="unit-test-cluster",
         namespace="ns",
-        num_workers=2,
+        num_workers=True,
         worker_cpu_requests=[],
         worker_cpu_limits=4,
         worker_memory_requests=5,
@@ -255,6 +260,32 @@ def arg_check_del_effect(group, version, namespace, plural, name, *args):
         assert name == "ray-dashboard-unit-test-cluster-ray"
 
 
+def apply_template(yaml_file_path, variables):
+    with open(yaml_file_path, "r") as file:
+        yaml_content = file.read()
+
+    # Create a Template instance and substitute the variables
+    template = string.Template(yaml_content)
+    filled_yaml = template.substitute(variables)
+
+    # Now load the filled YAML into a Python object
+    return yaml.load(filled_yaml, Loader=yaml.FullLoader)
+
+
+def get_expected_image():
+    python_version = sys.version_info
+    if python_version.major == 3 and python_version.minor == 9:
+        return "quay.io/modh/ray@sha256:0d715f92570a2997381b7cafc0e224cfa25323f18b9545acfd23bc2b71576d06"
+    else:
+        return "quay.io/modh/ray@sha256:db667df1bc437a7b0965e8031e905d3ab04b86390d764d120e05ea5a5c18d1b4"
+
+
+def get_template_variables():
+    return {
+        "image": get_expected_image(),
+    }
+
+
 def arg_check_apply_effect(group, version, namespace, plural, body, *args):
     assert namespace == "ns"
     assert args == tuple()
@@ -383,12 +414,55 @@ def mocked_ingress(port, cluster_name="unit-test-cluster", annotations: dict = N
     return mock_ingress
 
 
+# Global dictionary to maintain state in the mock
+cluster_state = {}
+
+
+# The mock side_effect function for server_side_apply
+def mock_server_side_apply(resource, body=None, name=None, namespace=None, **kwargs):
+    # Simulate the behavior of server_side_apply:
+    # Update a mock state that represents the cluster's current configuration.
+    # Stores the state in a global dictionary for simplicity.
+
+    global cluster_state
+
+    if not resource or not body or not name or not namespace:
+        raise ValueError("Missing required parameters for server_side_apply")
+
+    # Extract worker count from the body if it exists
+    try:
+        worker_count = (
+            body["spec"]["workerGroupSpecs"][0]["replicas"]
+            if "spec" in body and "workerGroupSpecs" in body["spec"]
+            else None
+        )
+    except KeyError:
+        worker_count = None
+
+    # Apply changes to the cluster_state mock
+    cluster_state[name] = {
+        "namespace": namespace,
+        "worker_count": worker_count,
+        "body": body,
+    }
+
+    # Return a response that mimics the behavior of a successful apply
+    return {
+        "status": "success",
+        "applied": True,
+        "name": name,
+        "namespace": namespace,
+        "worker_count": worker_count,
+    }
+
+
 @patch.dict("os.environ", {"NB_PREFIX": "test-prefix"})
 def create_cluster_all_config_params(mocker, cluster_name, is_appwrapper) -> Cluster:
     mocker.patch(
         "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
         return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
     )
+    volumes, volume_mounts = get_example_extended_storage_opts()
 
     config = ClusterConfiguration(
         name=cluster_name,
@@ -398,8 +472,18 @@ def create_cluster_all_config_params(mocker, cluster_name, is_appwrapper) -> Clu
         head_memory_requests=12,
         head_memory_limits=16,
         head_extended_resource_requests={"nvidia.com/gpu": 1, "intel.com/gpu": 2},
+        head_tolerations=[
+            V1Toleration(
+                key="key1", operator="Equal", value="value1", effect="NoSchedule"
+            )
+        ],
         worker_cpu_requests=4,
         worker_cpu_limits=8,
+        worker_tolerations=[
+            V1Toleration(
+                key="key2", operator="Equal", value="value2", effect="NoSchedule"
+            )
+        ],
         num_workers=10,
         worker_memory_requests=12,
         worker_memory_limits=16,
@@ -414,5 +498,47 @@ def create_cluster_all_config_params(mocker, cluster_name, is_appwrapper) -> Clu
         extended_resource_mapping={"example.com/gpu": "GPU", "intel.com/gpu": "TPU"},
         overwrite_default_resource_mapping=True,
         local_queue="local-queue-default",
+        annotations={"key1": "value1", "key2": "value2"},
+        volumes=volumes,
+        volume_mounts=volume_mounts,
     )
     return Cluster(config)
+
+
+def get_example_extended_storage_opts():
+    from kubernetes.client import (
+        V1Volume,
+        V1VolumeMount,
+        V1EmptyDirVolumeSource,
+        V1ConfigMapVolumeSource,
+        V1KeyToPath,
+        V1SecretVolumeSource,
+    )
+
+    volume_mounts = [
+        V1VolumeMount(mount_path="/home/ray/test1", name="test"),
+        V1VolumeMount(
+            mount_path="/home/ray/test2",
+            name="test2",
+        ),
+        V1VolumeMount(
+            mount_path="/home/ray/test2",
+            name="test3",
+        ),
+    ]
+
+    volumes = [
+        V1Volume(
+            name="test",
+            empty_dir=V1EmptyDirVolumeSource(size_limit="500Gi"),
+        ),
+        V1Volume(
+            name="test2",
+            config_map=V1ConfigMapVolumeSource(
+                name="config-map-test",
+                items=[V1KeyToPath(key="test", path="/home/ray/test2/data.txt")],
+            ),
+        ),
+        V1Volume(name="test3", secret=V1SecretVolumeSource(secret_name="test-secret")),
+    ]
+    return volumes, volume_mounts

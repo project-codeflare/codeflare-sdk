@@ -16,7 +16,7 @@
     This sub-module exists primarily to be used internally by the Cluster object
     (in the cluster sub-module) for RayCluster/AppWrapper generation.
 """
-from typing import Union, Tuple, Dict
+from typing import List, Union, Tuple, Dict
 from ...common import _kube_api_error_handling
 from ...common.kubernetes_cluster import get_api_client, config_check
 from kubernetes.client.exceptions import ApiException
@@ -40,6 +40,7 @@ from kubernetes.client import (
     V1PodTemplateSpec,
     V1PodSpec,
     V1LocalObjectReference,
+    V1Toleration,
 )
 
 import yaml
@@ -139,7 +140,11 @@ def build_ray_cluster(cluster: "codeflare_sdk.ray.cluster.Cluster"):
                     "resources": head_resources,
                 },
                 "template": {
-                    "spec": get_pod_spec(cluster, [get_head_container_spec(cluster)])
+                    "spec": get_pod_spec(
+                        cluster,
+                        [get_head_container_spec(cluster)],
+                        cluster.config.head_tolerations,
+                    )
                 },
             },
             "workerGroupSpecs": [
@@ -154,7 +159,11 @@ def build_ray_cluster(cluster: "codeflare_sdk.ray.cluster.Cluster"):
                         "resources": worker_resources,
                     },
                     "template": V1PodTemplateSpec(
-                        spec=get_pod_spec(cluster, [get_worker_container_spec(cluster)])
+                        spec=get_pod_spec(
+                            cluster,
+                            [get_worker_container_spec(cluster)],
+                            cluster.config.worker_tolerations,
+                        )
                     ),
                 }
             ],
@@ -191,7 +200,7 @@ def get_metadata(cluster: "codeflare_sdk.ray.cluster.Cluster"):
     )
 
     # Get the NB annotation if it exists - could be useful in future for a "annotations" parameter.
-    annotations = get_nb_annotations()
+    annotations = with_nb_annotations(cluster.config.annotations)
     if annotations != {}:
         object_meta.annotations = annotations  # As annotations are not a guarantee they are appended to the metadata after creation.
     return object_meta
@@ -213,11 +222,10 @@ def get_labels(cluster: "codeflare_sdk.ray.cluster.Cluster"):
     return labels
 
 
-def get_nb_annotations():
+def with_nb_annotations(annotations: dict):
     """
-    The get_nb_annotations() function generates the annotation for NB Prefix if the SDK is running in a notebook
+    The with_nb_annotations() function generates the annotation for NB Prefix if the SDK is running in a notebook and appends any user set annotations
     """
-    annotations = {}
 
     # Notebook annotation
     nb_prefix = os.environ.get("NB_PREFIX")
@@ -244,14 +252,21 @@ def update_image(image) -> str:
     return image
 
 
-def get_pod_spec(cluster: "codeflare_sdk.ray.cluster.Cluster", containers):
+def get_pod_spec(
+    cluster: "codeflare_sdk.ray.cluster.Cluster",
+    containers: List,
+    tolerations: List[V1Toleration],
+) -> V1PodSpec:
     """
     The get_pod_spec() function generates a V1PodSpec for the head/worker containers
     """
+
     pod_spec = V1PodSpec(
         containers=containers,
-        volumes=VOLUMES,
+        volumes=generate_custom_storage(cluster.config.volumes, VOLUMES),
+        tolerations=tolerations or None,
     )
+
     if cluster.config.image_pull_secrets != []:
         pod_spec.image_pull_secrets = generate_image_pull_secrets(cluster)
 
@@ -296,7 +311,9 @@ def get_head_container_spec(
             cluster.config.head_memory_limits,
             cluster.config.head_extended_resource_requests,
         ),
-        volume_mounts=VOLUME_MOUNTS,
+        volume_mounts=generate_custom_storage(
+            cluster.config.volume_mounts, VOLUME_MOUNTS
+        ),
     )
     if cluster.config.envs != {}:
         head_container.env = generate_env_vars(cluster)
@@ -338,7 +355,9 @@ def get_worker_container_spec(
             cluster.config.worker_memory_limits,
             cluster.config.worker_extended_resource_requests,
         ),
-        volume_mounts=VOLUME_MOUNTS,
+        volume_mounts=generate_custom_storage(
+            cluster.config.volume_mounts, VOLUME_MOUNTS
+        ),
     )
 
     if cluster.config.envs != {}:
@@ -522,6 +541,22 @@ def wrap_cluster(
 
 
 # Etc.
+def generate_custom_storage(provided_storage: list, default_storage: list):
+    """
+    The generate_custom_storage function updates the volumes/volume mounts configs with the default volumes/volume mounts.
+    """
+    storage_list = provided_storage.copy()
+
+    if storage_list == []:
+        storage_list = default_storage
+    else:
+        # We append the list of volumes/volume mounts with the defaults and return the full list
+        for storage in default_storage:
+            storage_list.append(storage)
+
+    return storage_list
+
+
 def write_to_file(cluster: "codeflare_sdk.ray.cluster.Cluster", resource: dict):
     """
     The write_to_file function writes the built Ray Cluster/AppWrapper dict as a yaml file in the .codeflare folder

@@ -15,7 +15,7 @@ env:
 jobs:
   verify-local_interactive:
     if: ${{ github.event.label.name == 'test-additional-notebooks' }}
-    runs-on: ubuntu-20.04-4core
+    runs-on: ubuntu-latest-4core
 
     steps:
       - name: Checkout code
@@ -50,7 +50,7 @@ jobs:
       - name: Set up specific Python version
         uses: actions/setup-python@v5
         with:
-          python-version: '3.9'
+          python-version: '3.11'
           cache: 'pip' # caching pip dependencies
 
       - name: Setup and start KinD cluster
@@ -133,7 +133,7 @@ jobs:
 
   verify-ray_job_client:
     if: ${{ github.event.label.name == 'test-additional-notebooks' }}
-    runs-on: ubuntu-20.04-4core
+    runs-on: ubuntu-latest-4core
 
     steps:
       - name: Checkout code
@@ -168,7 +168,7 @@ jobs:
       - name: Set up specific Python version
         uses: actions/setup-python@v5
         with:
-          python-version: '3.9'
+          python-version: '3.11'
           cache: 'pip' # caching pip dependencies
 
       - name: Setup and start KinD cluster

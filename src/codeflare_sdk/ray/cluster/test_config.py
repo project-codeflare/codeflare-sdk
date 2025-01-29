@@ -13,15 +13,16 @@
 # limitations under the License.
 
 from codeflare_sdk.common.utils.unit_test_support import (
-    createClusterWrongType,
-    get_local_queue,
+    apply_template,
+    get_example_extended_storage_opts,
+    create_cluster_wrong_type,
     create_cluster_all_config_params,
+    get_template_variables,
 )
 from codeflare_sdk.ray.cluster.cluster import ClusterConfiguration, Cluster
 from pathlib import Path
 import filecmp
 import pytest
-import yaml
 import os
 
 parent = Path(__file__).resolve().parents[4]  # project directory
@@ -36,9 +37,11 @@ def test_default_cluster_creation(mocker):
 
     cluster = Cluster(ClusterConfiguration(name="default-cluster", namespace="ns"))
 
-    with open(f"{expected_clusters_dir}/ray/default-ray-cluster.yaml") as f:
-        expected_rc = yaml.load(f, Loader=yaml.FullLoader)
-        assert cluster.resource_yaml == expected_rc
+    expected_rc = apply_template(
+        f"{expected_clusters_dir}/ray/default-ray-cluster.yaml",
+        get_template_variables(),
+    )
+    assert cluster.resource_yaml == expected_rc
 
 
 def test_default_appwrapper_creation(mocker):
@@ -50,17 +53,20 @@ def test_default_appwrapper_creation(mocker):
         ClusterConfiguration(name="default-appwrapper", namespace="ns", appwrapper=True)
     )
 
-    with open(f"{expected_clusters_dir}/ray/default-appwrapper.yaml") as f:
-        expected_aw = yaml.load(f, Loader=yaml.FullLoader)
-        assert cluster.resource_yaml == expected_aw
+    expected_aw = apply_template(
+        f"{expected_clusters_dir}/ray/default-appwrapper.yaml", get_template_variables()
+    )
+    assert cluster.resource_yaml == expected_aw
 
 
+@pytest.mark.filterwarnings("ignore::UserWarning")
 def test_config_creation_all_parameters(mocker):
     from codeflare_sdk.ray.cluster.config import DEFAULT_RESOURCE_MAPPING
 
     expected_extended_resource_mapping = DEFAULT_RESOURCE_MAPPING
     expected_extended_resource_mapping.update({"example.com/gpu": "GPU"})
     expected_extended_resource_mapping["intel.com/gpu"] = "TPU"
+    volumes, volume_mounts = get_example_extended_storage_opts()
 
     cluster = create_cluster_all_config_params(mocker, "test-all-params", False)
     assert cluster.config.name == "test-all-params" and cluster.config.namespace == "ns"
@@ -90,6 +96,13 @@ def test_config_creation_all_parameters(mocker):
     )
     assert cluster.config.overwrite_default_resource_mapping == True
     assert cluster.config.local_queue == "local-queue-default"
+    assert cluster.config.annotations == {
+        "app.kubernetes.io/managed-by": "test-prefix",
+        "key1": "value1",
+        "key2": "value2",
+    }
+    assert cluster.config.volumes == volumes
+    assert cluster.config.volume_mounts == volume_mounts
 
     assert filecmp.cmp(
         f"{aw_dir}test-all-params.yaml",
@@ -98,6 +111,7 @@ def test_config_creation_all_parameters(mocker):
     )
 
 
+@pytest.mark.filterwarnings("ignore::UserWarning")
 def test_all_config_params_aw(mocker):
     create_cluster_all_config_params(mocker, "aw-all-params", True)
     assert filecmp.cmp(
@@ -108,10 +122,13 @@ def test_all_config_params_aw(mocker):
 
 
 def test_config_creation_wrong_type():
-    with pytest.raises(TypeError):
-        createClusterWrongType()
+    with pytest.raises(TypeError) as error_info:
+        create_cluster_wrong_type()
+
+    assert len(str(error_info.value).splitlines()) == 4
 
 
+@pytest.mark.filterwarnings("ignore::UserWarning")
 def test_cluster_config_deprecation_conversion(mocker):
     config = ClusterConfiguration(
         name="test",

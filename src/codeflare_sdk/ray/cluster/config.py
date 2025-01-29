@@ -22,6 +22,7 @@ import pathlib
 import warnings
 from dataclasses import dataclass, field, fields
 from typing import Dict, List, Optional, Union, get_args, get_origin
+from kubernetes.client import V1Toleration, V1Volume, V1VolumeMount
 
 dir = pathlib.Path(__file__).parent.parent.resolve()
 
@@ -57,6 +58,8 @@ class ClusterConfiguration:
             The number of GPUs to allocate to the head node. (Deprecated, use head_extended_resource_requests)
         head_extended_resource_requests:
             A dictionary of extended resource requests for the head node. ex: {"nvidia.com/gpu": 1}
+        head_tolerations:
+            List of tolerations for head nodes.
         min_cpus:
             The minimum number of CPUs to allocate to each worker.
         max_cpus:
@@ -69,6 +72,8 @@ class ClusterConfiguration:
             The maximum amount of memory to allocate to each worker.
         num_gpus:
             The number of GPUs to allocate to each worker. (Deprecated, use worker_extended_resource_requests)
+        worker_tolerations:
+            List of tolerations for worker nodes.
         appwrapper:
             A boolean indicating whether to use an AppWrapper.
         envs:
@@ -89,6 +94,12 @@ class ClusterConfiguration:
             A dictionary of custom resource mappings to map extended resource requests to RayCluster resource names
         overwrite_default_resource_mapping:
             A boolean indicating whether to overwrite the default resource mapping.
+        annotations:
+            A dictionary of annotations to apply to the cluster.
+        volumes:
+            A list of V1Volume objects to add to the Cluster
+        volume_mounts:
+            A list of V1VolumeMount objects to add to the Cluster
     """
 
     name: str
@@ -103,6 +114,7 @@ class ClusterConfiguration:
     head_extended_resource_requests: Dict[str, Union[str, int]] = field(
         default_factory=dict
     )
+    head_tolerations: Optional[List[V1Toleration]] = None
     worker_cpu_requests: Union[int, str] = 1
     worker_cpu_limits: Union[int, str] = 1
     min_cpus: Optional[Union[int, str]] = None  # Deprecating
@@ -113,6 +125,7 @@ class ClusterConfiguration:
     min_memory: Optional[Union[int, str]] = None  # Deprecating
     max_memory: Optional[Union[int, str]] = None  # Deprecating
     num_gpus: Optional[int] = None  # Deprecating
+    worker_tolerations: Optional[List[V1Toleration]] = None
     appwrapper: bool = False
     envs: Dict[str, str] = field(default_factory=dict)
     image: str = ""
@@ -126,6 +139,9 @@ class ClusterConfiguration:
     extended_resource_mapping: Dict[str, str] = field(default_factory=dict)
     overwrite_default_resource_mapping: bool = False
     local_queue: Optional[str] = None
+    annotations: Dict[str, str] = field(default_factory=dict)
+    volumes: list[V1Volume] = field(default_factory=list)
+    volume_mounts: list[V1VolumeMount] = field(default_factory=list)
 
     def __post_init__(self):
         if not self.verify_tls:
@@ -242,13 +258,15 @@ class ClusterConfiguration:
 
     def _validate_types(self):
         """Validate the types of all fields in the ClusterConfiguration dataclass."""
+        errors = []
         for field_info in fields(self):
             value = getattr(self, field_info.name)
             expected_type = field_info.type
             if not self._is_type(value, expected_type):
-                raise TypeError(
-                    f"'{field_info.name}' should be of type {expected_type}"
-                )
+                errors.append(f"'{field_info.name}' should be of type {expected_type}.")
+
+        if errors:
+            raise TypeError("Type validation failed:\n" + "\n".join(errors))
 
     @staticmethod
     def _is_type(value, expected_type):
@@ -260,7 +278,10 @@ class ClusterConfiguration:
             if origin_type is Union:
                 return any(check_type(value, union_type) for union_type in args)
             if origin_type is list:
-                return all(check_type(elem, args[0]) for elem in value)
+                if value is not None:
+                    return all(check_type(elem, args[0]) for elem in (value or []))
+                else:
+                    return True
             if origin_type is dict:
                 return all(
                     check_type(k, args[0]) and check_type(v, args[1])
@@ -268,6 +289,10 @@ class ClusterConfiguration:
                 )
             if origin_type is tuple:
                 return all(check_type(elem, etype) for elem, etype in zip(value, args))
+            if expected_type is int:
+                return isinstance(value, int) and not isinstance(value, bool)
+            if expected_type is bool:
+                return isinstance(value, bool)
             return isinstance(value, expected_type)
 
         return check_type(value, expected_type)
