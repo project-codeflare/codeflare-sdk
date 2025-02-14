@@ -1,0 +1,374 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>codeflare_sdk.common.utils.generate_cert &mdash; CodeFlare SDK 0.27.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../_static/documentation_options.js?v=3b7790a3"></script>
+      <script src="../../../../_static/doctools.js?v=9a2dae69"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            CodeFlare SDK
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Code Documentation:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../modules.html">codeflare_sdk</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">User Documentation:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user-docs/authentication.html">Authentication via the CodeFlare SDK</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user-docs/cluster-configuration.html">Ray Cluster Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user-docs/ray-cluster-interaction.html">Ray Cluster Interaction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user-docs/e2e.html">Running e2e tests locally</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user-docs/s3-compatible-storage.html">S3 compatible storage with Ray Train examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user-docs/setup-kueue.html">Basic Kueue Resources configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user-docs/ui-widgets.html">Jupyter UI Widgets</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">CodeFlare SDK</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">codeflare_sdk.common.utils.generate_cert</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for codeflare_sdk.common.utils.generate_cert</h1><div class="highlight"><pre>
+<span></span><span class="c1"># Copyright 2022 IBM, Red Hat</span>
+<span class="c1">#</span>
+<span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="c1"># you may not use this file except in compliance with the License.</span>
+<span class="c1"># You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#      http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+
+<span class="kn">import</span> <span class="nn">base64</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">from</span> <span class="nn">cryptography.hazmat.primitives</span> <span class="kn">import</span> <span class="n">serialization</span><span class="p">,</span> <span class="n">hashes</span>
+<span class="kn">from</span> <span class="nn">cryptography.hazmat.primitives.asymmetric</span> <span class="kn">import</span> <span class="n">rsa</span>
+<span class="kn">from</span> <span class="nn">cryptography</span> <span class="kn">import</span> <span class="n">x509</span>
+<span class="kn">from</span> <span class="nn">cryptography.x509.oid</span> <span class="kn">import</span> <span class="n">NameOID</span>
+<span class="kn">import</span> <span class="nn">datetime</span>
+<span class="kn">from</span> <span class="nn">..kubernetes_cluster.auth</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">config_check</span><span class="p">,</span>
+    <span class="n">get_api_client</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span> <span class="nn">kubernetes</span> <span class="kn">import</span> <span class="n">client</span>
+<span class="kn">from</span> <span class="nn">..</span> <span class="kn">import</span> <span class="n">_kube_api_error_handling</span>
+
+
+<div class="viewcode-block" id="generate_ca_cert">
+<a class="viewcode-back" href="../../../../codeflare_sdk.common.utils.html#codeflare_sdk.common.utils.generate_cert.generate_ca_cert">[docs]</a>
+<span class="k">def</span> <span class="nf">generate_ca_cert</span><span class="p">(</span><span class="n">days</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">30</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Generates a self-signed CA certificate and private key, encoded in base64 format.</span>
+
+<span class="sd">    Similar to:</span>
+<span class="sd">        openssl req -x509 -nodes -newkey rsa:2048 -keyout ca.key -days 1826 -out ca.crt -subj &#39;/CN=root-ca&#39;</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        days (int):</span>
+<span class="sd">            The number of days for which the CA certificate will be valid. Default is 30.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Tuple[str, str]:</span>
+<span class="sd">            A tuple containing the base64-encoded private key and CA certificate.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">private_key</span> <span class="o">=</span> <span class="n">rsa</span><span class="o">.</span><span class="n">generate_private_key</span><span class="p">(</span>
+        <span class="n">public_exponent</span><span class="o">=</span><span class="mi">65537</span><span class="p">,</span>
+        <span class="n">key_size</span><span class="o">=</span><span class="mi">2048</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="n">key</span> <span class="o">=</span> <span class="n">base64</span><span class="o">.</span><span class="n">b64encode</span><span class="p">(</span>
+        <span class="n">private_key</span><span class="o">.</span><span class="n">private_bytes</span><span class="p">(</span>
+            <span class="n">serialization</span><span class="o">.</span><span class="n">Encoding</span><span class="o">.</span><span class="n">PEM</span><span class="p">,</span>
+            <span class="n">serialization</span><span class="o">.</span><span class="n">PrivateFormat</span><span class="o">.</span><span class="n">PKCS8</span><span class="p">,</span>
+            <span class="n">serialization</span><span class="o">.</span><span class="n">NoEncryption</span><span class="p">(),</span>
+        <span class="p">)</span>
+    <span class="p">)</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Generate Certificate</span>
+    <span class="n">one_day</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">timedelta</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+    <span class="n">public_key</span> <span class="o">=</span> <span class="n">private_key</span><span class="o">.</span><span class="n">public_key</span><span class="p">()</span>
+    <span class="n">builder</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">x509</span><span class="o">.</span><span class="n">CertificateBuilder</span><span class="p">()</span>
+        <span class="o">.</span><span class="n">subject_name</span><span class="p">(</span>
+            <span class="n">x509</span><span class="o">.</span><span class="n">Name</span><span class="p">(</span>
+                <span class="p">[</span>
+                    <span class="n">x509</span><span class="o">.</span><span class="n">NameAttribute</span><span class="p">(</span><span class="n">NameOID</span><span class="o">.</span><span class="n">COMMON_NAME</span><span class="p">,</span> <span class="s2">&quot;root-ca&quot;</span><span class="p">),</span>
+                <span class="p">]</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+        <span class="o">.</span><span class="n">issuer_name</span><span class="p">(</span>
+            <span class="n">x509</span><span class="o">.</span><span class="n">Name</span><span class="p">(</span>
+                <span class="p">[</span>
+                    <span class="n">x509</span><span class="o">.</span><span class="n">NameAttribute</span><span class="p">(</span><span class="n">NameOID</span><span class="o">.</span><span class="n">COMMON_NAME</span><span class="p">,</span> <span class="s2">&quot;root-ca&quot;</span><span class="p">),</span>
+                <span class="p">]</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+        <span class="o">.</span><span class="n">not_valid_before</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">today</span><span class="p">()</span> <span class="o">-</span> <span class="n">one_day</span><span class="p">)</span>
+        <span class="o">.</span><span class="n">not_valid_after</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">today</span><span class="p">()</span> <span class="o">+</span> <span class="p">(</span><span class="n">one_day</span> <span class="o">*</span> <span class="n">days</span><span class="p">))</span>
+        <span class="o">.</span><span class="n">serial_number</span><span class="p">(</span><span class="n">x509</span><span class="o">.</span><span class="n">random_serial_number</span><span class="p">())</span>
+        <span class="o">.</span><span class="n">public_key</span><span class="p">(</span><span class="n">public_key</span><span class="p">)</span>
+    <span class="p">)</span>
+    <span class="n">certificate</span> <span class="o">=</span> <span class="n">base64</span><span class="o">.</span><span class="n">b64encode</span><span class="p">(</span>
+        <span class="n">builder</span><span class="o">.</span><span class="n">sign</span><span class="p">(</span><span class="n">private_key</span><span class="o">=</span><span class="n">private_key</span><span class="p">,</span> <span class="n">algorithm</span><span class="o">=</span><span class="n">hashes</span><span class="o">.</span><span class="n">SHA256</span><span class="p">())</span><span class="o">.</span><span class="n">public_bytes</span><span class="p">(</span>
+            <span class="n">serialization</span><span class="o">.</span><span class="n">Encoding</span><span class="o">.</span><span class="n">PEM</span>
+        <span class="p">)</span>
+    <span class="p">)</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">key</span><span class="p">,</span> <span class="n">certificate</span></div>
+
+
+
+<div class="viewcode-block" id="get_secret_name">
+<a class="viewcode-back" href="../../../../codeflare_sdk.common.utils.html#codeflare_sdk.common.utils.generate_cert.get_secret_name">[docs]</a>
+<span class="k">def</span> <span class="nf">get_secret_name</span><span class="p">(</span><span class="n">cluster_name</span><span class="p">,</span> <span class="n">namespace</span><span class="p">,</span> <span class="n">api_instance</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Retrieves the name of the Kubernetes secret containing the CA certificate for the given Ray cluster.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        cluster_name (str):</span>
+<span class="sd">            The name of the Ray cluster.</span>
+<span class="sd">        namespace (str):</span>
+<span class="sd">            The Kubernetes namespace where the Ray cluster is located.</span>
+<span class="sd">        api_instance (client.CoreV1Api):</span>
+<span class="sd">            An instance of the Kubernetes CoreV1Api.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        str:</span>
+<span class="sd">            The name of the Kubernetes secret containing the CA certificate.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        KeyError:</span>
+<span class="sd">            If no secret matching the cluster name is found.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">label_selector</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;ray.openshift.ai/cluster-name=</span><span class="si">{</span><span class="n">cluster_name</span><span class="si">}</span><span class="s2">&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">secrets</span> <span class="o">=</span> <span class="n">api_instance</span><span class="o">.</span><span class="n">list_namespaced_secret</span><span class="p">(</span>
+            <span class="n">namespace</span><span class="p">,</span> <span class="n">label_selector</span><span class="o">=</span><span class="n">label_selector</span>
+        <span class="p">)</span>
+        <span class="k">for</span> <span class="n">secret</span> <span class="ow">in</span> <span class="n">secrets</span><span class="o">.</span><span class="n">items</span><span class="p">:</span>
+            <span class="k">if</span> <span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">cluster_name</span><span class="si">}</span><span class="s2">-ca-secret-&quot;</span> <span class="ow">in</span> <span class="n">secret</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">name</span>
+            <span class="p">):</span>  <span class="c1"># Oauth secret share the same label this conditional is to make things more specific</span>
+                <span class="k">return</span> <span class="n">secret</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">name</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">continue</span>
+        <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unable to gather secret name for </span><span class="si">{</span><span class="n">cluster_name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
+        <span class="k">return</span> <span class="n">_kube_api_error_handling</span><span class="p">(</span><span class="n">e</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="generate_tls_cert">
+<a class="viewcode-back" href="../../../../codeflare_sdk.common.utils.html#codeflare_sdk.common.utils.generate_cert.generate_tls_cert">[docs]</a>
+<span class="k">def</span> <span class="nf">generate_tls_cert</span><span class="p">(</span><span class="n">cluster_name</span><span class="p">,</span> <span class="n">namespace</span><span class="p">,</span> <span class="n">days</span><span class="o">=</span><span class="mi">30</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Generates a TLS certificate and key for a Ray cluster, saving them locally along with the CA certificate.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        cluster_name (str):</span>
+<span class="sd">            The name of the Ray cluster.</span>
+<span class="sd">        namespace (str):</span>
+<span class="sd">            The Kubernetes namespace where the Ray cluster is located.</span>
+<span class="sd">        days (int):</span>
+<span class="sd">            The number of days for which the TLS certificate will be valid. Default is 30.</span>
+
+<span class="sd">    Files Created:</span>
+<span class="sd">        - ca.crt: The CA certificate.</span>
+<span class="sd">        - tls.crt: The TLS certificate signed by the CA.</span>
+<span class="sd">        - tls.key: The private key for the TLS certificate.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        Exception:</span>
+<span class="sd">            If an error occurs while retrieving the CA secret.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">tls_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">getcwd</span><span class="p">(),</span> <span class="sa">f</span><span class="s2">&quot;tls-</span><span class="si">{</span><span class="n">cluster_name</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">namespace</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">tls_dir</span><span class="p">):</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">tls_dir</span><span class="p">)</span>
+
+    <span class="c1"># Similar to:</span>
+    <span class="c1"># oc get secret ca-secret-&lt;cluster-name&gt; -o template=&#39;{{index .data &quot;ca.key&quot;}}&#39;</span>
+    <span class="c1"># oc get secret ca-secret-&lt;cluster-name&gt; -o template=&#39;{{index .data &quot;ca.crt&quot;}}&#39;|base64 -d &gt; ${TLSDIR}/ca.crt</span>
+    <span class="n">config_check</span><span class="p">()</span>
+    <span class="n">v1</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">CoreV1Api</span><span class="p">(</span><span class="n">get_api_client</span><span class="p">())</span>
+
+    <span class="c1"># Secrets have a suffix appended to the end so we must list them and gather the secret that includes cluster_name-ca-secret-</span>
+    <span class="n">secret_name</span> <span class="o">=</span> <span class="n">get_secret_name</span><span class="p">(</span><span class="n">cluster_name</span><span class="p">,</span> <span class="n">namespace</span><span class="p">,</span> <span class="n">v1</span><span class="p">)</span>
+    <span class="n">secret</span> <span class="o">=</span> <span class="n">v1</span><span class="o">.</span><span class="n">read_namespaced_secret</span><span class="p">(</span><span class="n">secret_name</span><span class="p">,</span> <span class="n">namespace</span><span class="p">)</span><span class="o">.</span><span class="n">data</span>
+
+    <span class="n">ca_cert</span> <span class="o">=</span> <span class="n">secret</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;ca.crt&quot;</span><span class="p">)</span>
+    <span class="n">ca_key</span> <span class="o">=</span> <span class="n">secret</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;ca.key&quot;</span><span class="p">)</span>
+
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">tls_dir</span><span class="p">,</span> <span class="s2">&quot;ca.crt&quot;</span><span class="p">),</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">base64</span><span class="o">.</span><span class="n">b64decode</span><span class="p">(</span><span class="n">ca_cert</span><span class="p">)</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s2">&quot;utf-8&quot;</span><span class="p">))</span>
+
+    <span class="c1"># Generate tls.key and signed tls.cert locally for ray client</span>
+    <span class="c1"># Similar to running these commands:</span>
+    <span class="c1"># openssl req -nodes -newkey rsa:2048 -keyout ${TLSDIR}/tls.key -out ${TLSDIR}/tls.csr -subj &#39;/CN=local&#39;</span>
+    <span class="c1"># cat &lt;&lt;EOF &gt;${TLSDIR}/domain.ext</span>
+    <span class="c1"># authorityKeyIdentifier=keyid,issuer</span>
+    <span class="c1"># basicConstraints=CA:FALSE</span>
+    <span class="c1"># subjectAltName = @alt_names</span>
+    <span class="c1"># [alt_names]</span>
+    <span class="c1"># DNS.1 = 127.0.0.1</span>
+    <span class="c1"># DNS.2 = localhost</span>
+    <span class="c1"># EOF</span>
+    <span class="c1"># openssl x509 -req -CA ${TLSDIR}/ca.crt -CAkey ${TLSDIR}/ca.key -in ${TLSDIR}/tls.csr -out ${TLSDIR}/tls.crt -days 365 -CAcreateserial -extfile ${TLSDIR}/domain.ext</span>
+    <span class="n">key</span> <span class="o">=</span> <span class="n">rsa</span><span class="o">.</span><span class="n">generate_private_key</span><span class="p">(</span>
+        <span class="n">public_exponent</span><span class="o">=</span><span class="mi">65537</span><span class="p">,</span>
+        <span class="n">key_size</span><span class="o">=</span><span class="mi">2048</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="n">tls_key</span> <span class="o">=</span> <span class="n">key</span><span class="o">.</span><span class="n">private_bytes</span><span class="p">(</span>
+        <span class="n">serialization</span><span class="o">.</span><span class="n">Encoding</span><span class="o">.</span><span class="n">PEM</span><span class="p">,</span>
+        <span class="n">serialization</span><span class="o">.</span><span class="n">PrivateFormat</span><span class="o">.</span><span class="n">PKCS8</span><span class="p">,</span>
+        <span class="n">serialization</span><span class="o">.</span><span class="n">NoEncryption</span><span class="p">(),</span>
+    <span class="p">)</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">tls_dir</span><span class="p">,</span> <span class="s2">&quot;tls.key&quot;</span><span class="p">),</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">tls_key</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s2">&quot;utf-8&quot;</span><span class="p">))</span>
+
+    <span class="n">one_day</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">timedelta</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+    <span class="n">tls_cert</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">x509</span><span class="o">.</span><span class="n">CertificateBuilder</span><span class="p">()</span>
+        <span class="o">.</span><span class="n">issuer_name</span><span class="p">(</span>
+            <span class="n">x509</span><span class="o">.</span><span class="n">Name</span><span class="p">(</span>
+                <span class="p">[</span>
+                    <span class="n">x509</span><span class="o">.</span><span class="n">NameAttribute</span><span class="p">(</span><span class="n">NameOID</span><span class="o">.</span><span class="n">COMMON_NAME</span><span class="p">,</span> <span class="s2">&quot;root-ca&quot;</span><span class="p">),</span>
+                <span class="p">]</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+        <span class="o">.</span><span class="n">subject_name</span><span class="p">(</span>
+            <span class="n">x509</span><span class="o">.</span><span class="n">Name</span><span class="p">(</span>
+                <span class="p">[</span>
+                    <span class="n">x509</span><span class="o">.</span><span class="n">NameAttribute</span><span class="p">(</span><span class="n">NameOID</span><span class="o">.</span><span class="n">COMMON_NAME</span><span class="p">,</span> <span class="s2">&quot;local&quot;</span><span class="p">),</span>
+                <span class="p">]</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+        <span class="o">.</span><span class="n">public_key</span><span class="p">(</span><span class="n">key</span><span class="o">.</span><span class="n">public_key</span><span class="p">())</span>
+        <span class="o">.</span><span class="n">not_valid_before</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">today</span><span class="p">()</span> <span class="o">-</span> <span class="n">one_day</span><span class="p">)</span>
+        <span class="o">.</span><span class="n">not_valid_after</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">today</span><span class="p">()</span> <span class="o">+</span> <span class="p">(</span><span class="n">one_day</span> <span class="o">*</span> <span class="n">days</span><span class="p">))</span>
+        <span class="o">.</span><span class="n">serial_number</span><span class="p">(</span><span class="n">x509</span><span class="o">.</span><span class="n">random_serial_number</span><span class="p">())</span>
+        <span class="o">.</span><span class="n">add_extension</span><span class="p">(</span>
+            <span class="n">x509</span><span class="o">.</span><span class="n">SubjectAlternativeName</span><span class="p">(</span>
+                <span class="p">[</span><span class="n">x509</span><span class="o">.</span><span class="n">DNSName</span><span class="p">(</span><span class="s2">&quot;localhost&quot;</span><span class="p">),</span> <span class="n">x509</span><span class="o">.</span><span class="n">DNSName</span><span class="p">(</span><span class="s2">&quot;127.0.0.1&quot;</span><span class="p">)]</span>
+            <span class="p">),</span>
+            <span class="kc">False</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="o">.</span><span class="n">sign</span><span class="p">(</span>
+            <span class="n">serialization</span><span class="o">.</span><span class="n">load_pem_private_key</span><span class="p">(</span><span class="n">base64</span><span class="o">.</span><span class="n">b64decode</span><span class="p">(</span><span class="n">ca_key</span><span class="p">),</span> <span class="kc">None</span><span class="p">),</span>
+            <span class="n">hashes</span><span class="o">.</span><span class="n">SHA256</span><span class="p">(),</span>
+        <span class="p">)</span>
+    <span class="p">)</span>
+
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">tls_dir</span><span class="p">,</span> <span class="s2">&quot;tls.crt&quot;</span><span class="p">),</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">tls_cert</span><span class="o">.</span><span class="n">public_bytes</span><span class="p">(</span><span class="n">serialization</span><span class="o">.</span><span class="n">Encoding</span><span class="o">.</span><span class="n">PEM</span><span class="p">)</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s2">&quot;utf-8&quot;</span><span class="p">))</span></div>
+
+
+
+<div class="viewcode-block" id="export_env">
+<a class="viewcode-back" href="../../../../codeflare_sdk.common.utils.html#codeflare_sdk.common.utils.generate_cert.export_env">[docs]</a>
+<span class="k">def</span> <span class="nf">export_env</span><span class="p">(</span><span class="n">cluster_name</span><span class="p">,</span> <span class="n">namespace</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Sets environment variables to configure TLS for a Ray cluster.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        cluster_name (str):</span>
+<span class="sd">            The name of the Ray cluster.</span>
+<span class="sd">        namespace (str):</span>
+<span class="sd">            The Kubernetes namespace where the Ray cluster is located.</span>
+
+<span class="sd">    Environment Variables Set:</span>
+<span class="sd">        - RAY_USE_TLS: Enables TLS for Ray.</span>
+<span class="sd">        - RAY_TLS_SERVER_CERT: Path to the TLS server certificate.</span>
+<span class="sd">        - RAY_TLS_SERVER_KEY: Path to the TLS server private key.</span>
+<span class="sd">        - RAY_TLS_CA_CERT: Path to the CA certificate.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">tls_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">getcwd</span><span class="p">(),</span> <span class="sa">f</span><span class="s2">&quot;tls-</span><span class="si">{</span><span class="n">cluster_name</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">namespace</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;RAY_USE_TLS&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;1&quot;</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;RAY_TLS_SERVER_CERT&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">tls_dir</span><span class="p">,</span> <span class="s2">&quot;tls.crt&quot;</span><span class="p">)</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;RAY_TLS_SERVER_KEY&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">tls_dir</span><span class="p">,</span> <span class="s2">&quot;tls.key&quot;</span><span class="p">)</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;RAY_TLS_CA_CERT&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">tls_dir</span><span class="p">,</span> <span class="s2">&quot;ca.crt&quot;</span><span class="p">)</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, Project CodeFlare.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
