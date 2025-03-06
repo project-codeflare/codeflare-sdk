@@ -41,6 +41,7 @@ def test_default_cluster_creation(mocker):
         f"{expected_clusters_dir}/ray/default-ray-cluster.yaml",
         get_template_variables(),
     )
+
     assert cluster.resource_yaml == expected_rc
 
 
@@ -114,6 +115,7 @@ def test_config_creation_all_parameters(mocker):
 @pytest.mark.filterwarnings("ignore::UserWarning")
 def test_all_config_params_aw(mocker):
     create_cluster_all_config_params(mocker, "aw-all-params", True)
+
     assert filecmp.cmp(
         f"{aw_dir}aw-all-params.yaml",
         f"{expected_clusters_dir}/appwrapper/unit-test-all-params.yaml",
