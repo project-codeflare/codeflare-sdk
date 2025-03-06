@@ -138,13 +138,16 @@ def build_ray_cluster(cluster: "codeflare_sdk.ray.cluster.Cluster"):
                     "num-gpus": str(head_gpu_count),
                     "resources": head_resources,
                 },
-                "template": {
-                    "spec": get_pod_spec(
+                "template": V1PodTemplateSpec(
+                    metadata=V1ObjectMeta(cluster.config.annotations)
+                    if cluster.config.annotations
+                    else None,
+                    spec=get_pod_spec(
                         cluster,
                         [get_head_container_spec(cluster)],
                         cluster.config.head_tolerations,
-                    )
-                },
+                    ),
+                ),
             },
             "workerGroupSpecs": [
                 {
@@ -158,11 +161,14 @@ def build_ray_cluster(cluster: "codeflare_sdk.ray.cluster.Cluster"):
                         "resources": worker_resources,
                     },
                     "template": V1PodTemplateSpec(
+                        metadata=V1ObjectMeta(cluster.config.annotations)
+                        if cluster.config.annotations
+                        else None,
                         spec=get_pod_spec(
                             cluster,
                             [get_worker_container_spec(cluster)],
                             cluster.config.worker_tolerations,
-                        )
+                        ),
                     ),
                 }
             ],
@@ -215,7 +221,7 @@ def build_ray_cluster(cluster: "codeflare_sdk.ray.cluster.Cluster"):
 # Metadata related functions
 def get_metadata(cluster: "codeflare_sdk.ray.cluster.Cluster"):
     """
-    The get_metadata() function builds and returns a V1ObjectMeta Object using cluster configurtation parameters
+    The get_metadata() function builds and returns a V1ObjectMeta Object using cluster configuration parameters
     """
     object_meta = V1ObjectMeta(
         name=cluster.config.name,
@@ -227,6 +233,7 @@ def get_metadata(cluster: "codeflare_sdk.ray.cluster.Cluster"):
     annotations = with_nb_annotations(cluster.config.annotations)
     if annotations != {}:
         object_meta.annotations = annotations  # As annotations are not a guarantee they are appended to the metadata after creation.
+
     return object_meta
 
 
