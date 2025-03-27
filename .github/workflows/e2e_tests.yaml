@@ -17,7 +17,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  CODEFLARE_OPERATOR_IMG: "quay.io/project-codeflare/codeflare-operator:dev"
+  CODEFLARE_OPERATOR_IMG: "quay.io/kryanbeane/codeflare-operator:dev"
 
 jobs:
   kubernetes:
