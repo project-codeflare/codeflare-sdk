@@ -169,6 +169,31 @@ def build_ray_cluster(cluster: "codeflare_sdk.ray.cluster.Cluster"):
         },
     }
 
+    if cluster.config.enable_gcs_ft:
+        if not cluster.config.redis_address:
+            raise ValueError(
+                "redis_address must be provided when enable_gcs_ft is True"
+            )
+
+        gcs_ft_options = {"redisAddress": cluster.config.redis_address}
+
+        if cluster.config.external_storage_namespace:
+            gcs_ft_options[
+                "externalStorageNamespace"
+            ] = cluster.config.external_storage_namespace
+
+        if cluster.config.redis_password_secret:
+            gcs_ft_options["redisPassword"] = {
+                "valueFrom": {
+                    "secretKeyRef": {
+                        "name": cluster.config.redis_password_secret["name"],
+                        "key": cluster.config.redis_password_secret["key"],
+                    }
+                }
+            }
+
+        resource["spec"]["gcsFaultToleranceOptions"] = gcs_ft_options
+
     config_check()
     k8s_client = get_api_client() or client.ApiClient()
 

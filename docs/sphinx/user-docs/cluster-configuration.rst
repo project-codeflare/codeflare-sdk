@@ -97,6 +97,48 @@ Custom Volumes/Volume Mounts
 | For more information on creating Volumes and Volume Mounts with Python check out the Python Kubernetes docs (`Volumes <https://github.com/kubernetes-client/python/blob/master/kubernetes/docs/V1Volume.md>`__, `Volume Mounts <https://github.com/kubernetes-client/python/blob/master/kubernetes/docs/V1VolumeMount.md>`__).
 | You can also find further information on Volumes and Volume Mounts by visiting the Kubernetes `documentation <https://kubernetes.io/docs/concepts/storage/volumes/>`__.
 
+GCS Fault Tolerance
+------------------
+By default, the state of the Ray cluster is transient to the head Pod. Whatever triggers a restart of the head Pod results in losing that state, including Ray Cluster history. To make Ray cluster state persistent you can enable Global Control Service (GCS) fault tolerance with an external Redis storage.
+
+To configure GCS fault tolerance you need to set the following parameters:
+
+.. list-table::
+   :header-rows: 1
+   :widths: auto
+
+   * - Parameter
+     - Description
+   * - ``enable_gcs_ft``
+     - Boolean to enable GCS fault tolerance
+   * - ``redis_address``
+     - Address of the external Redis service, ex: "redis:6379"
+   * - ``redis_password_secret``
+     - Dictionary with 'name' and 'key' fields specifying the Kubernetes secret for Redis password
+   * - ``external_storage_namespace``
+     - Custom storage namespace for GCS fault tolerance (by default, KubeRay sets it to the RayCluster's UID)
+
+Example configuration:
+
+.. code:: python
+
+   from codeflare_sdk import Cluster, ClusterConfiguration
+
+   cluster = Cluster(ClusterConfiguration(
+       name='ray-cluster-with-persistence',
+       num_workers=2,
+       enable_gcs_ft=True,
+       redis_address="redis:6379",
+       redis_password_secret={
+           "name": "redis-password-secret",
+           "key": "password"
+       },
+       # external_storage_namespace="my-custom-namespace" # Optional: Custom namespace for GCS data in Redis
+   ))
+
+.. note::
+   You need to have a Redis instance deployed in your Kubernetes cluster before using this feature.
+
 Deprecating Parameters
 ----------------------
 
