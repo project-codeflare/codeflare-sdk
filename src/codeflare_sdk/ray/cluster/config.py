@@ -100,6 +100,14 @@ class ClusterConfiguration:
             A list of V1Volume objects to add to the Cluster
         volume_mounts:
             A list of V1VolumeMount objects to add to the Cluster
+        enable_gcs_ft:
+            A boolean indicating whether to enable GCS fault tolerance.
+        redis_address:
+            The address of the Redis server to use for GCS fault tolerance, required when enable_gcs_ft is True.
+        redis_password_secret:
+            Kubernetes secret reference containing Redis password. ex: {"name": "secret-name", "key": "password-key"}
+        external_storage_namespace:
+            The storage namespace to use for GCS fault tolerance. By default, KubeRay sets it to the UID of RayCluster.
     """
 
     name: str
@@ -142,12 +150,37 @@ class ClusterConfiguration:
     annotations: Dict[str, str] = field(default_factory=dict)
     volumes: list[V1Volume] = field(default_factory=list)
     volume_mounts: list[V1VolumeMount] = field(default_factory=list)
+    enable_gcs_ft: bool = False
+    redis_address: Optional[str] = None
+    redis_password_secret: Optional[Dict[str, str]] = None
+    external_storage_namespace: Optional[str] = None
 
     def __post_init__(self):
         if not self.verify_tls:
             print(
                 "Warning: TLS verification has been disabled - Endpoint checks will be bypassed"
             )
+
+        if self.enable_gcs_ft:
+            if not self.redis_address:
+                raise ValueError(
+                    "redis_address must be provided when enable_gcs_ft is True"
+                )
+
+            if self.redis_password_secret and not isinstance(
+                self.redis_password_secret, dict
+            ):
+                raise ValueError(
+                    "redis_password_secret must be a dictionary with 'name' and 'key' fields"
+                )
+
+            if self.redis_password_secret and (
+                "name" not in self.redis_password_secret
+                or "key" not in self.redis_password_secret
+            ):
+                raise ValueError(
+                    "redis_password_secret must contain both 'name' and 'key' fields"
+                )
 
         self._validate_types()
         self._memory_to_resource()
@@ -283,10 +316,13 @@ class ClusterConfiguration:
                 else:
                     return True
             if origin_type is dict:
-                return all(
-                    check_type(k, args[0]) and check_type(v, args[1])
-                    for k, v in value.items()
-                )
+                if value is not None:
+                    return all(
+                        check_type(k, args[0]) and check_type(v, args[1])
+                        for k, v in value.items()
+                    )
+                else:
+                    return True
             if origin_type is tuple:
                 return all(check_type(elem, etype) for elem, etype in zip(value, args))
             if expected_type is int:
