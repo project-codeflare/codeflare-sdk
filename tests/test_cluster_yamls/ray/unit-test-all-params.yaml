@@ -33,6 +33,11 @@ spec:
       resources: '"{\"TPU\": 2}"'
     serviceType: ClusterIP
     template:
+      metadata:
+        annotations:
+          app.kubernetes.io/managed-by: test-prefix
+          key1: value1
+          key2: value2
       spec:
         containers:
         - env:
@@ -133,6 +138,11 @@ spec:
       resources: '"{}"'
     replicas: 10
     template:
+      metadata:
+        annotations:
+          app.kubernetes.io/managed-by: test-prefix
+          key1: value1
+          key2: value2
       spec:
         containers:
         - env:
