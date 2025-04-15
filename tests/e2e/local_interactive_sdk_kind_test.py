@@ -65,8 +65,6 @@ class TestRayLocalInteractiveOauth:
 
         print(cluster.local_client_url())
 
-        ray.shutdown()
-        ray.init(address=cluster.local_client_url(), logging_level="DEBUG")
 
         @ray.remote(num_gpus=number_of_gpus / 2)
         def heavy_calculation_part(num_iterations):
