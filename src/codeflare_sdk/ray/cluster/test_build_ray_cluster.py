@@ -13,8 +13,9 @@
 # limitations under the License.
 from collections import namedtuple
 import sys
-from .build_ray_cluster import gen_names, update_image
+from .build_ray_cluster import gen_names, update_image, build_ray_cluster
 import uuid
+from codeflare_sdk.ray.cluster.cluster import ClusterConfiguration, Cluster
 
 
 def test_gen_names_with_name(mocker):
@@ -64,3 +65,45 @@ def test_update_image_without_supported_python_version(mocker):
 
     # Assert that no image was set since the Python version is not supported
     assert image is None
+
+
+def test_build_ray_cluster_with_gcs_ft(mocker):
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+    mocker.patch("kubernetes.client.CustomObjectsApi.list_namespaced_custom_object")
+
+    cluster = Cluster(
+        ClusterConfiguration(
+            name="test",
+            namespace="ns",
+            enable_gcs_ft=True,
+            redis_address="redis:6379",
+            redis_password_secret={"name": "redis-password-secret", "key": "password"},
+            external_storage_namespace="new-ns",
+        )
+    )
+
+    mocker.patch("codeflare_sdk.ray.cluster.build_ray_cluster.config_check")
+    mocker.patch(
+        "codeflare_sdk.ray.cluster.build_ray_cluster.get_api_client", return_value=None
+    )
+    mocker.patch(
+        "codeflare_sdk.ray.cluster.build_ray_cluster.update_image", return_value=None
+    )
+
+    resource = build_ray_cluster(cluster)
+
+    assert "spec" in resource
+    assert "gcsFaultToleranceOptions" in resource["spec"]
+
+    gcs_ft_options = resource["spec"]["gcsFaultToleranceOptions"]
+
+    assert gcs_ft_options["redisAddress"] == "redis:6379"
+    assert gcs_ft_options["externalStorageNamespace"] == "new-ns"
+    assert (
+        gcs_ft_options["redisPassword"]["valueFrom"]["secretKeyRef"]["name"]
+        == "redis-password-secret"
+    )
+    assert (
+        gcs_ft_options["redisPassword"]["valueFrom"]["secretKeyRef"]["key"]
+        == "password"
+    )
