@@ -153,6 +153,57 @@ def test_cluster_config_deprecation_conversion(mocker):
     assert config.worker_cpu_limits == 2
 
 
+def test_gcs_fault_tolerance_config_validation():
+    config = ClusterConfiguration(
+        name="test",
+        namespace="ns",
+        enable_gcs_ft=True,
+        redis_address="redis:6379",
+        redis_password_secret={"name": "redis-password-secret", "key": "password"},
+        external_storage_namespace="new-ns",
+    )
+
+    assert config.enable_gcs_ft is True
+    assert config.redis_address == "redis:6379"
+    assert config.redis_password_secret == {
+        "name": "redis-password-secret",
+        "key": "password",
+    }
+    assert config.external_storage_namespace == "new-ns"
+
+    try:
+        ClusterConfiguration(name="test", namespace="ns", enable_gcs_ft=True)
+    except ValueError as e:
+        assert str(e) in "redis_address must be provided when enable_gcs_ft is True"
+
+    try:
+        ClusterConfiguration(
+            name="test",
+            namespace="ns",
+            enable_gcs_ft=True,
+            redis_address="redis:6379",
+            redis_password_secret={"secret"},
+        )
+    except ValueError as e:
+        assert (
+            str(e)
+            in "redis_password_secret must be a dictionary with 'name' and 'key' fields"
+        )
+
+    try:
+        ClusterConfiguration(
+            name="test",
+            namespace="ns",
+            enable_gcs_ft=True,
+            redis_address="redis:6379",
+            redis_password_secret={"wrong": "format"},
+        )
+    except ValueError as e:
+        assert (
+            str(e) in "redis_password_secret must contain both 'name' and 'key' fields"
+        )
+
+
 # Make sure to always keep this function last
 def test_cleanup():
     os.remove(f"{aw_dir}test-all-params.yaml")
