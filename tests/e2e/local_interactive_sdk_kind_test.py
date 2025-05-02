@@ -85,8 +85,17 @@ class TestRayLocalInteractiveOauth:
             return sum(results)
 
         ref = heavy_calculation.remote(3000)
-        result = ray.get(ref)
-        assert result == 1789.4644387076714
+
+        job_timeout_seconds = 900
+        try:
+            print(f"Waiting for Ray job result with timeout={job_timeout_seconds}s...")
+            result = ray.get(ref, timeout=job_timeout_seconds)
+            print("Ray job completed successfully.")
+
+            assert result == 1789.4644387076714
+        except ray.exceptions.GetTimeoutError:
+            pytest.fail(f"Ray job timed out after {job_timeout_seconds} seconds.")
+
         ray.cancel(ref)
         ray.shutdown()
 
