@@ -94,7 +94,7 @@ VOLUMES = [
 
 SUPPORTED_PYTHON_VERSIONS = {
     "3.9": "quay.io/modh/ray@sha256:0d715f92570a2997381b7cafc0e224cfa25323f18b9545acfd23bc2b71576d06",
-    "3.11": "quay.io/modh/ray@sha256:db667df1bc437a7b0965e8031e905d3ab04b86390d764d120e05ea5a5c18d1b4",
+    "3.11": "quay.io/modh/ray@sha256:ac401c35d29cbd920ef982775f20e86d948b81eb67e83adbbbba8b29ad33ca31",
 }
 
 
@@ -105,7 +105,7 @@ def build_ray_cluster(cluster: "codeflare_sdk.ray.cluster.Cluster"):
     The resource is a dict template which uses Kubernetes Objects for creating metadata, resource requests,
     specs and containers. The result is sanitised and returned either as a dict or written as a yaml file.
     """
-    ray_version = "2.35.0"
+    ray_version = "2.44.1"
 
     # GPU related variables
     head_gpu_count, worker_gpu_count = head_worker_gpu_count_from_cluster(cluster)

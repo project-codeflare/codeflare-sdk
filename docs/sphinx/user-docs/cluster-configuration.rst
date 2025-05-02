@@ -36,7 +36,7 @@ requirements for creating the Ray Cluster.
   a RayCluster resource depend on the installed Python version:
 
   - For Python 3.9: `quay.io/modh/ray:2.35.0-py39-cu121`
-  - For Python 3.11: `quay.io/modh/ray:2.35.0-py311-cu121`
+  - For Python 3.11: `quay.io/modh/ray:2.44.1-py311-cu121 `
 
   If you prefer to use a custom Ray image that better suits your
   needs, you can specify it in the image field to override the default.
