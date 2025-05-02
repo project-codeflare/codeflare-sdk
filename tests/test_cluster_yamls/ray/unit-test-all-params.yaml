@@ -122,7 +122,7 @@ spec:
             name: odh-trusted-ca-bundle
             optional: true
           name: odh-ca-cert
-  rayVersion: 2.35.0
+  rayVersion: 2.44.1
   workerGroupSpecs:
   - groupName: small-group-test-all-params
     maxReplicas: 10
