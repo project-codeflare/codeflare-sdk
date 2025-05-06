@@ -33,7 +33,7 @@ env:
   REPO_OWNER: ${{ github.event.inputs.codeflare-repository-organization }}
   REPO_NAME: notebooks
   GITHUB_TOKEN: ${{ secrets.CODEFLARE_MACHINE_ACCOUNT_TOKEN }}
-  MINIMUM_SUPPORTED_PYTHON_VERSION: 3.9
+  MINIMUM_SUPPORTED_PYTHON_VERSION: 3.11
 
 jobs:
   build:
