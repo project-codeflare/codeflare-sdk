@@ -42,7 +42,7 @@ spec:
                   valueFrom:
                     fieldRef:
                       fieldPath: status.podIP
-                image: quay.io/modh/ray@sha256:0d715f92570a2997381b7cafc0e224cfa25323f18b9545acfd23bc2b71576d06
+                image: quay.io/modh/ray@sha256:ac401c35d29cbd920ef982775f20e86d948b81eb67e83adbbbba8b29ad33ca31
                 imagePullPolicy: IfNotPresent
                 lifecycle:
                   preStop:
@@ -89,7 +89,7 @@ spec:
                   valueFrom:
                     fieldRef:
                       fieldPath: status.podIP
-                image: quay.io/modh/ray@sha256:0d715f92570a2997381b7cafc0e224cfa25323f18b9545acfd23bc2b71576d06
+                image: quay.io/modh/ray@sha256:ac401c35d29cbd920ef982775f20e86d948b81eb67e83adbbbba8b29ad33ca31
                 lifecycle:
                   preStop:
                     exec:
