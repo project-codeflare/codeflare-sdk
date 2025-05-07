@@ -28,7 +28,7 @@ def get_ray_cluster(cluster_name, namespace):
 
 
 def get_ray_image():
-    default_ray_image = "quay.io/modh/ray@sha256:0d715f92570a2997381b7cafc0e224cfa25323f18b9545acfd23bc2b71576d06"
+    default_ray_image = "quay.io/modh/ray@sha256:ac401c35d29cbd920ef982775f20e86d948b81eb67e83adbbbba8b29ad33ca31"
     return os.getenv("RAY_IMAGE", default_ray_image)
 
 
