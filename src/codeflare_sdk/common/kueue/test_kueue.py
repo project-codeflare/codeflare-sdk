@@ -118,7 +118,14 @@ def test_get_local_queue_exists_fail(mocker):
     )
     mocker.patch(
         "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
-        return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
+        return_value={
+            "items": [
+                {
+                    "metadata": {"name": "local-queue-default"},
+                    "status": {"flavors": [{"name": "default"}]},
+                }
+            ]
+        },
     )
     config = create_cluster_config()
     config.name = "unit-test-aw-kueue"
@@ -267,12 +274,13 @@ def test_add_queue_label_with_valid_local_queue(mocker):
     assert item["metadata"]["labels"] == {"kueue.x-k8s.io/queue-name": "valid-queue"}
 
 
-def test_add_queue_label_with_invalid_local_queue(mocker):
+def test_add_queue_label_with_invalid_local_queue_shows_available_queues(mocker):
     # Mock the kubernetes.client.CustomObjectsApi and its response
     mock_api_instance = mocker.patch("kubernetes.client.CustomObjectsApi")
     mock_api_instance.return_value.list_namespaced_custom_object.return_value = {
         "items": [
-            {"metadata": {"name": "valid-queue"}},
+            {"metadata": {"name": "queue1"}, "status": {"flavors": [{"name": "default"}]}},
+            {"metadata": {"name": "queue2"}, "status": {"flavors": [{"name": "default"}]}},
         ]
     }
 
@@ -284,12 +292,98 @@ def test_add_queue_label_with_invalid_local_queue(mocker):
     namespace = "test-namespace"
     local_queue = "invalid-queue"
 
-    # Call the function and expect a ValueError
-    with pytest.raises(
-        ValueError,
-        match="local_queue provided does not exist or is not in this namespace",
+    # Call the function and expect a warning with available queues in the message
+    with pytest.warns(
+        UserWarning,
+        match=f"Local queue '{local_queue}' does not exist in namespace '{namespace}'. Available queues are: queue1, queue2",
     ):
         add_queue_label(item, namespace, local_queue)
+
+    # Assert that no label is added
+    assert "labels" not in item["metadata"]
+
+
+def test_add_queue_label_with_no_local_queue(mocker):
+    # Mock the kubernetes.client.CustomObjectsApi and its response
+    mock_api_instance = mocker.patch("kubernetes.client.CustomObjectsApi")
+    mock_api_instance.return_value.list_namespaced_custom_object.return_value = {
+        "items": []
+    }
+
+    # Mock get_default_kueue_name to return None
+    mocker.patch(
+        "codeflare_sdk.common.kueue.get_default_kueue_name",
+        return_value=None,
+    )
+
+    # Define input item and parameters
+    item = {"metadata": {}}
+    namespace = "test-namespace"
+    local_queue = None
+
+    # Call the function
+    add_queue_label(item, namespace, local_queue)
+
+    # Assert that no label is added
+    assert "labels" not in item["metadata"]
+
+
+def test_add_queue_label_with_default_queue(mocker):
+    # Mock the kubernetes.client.CustomObjectsApi and its response
+    mock_api_instance = mocker.patch("kubernetes.client.CustomObjectsApi")
+    mock_api_instance.return_value.list_namespaced_custom_object.return_value = {
+        "items": [
+            {
+                "metadata": {
+                    "name": "default-queue",
+                    "annotations": {"kueue.x-k8s.io/default-queue": "true"}
+                }
+            }
+        ]
+    }
+
+    # Mock get_default_kueue_name to return a default queue
+    mocker.patch(
+        "codeflare_sdk.common.kueue.get_default_kueue_name",
+        return_value="default-queue",
+    )
+
+    # Define input item and parameters
+    item = {"metadata": {}}
+    namespace = "test-namespace"
+    local_queue = None
+
+    # Call the function
+    add_queue_label(item, namespace, local_queue)
+
+    # Assert that the default queue label is added
+    assert item["metadata"]["labels"] == {"kueue.x-k8s.io/queue-name": "default-queue"}
+
+
+def test_add_queue_label_with_invalid_local_queue_and_no_available_queues(mocker):
+    # Mock the kubernetes.client.CustomObjectsApi and its response
+    mock_api_instance = mocker.patch("kubernetes.client.CustomObjectsApi")
+    mock_api_instance.return_value.list_namespaced_custom_object.return_value = {
+        "items": []  # Empty list instead of None
+    }
+
+    # Mock the local_queue_exists function to return False
+    mocker.patch("codeflare_sdk.common.kueue.local_queue_exists", return_value=False)
+
+    # Define input item and parameters
+    item = {"metadata": {}}
+    namespace = "test-namespace"
+    local_queue = "invalid-queue"
+
+    # Call the function and expect a warning about unavailable queues
+    with pytest.warns(
+        UserWarning,
+        match=f"Local queue '{local_queue}' does not exist in namespace '{namespace}'. Available queues are:",
+    ):
+        add_queue_label(item, namespace, local_queue)
+
+    # Assert that no label is added
+    assert "labels" not in item["metadata"]
 
 
 # Make sure to always keep this function last

@@ -17,6 +17,7 @@ from codeflare_sdk.common import _kube_api_error_handling
 from codeflare_sdk.common.kubernetes_cluster.auth import config_check, get_api_client
 from kubernetes import client
 from kubernetes.client.exceptions import ApiException
+import warnings
 
 
 def get_default_kueue_name(namespace: str) -> Optional[str]:
@@ -157,18 +158,24 @@ def add_queue_label(item: dict, namespace: str, local_queue: Optional[str]):
             The namespace of the local queue.
         local_queue (str, optional):
             The name of the local queue to use. Defaults to None.
-
-    Raises:
-        ValueError:
-            If the provided or default local queue does not exist in the namespace.
     """
     lq_name = local_queue or get_default_kueue_name(namespace)
     if lq_name == None:
         return
     elif not local_queue_exists(namespace, lq_name):
-        raise ValueError(
-            "local_queue provided does not exist or is not in this namespace. Please provide the correct local_queue name in Cluster Configuration"
+        available_queues = list_local_queues(namespace)
+        if available_queues is None:
+            warnings.warn(
+                f"Local queue '{local_queue}' does not exist in namespace '{namespace}'. "
+                "Unable to retrieve list of available queues."
+            )
+            return
+        available_queue_names = [q["name"] for q in available_queues]
+        warnings.warn(
+            f"Local queue '{local_queue}' does not exist in namespace '{namespace}'. "
+            f"Available queues are: {', '.join(available_queue_names)}"
         )
+        return
     if not "labels" in item["metadata"]:
         item["metadata"]["labels"] = {}
     item["metadata"]["labels"].update({"kueue.x-k8s.io/queue-name": lq_name})
