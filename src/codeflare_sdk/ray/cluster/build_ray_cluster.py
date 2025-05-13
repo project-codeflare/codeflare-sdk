@@ -20,7 +20,7 @@ from typing import List, Union, Tuple, Dict
 from ...common import _kube_api_error_handling
 from ...common.kubernetes_cluster import get_api_client, config_check
 from kubernetes.client.exceptions import ApiException
-from utils.constants import RAY_VERSION
+from ...common.utils.constants import RAY_VERSION
 import codeflare_sdk
 import os
 
