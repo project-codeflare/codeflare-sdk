@@ -53,6 +53,9 @@ spec:
                   name: dashboard
                 - containerPort: 10001
                   name: client
+                env:
+                - name: RAY_USAGE_STATS_ENABLED
+                  value: '0'
                 resources:
                   limits:
                     cpu: 2
@@ -111,6 +114,9 @@ spec:
                       - -c
                       - ray stop
                 name: machine-learning
+                env:
+                - name: RAY_USAGE_STATS_ENABLED
+                  value: '0'
                 resources:
                   limits:
                     cpu: 1

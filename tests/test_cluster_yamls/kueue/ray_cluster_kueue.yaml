@@ -75,6 +75,9 @@ spec:
                 - mountPath: /etc/ssl/certs/odh-ca-bundle.crt
                   name: odh-ca-cert
                   subPath: odh-ca-bundle.crt
+                env:
+                - name: RAY_USAGE_STATS_ENABLED
+                  value: '0'
               volumes:
               - configMap:
                   items:
@@ -133,6 +136,9 @@ spec:
                 - mountPath: /etc/ssl/certs/odh-ca-bundle.crt
                   name: odh-ca-cert
                   subPath: odh-ca-bundle.crt
+                env:
+                - name: RAY_USAGE_STATS_ENABLED
+                  value: '0'
               volumes:
               - configMap:
                   items:
