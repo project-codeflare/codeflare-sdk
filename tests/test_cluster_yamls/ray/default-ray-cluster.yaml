@@ -45,6 +45,9 @@ spec:
             name: dashboard
           - containerPort: 10001
             name: client
+          env:
+          - name: RAY_USAGE_STATS_ENABLED
+            value: '0'
           resources:
             limits:
               cpu: 2
@@ -110,6 +113,9 @@ spec:
             requests:
               cpu: 1
               memory: 2G
+          env:
+          - name: RAY_USAGE_STATS_ENABLED
+            value: '0'
           volumeMounts:
           - mountPath: /etc/pki/tls/certs/odh-trusted-ca-bundle.crt
             name: odh-trusted-ca-cert

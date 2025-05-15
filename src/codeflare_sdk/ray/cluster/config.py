@@ -161,6 +161,10 @@ class ClusterConfiguration:
                 "Warning: TLS verification has been disabled - Endpoint checks will be bypassed"
             )
 
+        # Set default environment variable to disable Ray usage stats if not already set
+        if "RAY_USAGE_STATS_ENABLED" not in self.envs:
+            self.envs["RAY_USAGE_STATS_ENABLED"] = "0"
+
         if self.enable_gcs_ft:
             if not self.redis_address:
                 raise ValueError(
