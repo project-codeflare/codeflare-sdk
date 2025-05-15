@@ -44,6 +44,21 @@ requirements for creating the Ray Cluster.
   documentation on building a custom image
   `here <https://github.com/opendatahub-io/distributed-workloads/tree/main/images/runtime/examples>`__.
 
+Ray Usage Statistics
+-------------------
+
+By default, Ray usage statistics collection is disabled in CodeFlare SDK clusters. This stops statistics from being sent to AnyScale. If you want to enable usage statistics collection, you can set the ``RAY_USAGE_STATS_ENABLED`` environment variable to ``1`` in your cluster configuration:
+
+.. code:: python
+
+   from codeflare_sdk import Cluster, ClusterConfiguration
+
+   cluster = Cluster(ClusterConfiguration(
+       name='ray-example',
+       namespace='default',
+       envs={'RAY_USAGE_STATS_ENABLED': '1'}  # Enable usage statistics
+   ))
+
 The ``labels={"exampleLabel": "example"}`` parameter can be used to
 apply additional labels to the RayCluster resource.
 

@@ -24,6 +24,7 @@ from pathlib import Path
 import filecmp
 import pytest
 import os
+import yaml
 
 parent = Path(__file__).resolve().parents[4]  # project directory
 expected_clusters_dir = f"{parent}/tests/test_cluster_yamls"
@@ -85,7 +86,11 @@ def test_config_creation_all_parameters(mocker):
     assert cluster.config.worker_memory_requests == "12G"
     assert cluster.config.worker_memory_limits == "16G"
     assert cluster.config.appwrapper == False
-    assert cluster.config.envs == {"key1": "value1", "key2": "value2"}
+    assert cluster.config.envs == {
+        "key1": "value1",
+        "key2": "value2",
+        "RAY_USAGE_STATS_ENABLED": "0",
+    }
     assert cluster.config.image == "example/ray:tag"
     assert cluster.config.image_pull_secrets == ["secret1", "secret2"]
     assert cluster.config.write_to_file == True
@@ -204,6 +209,46 @@ def test_gcs_fault_tolerance_config_validation():
         assert (
             str(e) in "redis_password_secret must contain both 'name' and 'key' fields"
         )
+
+
+def test_ray_usage_stats_default(mocker):
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch("kubernetes.client.CustomObjectsApi.list_namespaced_custom_object")
+
+    cluster = Cluster(
+        ClusterConfiguration(name="default-usage-stats-cluster", namespace="ns")
+    )
+
+    # Verify that usage stats are disabled by default
+    assert cluster.config.envs["RAY_USAGE_STATS_ENABLED"] == "0"
+
+    # Check that the environment variable is set in the YAML
+    head_container = cluster.resource_yaml["spec"]["headGroupSpec"]["template"]["spec"][
+        "containers"
+    ][0]
+    env_vars = {env["name"]: env["value"] for env in head_container["env"]}
+    assert env_vars["RAY_USAGE_STATS_ENABLED"] == "0"
+
+
+def test_ray_usage_stats_enabled(mocker):
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch("kubernetes.client.CustomObjectsApi.list_namespaced_custom_object")
+
+    cluster = Cluster(
+        ClusterConfiguration(
+            name="usage-stats-enabled-cluster",
+            namespace="ns",
+            envs={"RAY_USAGE_STATS_ENABLED": "1"},
+        )
+    )
+
+    assert cluster.config.envs["RAY_USAGE_STATS_ENABLED"] == "1"
+
+    head_container = cluster.resource_yaml["spec"]["headGroupSpec"]["template"]["spec"][
+        "containers"
+    ][0]
+    env_vars = {env["name"]: env["value"] for env in head_container["env"]}
+    assert env_vars["RAY_USAGE_STATS_ENABLED"] == "1"
 
 
 # Make sure to always keep this function last

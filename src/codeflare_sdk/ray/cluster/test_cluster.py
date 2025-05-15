@@ -465,11 +465,10 @@ def test_get_cluster_no_appwrapper(mocker):
             return_value=expected_rc,
         )
         get_cluster("test-all-params", "ns", write_to_file=True)
-        assert filecmp.cmp(
-            f"{aw_dir}test-all-params.yaml",
-            f"{expected_clusters_dir}/ray/unit-test-all-params.yaml",
-            shallow=True,
-        )
+
+        with open(f"{aw_dir}test-all-params.yaml") as f:
+            generated_rc = yaml.load(f, Loader=yaml.FullLoader)
+        assert generated_rc == expected_rc
 
 
 def test_get_cluster_with_appwrapper(mocker):
@@ -487,11 +486,10 @@ def test_get_cluster_with_appwrapper(mocker):
             return_value=expected_aw,
         )
         get_cluster("aw-all-params", "ns", write_to_file=True)
-        assert filecmp.cmp(
-            f"{aw_dir}aw-all-params.yaml",
-            f"{expected_clusters_dir}/appwrapper/unit-test-all-params.yaml",
-            shallow=True,
-        )
+
+        with open(f"{aw_dir}aw-all-params.yaml") as f:
+            generated_aw = yaml.load(f, Loader=yaml.FullLoader)
+        assert generated_aw == expected_aw
 
 
 def test_wait_ready(mocker, capsys):

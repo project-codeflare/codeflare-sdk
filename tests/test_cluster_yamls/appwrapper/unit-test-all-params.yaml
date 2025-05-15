@@ -54,6 +54,8 @@ spec:
                   value: value1
                 - name: key2
                   value: value2
+                - name: RAY_USAGE_STATS_ENABLED
+                  value: '0'
                 image: example/ray:tag
                 imagePullPolicy: Always
                 lifecycle:
@@ -159,6 +161,8 @@ spec:
                   value: value1
                 - name: key2
                   value: value2
+                - name: RAY_USAGE_STATS_ENABLED
+                  value: '0'
                 image: example/ray:tag
                 imagePullPolicy: Always
                 lifecycle:
