@@ -77,7 +77,6 @@ class TestRayLocalInteractiveOauth:
         cluster.status()
         logger.info("Cluster is ready")
 
-        logger.info("Waiting for head and worker pods to be fully ready...")
         TIMEOUT = 300  # 5 minutes timeout
         END = time.time() + TIMEOUT
 
@@ -117,11 +116,6 @@ class TestRayLocalInteractiveOauth:
                 head_status = kubectl_get_pod_status(self.namespace, head_pod_name)
             if worker_pod_name:
                 worker_status = kubectl_get_pod_status(self.namespace, worker_pod_name)
-
-            logger.info(f"Head pod ({head_pod_name or 'N/A'}) status: {head_status}")
-            logger.info(
-                f"Worker pod ({worker_pod_name or 'N/A'}) status: {worker_status}"
-            )
 
             if (
                 head_pod_name
@@ -216,7 +210,7 @@ class TestRayLocalInteractiveOauth:
 
         logger.info("Initializing Ray connection...")
         try:
-            ray.init(address=client_url, logging_level="INFO")
+            ray.init(address=client_url, logging_level="INFO", local_mode=True)
             logger.info("Ray initialization successful")
         except Exception as e:
             logger.error(f"Ray initialization failed: {str(e)}")

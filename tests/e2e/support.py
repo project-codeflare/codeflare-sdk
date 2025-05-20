@@ -483,18 +483,6 @@ def kubectl_get_pod_status(namespace, pod_name):
             text=True,
             check=True,
         )
-        print(f"Pod {pod_name} conditions: {conditions.stdout}")
-
-        # Get pod events for more context
-        events = subprocess.run(
-            ["kubectl", "describe", "pod", pod_name, "-n", namespace],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        if events.returncode == 0:
-            print(f"Pod {pod_name} details:")
-            print(events.stdout)
 
         return status
     except subprocess.CalledProcessError as e:
@@ -521,7 +509,6 @@ def kubectl_get_pod_ready(namespace, pod_name):
             text=True,
             check=True,
         )
-        print(f"Container statuses for {pod_name}: {result.stdout}")
 
         # Get ready status
         result = subprocess.run(
