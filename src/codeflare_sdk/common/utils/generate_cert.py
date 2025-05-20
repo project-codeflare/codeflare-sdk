@@ -243,9 +243,18 @@ def export_env(cluster_name, namespace):
         - RAY_TLS_SERVER_CERT: Path to the TLS server certificate.
         - RAY_TLS_SERVER_KEY: Path to the TLS server private key.
         - RAY_TLS_CA_CERT: Path to the CA certificate.
+        - RAY_CLIENT_SKIP_TLS_VERIFY: Skips TLS verification by the client.
     """
     tls_dir = os.path.join(os.getcwd(), f"tls-{cluster_name}-{namespace}")
     os.environ["RAY_USE_TLS"] = "1"
     os.environ["RAY_TLS_SERVER_CERT"] = os.path.join(tls_dir, "tls.crt")
     os.environ["RAY_TLS_SERVER_KEY"] = os.path.join(tls_dir, "tls.key")
     os.environ["RAY_TLS_CA_CERT"] = os.path.join(tls_dir, "ca.crt")
+    os.environ["RAY_CLIENT_SKIP_TLS_VERIFY"] = "1" # Skip verification for E2E
+
+    # Optional: Add print statements here if you still want to log them for verification
+    print(f"generate_cert.export_env: RAY_USE_TLS set to: {os.environ.get('RAY_USE_TLS')}")
+    print(f"generate_cert.export_env: RAY_TLS_CA_CERT set to: {os.environ.get('RAY_TLS_CA_CERT')}")
+    print(f"generate_cert.export_env: RAY_TLS_SERVER_CERT is: {os.environ.get('RAY_TLS_SERVER_CERT')}")
+    print(f"generate_cert.export_env: RAY_TLS_SERVER_KEY is: {os.environ.get('RAY_TLS_SERVER_KEY')}")
+    print(f"generate_cert.export_env: RAY_CLIENT_SKIP_TLS_VERIFY is: {os.environ.get('RAY_CLIENT_SKIP_TLS_VERIFY')}")

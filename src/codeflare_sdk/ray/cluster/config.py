@@ -108,6 +108,16 @@ class ClusterConfiguration:
             Kubernetes secret reference containing Redis password. ex: {"name": "secret-name", "key": "password-key"}
         external_storage_namespace:
             The storage namespace to use for GCS fault tolerance. By default, KubeRay sets it to the UID of RayCluster.
+        worker_idle_timeout_seconds:
+            The idle timeout for worker nodes in seconds.
+        worker_num_of_hosts:
+            The number of hosts per worker replica for TPUs.
+        suspend:
+            A boolean indicating whether to suspend the cluster.
+        managed_by:
+            The managed by field value.
+        redis_username_secret:
+            Kubernetes secret reference containing Redis username.
     """
 
     name: str
@@ -134,6 +144,8 @@ class ClusterConfiguration:
     max_memory: Optional[Union[int, str]] = None  # Deprecating
     num_gpus: Optional[int] = None  # Deprecating
     worker_tolerations: Optional[List[V1Toleration]] = None
+    worker_idle_timeout_seconds: Optional[int] = None
+    worker_num_of_hosts: Optional[int] = None
     appwrapper: bool = False
     envs: Dict[str, str] = field(default_factory=dict)
     image: str = ""
@@ -150,8 +162,11 @@ class ClusterConfiguration:
     annotations: Dict[str, str] = field(default_factory=dict)
     volumes: list[V1Volume] = field(default_factory=list)
     volume_mounts: list[V1VolumeMount] = field(default_factory=list)
+    suspend: Optional[bool] = None
+    managed_by: Optional[str] = None
     enable_gcs_ft: bool = False
     redis_address: Optional[str] = None
+    redis_username_secret: Optional[Dict[str, str]] = None
     redis_password_secret: Optional[Dict[str, str]] = None
     external_storage_namespace: Optional[str] = None
 
@@ -181,6 +196,29 @@ class ClusterConfiguration:
                 raise ValueError(
                     "redis_password_secret must contain both 'name' and 'key' fields"
                 )
+            
+            if self.redis_username_secret and not isinstance(
+                self.redis_username_secret, dict
+            ):
+                raise ValueError(
+                    "redis_username_secret must be a dictionary with 'name' and 'key' fields"
+                )
+
+            if self.redis_username_secret and (
+                "name" not in self.redis_username_secret
+                or "key" not in self.redis_username_secret
+            ):
+                raise ValueError(
+                    "redis_username_secret must contain both 'name' and 'key' fields"
+                )
+
+        if self.managed_by and self.managed_by not in [
+            "ray.io/kuberay-operator",
+            "kueue.x-k8s.io/multikueue",
+        ]:
+            raise ValueError(
+                "managed_by field value must be either 'ray.io/kuberay-operator' or 'kueue.x-k8s.io/multikueue'"
+            )
 
         self._validate_types()
         self._memory_to_resource()
