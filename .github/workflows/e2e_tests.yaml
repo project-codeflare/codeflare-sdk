@@ -234,7 +234,7 @@ jobs:
           pip install poetry
           poetry install --with test,docs
           echo "Running e2e tests..."
-          poetry run pytest -v -s --log-cli-level=INFO ./tests/e2e/local_interactive_sdk_kind_test.py > ${CODEFLARE_TEST_OUTPUT_DIR}/pytest_output.log 2>&1
+          poetry run pytest -v -s ./tests/e2e -m 'kind and nvidia_gpu' > ${CODEFLARE_TEST_OUTPUT_DIR}/pytest_output.log 2>&1
         env:
           GRPC_DNS_RESOLVER: "native"
 
