@@ -246,19 +246,6 @@ class TestRayLocalInteractiveOauth:
             generate_cert.generate_tls_cert(cluster_name, self.namespace)
             generate_cert.export_env(cluster_name, self.namespace)
 
-            # Unset server cert/key for client mode if skip_verify is true, to avoid client trying to use them as its own identity.
-            if os.environ.get("RAY_CLIENT_SKIP_TLS_VERIFY") == "1":
-                if "RAY_TLS_SERVER_CERT" in os.environ:
-                    del os.environ["RAY_TLS_SERVER_CERT"]
-                    logger.info(
-                        "Removed RAY_TLS_SERVER_CERT from env for client connection"
-                    )
-                if "RAY_TLS_SERVER_KEY" in os.environ:
-                    del os.environ["RAY_TLS_SERVER_KEY"]
-                    logger.info(
-                        "Removed RAY_TLS_SERVER_KEY from env for client connection"
-                    )
-
             # Start port forwarding
             local_port = "20001"
             ray_client_port = "10001"

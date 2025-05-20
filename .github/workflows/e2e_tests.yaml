@@ -173,6 +173,36 @@ jobs:
         with:
           user-name: sdk-user
 
+      - name: Grant sdk-user port-forwarding permissions
+        run: |
+          cat <<EOF | kubectl apply -f -
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: ClusterRole
+          metadata:
+            name: port-forward-permissions
+          rules:
+          - apiGroups: [""]
+            resources: ["services", "pods"]
+            verbs: ["get", "list", "watch"]
+          - apiGroups: [""]
+            resources: ["pods/portforward"]
+            verbs: ["create"]
+          ---
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: ClusterRoleBinding
+          metadata:
+            name: sdk-user-port-forward-binding
+          subjects:
+          - kind: User
+            name: sdk-user
+            apiGroup: rbac.authorization.k8s.io
+          roleRef:
+            kind: ClusterRole
+            name: port-forward-permissions
+            apiGroup: rbac.authorization.k8s.io
+          EOF
+        shell: bash
+
       - name: Configure RBAC for sdk user with limited permissions
         run: |
           kubectl create clusterrole list-ingresses --verb=get,list --resource=ingresses
