@@ -9,6 +9,7 @@ import kubernetes.client
 from codeflare_sdk.common.kubernetes_cluster.kube_api_helpers import (
     _kube_api_error_handling,
 )
+import time
 
 
 def get_ray_cluster(cluster_name, namespace):
@@ -299,31 +300,38 @@ def create_kueue_resources(
 
 
 def delete_kueue_resources(self):
-    # Delete if given cluster-queue exists
-    for cq in self.cluster_queues:
-        try:
-            self.custom_api.delete_cluster_custom_object(
-                group="kueue.x-k8s.io",
-                plural="clusterqueues",
-                version="v1beta1",
-                name=cq,
-            )
-            print(f"\n'{cq}' cluster-queue deleted")
-        except Exception as e:
-            print(f"\nError deleting cluster-queue '{cq}' : {e}")
+    try:
+        # Delete if given cluster-queue exists
+        for cq in getattr(self, "cluster_queues", []):
+            try:
+                self.custom_api.delete_cluster_custom_object(
+                    group="kueue.x-k8s.io",
+                    plural="clusterqueues",
+                    version="v1beta1",
+                    name=cq,
+                )
+                print(f"\n'{cq}' cluster-queue deleted")
+            except Exception as e:
+                print(f"\nError deleting cluster-queue '{cq}' : {e}")
 
-    # Delete if given resource-flavor exists
-    for flavor in self.resource_flavors:
-        try:
-            self.custom_api.delete_cluster_custom_object(
-                group="kueue.x-k8s.io",
-                plural="resourceflavors",
-                version="v1beta1",
-                name=flavor,
-            )
-            print(f"'{flavor}' resource-flavor deleted")
-        except Exception as e:
-            print(f"\nError deleting resource-flavor '{flavor}': {e}")
+        # Delete if given resource-flavor exists
+        for flavor in getattr(self, "resource_flavors", []):
+            try:
+                self.custom_api.delete_cluster_custom_object(
+                    group="kueue.x-k8s.io",
+                    plural="resourceflavors",
+                    version="v1beta1",
+                    name=flavor,
+                )
+                print(f"'{flavor}' resource-flavor deleted")
+            except Exception as e:
+                print(f"\nError deleting resource-flavor '{flavor}': {e}")
+
+        # Wait for resources to be cleaned up
+        time.sleep(5)
+    except Exception as e:
+        print(f"Error during Kueue resource cleanup: {e}")
+        raise
 
 
 def get_pod_node(self, namespace, name):
@@ -407,3 +415,339 @@ def assert_get_cluster_and_jobsubmit(
     assert job_list[0].submission_id == submission_id
 
     cluster.down()
+
+
+def kubectl_get_pod_status(namespace, pod_name):
+    """Get the status of a pod."""
+    try:
+        # First check if the pod exists
+        result = subprocess.run(
+            ["kubectl", "get", "pod", pod_name, "-n", namespace],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode != 0:
+            print(f"Pod {pod_name} not found in namespace {namespace}")
+            print(f"kubectl error output: {result.stderr}")
+            # Try to get events in the namespace to see if there are any issues
+            events = subprocess.run(
+                [
+                    "kubectl",
+                    "get",
+                    "events",
+                    "-n",
+                    namespace,
+                    "--sort-by='.lastTimestamp'",
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if events.returncode == 0:
+                print(f"Recent events in namespace {namespace}:")
+                print(events.stdout)
+            return "NotFound"
+
+        # Get the pod phase
+        result = subprocess.run(
+            [
+                "kubectl",
+                "get",
+                "pod",
+                pod_name,
+                "-n",
+                namespace,
+                "-o",
+                "jsonpath='{.status.phase}'",
+            ],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        status = result.stdout.strip("'")
+
+        # Get pod conditions for more detailed status
+        conditions = subprocess.run(
+            [
+                "kubectl",
+                "get",
+                "pod",
+                pod_name,
+                "-n",
+                namespace,
+                "-o",
+                "jsonpath='{.status.conditions}'",
+            ],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        print(f"Pod {pod_name} conditions: {conditions.stdout}")
+
+        # Get pod events for more context
+        events = subprocess.run(
+            ["kubectl", "describe", "pod", pod_name, "-n", namespace],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if events.returncode == 0:
+            print(f"Pod {pod_name} details:")
+            print(events.stdout)
+
+        return status
+    except subprocess.CalledProcessError as e:
+        print(f"Error getting pod status for {pod_name}: {e.stderr}")
+        return "Error"
+
+
+def kubectl_get_pod_ready(namespace, pod_name):
+    """Check if all containers in a pod are ready."""
+    try:
+        # Get container statuses
+        result = subprocess.run(
+            [
+                "kubectl",
+                "get",
+                "pod",
+                pod_name,
+                "-n",
+                namespace,
+                "-o",
+                "jsonpath='{.status.containerStatuses}'",
+            ],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        print(f"Container statuses for {pod_name}: {result.stdout}")
+
+        # Get ready status
+        result = subprocess.run(
+            [
+                "kubectl",
+                "get",
+                "pod",
+                pod_name,
+                "-n",
+                namespace,
+                "-o",
+                "jsonpath='{.status.containerStatuses[*].ready}'",
+            ],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        statuses = result.stdout.strip("'").split()
+        ready = all(status == "true" for status in statuses)
+
+        if not ready:
+            # Get container names and their ready status
+            names_result = subprocess.run(
+                [
+                    "kubectl",
+                    "get",
+                    "pod",
+                    pod_name,
+                    "-n",
+                    namespace,
+                    "-o",
+                    "jsonpath='{.status.containerStatuses[*].name}'",
+                ],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            container_names = names_result.stdout.strip("'").split()
+
+            # Get container states for more detailed status
+            states_result = subprocess.run(
+                [
+                    "kubectl",
+                    "get",
+                    "pod",
+                    pod_name,
+                    "-n",
+                    namespace,
+                    "-o",
+                    "jsonpath='{.status.containerStatuses[*].state}'",
+                ],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            states = states_result.stdout.strip("'").split()
+
+            # Get container reasons if not ready
+            reasons_result = subprocess.run(
+                [
+                    "kubectl",
+                    "get",
+                    "pod",
+                    pod_name,
+                    "-n",
+                    namespace,
+                    "-o",
+                    "jsonpath='{.status.containerStatuses[*].state.waiting.reason}'",
+                ],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            reasons = reasons_result.stdout.strip("'").split()
+
+            for name, status, state, reason in zip(
+                container_names, statuses, states, reasons
+            ):
+                print(f"Container {name}:")
+                print(f"  Ready status: {status}")
+                print(f"  State: {state}")
+                if reason and reason != "<no value>":
+                    print(f"  Reason: {reason}")
+
+        return ready
+    except subprocess.CalledProcessError as e:
+        print(f"Error checking pod readiness for {pod_name}: {e.stderr}")
+        return False
+
+
+def kubectl_get_pod_container_status(namespace, pod_name):
+    """Get detailed container status for a pod."""
+    try:
+        # Get container names
+        names_result = subprocess.run(
+            [
+                "kubectl",
+                "get",
+                "pod",
+                pod_name,
+                "-n",
+                namespace,
+                "-o",
+                "jsonpath='{.status.containerStatuses[*].name}'",
+            ],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        container_names = names_result.stdout.strip("'").split()
+
+        # Get container states
+        states_result = subprocess.run(
+            [
+                "kubectl",
+                "get",
+                "pod",
+                pod_name,
+                "-n",
+                namespace,
+                "-o",
+                "jsonpath='{.status.containerStatuses[*].state}'",
+            ],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        states = states_result.stdout.strip("'").split()
+
+        # Get container reasons if waiting
+        reasons_result = subprocess.run(
+            [
+                "kubectl",
+                "get",
+                "pod",
+                pod_name,
+                "-n",
+                namespace,
+                "-o",
+                "jsonpath='{.status.containerStatuses[*].state.waiting.reason}'",
+            ],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        reasons = reasons_result.stdout.strip("'").split()
+
+        # Get container messages if waiting
+        messages_result = subprocess.run(
+            [
+                "kubectl",
+                "get",
+                "pod",
+                pod_name,
+                "-n",
+                namespace,
+                "-o",
+                "jsonpath='{.status.containerStatuses[*].state.waiting.message}'",
+            ],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        messages = messages_result.stdout.strip("'").split()
+
+        # Combine all information
+        status = {}
+        for name, state, reason, message in zip(
+            container_names, states, reasons, messages
+        ):
+            status[name] = {
+                "state": state,
+                "reason": reason if reason != "<no value>" else None,
+                "message": message if message != "<no value>" else None,
+            }
+
+        return status
+    except subprocess.CalledProcessError as e:
+        print(f"Error getting container status for {pod_name}: {e.stderr}")
+        return "Error"
+
+
+def kubectl_get_pod_name_by_substring(namespace, cluster_name_part, type_substring):
+    """Get the name of the first pod in the namespace that contains both cluster_name_part and type_substring in its name."""
+    try:
+        command = [
+            "kubectl",
+            "get",
+            "pods",
+            "-n",
+            namespace,
+            "-o",
+            "jsonpath={.items[*].metadata.name}",
+        ]
+        result = subprocess.run(command, capture_output=True, text=True, check=False)
+
+        if result.returncode != 0:
+            print(
+                f"kubectl command failed to list pods in {namespace}. stderr: {result.stderr}"
+            )
+            return None
+
+        pod_names_str = result.stdout.strip().strip("'")
+        if not pod_names_str:
+            # print(f"No pods found in namespace {namespace}") # Uncomment for debugging
+            return None
+
+        pod_names = pod_names_str.split()
+        # print(f"Pods found in namespace {namespace}: {pod_names}") # Uncomment for debugging
+
+        for pod_name in pod_names:
+            # Ensure both parts are present. Using lower() for case-insensitive matching of type_substring (e.g. Head vs head)
+            if (
+                cluster_name_part.lower() in pod_name.lower()
+                and type_substring.lower() in pod_name.lower()
+            ):
+                # print(f"Found matching pod: {pod_name} for cluster part '{cluster_name_part}' and type '{type_substring}'") # Uncomment for debugging
+                return pod_name
+
+        # print(f"No pod found containing '{cluster_name_part}' and '{type_substring}' in namespace {namespace}") # Uncomment for debugging
+        return None
+    except subprocess.CalledProcessError as e:
+        print(
+            f"Error listing pods in namespace {namespace} to find by substring: {e.stderr}"
+        )
+        return None
+    except Exception as e:
+        print(f"An unexpected error occurred while getting pod name by substring: {e}")
+        return None

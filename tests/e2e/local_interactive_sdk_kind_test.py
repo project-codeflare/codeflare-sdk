@@ -11,6 +11,7 @@ import math
 import logging
 import time
 import os
+import subprocess
 
 from support import *
 
@@ -22,32 +23,25 @@ logger = logging.getLogger(__name__)
 @pytest.mark.kind
 class TestRayLocalInteractiveOauth:
     def setup_method(self):
-        logger.info("Setting up test environment...")
         initialize_kubernetes_client(self)
-        logger.info("Kubernetes client initialized")
+        logger.info("Kubernetes client initalized")
 
     def teardown_method(self):
-        logger.info("Cleaning up test environment...")
         delete_namespace(self)
         delete_kueue_resources(self)
-        logger.info("Cleanup completed")
 
     def test_local_interactives(self):
-        logger.info("Starting test_local_interactives...")
         self.setup_method()
         create_namespace(self)
         create_kueue_resources(self)
         self.run_local_interactives()
-        logger.info("test_local_interactives completed")
 
     @pytest.mark.nvidia_gpu
     def test_local_interactives_nvidia_gpu(self):
-        logger.info("Starting test_local_interactives_nvidia_gpu...")
         self.setup_method()
         create_namespace(self)
         create_kueue_resources(self)
         self.run_local_interactives(number_of_gpus=1)
-        logger.info("test_local_interactives_nvidia_gpu completed")
 
     def run_local_interactives(
         self, gpu_resource_name="nvidia.com/gpu", number_of_gpus=0
@@ -55,7 +49,8 @@ class TestRayLocalInteractiveOauth:
         cluster_name = "test-ray-cluster-li"
         logger.info(f"Starting run_local_interactives with {number_of_gpus} GPUs")
 
-        logger.info("Creating cluster configuration...")
+        ray.shutdown()
+
         cluster = Cluster(
             ClusterConfiguration(
                 name=cluster_name,
@@ -66,7 +61,7 @@ class TestRayLocalInteractiveOauth:
                 head_memory_requests=2,
                 head_memory_limits=2,
                 worker_cpu_requests="500m",
-                worker_cpu_limits=1,
+                worker_cpu_limits="500m",
                 worker_memory_requests=1,
                 worker_memory_limits=4,
                 worker_extended_resource_requests={gpu_resource_name: number_of_gpus},
@@ -74,79 +69,177 @@ class TestRayLocalInteractiveOauth:
                 verify_tls=False,
             )
         )
-        logger.info("Cluster configuration created")
 
-        logger.info("Starting cluster deployment...")
         cluster.up()
         logger.info("Cluster deployment initiated")
 
-        logger.info("Waiting for cluster to be ready...")
         cluster.wait_ready()
+        cluster.status()
         logger.info("Cluster is ready")
 
-        logger.info("Generating TLS certificates...")
-        generate_cert.generate_tls_cert(cluster_name, self.namespace)
-        logger.info("TLS certificates generated")
+        logger.info("Waiting for head and worker pods to be fully ready...")
+        TIMEOUT = 300  # 5 minutes timeout
+        END = time.time() + TIMEOUT
 
-        logger.info("Exporting environment variables...")
+        head_pod_name = None
+        worker_pod_name = None
+
+        while time.time() < END:
+            # Dynamically find pod names using substrings
+            if not head_pod_name:
+                head_pod_name = kubectl_get_pod_name_by_substring(
+                    self.namespace, cluster_name, "head"
+                )
+                if head_pod_name:
+                    logger.info(f"Discovered head pod by substring: {head_pod_name}")
+                else:
+                    logger.info(
+                        f"Head pod not yet found by searching for '{cluster_name}' and 'head' in pod names. Retrying..."
+                    )
+
+            if not worker_pod_name:
+                worker_pod_name = kubectl_get_pod_name_by_substring(
+                    self.namespace, cluster_name, "worker"
+                )
+                if worker_pod_name:
+                    logger.info(
+                        f"Discovered worker pod by substring: {worker_pod_name}"
+                    )
+                else:
+                    logger.info(
+                        f"Worker pod not yet found by searching for '{cluster_name}' and 'worker' in pod names. Retrying..."
+                    )
+
+            head_status = "NotFound"
+            worker_status = "NotFound"
+
+            if head_pod_name:
+                head_status = kubectl_get_pod_status(self.namespace, head_pod_name)
+            if worker_pod_name:
+                worker_status = kubectl_get_pod_status(self.namespace, worker_pod_name)
+
+            logger.info(f"Head pod ({head_pod_name or 'N/A'}) status: {head_status}")
+            logger.info(
+                f"Worker pod ({worker_pod_name or 'N/A'}) status: {worker_status}"
+            )
+
+            if (
+                head_pod_name
+                and worker_pod_name
+                and "Running" in head_status
+                and "Running" in worker_status
+            ):
+                head_ready = kubectl_get_pod_ready(self.namespace, head_pod_name)
+                worker_ready = kubectl_get_pod_ready(self.namespace, worker_pod_name)
+
+                if head_ready and worker_ready:
+                    logger.info("All discovered pods and containers are ready!")
+                    break
+                else:
+                    logger.info(
+                        "Discovered pods are running but containers are not all ready yet..."
+                    )
+                    if not head_ready and head_pod_name:
+                        head_container_status = kubectl_get_pod_container_status(
+                            self.namespace, head_pod_name
+                        )
+                        logger.info(
+                            f"Head pod ({head_pod_name}) container status: {head_container_status}"
+                        )
+                    if not worker_ready and worker_pod_name:
+                        worker_container_status = kubectl_get_pod_container_status(
+                            self.namespace, worker_pod_name
+                        )
+                        logger.info(
+                            f"Worker pod ({worker_pod_name}) container status: {worker_container_status}"
+                        )
+            elif (head_pod_name and "Error" in head_status) or (
+                worker_pod_name and "Error" in worker_status
+            ):
+                logger.error(
+                    "Error getting pod status for one or more pods, retrying..."
+                )
+            else:
+                logger.info(
+                    f"Waiting for pods to be discovered and running... Current status - Head ({head_pod_name or 'N/A'}): {head_status}, Worker ({worker_pod_name or 'N/A'}): {worker_status}"
+                )
+
+            time.sleep(10)
+
+        if time.time() >= END:
+            logger.error("Timeout waiting for pods to be ready or discovered")
+            if not head_pod_name or not worker_pod_name:
+                logger.error(
+                    "Could not discover head and/or worker pods by name substring. Listing all pods in namespace for debugging:"
+                )
+                try:
+                    all_pods_result = subprocess.run(
+                        ["kubectl", "get", "pods", "-n", self.namespace, "-o", "wide"],
+                        capture_output=True,
+                        text=True,
+                        check=False,
+                    )
+                    logger.error(
+                        f"Pods in namespace '{self.namespace}':\n{all_pods_result.stdout}"
+                    )
+                    if all_pods_result.stderr:
+                        logger.error(f"Error listing pods: {all_pods_result.stderr}")
+                except Exception as e_pods:
+                    logger.error(f"Exception while trying to list all pods: {e_pods}")
+
+            if head_pod_name:
+                logger.error(
+                    f"Final head pod ({head_pod_name}) status: {kubectl_get_pod_container_status(self.namespace, head_pod_name)}"
+                )
+            else:
+                logger.error(
+                    f"Final head pod status: Not Discovered by searching for '{cluster_name}' and 'head' in pod names."
+                )
+
+            if worker_pod_name:
+                logger.error(
+                    f"Final worker pod ({worker_pod_name}) status: {kubectl_get_pod_container_status(self.namespace, worker_pod_name)}"
+                )
+            else:
+                logger.error(
+                    f"Final worker pod status: Not Discovered by searching for '{cluster_name}' and 'worker' in pod names."
+                )
+            raise TimeoutError(
+                "Pods did not become ready (or were not discovered by name substring) within the timeout period"
+            )
+
+        generate_cert.generate_tls_cert(cluster_name, self.namespace)
         generate_cert.export_env(cluster_name, self.namespace)
-        logger.info("Environment variables exported")
 
         client_url = cluster.local_client_url()
-        logger.info(f"Ray client URL: {client_url}")
-
-        logger.info("Checking cluster status...")
-        status = cluster.status()
-        logger.info(f"Cluster status: {status}")
-
-        logger.info("Checking cluster dashboard URI...")
-        dashboard_uri = cluster.cluster_dashboard_uri()
-        logger.info(f"Dashboard URI: {dashboard_uri}")
-
-        logger.info("Checking cluster URI...")
-        cluster_uri = cluster.cluster_uri()
-        logger.info(f"Cluster URI: {cluster_uri}")
-
-        logger.info("Shutting down any existing Ray connections...")
-        ray.shutdown()
-        logger.info("Ray shutdown completed")
+        cluster.status()
 
         logger.info("Initializing Ray connection...")
         try:
-            ray.init(address=client_url, logging_level="DEBUG")
+            ray.init(address=client_url, logging_level="INFO")
             logger.info("Ray initialization successful")
         except Exception as e:
             logger.error(f"Ray initialization failed: {str(e)}")
             logger.error(f"Error type: {type(e)}")
             raise
 
-        logger.info("Defining Ray remote functions...")
-
         @ray.remote(num_gpus=number_of_gpus / 2)
         def heavy_calculation_part(num_iterations):
-            logger.info(
-                f"Starting heavy_calculation_part with {num_iterations} iterations"
-            )
             result = 0.0
             for i in range(num_iterations):
                 for j in range(num_iterations):
                     for k in range(num_iterations):
                         result += math.sin(i) * math.cos(j) * math.tan(k)
-            logger.info("heavy_calculation_part completed")
             return result
 
         @ray.remote(num_gpus=number_of_gpus / 2)
         def heavy_calculation(num_iterations):
-            logger.info(f"Starting heavy_calculation with {num_iterations} iterations")
             results = ray.get(
                 [heavy_calculation_part.remote(num_iterations // 30) for _ in range(30)]
             )
-            logger.info("heavy_calculation completed")
             return sum(results)
 
-        logger.info("Submitting calculation task...")
         ref = heavy_calculation.remote(3000)
-        logger.info("Task submitted, waiting for result...")
 
         try:
             result = ray.get(ref)
@@ -161,10 +254,5 @@ class TestRayLocalInteractiveOauth:
             ray.cancel(ref)
             logger.info("Task cancelled")
 
-        logger.info("Shutting down Ray...")
         ray.shutdown()
-        logger.info("Ray shutdown completed")
-
-        logger.info("Tearing down cluster...")
         cluster.down()
-        logger.info("Cluster teardown completed")

@@ -70,12 +70,99 @@ jobs:
       - name: Install NVidia GPU operator for KinD
         uses: ./common/github-actions/nvidia-gpu-operator
 
+      - name: Verify GPU availability in KinD
+        run: |
+          echo "Checking for available GPUs in the KinD cluster..."
+          
+          # Wait for GPU operator pods to be ready (with timeout)
+          echo "Waiting for GPU operator pods to be ready..."
+          TIMEOUT=300  # 5 minutes timeout
+          END=$((SECONDS + TIMEOUT))
+          
+          while [ $SECONDS -lt $END ]; do
+            # Get total number of pods in the namespace
+            TOTAL_PODS=$(kubectl get pods -n gpu-operator --no-headers | wc -l)
+            
+            # Count pods that are either running and ready or completed successfully
+            # Exclude pods that are still initializing
+            READY_PODS=$(kubectl get pods -n gpu-operator --no-headers | grep -E 'Running|Completed' | grep -v 'PodInitializing' | wc -l)
+            
+            if [ "$READY_PODS" -eq "$TOTAL_PODS" ] && [ "$TOTAL_PODS" -gt 0 ]; then
+              echo "All GPU operator pods are ready or completed successfully!"
+              break
+            fi
+            
+            echo "Waiting for GPU operator pods to be ready... ($READY_PODS/$TOTAL_PODS)"
+            echo "Pod status:"
+            kubectl get pods -n gpu-operator
+            sleep 10
+          done
+          
+          if [ $SECONDS -ge $END ]; then
+            echo "::error::Timeout waiting for GPU operator pods to be ready"
+            echo "GPU operator pod status:"
+            kubectl get pods -n gpu-operator -o wide
+            echo "GPU operator pod logs:"
+            kubectl logs -n gpu-operator -l app.kubernetes.io/name=gpu-operator
+            echo "GPU operator pod events:"
+            kubectl get events -n gpu-operator
+            exit 1
+          fi
+          
+          echo "Node details:"
+          kubectl describe nodes | grep -E 'nvidia.com/gpu|Allocatable:|Capacity:|Name:'
+          
+          # Check if GPU operator has labeled nodes
+          GPU_LABELS=$(kubectl describe nodes | grep -c "nvidia.com/gpu")
+          if [ "$GPU_LABELS" -eq 0 ]; then
+            echo "::error::No NVIDIA GPU labels found on nodes. GPU operator may not be running correctly."
+            echo "Full node descriptions for debugging:"
+            kubectl describe nodes
+            exit 1
+          fi
+          
+          # Check if GPUs are actually allocatable
+          GPU_ALLOCATABLE=$(kubectl get nodes -o jsonpath='{.items[*].status.allocatable.nvidia\.com/gpu}' | tr ' ' '\n' | grep -v '^$' | wc -l)
+          if [ "$GPU_ALLOCATABLE" -eq 0 ]; then
+            echo "::error::GPU operator is running but no GPUs are allocatable. Check GPU operator logs."
+            echo "Checking GPU operator pods:"
+            kubectl get pods -n gpu-operator -o wide
+            echo "GPU operator pod logs:"
+            kubectl logs -n gpu-operator -l app.kubernetes.io/name=gpu-operator
+            echo "GPU operator pod events:"
+            kubectl get events -n gpu-operator
+            echo "GPU operator pod descriptions:"
+            kubectl describe pods -n gpu-operator
+            exit 1
+          fi
+          
+          echo "Successfully found $GPU_ALLOCATABLE allocatable GPU(s) in the cluster."
+
       - name: Deploy CodeFlare stack
         id: deploy
         run: |
           cd codeflare-operator
           echo Setting up CodeFlare stack
           make setup-e2e
+          
+          # Create ConfigMap to disable mTLS
+          echo "Creating ConfigMap to disable mTLS..."
+          cat <<EOF | kubectl apply -f -
+          apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: codeflare-operator-config
+            namespace: ray-system
+          data:
+            config.yaml: |
+              kuberay:
+                mTLSEnabled: false
+                rayDashboardOAuthEnabled: false  
+                ingressDomain: "kind"
+              appwrapper:
+                enabled: true
+          EOF
+          
           echo Deploying CodeFlare operator
           make deploy -e IMG="${CODEFLARE_OPERATOR_IMG}" -e ENV="e2e"
           kubectl wait --timeout=120s --for=condition=Available=true deployment -n openshift-operators codeflare-operator-manager
