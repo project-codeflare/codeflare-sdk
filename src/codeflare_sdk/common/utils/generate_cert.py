@@ -240,27 +240,21 @@ def export_env(cluster_name, namespace):
 
     Environment Variables Set:
         - RAY_USE_TLS: Enables TLS for Ray.
+        - RAY_TLS_SERVER_CERT: Path to the TLS server certificate.
+        - RAY_TLS_SERVER_KEY: Path to the TLS server private key.
         - RAY_TLS_CA_CERT: Path to the CA certificate.
+        - RAY_CLIENT_SKIP_TLS_VERIFY: Skips TLS verification by the client.
     """
-    # Assuming logger is configured elsewhere or add basicConfig here for the module
-    # import logging
-    # logger = logging.getLogger(__name__)
-    # logging.basicConfig(level=logging.INFO) # Or use existing logger if available
-
     tls_dir = os.path.join(os.getcwd(), f"tls-{cluster_name}-{namespace}")
     os.environ["RAY_USE_TLS"] = "1"
-    # os.environ["RAY_TLS_SERVER_CERT"] = os.path.join(tls_dir, "tls.crt") # Client usually doesn't need to present a server cert
-    # os.environ["RAY_TLS_SERVER_KEY"] = os.path.join(tls_dir, "tls.key")   # Client usually doesn't need to present a server key
-    if "RAY_TLS_SERVER_CERT" in os.environ:
-        del os.environ["RAY_TLS_SERVER_CERT"]
-    if "RAY_TLS_SERVER_KEY" in os.environ:
-        del os.environ["RAY_TLS_SERVER_KEY"]
+    os.environ["RAY_TLS_SERVER_CERT"] = os.path.join(tls_dir, "tls.crt")
+    os.environ["RAY_TLS_SERVER_KEY"] = os.path.join(tls_dir, "tls.key")
     os.environ["RAY_TLS_CA_CERT"] = os.path.join(tls_dir, "ca.crt")
+    os.environ["RAY_CLIENT_SKIP_TLS_VERIFY"] = "1" # Skip verification for E2E
 
-    # It's better to use a logger instance if this module has one,
-    # otherwise, these prints will go to stdout.
-    # For now, using print for visibility in test logs if logger isn't set up in this exact scope.
+    # Optional: Add print statements here if you still want to log them for verification
     print(f"generate_cert.export_env: RAY_USE_TLS set to: {os.environ.get('RAY_USE_TLS')}")
     print(f"generate_cert.export_env: RAY_TLS_CA_CERT set to: {os.environ.get('RAY_TLS_CA_CERT')}")
     print(f"generate_cert.export_env: RAY_TLS_SERVER_CERT is: {os.environ.get('RAY_TLS_SERVER_CERT')}")
     print(f"generate_cert.export_env: RAY_TLS_SERVER_KEY is: {os.environ.get('RAY_TLS_SERVER_KEY')}")
+    print(f"generate_cert.export_env: RAY_CLIENT_SKIP_TLS_VERIFY is: {os.environ.get('RAY_CLIENT_SKIP_TLS_VERIFY')}")
