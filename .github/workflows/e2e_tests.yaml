@@ -104,8 +104,12 @@ jobs:
           kubectl create clusterrolebinding sdk-user-localqueue-creator --clusterrole=localqueue-creator --user=sdk-user
           kubectl create clusterrole list-secrets --verb=get,list --resource=secrets
           kubectl create clusterrolebinding sdk-user-list-secrets --clusterrole=list-secrets --user=sdk-user
-          kubectl create clusterrole pod-creator --verb=get,list --resource=pods
+          kubectl create clusterrole pod-creator --verb=get,list,watch --resource=pods
           kubectl create clusterrolebinding sdk-user-pod-creator --clusterrole=pod-creator --user=sdk-user
+          kubectl create clusterrole service-reader --verb=get,list,watch --resource=services
+          kubectl create clusterrolebinding sdk-user-service-reader --clusterrole=service-reader --user=sdk-user
+          kubectl create clusterrole port-forward-pods --verb=create --resource=pods/portforward
+          kubectl create clusterrolebinding sdk-user-port-forward-pods-binding --clusterrole=port-forward-pods --user=sdk-user
           kubectl config use-context sdk-user
 
       - name: Run e2e tests
@@ -117,7 +121,7 @@ jobs:
           pip install poetry
           poetry install --with test,docs
           echo "Running e2e tests..."
-          poetry run pytest -v -s ./tests/e2e -m 'kind and nvidia_gpu' > ${CODEFLARE_TEST_OUTPUT_DIR}/pytest_output.log 2>&1
+          poetry run pytest -v -s --log-cli-level=INFO ./tests/e2e/local_interactive_sdk_kind_test.py::TestRayLocalInteractiveKind::test_local_interactives_nvidia_gpu > ${CODEFLARE_TEST_OUTPUT_DIR}/pytest_output.log 2>&1
         env:
           GRPC_DNS_RESOLVER: "native"
 

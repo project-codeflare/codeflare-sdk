@@ -1,11 +1,9 @@
-import json
 import os
 import random
 import string
 import subprocess
 from codeflare_sdk import get_cluster
 from kubernetes import client, config
-import kubernetes.client
 from codeflare_sdk.common.kubernetes_cluster.kube_api_helpers import (
     _kube_api_error_handling,
 )
