@@ -130,7 +130,7 @@ def build_ray_cluster(cluster: "codeflare_sdk.ray.cluster.Cluster"):
                 "resources": get_resources("500m", "500m", "512Mi", "512Mi"),
             },
             "headGroupSpec": {
-                "serviceType": "ClusterIP",
+                "serviceType": "NodePort",
                 "enableIngress": False,
                 "rayStartParams": {
                     "dashboard-host": "0.0.0.0",

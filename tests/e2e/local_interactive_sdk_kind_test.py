@@ -4,11 +4,12 @@ from codeflare_sdk import (
     TokenAuthentication,
     generate_cert,
 )
-
+import subprocess
+import json
 import pytest
 import ray
 import math
-
+import time
 from support import *
 
 
@@ -66,7 +67,40 @@ class TestRayLocalInteractiveOauth:
         print(cluster.local_client_url())
 
         ray.shutdown()
-        ray.init(address=cluster.local_client_url(), logging_level="DEBUG")
+
+        print("RAY DEBUGGING")
+        print("\n========== PYTHON DEBUG INFO ==========")
+        print(f"Ray local cluster client URL: {cluster.local_client_url()}")
+        print(f"Ray cluster client URL: {cluster.cluster_uri()}")
+        print(f"Cluster name: {cluster_name}")
+        print(f"Current working directory: {os.getcwd()}")
+        print(f"Cluster: {cluster}")
+        print(f"Cluster namespace: {self.namespace}")
+        print(f"Cluster name: {cluster_name}")
+        print(f"Cluster config: {cluster.config}")
+        print(f"Cluster config namespace: {cluster.config.namespace}")
+        print(f"Cluster config name: {cluster.config.name}")
+        print(f"Cluster config num_workers: {cluster.config.num_workers}")
+        print(f"Cluster config num_workers: {cluster.config.num_workers}")
+        print("END OF RAY DEBUGGING")
+
+        # print("Sleeping for 15 minutes before ray.init for debugging...")
+        # time.sleep(900)
+
+        svc_json = subprocess.check_output(
+            f"kubectl get svc -n {self.namespace} {cluster_name}-head-svc -o json",
+            shell=True,
+        )
+        svc = json.loads(svc_json)
+        node_port = None
+        for port in svc["spec"]["ports"]:
+            if port["port"] == 10001:
+                node_port = port["nodePort"]
+                break
+
+        ray_url = f"ray://127.0.0.1:{node_port}"
+        print(f"Connecting to Ray at: {ray_url}")
+        ray.init(address=ray_url, logging_level="DEBUG")
 
         @ray.remote(num_gpus=number_of_gpus / 2)
         def heavy_calculation_part(num_iterations):

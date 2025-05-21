@@ -17,7 +17,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  CODEFLARE_OPERATOR_IMG: "quay.io/project-codeflare/codeflare-operator:dev"
+  CODEFLARE_OPERATOR_IMG: "quay.io/kryanbeane/codeflare-operator:dev"
 
 jobs:
   kubernetes:
@@ -106,7 +106,15 @@ jobs:
           kubectl create clusterrolebinding sdk-user-list-secrets --clusterrole=list-secrets --user=sdk-user
           kubectl create clusterrole pod-creator --verb=get,list --resource=pods
           kubectl create clusterrolebinding sdk-user-pod-creator --clusterrole=pod-creator --user=sdk-user
+          kubectl create clusterrole service-reader --verb=get,list --resource=services
+          kubectl create clusterrolebinding sdk-user-service-reader --clusterrole=service-reader --user=sdk-user
           kubectl config use-context sdk-user
+
+      - name: Setup tmate session for debugging
+        if: always()
+        uses: mxschmitt/action-tmate@v3
+        with:
+          detached: true
 
       - name: Run e2e tests
         run: |
