@@ -114,3 +114,54 @@ class RayJob:
                 "driver_info": self.spec.driver_info,
             } if self.status is None else self.status
         }
+
+    def apply(self, force=False):
+        """
+        Applies the RayJob using server-side apply.
+        If 'force' is set to True, conflicts will be forced.
+        
+        Args:
+            force (bool): If True, force conflicts during server-side apply.
+        """
+        from kubernetes import client
+        from kubernetes.dynamic import DynamicClient
+        from ...common.kubernetes_cluster.auth import get_api_client, config_check
+        from ...common import _kube_api_error_handling
+
+        CF_SDK_FIELD_MANAGER = "codeflare-sdk"
+        
+        try:
+            # Check Kubernetes configuration
+            config_check()
+            
+            # Get the dynamic client
+            crds = DynamicClient(get_api_client()).resources
+            
+            # Get the RayJob API instance
+            api_version = "ray.io/v1"
+            api_instance = crds.get(api_version=api_version, kind="RayJob")
+            
+            # Get namespace from metadata
+            namespace = self.metadata.get("namespace", "default")
+            name = self.metadata.get("name")
+            
+            # Convert job to dictionary
+            body = self.to_dict()
+            
+            # Apply the job using server-side apply
+            api_instance.server_side_apply(
+                field_manager=CF_SDK_FIELD_MANAGER,
+                group="ray.io",
+                version="v1",
+                namespace=namespace,
+                plural="rayjobs",
+                body=body,
+                force_conflicts=force,
+            )
+            
+            print(f"RayJob: '{name}' has successfully been applied")
+            
+        except AttributeError as e:
+            raise RuntimeError(f"Failed to initialize DynamicClient: {e}")
+        except Exception as e:
+            return _kube_api_error_handling(e)
