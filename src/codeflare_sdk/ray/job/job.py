@@ -76,14 +76,14 @@ class RayJobSpec:
 class RayJob:
     """RayJob Custom Resource Definition"""
     
-    api_version: str = "ray.io/v1"
-    kind: str = "RayJob"
-    
     metadata: Dict[str, Any]
     """Kubernetes metadata for the job"""
     
     spec: RayJobSpec
     """Job specification"""
+
+    api_version: str = "ray.io/v1"
+    kind: str = "RayJob"
     
     status: Optional[Dict[str, Any]] = None
     """Status of the job (managed by the controller)"""
