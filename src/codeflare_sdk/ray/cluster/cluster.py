@@ -20,8 +20,12 @@ cluster setup queue, a list of all existing clusters, and the user's working nam
 
 from time import sleep
 from typing import List, Optional, Tuple, Dict
+import copy
 
-from ray.job_submission import JobSubmissionClient
+from ray.job_submission import JobSubmissionClient, JobStatus
+import time
+import uuid
+import warnings
 
 from ...common.kubernetes_cluster.auth import (
     config_check,
@@ -57,7 +61,6 @@ from kubernetes import client as k8s_client
 from kubernetes.client.rest import ApiException
 
 from kubernetes.client.rest import ApiException
-import warnings
 
 CF_SDK_FIELD_MANAGER = "codeflare-sdk"
 
@@ -604,6 +607,260 @@ class Cluster:
             yamls = yaml.safe_load_all(self.resource_yaml)
             _delete_resources(yamls, namespace, api_instance, cluster_name)
 
+    @staticmethod
+    def run_job_with_managed_cluster(
+        cluster_config: ClusterConfiguration,
+        entrypoint: str,
+        job_cr_name: Optional[str] = None, # Name for the RayJob CR itself
+        runtime_env: Optional[Dict] = None,
+        job_submission_id: Optional[str] = None, # For Ray's internal job tracking (spec.jobId)
+        ray_job_metadata: Optional[Dict[str, str]] = None, # For Ray's internal job (spec.metadata)
+        submission_mode: str = "K8sJobMode", # "K8sJobMode" or "RayClientMode"
+        shutdown_after_job_finishes: bool = True,
+        ttl_seconds_after_finished: Optional[int] = None,
+        suspend_rayjob_creation: bool = False, # To create RayJob in suspended state
+        wait_for_completion: bool = True,
+        job_timeout_seconds: Optional[int] = 3600, # Default 1 hour
+        job_polling_interval_seconds: int = 10,
+    ):
+        """
+        Manages the lifecycle of a Ray cluster and a job by creating a RayJob custom resource.
+        KubeRay operator will then create/delete the RayCluster based on the RayJob definition.
+
+        This method will:
+        1. Generate a RayCluster specification from the provided 'cluster_config'.
+        2. Construct a RayJob custom resource definition, embedding the RayCluster spec.
+        3. Create the RayJob resource in Kubernetes.
+        4. Optionally, wait for the RayJob to complete or timeout, monitoring its status.
+        5. The RayCluster lifecycle (creation and deletion) is managed by KubeRay
+           based on the RayJob's 'shutdownAfterJobFinishes' field.
+
+        Args:
+            cluster_config: Configuration for the Ray cluster to be created by RayJob.
+            entrypoint: The command to run for the job.
+            job_cr_name: Name for the RayJob Custom Resource. If None, a unique name is generated.
+            runtime_env: Runtime environment for the job, as a dictionary. Will be converted to YAML string.
+            job_submission_id: Custom ID for the Ray job (spec.jobId in RayJob).
+            ray_job_metadata: Metadata for the Ray job (spec.metadata in RayJob).
+            submission_mode: How the job is submitted ("K8sJobMode" or "RayClientMode").
+            shutdown_after_job_finishes: If True, RayCluster is deleted after job finishes.
+            ttl_seconds_after_finished: TTL for RayJob after it's finished.
+            suspend_rayjob_creation: If True, creates the RayJob in a suspended state.
+            wait_for_completion: If True, waits for the job to finish.
+            job_timeout_seconds: Timeout for waiting for job completion.
+            job_polling_interval_seconds: Interval for polling job status.
+
+        Returns:
+            A dictionary containing details like RayJob CR name, reported job submission ID,
+            final job status, dashboard URL, and the RayCluster name.
+            Example: {
+                "job_cr_name": "my-rayjob-abc",
+                "job_submission_id": "raysubmit_123",
+                "job_status": "SUCCEEDED",
+                "dashboard_url": "http://...",
+                "ray_cluster_name": "my-rayjob-abc-cluster"
+            }
+
+        Raises:
+            TimeoutError: If the job doesn't complete within the specified timeout.
+            ApiException: For Kubernetes API errors.
+            ValueError: For configuration issues.
+        """
+        config_check()
+        k8s_co_api = k8s_client.CustomObjectsApi(get_api_client())
+        namespace = cluster_config.namespace
+
+        # Generate rayClusterSpec from ClusterConfiguration
+        # Create a temporary Cluster instance with appwrapper=False to leverage
+        # build_ray_cluster logic, which produces the RayCluster CR dict.
+        temp_config_for_spec = copy.deepcopy(cluster_config) # Standard library deepcopy
+        temp_config_for_spec.appwrapper = False
+        
+        # Suppress warning about missing ClusterConfiguration during this internal step
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", UserWarning)
+            # Cluster constructor calls create_resource() which calls build_ray_cluster()
+            dummy_cluster_for_spec = Cluster(temp_config_for_spec)
+
+        ray_cluster_cr_dict = dummy_cluster_for_spec.resource_yaml
+        if not isinstance(ray_cluster_cr_dict, dict) or "spec" not in ray_cluster_cr_dict:
+            raise ValueError(
+                "Failed to generate RayCluster CR dictionary from ClusterConfiguration. "
+                f"Got: {type(ray_cluster_cr_dict)}"
+            )
+        ray_cluster_spec = ray_cluster_cr_dict["spec"]
+
+        # Ensure cluster_config.name (original one) is used in the embedded spec if not overridden by KubeRay
+        # KubeRay might generate its own name for the cluster if not specified in rayClusterSpec.metadata.name
+        # However, our build_ray_cluster sets metadata.name in the CRD it builds.
+        # We can also explicitly set it here if needed for clarity.
+        # ray_cluster_spec.setdefault("metadata", {}).setdefault("name", cluster_config.name)
+        # For RayJob, the cluster name is often derived by KubeRay. Let's rely on that or what build_ray_cluster does.
+
+
+        # Prepare RayJob CR
+        actual_job_cr_name = job_cr_name or f"rayjob-{uuid.uuid4().hex[:10]}"
+        
+        runtime_env_yaml_str = ""
+        if runtime_env:
+            try:
+                runtime_env_yaml_str = yaml.dump(runtime_env)
+            except yaml.YAMLError as e:
+                raise ValueError(f"Invalid runtime_env, failed to dump to YAML: {e}")
+
+        ray_job_cr = {
+            "apiVersion": "ray.io/v1",
+            "kind": "RayJob",
+            "metadata": {
+                "name": actual_job_cr_name,
+                "namespace": namespace,
+            },
+            "spec": {
+                "entrypoint": entrypoint,
+                "shutdownAfterJobFinishes": shutdown_after_job_finishes,
+                "rayClusterSpec": ray_cluster_spec,
+                "submissionMode": submission_mode,
+            },
+        }
+
+        if runtime_env_yaml_str:
+            ray_job_cr["spec"]["runtimeEnvYAML"] = runtime_env_yaml_str
+        if job_submission_id: # This is Ray's internal job ID, not the CR name
+            ray_job_cr["spec"]["jobId"] = job_submission_id
+        if ray_job_metadata:
+            ray_job_cr["spec"]["metadata"] = ray_job_metadata
+        if ttl_seconds_after_finished is not None:
+            ray_job_cr["spec"]["ttlSecondsAfterFinished"] = ttl_seconds_after_finished
+        if suspend_rayjob_creation:
+            ray_job_cr["spec"]["suspend"] = True
+        
+        # Remove sensitive or SDK-specific fields from cluster_config before logging or if ever returned
+        # For now, we only use it to generate ray_cluster_spec
+
+        returned_job_submission_id = None
+        final_job_status = "UNKNOWN" # Corresponds to Ray's JobStatus strings
+        dashboard_url = None
+        ray_cluster_name_actual = None
+
+        try:
+            print(f"Submitting RayJob '{actual_job_cr_name}' to namespace '{namespace}'...")
+            k8s_co_api.create_namespaced_custom_object(
+                group="ray.io",
+                version="v1",
+                namespace=namespace,
+                plural="rayjobs",
+                body=ray_job_cr,
+            )
+            print(f"RayJob '{actual_job_cr_name}' created successfully.")
+
+            if wait_for_completion:
+                print(f"Waiting for RayJob '{actual_job_cr_name}' to complete...")
+                start_time = time.time()
+                while True:
+                    try:
+                        ray_job_status_cr = k8s_co_api.get_namespaced_custom_object_status(
+                            group="ray.io",
+                            version="v1",
+                            namespace=namespace,
+                            plural="rayjobs",
+                            name=actual_job_cr_name,
+                        )
+                    except ApiException as e:
+                        if e.status == 404: # Still creating or transient issue
+                            print(f"RayJob '{actual_job_cr_name}' status not found yet, retrying...")
+                            time.sleep(job_polling_interval_seconds)
+                            continue
+                        raise # Other API errors should be raised
+
+                    status_field = ray_job_status_cr.get("status", {})
+                    job_deployment_status = status_field.get("jobDeploymentStatus", "UNKNOWN")
+                    current_job_status = status_field.get("jobStatus", "PENDING") # PENDING, RUNNING, SUCCEEDED, FAILED, STOPPED
+                    
+                    dashboard_url = status_field.get("dashboardURL", dashboard_url)
+                    ray_cluster_name_actual = status_field.get("rayClusterName", ray_cluster_name_actual)
+                    # Ray's internal job submission ID might also appear in status
+                    returned_job_submission_id = status_field.get("jobId", job_submission_id)
+
+
+                    final_job_status = current_job_status
+                    print(
+                        f"RayJob '{actual_job_cr_name}' status: JobDeployment='{job_deployment_status}', Job='{current_job_status}'"
+                    )
+
+                    if current_job_status in ["SUCCEEDED", "FAILED", "STOPPED"]:
+                        break
+                    
+                    # Check for overall timeout
+                    if job_timeout_seconds and (time.time() - start_time) > job_timeout_seconds:
+                        # Try to get one last status update before raising timeout
+                        try:
+                            ray_job_status_cr_final = k8s_co_api.get_namespaced_custom_object_status(
+                                group="ray.io", version="v1", namespace=namespace, plural="rayjobs", name=actual_job_cr_name
+                            )
+                            status_field_final = ray_job_status_cr_final.get("status", {})
+                            final_job_status = status_field_final.get("jobStatus", final_job_status)
+                            returned_job_submission_id = status_field_final.get("jobId", returned_job_submission_id)
+                            dashboard_url = status_field_final.get("dashboardURL", dashboard_url)
+                            ray_cluster_name_actual = status_field_final.get("rayClusterName", ray_cluster_name_actual)
+                        except Exception:
+                            pass # Ignore if final status fetch fails
+                        raise TimeoutError(
+                            f"RayJob '{actual_job_cr_name}' timed out after {job_timeout_seconds} seconds. Last status: {final_job_status}"
+                        )
+
+                    time.sleep(job_polling_interval_seconds)
+                
+                print(f"RayJob '{actual_job_cr_name}' finished with status: {final_job_status}")
+            else:
+                # If not waiting, we don't have a definitive final status yet.
+                # We can try to fetch current status once.
+                try:
+                    ray_job_status_cr = k8s_co_api.get_namespaced_custom_object_status(
+                        group="ray.io", version="v1", namespace=namespace, plural="rayjobs", name=actual_job_cr_name
+                    )
+                    status_field = ray_job_status_cr.get("status", {})
+                    final_job_status = status_field.get("jobStatus", "SUBMITTED") # Or PENDING
+                    returned_job_submission_id = status_field.get("jobId", job_submission_id)
+                    dashboard_url = status_field.get("dashboardURL", dashboard_url)
+                    ray_cluster_name_actual = status_field.get("rayClusterName", ray_cluster_name_actual)
+                except ApiException as e:
+                    if e.status == 404:
+                        final_job_status = "SUBMITTED_NOT_FOUND" # CR created but status not immediately available
+                    else:
+                        print(f"Warning: Could not fetch initial status for RayJob '{actual_job_cr_name}': {e}")
+                        final_job_status = "UNKNOWN_API_ERROR"
+
+            return {
+                "job_cr_name": actual_job_cr_name,
+                "job_submission_id": returned_job_submission_id, # This is Ray's internal job id
+                "job_status": final_job_status,
+                "dashboard_url": dashboard_url,
+                "ray_cluster_name": ray_cluster_name_actual,
+            }
+
+        except ApiException as e:
+            print(f"Kubernetes API error during RayJob '{actual_job_cr_name}' management: {e.reason} (status: {e.status})")
+            # Attempt to get final status if job was created
+            final_status_on_error = "ERROR_BEFORE_SUBMISSION"
+            if actual_job_cr_name: # if name was generated, implies we tried to create
+                try:
+                    ray_job_status_cr = k8s_co_api.get_namespaced_custom_object_status(
+                        group="ray.io", version="v1", namespace=namespace, plural="rayjobs", name=actual_job_cr_name
+                    )
+                    status_field = ray_job_status_cr.get("status", {})
+                    final_status_on_error = status_field.get("jobStatus", "UNKNOWN_AFTER_K8S_ERROR")
+                except Exception: # Nested try-except for cleanup status fetch
+                    final_status_on_error = "UNKNOWN_FINAL_STATUS_FETCH_FAILED"
+            
+            # If the RayJob CR was created and shutdown_after_job_finishes is false, it might be left orphaned.
+            # This function does not manage deletion of the RayJob CR itself if shutdown_after_job_finishes is false.
+            # KubeRay handles RayCluster deletion based on RayJob's shutdown_after_job_finishes.
+            raise # Re-raise the original ApiException
+        except Exception as e:
+            print(f"An unexpected error occurred during managed RayJob execution for '{actual_job_cr_name}': {e}")
+            # Similar logic for trying to get final status
+            raise
+
 
 def list_all_clusters(namespace: str, print_to_console: bool = True):
     """
@@ -760,6 +1017,11 @@ def get_cluster(
         head_extended_resource_requests=head_extended_resources,
         worker_extended_resource_requests=worker_extended_resources,
     )
+    # 1. Prepare RayClusterSpec from ClusterConfiguration
+    # Create a temporary config with appwrapper=False to ensure build_ray_cluster returns RayCluster YAML
+    temp_cluster_config_dict = cluster_config.dict(exclude_none=True) # Assuming Pydantic V1 or similar .dict() method
+    temp_cluster_config_dict['appwrapper'] = False
+    temp_cluster_config_for_spec = ClusterConfiguration(**temp_cluster_config_dict)
     # Ignore the warning here for the lack of a ClusterConfiguration
     with warnings.catch_warnings():
         warnings.filterwarnings(
@@ -767,7 +1029,7 @@ def get_cluster(
             message="Please provide a ClusterConfiguration to initialise the Cluster object",
         )
         cluster = Cluster(None)
-        cluster.config = cluster_config
+        cluster.config = temp_cluster_config_for_spec
 
         # Remove auto-generated fields like creationTimestamp, uid and etc.
         remove_autogenerated_fields(resource)
