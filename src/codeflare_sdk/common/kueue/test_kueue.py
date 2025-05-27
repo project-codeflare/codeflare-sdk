@@ -279,8 +279,14 @@ def test_add_queue_label_with_invalid_local_queue_shows_available_queues(mocker)
     mock_api_instance = mocker.patch("kubernetes.client.CustomObjectsApi")
     mock_api_instance.return_value.list_namespaced_custom_object.return_value = {
         "items": [
-            {"metadata": {"name": "queue1"}, "status": {"flavors": [{"name": "default"}]}},
-            {"metadata": {"name": "queue2"}, "status": {"flavors": [{"name": "default"}]}},
+            {
+                "metadata": {"name": "queue1"},
+                "status": {"flavors": [{"name": "default"}]},
+            },
+            {
+                "metadata": {"name": "queue2"},
+                "status": {"flavors": [{"name": "default"}]},
+            },
         ]
     }
 
@@ -336,7 +342,7 @@ def test_add_queue_label_with_default_queue(mocker):
             {
                 "metadata": {
                     "name": "default-queue",
-                    "annotations": {"kueue.x-k8s.io/default-queue": "true"}
+                    "annotations": {"kueue.x-k8s.io/default-queue": "true"},
                 }
             }
         ]
