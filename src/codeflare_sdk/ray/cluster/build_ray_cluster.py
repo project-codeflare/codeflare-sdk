@@ -17,6 +17,8 @@
     (in the cluster sub-module) for RayCluster/AppWrapper generation.
 """
 from typing import List, Union, Tuple, Dict
+
+from ...common.kueue.kueue import list_local_queues
 from ...common import _kube_api_error_handling
 from ...common.kubernetes_cluster import get_api_client, config_check
 from kubernetes.client.exceptions import ApiException
@@ -482,15 +484,26 @@ def head_worker_extended_resources_from_cluster(
 # Local Queue related functions
 def add_queue_label(cluster: "codeflare_sdk.ray.cluster.Cluster", labels: dict):
     """
-    The add_queue_label() function updates the given base labels with the local queue label if Kueue exists on the Cluster
+    The add_queue_label() function updates the given base labels with the local queue label if Kueue exists on the Cluster.
+    If no local_queue is provided, no queue label will be added.
     """
     lq_name = cluster.config.local_queue or get_default_local_queue(cluster, labels)
-    if lq_name == None:
+    if lq_name is None:
         return
-    elif not local_queue_exists(cluster):
-        raise ValueError(
-            "local_queue provided does not exist or is not in this namespace. Please provide the correct local_queue name in Cluster Configuration"
+    elif cluster.config.local_queue and not local_queue_exists(cluster):
+        available_queues = list_local_queues(cluster.config.namespace)
+        if available_queues is None:
+            print(
+                f"WARNING: Local queue '{cluster.config.local_queue}' does not exist in namespace '{cluster.config.namespace}'. "
+                "Unable to retrieve list of available queues."
+            )
+            return
+        available_queue_names = [q["name"] for q in available_queues]
+        print(
+            f"WARNING: Local queue '{cluster.config.local_queue}' does not exist in namespace '{cluster.config.namespace}'. "
+            f"Available queues are: {', '.join(available_queue_names)}"
         )
+        return
     labels.update({"kueue.x-k8s.io/queue-name": lq_name})
 
 
