@@ -488,9 +488,11 @@ def add_queue_label(cluster: "codeflare_sdk.ray.cluster.Cluster", labels: dict):
     if lq_name == None:
         return
     elif not local_queue_exists(cluster):
-        raise ValueError(
+        # ValueError removed to pass validation to validating admission policy
+        print(
             "local_queue provided does not exist or is not in this namespace. Please provide the correct local_queue name in Cluster Configuration"
         )
+        return
     labels.update({"kueue.x-k8s.io/queue-name": lq_name})
 
 
