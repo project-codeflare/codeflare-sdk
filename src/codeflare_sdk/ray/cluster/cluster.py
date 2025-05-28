@@ -183,6 +183,14 @@ class Cluster:
                     f"Ray Cluster: '{self.config.name}' has successfully been created"
                 )
         except Exception as e:  # pragma: no cover
+            if e.status == 422:
+                print(
+                    "WARNING: RayCluster creation rejected due to invalid Kueue configuration. Please contact your administrator."
+                )
+            else:
+                print(
+                    "WARNING: Failed to create RayCluster due to unexpected error. Please contact your administrator."
+                )
             return _kube_api_error_handling(e)
 
     # Applies a new cluster with the provided or default spec
@@ -233,6 +241,14 @@ class Cluster:
         except AttributeError as e:
             raise RuntimeError(f"Failed to initialize DynamicClient: {e}")
         except Exception as e:  # pragma: no cover
+            if e.status == 422:
+                print(
+                    "WARNING: RayCluster creation rejected due to invalid Kueue configuration. Please contact your administrator."
+                )
+            else:
+                print(
+                    "WARNING: Failed to create RayCluster due to unexpected error. Please contact your administrator."
+                )
             return _kube_api_error_handling(e)
 
     def _throw_for_no_raycluster(self):
