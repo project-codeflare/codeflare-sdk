@@ -238,7 +238,7 @@ def test_ray_usage_stats_enabled(mocker):
         ClusterConfiguration(
             name="usage-stats-enabled-cluster",
             namespace="ns",
-            envs={"RAY_USAGE_STATS_ENABLED": "1"},
+            enable_usage_stats=True,
         )
     )
 

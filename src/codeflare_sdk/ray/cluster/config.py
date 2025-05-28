@@ -102,6 +102,8 @@ class ClusterConfiguration:
             A list of V1VolumeMount objects to add to the Cluster
         enable_gcs_ft:
             A boolean indicating whether to enable GCS fault tolerance.
+        enable_usage_stats:
+            A boolean indicating whether to capture and send Ray usage stats externally.
         redis_address:
             The address of the Redis server to use for GCS fault tolerance, required when enable_gcs_ft is True.
         redis_password_secret:
@@ -151,6 +153,7 @@ class ClusterConfiguration:
     volumes: list[V1Volume] = field(default_factory=list)
     volume_mounts: list[V1VolumeMount] = field(default_factory=list)
     enable_gcs_ft: bool = False
+    enable_usage_stats: bool = False
     redis_address: Optional[str] = None
     redis_password_secret: Optional[Dict[str, str]] = None
     external_storage_namespace: Optional[str] = None
@@ -161,8 +164,9 @@ class ClusterConfiguration:
                 "Warning: TLS verification has been disabled - Endpoint checks will be bypassed"
             )
 
-        # Set default environment variable to disable Ray usage stats if not already set
-        if "RAY_USAGE_STATS_ENABLED" not in self.envs:
+        if self.enable_usage_stats:
+            self.envs["RAY_USAGE_STATS_ENABLED"] = "1"
+        else:
             self.envs["RAY_USAGE_STATS_ENABLED"] = "0"
 
         if self.enable_gcs_ft:
