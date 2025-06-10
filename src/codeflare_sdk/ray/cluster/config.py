@@ -54,8 +54,6 @@ class ClusterConfiguration:
             The number of CPUs to allocate to the head node.
         head_memory:
             The amount of memory to allocate to the head node.
-        head_gpus:
-            The number of GPUs to allocate to the head node. (Deprecated, use head_extended_resource_requests)
         head_extended_resource_requests:
             A dictionary of extended resource requests for the head node. ex: {"nvidia.com/gpu": 1}
         head_tolerations:
@@ -70,8 +68,6 @@ class ClusterConfiguration:
             The minimum amount of memory to allocate to each worker.
         max_memory:
             The maximum amount of memory to allocate to each worker.
-        num_gpus:
-            The number of GPUs to allocate to each worker. (Deprecated, use worker_extended_resource_requests)
         worker_tolerations:
             List of tolerations for worker nodes.
         appwrapper:
@@ -120,7 +116,6 @@ class ClusterConfiguration:
     head_memory_requests: Union[int, str] = 8
     head_memory_limits: Union[int, str] = 8
     head_memory: Optional[Union[int, str]] = None  # Deprecating
-    head_gpus: Optional[int] = None  # Deprecating
     head_extended_resource_requests: Dict[str, Union[str, int]] = field(
         default_factory=dict
     )
@@ -134,7 +129,6 @@ class ClusterConfiguration:
     worker_memory_limits: Union[int, str] = 2
     min_memory: Optional[Union[int, str]] = None  # Deprecating
     max_memory: Optional[Union[int, str]] = None  # Deprecating
-    num_gpus: Optional[int] = None  # Deprecating
     worker_tolerations: Optional[List[V1Toleration]] = None
     appwrapper: bool = False
     envs: Dict[str, str] = field(default_factory=dict)
@@ -195,7 +189,6 @@ class ClusterConfiguration:
         self._memory_to_string()
         self._str_mem_no_unit_add_GB()
         self._cpu_to_resource()
-        self._gpu_to_resource()
         self._combine_extended_resource_mapping()
         self._validate_extended_resource_requests(self.head_extended_resource_requests)
         self._validate_extended_resource_requests(
@@ -226,26 +219,6 @@ class ClusterConfiguration:
                 raise ValueError(
                     f"extended resource '{k}' not found in extended_resource_mapping, available resources are {list(self.extended_resource_mapping.keys())}, to add more supported resources use extended_resource_mapping. i.e. extended_resource_mapping = {{'{k}': 'FOO_BAR'}}"
                 )
-
-    def _gpu_to_resource(self):
-        if self.head_gpus:
-            warnings.warn(
-                f"head_gpus is being deprecated, replacing with head_extended_resource_requests['nvidia.com/gpu'] = {self.head_gpus}"
-            )
-            if "nvidia.com/gpu" in self.head_extended_resource_requests:
-                raise ValueError(
-                    "nvidia.com/gpu already exists in head_extended_resource_requests"
-                )
-            self.head_extended_resource_requests["nvidia.com/gpu"] = self.head_gpus
-        if self.num_gpus:
-            warnings.warn(
-                f"num_gpus is being deprecated, replacing with worker_extended_resource_requests['nvidia.com/gpu'] = {self.num_gpus}"
-            )
-            if "nvidia.com/gpu" in self.worker_extended_resource_requests:
-                raise ValueError(
-                    "nvidia.com/gpu already exists in worker_extended_resource_requests"
-                )
-            self.worker_extended_resource_requests["nvidia.com/gpu"] = self.num_gpus
 
     def _str_mem_no_unit_add_GB(self):
         if isinstance(self.head_memory, str) and self.head_memory.isdecimal():
