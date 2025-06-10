@@ -139,8 +139,6 @@ def test_config_creation_wrong_type():
 def test_cluster_config_deprecation_conversion(mocker):
     config = ClusterConfiguration(
         name="test",
-        num_gpus=2,
-        head_gpus=1,
         head_cpus=3,
         head_memory=16,
         min_memory=3,
@@ -152,8 +150,6 @@ def test_cluster_config_deprecation_conversion(mocker):
     assert config.head_cpu_limits == 3
     assert config.head_memory_requests == "16G"
     assert config.head_memory_limits == "16G"
-    assert config.worker_extended_resource_requests == {"nvidia.com/gpu": 2}
-    assert config.head_extended_resource_requests == {"nvidia.com/gpu": 1}
     assert config.worker_memory_requests == "3G"
     assert config.worker_memory_limits == "4G"
     assert config.worker_cpu_requests == 1

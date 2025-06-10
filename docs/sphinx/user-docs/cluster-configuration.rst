@@ -180,7 +180,3 @@ deprecated.
      - ``worker_memory_requests``
    * - ``max_memory``
      - ``worker_memory_limits``
-   * - ``head_gpus``
-     - ``head_extended_resource_requests``
-   * - ``num_gpus``
-     - ``worker_extended_resource_requests``
