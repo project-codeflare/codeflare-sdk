@@ -68,7 +68,7 @@ def create_cluster_wrong_type():
         worker_extended_resource_requests={"nvidia.com/gpu": 7},
         appwrapper=True,
         image_pull_secrets=["unit-test-pull-secret"],
-        image="quay.io/modh/ray@sha256:ac401c35d29cbd920ef982775f20e86d948b81eb67e83adbbbba8b29ad33ca31",
+        image="quay.io/modh/ray@sha256:a5b7c04a14f180d7ca6d06a5697f6bb684e40a26b95a0c872cac23b552741707",
         write_to_file=True,
         labels={1: 1},
     )
@@ -275,7 +275,7 @@ def apply_template(yaml_file_path, variables):
 def get_expected_image():
     # TODO: Add Python 3.12 support
     python_version = sys.version_info
-    return "quay.io/modh/ray@sha256:ac401c35d29cbd920ef982775f20e86d948b81eb67e83adbbbba8b29ad33ca31"
+    return "quay.io/modh/ray@sha256:a5b7c04a14f180d7ca6d06a5697f6bb684e40a26b95a0c872cac23b552741707"
 
 
 def get_template_variables():

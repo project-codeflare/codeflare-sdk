@@ -29,7 +29,7 @@ spec:
     template:
       spec:
         containers:
-        - image: quay.io/modh/ray@sha256:ac401c35d29cbd920ef982775f20e86d948b81eb67e83adbbbba8b29ad33ca31
+        - image: quay.io/modh/ray@sha256:a5b7c04a14f180d7ca6d06a5697f6bb684e40a26b95a0c872cac23b552741707
           imagePullPolicy: IfNotPresent
           lifecycle:
             preStop:
@@ -82,7 +82,7 @@ spec:
             name: odh-trusted-ca-bundle
             optional: true
           name: odh-ca-cert
-  rayVersion: 2.44.1
+  rayVersion: 2.46.0
   workerGroupSpecs:
   - groupName: small-group-test-rc-b
     maxReplicas: 1
@@ -100,7 +100,7 @@ spec:
           key: value
       spec:
         containers:
-        - image: quay.io/modh/ray@sha256:ac401c35d29cbd920ef982775f20e86d948b81eb67e83adbbbba8b29ad33ca31
+        - image: quay.io/modh/ray@sha256:a5b7c04a14f180d7ca6d06a5697f6bb684e40a26b95a0c872cac23b552741707
           lifecycle:
             preStop:
               exec:
