@@ -219,7 +219,7 @@ class Cluster:
                     force_conflicts=force,
                 )
                 print(
-                    f"AppWrapper: '{name}' configuration has successfully been applied"
+                    f"AppWrapper: '{name}' configuration has successfully been applied. For optimal resource management, you should delete this Ray Cluster when no longer in use."
                 )
             else:
                 api_version = "ray.io/v1"
@@ -227,7 +227,9 @@ class Cluster:
                 self._component_resources_apply(
                     namespace=namespace, api_instance=api_instance
                 )
-                print(f"Ray Cluster: '{name}' has successfully been applied")
+                print(
+                    f"Ray Cluster: '{name}' has successfully been applied. For optimal resource management, you should delete this Ray Cluster when no longer in use."
+                )
         except AttributeError as e:
             raise RuntimeError(f"Failed to initialize DynamicClient: {e}")
         except Exception as e:  # pragma: no cover
