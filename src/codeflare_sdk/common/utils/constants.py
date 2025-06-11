@@ -1,1 +1,1 @@
-RAY_VERSION = "2.44.1"
+RAY_VERSION = "2.46.0"
