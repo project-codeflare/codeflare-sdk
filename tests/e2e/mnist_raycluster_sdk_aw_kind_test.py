@@ -44,8 +44,6 @@ class TestRayClusterSDKAppWrapperKind:
                 num_workers=1,
                 head_cpu_requests="500m",
                 head_cpu_limits="500m",
-                head_memory_requests=2,
-                head_memory_limits=2,
                 worker_cpu_requests="500m",
                 worker_cpu_limits=1,
                 worker_memory_requests=1,
