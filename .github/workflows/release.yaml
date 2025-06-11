@@ -37,6 +37,7 @@ jobs:
             contents: write
             id-token: write  # This permission is required for trusted publishing
             pull-requests: write # This permission is required for creating PRs
+            actions: write # This permission is required for running actions
         steps:
             - name: Checkout the repository
               uses: actions/checkout@v4
