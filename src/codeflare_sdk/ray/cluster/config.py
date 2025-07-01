@@ -58,16 +58,8 @@ class ClusterConfiguration:
             A dictionary of extended resource requests for the head node. ex: {"nvidia.com/gpu": 1}
         head_tolerations:
             List of tolerations for head nodes.
-        min_cpus:
-            The minimum number of CPUs to allocate to each worker.
-        max_cpus:
-            The maximum number of CPUs to allocate to each worker.
         num_workers:
             The number of workers to create.
-        min_memory:
-            The minimum amount of memory to allocate to each worker.
-        max_memory:
-            The maximum amount of memory to allocate to each worker.
         worker_tolerations:
             List of tolerations for worker nodes.
         appwrapper:
@@ -122,13 +114,9 @@ class ClusterConfiguration:
     head_tolerations: Optional[List[V1Toleration]] = None
     worker_cpu_requests: Union[int, str] = 1
     worker_cpu_limits: Union[int, str] = 1
-    min_cpus: Optional[Union[int, str]] = None  # Deprecating
-    max_cpus: Optional[Union[int, str]] = None  # Deprecating
     num_workers: int = 1
     worker_memory_requests: Union[int, str] = 2
     worker_memory_limits: Union[int, str] = 2
-    min_memory: Optional[Union[int, str]] = None  # Deprecating
-    max_memory: Optional[Union[int, str]] = None  # Deprecating
     worker_tolerations: Optional[List[V1Toleration]] = None
     appwrapper: bool = False
     envs: Dict[str, str] = field(default_factory=dict)
@@ -250,12 +238,6 @@ class ClusterConfiguration:
                 "head_cpus is being deprecated, use head_cpu_requests and head_cpu_limits"
             )
             self.head_cpu_requests = self.head_cpu_limits = self.head_cpus
-        if self.min_cpus:
-            warnings.warn("min_cpus is being deprecated, use worker_cpu_requests")
-            self.worker_cpu_requests = self.min_cpus
-        if self.max_cpus:
-            warnings.warn("max_cpus is being deprecated, use worker_cpu_limits")
-            self.worker_cpu_limits = self.max_cpus
 
     def _memory_to_resource(self):
         if self.head_memory:
@@ -263,12 +245,6 @@ class ClusterConfiguration:
                 "head_memory is being deprecated, use head_memory_requests and head_memory_limits"
             )
             self.head_memory_requests = self.head_memory_limits = self.head_memory
-        if self.min_memory:
-            warnings.warn("min_memory is being deprecated, use worker_memory_requests")
-            self.worker_memory_requests = f"{self.min_memory}G"
-        if self.max_memory:
-            warnings.warn("max_memory is being deprecated, use worker_memory_limits")
-            self.worker_memory_limits = f"{self.max_memory}G"
 
     def _validate_types(self):
         """Validate the types of all fields in the ClusterConfiguration dataclass."""
