@@ -172,11 +172,3 @@ deprecated.
      - ``head_cpu_requests``, ``head_cpu_limits``
    * - ``head_memory``
      - ``head_memory_requests``, ``head_memory_limits``
-   * - ``min_cpus``
-     - ``worker_cpu_requests``
-   * - ``max_cpus``
-     - ``worker_cpu_limits``
-   * - ``min_memory``
-     - ``worker_memory_requests``
-   * - ``max_memory``
-     - ``worker_memory_limits``
