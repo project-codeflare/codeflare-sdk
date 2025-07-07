@@ -50,6 +50,8 @@ import sys
 import warnings
 import json
 
+from codeflare_sdk.common.utils import constants
+
 FORBIDDEN_CUSTOM_RESOURCE_TYPES = ["GPU", "CPU", "memory"]
 VOLUME_MOUNTS = [
     V1VolumeMount(
@@ -94,7 +96,7 @@ VOLUMES = [
 ]
 
 SUPPORTED_PYTHON_VERSIONS = {
-    "3.11": "quay.io/modh/ray@sha256:a5b7c04a14f180d7ca6d06a5697f6bb684e40a26b95a0c872cac23b552741707",
+    "3.11": constants.CUDA_RUNTIME_IMAGE,
 }
 
 

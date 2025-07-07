@@ -12,8 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from codeflare_sdk.common.utils.unit_test_support import (
+    apply_template,
     arg_check_aw_apply_effect,
     arg_check_aw_del_effect,
+    get_template_variables,
 )
 from codeflare_sdk.ray.appwrapper import AWManager
 from codeflare_sdk.ray.cluster import Cluster, ClusterConfiguration
@@ -47,8 +49,11 @@ def test_AWManager_creation(mocker):
         assert type(e) == FileNotFoundError
         assert str(e) == "[Errno 2] No such file or directory: 'fake'"
     try:
-        testaw = AWManager(
-            f"{parent}/tests/test_cluster_yamls/appwrapper/test-case-bad.yaml"
+        testaw = apply_template(
+            AWManager(
+                f"{parent}/tests/test_cluster_yamls/appwrapper/test-case-bad.yaml"
+            ),
+            get_template_variables(),
         )
     except Exception as e:
         assert type(e) == ValueError
