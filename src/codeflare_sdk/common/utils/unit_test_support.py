@@ -14,6 +14,7 @@
 
 import string
 import sys
+from codeflare_sdk.common.utils import constants
 from codeflare_sdk.ray.cluster.cluster import (
     Cluster,
     ClusterConfiguration,
@@ -68,7 +69,7 @@ def create_cluster_wrong_type():
         worker_extended_resource_requests={"nvidia.com/gpu": 7},
         appwrapper=True,
         image_pull_secrets=["unit-test-pull-secret"],
-        image="quay.io/modh/ray@sha256:a5b7c04a14f180d7ca6d06a5697f6bb684e40a26b95a0c872cac23b552741707",
+        image=constants.CUDA_RUNTIME_IMAGE,
         write_to_file=True,
         labels={1: 1},
     )
@@ -148,9 +149,14 @@ def get_cluster_object(file_a, file_b):
 
 def get_ray_obj(group, version, namespace, plural):
     # To be used for mocking list_namespaced_custom_object for Ray Clusters
-    rc_a_path = f"{parent}/tests/test_cluster_yamls/support_clusters/test-rc-a.yaml"
-    rc_b_path = f"{parent}/tests/test_cluster_yamls/support_clusters/test-rc-b.yaml"
-    rc_a, rc_b = get_cluster_object(rc_a_path, rc_b_path)
+    rc_a = apply_template(
+        f"{parent}/tests/test_cluster_yamls/support_clusters/test-rc-a.yaml",
+        get_template_variables(),
+    )
+    rc_b = apply_template(
+        f"{parent}/tests/test_cluster_yamls/support_clusters/test-rc-b.yaml",
+        get_template_variables(),
+    )
 
     rc_list = {"items": [rc_a, rc_b]}
     return rc_list
@@ -158,9 +164,14 @@ def get_ray_obj(group, version, namespace, plural):
 
 def get_ray_obj_with_status(group, version, namespace, plural):
     # To be used for mocking list_namespaced_custom_object for Ray Clusters with statuses
-    rc_a_path = f"{parent}/tests/test_cluster_yamls/support_clusters/test-rc-a.yaml"
-    rc_b_path = f"{parent}/tests/test_cluster_yamls/support_clusters/test-rc-b.yaml"
-    rc_a, rc_b = get_cluster_object(rc_a_path, rc_b_path)
+    rc_a = apply_template(
+        f"{parent}/tests/test_cluster_yamls/support_clusters/test-rc-a.yaml",
+        get_template_variables(),
+    )
+    rc_b = apply_template(
+        f"{parent}/tests/test_cluster_yamls/support_clusters/test-rc-b.yaml",
+        get_template_variables(),
+    )
 
     rc_a.update(
         {
@@ -205,9 +216,14 @@ def get_ray_obj_with_status(group, version, namespace, plural):
 
 def get_aw_obj(group, version, namespace, plural):
     # To be used for mocking list_namespaced_custom_object for AppWrappers
-    aw_a_path = f"{parent}/tests/test_cluster_yamls/support_clusters/test-aw-a.yaml"
-    aw_b_path = f"{parent}/tests/test_cluster_yamls/support_clusters/test-aw-b.yaml"
-    aw_a, aw_b = get_cluster_object(aw_a_path, aw_b_path)
+    aw_a = apply_template(
+        f"{parent}/tests/test_cluster_yamls/support_clusters/test-aw-a.yaml",
+        get_template_variables(),
+    )
+    aw_b = apply_template(
+        f"{parent}/tests/test_cluster_yamls/support_clusters/test-aw-b.yaml",
+        get_template_variables(),
+    )
 
     aw_list = {"items": [aw_a, aw_b]}
     return aw_list
@@ -215,9 +231,14 @@ def get_aw_obj(group, version, namespace, plural):
 
 def get_aw_obj_with_status(group, version, namespace, plural):
     # To be used for mocking list_namespaced_custom_object for AppWrappers with statuses
-    aw_a_path = f"{parent}/tests/test_cluster_yamls/support_clusters/test-aw-a.yaml"
-    aw_b_path = f"{parent}/tests/test_cluster_yamls/support_clusters/test-aw-b.yaml"
-    aw_a, aw_b = get_cluster_object(aw_a_path, aw_b_path)
+    aw_a = apply_template(
+        f"{parent}/tests/test_cluster_yamls/support_clusters/test-aw-a.yaml",
+        get_template_variables(),
+    )
+    aw_b = apply_template(
+        f"{parent}/tests/test_cluster_yamls/support_clusters/test-aw-b.yaml",
+        get_template_variables(),
+    )
 
     aw_a.update(
         {
@@ -273,9 +294,8 @@ def apply_template(yaml_file_path, variables):
 
 
 def get_expected_image():
-    # TODO: Add Python 3.12 support
-    python_version = sys.version_info
-    return "quay.io/modh/ray@sha256:a5b7c04a14f180d7ca6d06a5697f6bb684e40a26b95a0c872cac23b552741707"
+    # TODO: Select image based on Python version
+    return constants.CUDA_RUNTIME_IMAGE
 
 
 def get_template_variables():

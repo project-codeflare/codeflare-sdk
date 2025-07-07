@@ -7,6 +7,7 @@ from kubernetes import client, config
 from codeflare_sdk.common.kubernetes_cluster.kube_api_helpers import (
     _kube_api_error_handling,
 )
+from codeflare_sdk.common.utils import constants
 
 
 def get_ray_cluster(cluster_name, namespace):
@@ -26,8 +27,7 @@ def get_ray_cluster(cluster_name, namespace):
 
 
 def get_ray_image():
-    default_ray_image = "quay.io/modh/ray@sha256:a5b7c04a14f180d7ca6d06a5697f6bb684e40a26b95a0c872cac23b552741707"
-    return os.getenv("RAY_IMAGE", default_ray_image)
+    return os.getenv("RAY_IMAGE", constants.CUDA_RUNTIME_IMAGE)
 
 
 def get_setup_env_variables(**kwargs):
