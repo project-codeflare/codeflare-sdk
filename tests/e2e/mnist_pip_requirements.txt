@@ -1,4 +1,4 @@
 pytorch_lightning==1.9.5
-torchmetrics==0.9.1
+torchmetrics==1.7.4
 torchvision==0.20.1
 minio
