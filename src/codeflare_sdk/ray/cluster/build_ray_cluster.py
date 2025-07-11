@@ -136,6 +136,7 @@ def build_ray_cluster(cluster: "codeflare_sdk.ray.cluster.Cluster"):
                 "enableIngress": False,
                 "rayStartParams": {
                     "dashboard-host": "0.0.0.0",
+                    "dashboard-port": "8265",
                     "block": "true",
                     "num-gpus": str(head_gpu_count),
                     "resources": head_resources,
@@ -245,6 +246,7 @@ def get_labels(cluster: "codeflare_sdk.ray.cluster.Cluster"):
     """
     labels = {
         "controller-tools.k8s.io": "1.0",
+        "ray.io/cluster": cluster.config.name,  # Enforced label always present
     }
     if cluster.config.labels != {}:
         labels.update(cluster.config.labels)
