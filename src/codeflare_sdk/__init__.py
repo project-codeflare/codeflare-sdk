@@ -10,6 +10,7 @@ from .ray import (
     AWManager,
     AppWrapperStatus,
     RayJobClient,
+    RayJob,
 )
 
 from .common.widgets import view_clusters

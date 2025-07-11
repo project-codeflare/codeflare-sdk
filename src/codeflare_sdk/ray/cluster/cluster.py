@@ -663,26 +663,31 @@ class Cluster:
             raise ValueError("job_config.entrypoint must be specified.")
 
         # Warn if Pydantic V1/V2 specific fields in RayJobSpec are set, as they are not used for RayJob CR.
-        if job_config.entrypoint_num_cpus is not None or \
-           job_config.entrypoint_num_gpus is not None or \
-           job_config.entrypoint_memory is not None:
+        if (
+            job_config.entrypoint_num_cpus is not None
+            or job_config.entrypoint_num_gpus is not None
+            or job_config.entrypoint_memory is not None
+        ):
             warnings.warn(
                 "RayJobSpec fields 'entrypoint_num_cpus', 'entrypoint_num_gpus', 'entrypoint_memory' "
                 "are not directly used when creating a RayJob CR. They are primarily for the Ray Job Submission Client. "
                 "Resource requests for the job driver pod should be configured in the RayCluster head node spec via ClusterConfiguration.",
-                UserWarning
+                UserWarning,
             )
 
         # Generate rayClusterSpec from ClusterConfiguration
         temp_config_for_spec = copy.deepcopy(cluster_config)
         temp_config_for_spec.appwrapper = False
-        
+
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", UserWarning)
             dummy_cluster_for_spec = Cluster(temp_config_for_spec)
 
         ray_cluster_cr_dict = dummy_cluster_for_spec.resource_yaml
-        if not isinstance(ray_cluster_cr_dict, dict) or "spec" not in ray_cluster_cr_dict:
+        if (
+            not isinstance(ray_cluster_cr_dict, dict)
+            or "spec" not in ray_cluster_cr_dict
+        ):
             raise ValueError(
                 "Failed to generate RayCluster CR dictionary from ClusterConfiguration. "
                 f"Got: {type(ray_cluster_cr_dict)}"
@@ -691,13 +696,15 @@ class Cluster:
 
         # Prepare RayJob CR
         actual_job_cr_name = job_cr_name or f"rayjob-{uuid.uuid4().hex[:10]}"
-        
+
         runtime_env_yaml_str = ""
         if job_config.runtime_env:
             try:
                 runtime_env_yaml_str = yaml.dump(job_config.runtime_env)
             except yaml.YAMLError as e:
-                raise ValueError(f"Invalid job_config.runtime_env, failed to dump to YAML: {e}")
+                raise ValueError(
+                    f"Invalid job_config.runtime_env, failed to dump to YAML: {e}"
+                )
 
         ray_job_cr_spec = {
             "entrypoint": job_config.entrypoint,
@@ -735,7 +742,9 @@ class Cluster:
         ray_cluster_name_actual = None
 
         try:
-            print(f"Submitting RayJob '{actual_job_cr_name}' to namespace '{namespace}'...")
+            print(
+                f"Submitting RayJob '{actual_job_cr_name}' to namespace '{namespace}'..."
+            )
             k8s_co_api.create_namespaced_custom_object(
                 group="ray.io",
                 version="v1",
@@ -750,27 +759,37 @@ class Cluster:
                 start_time = time.time()
                 while True:
                     try:
-                        ray_job_status_cr = k8s_co_api.get_namespaced_custom_object_status(
-                            group="ray.io",
-                            version="v1",
-                            namespace=namespace,
-                            plural="rayjobs",
-                            name=actual_job_cr_name,
+                        ray_job_status_cr = (
+                            k8s_co_api.get_namespaced_custom_object_status(
+                                group="ray.io",
+                                version="v1",
+                                namespace=namespace,
+                                plural="rayjobs",
+                                name=actual_job_cr_name,
+                            )
                         )
                     except ApiException as e:
                         if e.status == 404:
-                            print(f"RayJob '{actual_job_cr_name}' status not found yet, retrying...")
+                            print(
+                                f"RayJob '{actual_job_cr_name}' status not found yet, retrying..."
+                            )
                             time.sleep(job_polling_interval_seconds)
                             continue
                         raise
 
                     status_field = ray_job_status_cr.get("status", {})
-                    job_deployment_status = status_field.get("jobDeploymentStatus", "UNKNOWN")
+                    job_deployment_status = status_field.get(
+                        "jobDeploymentStatus", "UNKNOWN"
+                    )
                     current_job_status = status_field.get("jobStatus", "PENDING")
-                    
+
                     dashboard_url = status_field.get("dashboardURL", dashboard_url)
-                    ray_cluster_name_actual = status_field.get("rayClusterName", ray_cluster_name_actual)
-                    returned_job_submission_id = status_field.get("jobId", job_config.submission_id)
+                    ray_cluster_name_actual = status_field.get(
+                        "rayClusterName", ray_cluster_name_actual
+                    )
+                    returned_job_submission_id = status_field.get(
+                        "jobId", job_config.submission_id
+                    )
 
                     final_job_status = current_job_status
                     print(
@@ -779,17 +798,36 @@ class Cluster:
 
                     if current_job_status in ["SUCCEEDED", "FAILED", "STOPPED"]:
                         break
-                    
-                    if job_timeout_seconds and (time.time() - start_time) > job_timeout_seconds:
+
+                    if (
+                        job_timeout_seconds
+                        and (time.time() - start_time) > job_timeout_seconds
+                    ):
                         try:
-                            ray_job_status_cr_final = k8s_co_api.get_namespaced_custom_object_status(
-                                group="ray.io", version="v1", namespace=namespace, plural="rayjobs", name=actual_job_cr_name
+                            ray_job_status_cr_final = (
+                                k8s_co_api.get_namespaced_custom_object_status(
+                                    group="ray.io",
+                                    version="v1",
+                                    namespace=namespace,
+                                    plural="rayjobs",
+                                    name=actual_job_cr_name,
+                                )
                             )
-                            status_field_final = ray_job_status_cr_final.get("status", {})
-                            final_job_status = status_field_final.get("jobStatus", final_job_status)
-                            returned_job_submission_id = status_field_final.get("jobId", returned_job_submission_id)
-                            dashboard_url = status_field_final.get("dashboardURL", dashboard_url)
-                            ray_cluster_name_actual = status_field_final.get("rayClusterName", ray_cluster_name_actual)
+                            status_field_final = ray_job_status_cr_final.get(
+                                "status", {}
+                            )
+                            final_job_status = status_field_final.get(
+                                "jobStatus", final_job_status
+                            )
+                            returned_job_submission_id = status_field_final.get(
+                                "jobId", returned_job_submission_id
+                            )
+                            dashboard_url = status_field_final.get(
+                                "dashboardURL", dashboard_url
+                            )
+                            ray_cluster_name_actual = status_field_final.get(
+                                "rayClusterName", ray_cluster_name_actual
+                            )
                         except Exception:
                             pass
                         raise TimeoutError(
@@ -797,23 +835,35 @@ class Cluster:
                         )
 
                     time.sleep(job_polling_interval_seconds)
-                
-                print(f"RayJob '{actual_job_cr_name}' finished with status: {final_job_status}")
+
+                print(
+                    f"RayJob '{actual_job_cr_name}' finished with status: {final_job_status}"
+                )
             else:
                 try:
                     ray_job_status_cr = k8s_co_api.get_namespaced_custom_object_status(
-                        group="ray.io", version="v1", namespace=namespace, plural="rayjobs", name=actual_job_cr_name
+                        group="ray.io",
+                        version="v1",
+                        namespace=namespace,
+                        plural="rayjobs",
+                        name=actual_job_cr_name,
                     )
                     status_field = ray_job_status_cr.get("status", {})
                     final_job_status = status_field.get("jobStatus", "SUBMITTED")
-                    returned_job_submission_id = status_field.get("jobId", job_config.submission_id)
+                    returned_job_submission_id = status_field.get(
+                        "jobId", job_config.submission_id
+                    )
                     dashboard_url = status_field.get("dashboardURL", dashboard_url)
-                    ray_cluster_name_actual = status_field.get("rayClusterName", ray_cluster_name_actual)
+                    ray_cluster_name_actual = status_field.get(
+                        "rayClusterName", ray_cluster_name_actual
+                    )
                 except ApiException as e:
                     if e.status == 404:
                         final_job_status = "SUBMITTED_NOT_FOUND"
                     else:
-                        print(f"Warning: Could not fetch initial status for RayJob '{actual_job_cr_name}': {e}")
+                        print(
+                            f"Warning: Could not fetch initial status for RayJob '{actual_job_cr_name}': {e}"
+                        )
                         final_job_status = "UNKNOWN_API_ERROR"
 
             return {
@@ -825,20 +875,30 @@ class Cluster:
             }
 
         except ApiException as e:
-            print(f"Kubernetes API error during RayJob '{actual_job_cr_name}' management: {e.reason} (status: {e.status})")
+            print(
+                f"Kubernetes API error during RayJob '{actual_job_cr_name}' management: {e.reason} (status: {e.status})"
+            )
             final_status_on_error = "ERROR_BEFORE_SUBMISSION"
             if actual_job_cr_name:
                 try:
                     ray_job_status_cr = k8s_co_api.get_namespaced_custom_object_status(
-                        group="ray.io", version="v1", namespace=namespace, plural="rayjobs", name=actual_job_cr_name
+                        group="ray.io",
+                        version="v1",
+                        namespace=namespace,
+                        plural="rayjobs",
+                        name=actual_job_cr_name,
                     )
                     status_field = ray_job_status_cr.get("status", {})
-                    final_status_on_error = status_field.get("jobStatus", "UNKNOWN_AFTER_K8S_ERROR")
+                    final_status_on_error = status_field.get(
+                        "jobStatus", "UNKNOWN_AFTER_K8S_ERROR"
+                    )
                 except Exception:
                     final_status_on_error = "UNKNOWN_FINAL_STATUS_FETCH_FAILED"
             raise
         except Exception as e:
-            print(f"An unexpected error occurred during managed RayJob execution for '{actual_job_cr_name}': {e}")
+            print(
+                f"An unexpected error occurred during managed RayJob execution for '{actual_job_cr_name}': {e}"
+            )
             raise
 
 
@@ -999,8 +1059,10 @@ def get_cluster(
     )
     # 1. Prepare RayClusterSpec from ClusterConfiguration
     # Create a temporary config with appwrapper=False to ensure build_ray_cluster returns RayCluster YAML
-    temp_cluster_config_dict = cluster_config.dict(exclude_none=True) # Assuming Pydantic V1 or similar .dict() method
-    temp_cluster_config_dict['appwrapper'] = False
+    temp_cluster_config_dict = cluster_config.dict(
+        exclude_none=True
+    )  # Assuming Pydantic V1 or similar .dict() method
+    temp_cluster_config_dict["appwrapper"] = False
     temp_cluster_config_for_spec = ClusterConfiguration(**temp_cluster_config_dict)
     # Ignore the warning here for the lack of a ClusterConfiguration
     with warnings.catch_warnings():
