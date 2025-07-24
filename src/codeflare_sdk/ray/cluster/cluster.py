@@ -1061,7 +1061,7 @@ def get_cluster(
     # Create a temporary config with appwrapper=False to ensure build_ray_cluster returns RayCluster YAML
     temp_cluster_config_dict = cluster_config.dict(exclude_none=True)
     temp_cluster_config_dict["appwrapper"] = False
-    # Set overwrite_default_resource_mapping=True to avoid conflicts when extended_resource_mapping 
+    # Set overwrite_default_resource_mapping=True to avoid conflicts when extended_resource_mapping
     # already contains the combined default and custom mappings from the original object
     temp_cluster_config_dict["overwrite_default_resource_mapping"] = True
     temp_cluster_config_for_spec = ClusterConfiguration(**temp_cluster_config_dict)

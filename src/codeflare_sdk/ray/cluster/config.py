@@ -293,14 +293,15 @@ class ClusterConfiguration:
     def dict(self, exclude_none: bool = False):
         """
         Convert the ClusterConfiguration to a dictionary.
-        
+
         Args:
             exclude_none (bool): If True, exclude fields with None values.
-            
+
         Returns:
             dict: Dictionary representation of the ClusterConfiguration.
         """
         import dataclasses
+
         result = dataclasses.asdict(self)
         if exclude_none:
             result = {k: v for k, v in result.items() if v is not None}

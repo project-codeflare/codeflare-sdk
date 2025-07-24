@@ -759,20 +759,23 @@ def test_map_to_ray_cluster(mocker):
 def test_run_job_with_managed_cluster_success(mocker):
     """Test successful RayJob execution with managed cluster."""
     from codeflare_sdk.ray.job.job import RayJobSpec
-    
+
     # Mock Kubernetes API and config
     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
     mocker.patch("codeflare_sdk.ray.cluster.cluster.config_check")
-    
+
     # Mock get_api_client
     mock_api_client = mocker.Mock()
-    mocker.patch("codeflare_sdk.common.kubernetes_cluster.auth.get_api_client", return_value=mock_api_client)
-    
+    mocker.patch(
+        "codeflare_sdk.common.kubernetes_cluster.auth.get_api_client",
+        return_value=mock_api_client,
+    )
+
     # Mock CustomObjectsApi
     mock_co_api = mocker.Mock()
     mocker.patch("kubernetes.client.CustomObjectsApi", return_value=mock_co_api)
-    
+
     # Mock Cluster creation for generating RayCluster spec
     mock_cluster_resource = {
         "apiVersion": "ray.io/v1",
@@ -780,18 +783,24 @@ def test_run_job_with_managed_cluster_success(mocker):
         "spec": {
             "rayVersion": "2.47.1",
             "headGroupSpec": {"template": {"spec": {}}},
-            "workerGroupSpecs": [{"template": {"spec": {}}}]
-        }
+            "workerGroupSpecs": [{"template": {"spec": {}}}],
+        },
     }
-    
-    mocker.patch("codeflare_sdk.ray.cluster.cluster.Cluster.__init__", return_value=None)
+
+    mocker.patch(
+        "codeflare_sdk.ray.cluster.cluster.Cluster.__init__", return_value=None
+    )
     mock_cluster_instance = mocker.Mock()
     mock_cluster_instance.resource_yaml = mock_cluster_resource
-    mocker.patch("codeflare_sdk.ray.cluster.cluster.Cluster", return_value=mock_cluster_instance)
-    
+    mocker.patch(
+        "codeflare_sdk.ray.cluster.cluster.Cluster", return_value=mock_cluster_instance
+    )
+
     # Mock successful RayJob creation
-    mock_co_api.create_namespaced_custom_object.return_value = {"metadata": {"name": "test-rayjob"}}
-    
+    mock_co_api.create_namespaced_custom_object.return_value = {
+        "metadata": {"name": "test-rayjob"}
+    }
+
     # Mock RayJob status for completion
     mock_status_response = {
         "status": {
@@ -799,14 +808,14 @@ def test_run_job_with_managed_cluster_success(mocker):
             "jobStatus": "SUCCEEDED",
             "dashboardURL": "http://test-dashboard.com",
             "rayClusterName": "test-rayjob-cluster",
-            "jobId": "test-job-123"
+            "jobId": "test-job-123",
         }
     }
     mock_co_api.get_namespaced_custom_object_status.return_value = mock_status_response
-    
+
     # Mock time.sleep to speed up test
     mocker.patch("time.sleep")
-    
+
     # Create test configuration
     cluster_config = ClusterConfiguration(
         name="test-cluster",
@@ -815,30 +824,30 @@ def test_run_job_with_managed_cluster_success(mocker):
         head_cpu_requests=1,
         head_memory_requests="2G",
         worker_cpu_requests=1,
-        worker_memory_requests="1G"
+        worker_memory_requests="1G",
     )
-    
+
     job_config = RayJobSpec(
         entrypoint="python -c 'print(\"Hello World\")'",
-        submission_id="test-submission-123"
+        submission_id="test-submission-123",
     )
-    
+
     # Execute the method
     result = Cluster.run_job_with_managed_cluster(
         cluster_config=cluster_config,
         job_config=job_config,
         job_cr_name="test-rayjob",
         wait_for_completion=True,
-        job_timeout_seconds=60
+        job_timeout_seconds=60,
     )
-    
+
     # Verify the result
     assert result["job_cr_name"] == "test-rayjob"
     assert result["job_submission_id"] == "test-job-123"
     assert result["job_status"] == "SUCCEEDED"
     assert result["dashboard_url"] == "http://test-dashboard.com"
     assert result["ray_cluster_name"] == "test-rayjob-cluster"
-    
+
     # Verify API calls were made
     mock_co_api.create_namespaced_custom_object.assert_called_once()
     mock_co_api.get_namespaced_custom_object_status.assert_called()
@@ -847,53 +856,62 @@ def test_run_job_with_managed_cluster_success(mocker):
 def test_run_job_with_managed_cluster_no_wait(mocker):
     """Test RayJob execution without waiting for completion."""
     from codeflare_sdk.ray.job.job import RayJobSpec
-    
+
     # Mock dependencies (similar to above but condensed)
     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
     mocker.patch("codeflare_sdk.ray.cluster.cluster.config_check")
-    
+
     mock_api_client = mocker.Mock()
-    mocker.patch("codeflare_sdk.common.kubernetes_cluster.auth.get_api_client", return_value=mock_api_client)
-    
+    mocker.patch(
+        "codeflare_sdk.common.kubernetes_cluster.auth.get_api_client",
+        return_value=mock_api_client,
+    )
+
     mock_co_api = mocker.Mock()
     mocker.patch("kubernetes.client.CustomObjectsApi", return_value=mock_co_api)
-    
+
     # Mock Cluster creation
     mock_cluster_resource = {
         "apiVersion": "ray.io/v1",
-        "kind": "RayCluster", 
-        "spec": {"rayVersion": "2.47.1", "headGroupSpec": {"template": {"spec": {}}}}
+        "kind": "RayCluster",
+        "spec": {"rayVersion": "2.47.1", "headGroupSpec": {"template": {"spec": {}}}},
     }
-    mocker.patch("codeflare_sdk.ray.cluster.cluster.Cluster.__init__", return_value=None)
+    mocker.patch(
+        "codeflare_sdk.ray.cluster.cluster.Cluster.__init__", return_value=None
+    )
     mock_cluster_instance = mocker.Mock()
     mock_cluster_instance.resource_yaml = mock_cluster_resource
-    mocker.patch("codeflare_sdk.ray.cluster.cluster.Cluster", return_value=mock_cluster_instance)
-    
-    # Mock RayJob creation and status (not found initially - job just submitted)
-    mock_co_api.create_namespaced_custom_object.return_value = {"metadata": {"name": "test-rayjob-nowait"}}
-    
-    from kubernetes.client.rest import ApiException
-    mock_co_api.get_namespaced_custom_object_status.side_effect = ApiException(status=404, reason="Not Found")
-    
-    cluster_config = ClusterConfiguration(
-        name="test-cluster",
-        namespace="test-namespace"
+    mocker.patch(
+        "codeflare_sdk.ray.cluster.cluster.Cluster", return_value=mock_cluster_instance
     )
-    
+
+    # Mock RayJob creation and status (not found initially - job just submitted)
+    mock_co_api.create_namespaced_custom_object.return_value = {
+        "metadata": {"name": "test-rayjob-nowait"}
+    }
+
+    from kubernetes.client.rest import ApiException
+
+    mock_co_api.get_namespaced_custom_object_status.side_effect = ApiException(
+        status=404, reason="Not Found"
+    )
+
+    cluster_config = ClusterConfiguration(
+        name="test-cluster", namespace="test-namespace"
+    )
+
     job_config = RayJobSpec(entrypoint="python script.py")
-    
+
     # Execute without waiting
     result = Cluster.run_job_with_managed_cluster(
-        cluster_config=cluster_config,
-        job_config=job_config,
-        wait_for_completion=False
+        cluster_config=cluster_config, job_config=job_config, wait_for_completion=False
     )
-    
+
     # Verify result for no-wait case
     assert "job_cr_name" in result
     assert result["job_status"] == "SUBMITTED_NOT_FOUND"
-    
+
     # Verify no polling happened
     mock_co_api.create_namespaced_custom_object.assert_called_once()
 
@@ -901,46 +919,61 @@ def test_run_job_with_managed_cluster_no_wait(mocker):
 def test_run_job_with_managed_cluster_timeout(mocker):
     """Test RayJob execution with timeout."""
     from codeflare_sdk.ray.job.job import RayJobSpec
-    
+
     # Mock dependencies
     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
     mocker.patch("codeflare_sdk.ray.cluster.cluster.config_check")
-    
+
     mock_api_client = mocker.Mock()
-    mocker.patch("codeflare_sdk.common.kubernetes_cluster.auth.get_api_client", return_value=mock_api_client)
-    
+    mocker.patch(
+        "codeflare_sdk.common.kubernetes_cluster.auth.get_api_client",
+        return_value=mock_api_client,
+    )
+
     mock_co_api = mocker.Mock()
     mocker.patch("kubernetes.client.CustomObjectsApi", return_value=mock_co_api)
-    
+
     # Mock Cluster creation
-    mock_cluster_resource = {"apiVersion": "ray.io/v1", "kind": "RayCluster", "spec": {}}
-    mocker.patch("codeflare_sdk.ray.cluster.cluster.Cluster.__init__", return_value=None)
+    mock_cluster_resource = {
+        "apiVersion": "ray.io/v1",
+        "kind": "RayCluster",
+        "spec": {},
+    }
+    mocker.patch(
+        "codeflare_sdk.ray.cluster.cluster.Cluster.__init__", return_value=None
+    )
     mock_cluster_instance = mocker.Mock()
     mock_cluster_instance.resource_yaml = mock_cluster_resource
-    mocker.patch("codeflare_sdk.ray.cluster.cluster.Cluster", return_value=mock_cluster_instance)
-    
+    mocker.patch(
+        "codeflare_sdk.ray.cluster.cluster.Cluster", return_value=mock_cluster_instance
+    )
+
     # Mock RayJob creation
-    mock_co_api.create_namespaced_custom_object.return_value = {"metadata": {"name": "test-rayjob-timeout"}}
-    
+    mock_co_api.create_namespaced_custom_object.return_value = {
+        "metadata": {"name": "test-rayjob-timeout"}
+    }
+
     # Mock job status as always RUNNING (never completes)
     mock_status_response = {
         "status": {
-            "jobDeploymentStatus": "Running", 
+            "jobDeploymentStatus": "Running",
             "jobStatus": "RUNNING",
-            "jobId": "timeout-job-123"
+            "jobId": "timeout-job-123",
         }
     }
     mock_co_api.get_namespaced_custom_object_status.return_value = mock_status_response
-    
+
     # Mock time to simulate timeout
     start_time = 1000
-    mocker.patch("time.time", side_effect=[start_time, start_time + 70])  # Exceed 60s timeout
+    mocker.patch(
+        "time.time", side_effect=[start_time, start_time + 70]
+    )  # Exceed 60s timeout
     mocker.patch("time.sleep")
-    
+
     cluster_config = ClusterConfiguration(name="timeout-cluster", namespace="test-ns")
     job_config = RayJobSpec(entrypoint="python long_running_script.py")
-    
+
     # Execute and expect timeout
     try:
         result = Cluster.run_job_with_managed_cluster(
@@ -948,7 +981,7 @@ def test_run_job_with_managed_cluster_timeout(mocker):
             job_config=job_config,
             wait_for_completion=True,
             job_timeout_seconds=60,
-            job_polling_interval_seconds=1
+            job_polling_interval_seconds=1,
         )
         assert False, "Expected TimeoutError"
     except TimeoutError as e:
@@ -959,16 +992,15 @@ def test_run_job_with_managed_cluster_timeout(mocker):
 def test_run_job_with_managed_cluster_validation_error(mocker):
     """Test RayJob execution with validation errors."""
     from codeflare_sdk.ray.job.job import RayJobSpec
-    
+
     cluster_config = ClusterConfiguration(name="test-cluster", namespace="test-ns")
-    
+
     # Test missing entrypoint
     job_config_no_entrypoint = RayJobSpec(entrypoint="")
-    
+
     try:
         Cluster.run_job_with_managed_cluster(
-            cluster_config=cluster_config,
-            job_config=job_config_no_entrypoint
+            cluster_config=cluster_config, job_config=job_config_no_entrypoint
         )
         assert False, "Expected ValueError for missing entrypoint"
     except ValueError as e:
@@ -978,50 +1010,61 @@ def test_run_job_with_managed_cluster_validation_error(mocker):
 def test_run_job_with_managed_cluster_failed_job(mocker):
     """Test RayJob execution when job fails."""
     from codeflare_sdk.ray.job.job import RayJobSpec
-    
+
     # Mock dependencies
     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
-    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")  
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
     mocker.patch("codeflare_sdk.ray.cluster.cluster.config_check")
-    
+
     mock_api_client = mocker.Mock()
-    mocker.patch("codeflare_sdk.common.kubernetes_cluster.auth.get_api_client", return_value=mock_api_client)
-    
+    mocker.patch(
+        "codeflare_sdk.common.kubernetes_cluster.auth.get_api_client",
+        return_value=mock_api_client,
+    )
+
     mock_co_api = mocker.Mock()
     mocker.patch("kubernetes.client.CustomObjectsApi", return_value=mock_co_api)
-    
+
     # Mock Cluster creation
-    mock_cluster_resource = {"apiVersion": "ray.io/v1", "kind": "RayCluster", "spec": {}}
-    mocker.patch("codeflare_sdk.ray.cluster.cluster.Cluster.__init__", return_value=None)
+    mock_cluster_resource = {
+        "apiVersion": "ray.io/v1",
+        "kind": "RayCluster",
+        "spec": {},
+    }
+    mocker.patch(
+        "codeflare_sdk.ray.cluster.cluster.Cluster.__init__", return_value=None
+    )
     mock_cluster_instance = mocker.Mock()
     mock_cluster_instance.resource_yaml = mock_cluster_resource
-    mocker.patch("codeflare_sdk.ray.cluster.cluster.Cluster", return_value=mock_cluster_instance)
-    
+    mocker.patch(
+        "codeflare_sdk.ray.cluster.cluster.Cluster", return_value=mock_cluster_instance
+    )
+
     # Mock RayJob creation
-    mock_co_api.create_namespaced_custom_object.return_value = {"metadata": {"name": "test-failed-job"}}
-    
+    mock_co_api.create_namespaced_custom_object.return_value = {
+        "metadata": {"name": "test-failed-job"}
+    }
+
     # Mock job status as FAILED
     mock_status_response = {
         "status": {
             "jobDeploymentStatus": "Running",
-            "jobStatus": "FAILED", 
+            "jobStatus": "FAILED",
             "jobId": "failed-job-123",
             "rayClusterName": "test-cluster",
-            "message": "Job failed due to error"
+            "message": "Job failed due to error",
         }
     }
     mock_co_api.get_namespaced_custom_object_status.return_value = mock_status_response
     mocker.patch("time.sleep")
-    
+
     cluster_config = ClusterConfiguration(name="test-cluster", namespace="test-ns")
     job_config = RayJobSpec(entrypoint="python failing_script.py")
-    
+
     result = Cluster.run_job_with_managed_cluster(
-        cluster_config=cluster_config,
-        job_config=job_config,
-        wait_for_completion=True
+        cluster_config=cluster_config, job_config=job_config, wait_for_completion=True
     )
-    
+
     assert result["job_status"] == "FAILED"
     assert result["job_submission_id"] == "failed-job-123"
 
@@ -1029,48 +1072,59 @@ def test_run_job_with_managed_cluster_failed_job(mocker):
 def test_run_job_with_managed_cluster_stopped_job(mocker):
     """Test RayJob execution when job is stopped."""
     from codeflare_sdk.ray.job.job import RayJobSpec
-    
+
     # Mock dependencies
     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
     mocker.patch("codeflare_sdk.ray.cluster.cluster.config_check")
-    
+
     mock_api_client = mocker.Mock()
-    mocker.patch("codeflare_sdk.common.kubernetes_cluster.auth.get_api_client", return_value=mock_api_client)
-    
+    mocker.patch(
+        "codeflare_sdk.common.kubernetes_cluster.auth.get_api_client",
+        return_value=mock_api_client,
+    )
+
     mock_co_api = mocker.Mock()
     mocker.patch("kubernetes.client.CustomObjectsApi", return_value=mock_co_api)
-    
+
     # Mock Cluster creation
-    mock_cluster_resource = {"apiVersion": "ray.io/v1", "kind": "RayCluster", "spec": {}}
-    mocker.patch("codeflare_sdk.ray.cluster.cluster.Cluster.__init__", return_value=None)
+    mock_cluster_resource = {
+        "apiVersion": "ray.io/v1",
+        "kind": "RayCluster",
+        "spec": {},
+    }
+    mocker.patch(
+        "codeflare_sdk.ray.cluster.cluster.Cluster.__init__", return_value=None
+    )
     mock_cluster_instance = mocker.Mock()
     mock_cluster_instance.resource_yaml = mock_cluster_resource
-    mocker.patch("codeflare_sdk.ray.cluster.cluster.Cluster", return_value=mock_cluster_instance)
-    
+    mocker.patch(
+        "codeflare_sdk.ray.cluster.cluster.Cluster", return_value=mock_cluster_instance
+    )
+
     # Mock RayJob creation
-    mock_co_api.create_namespaced_custom_object.return_value = {"metadata": {"name": "test-stopped-job"}}
-    
+    mock_co_api.create_namespaced_custom_object.return_value = {
+        "metadata": {"name": "test-stopped-job"}
+    }
+
     # Mock job status as STOPPED
     mock_status_response = {
         "status": {
             "jobDeploymentStatus": "Running",
             "jobStatus": "STOPPED",
-            "jobId": "stopped-job-123"
+            "jobId": "stopped-job-123",
         }
     }
     mock_co_api.get_namespaced_custom_object_status.return_value = mock_status_response
     mocker.patch("time.sleep")
-    
+
     cluster_config = ClusterConfiguration(name="test-cluster", namespace="test-ns")
     job_config = RayJobSpec(entrypoint="python script.py")
-    
+
     result = Cluster.run_job_with_managed_cluster(
-        cluster_config=cluster_config,
-        job_config=job_config,
-        wait_for_completion=True
+        cluster_config=cluster_config, job_config=job_config, wait_for_completion=True
     )
-    
+
     assert result["job_status"] == "STOPPED"
     assert result["job_submission_id"] == "stopped-job-123"
 
@@ -1078,65 +1132,78 @@ def test_run_job_with_managed_cluster_stopped_job(mocker):
 def test_run_job_with_managed_cluster_pending_job(mocker):
     """Test RayJob execution when job is pending then succeeds."""
     from codeflare_sdk.ray.job.job import RayJobSpec
-    
+
     # Mock dependencies
     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
     mocker.patch("codeflare_sdk.ray.cluster.cluster.config_check")
-    
+
     mock_api_client = mocker.Mock()
-    mocker.patch("codeflare_sdk.common.kubernetes_cluster.auth.get_api_client", return_value=mock_api_client)
-    
+    mocker.patch(
+        "codeflare_sdk.common.kubernetes_cluster.auth.get_api_client",
+        return_value=mock_api_client,
+    )
+
     mock_co_api = mocker.Mock()
     mocker.patch("kubernetes.client.CustomObjectsApi", return_value=mock_co_api)
-    
+
     # Mock Cluster creation
-    mock_cluster_resource = {"apiVersion": "ray.io/v1", "kind": "RayCluster", "spec": {}}
-    mocker.patch("codeflare_sdk.ray.cluster.cluster.Cluster.__init__", return_value=None)
+    mock_cluster_resource = {
+        "apiVersion": "ray.io/v1",
+        "kind": "RayCluster",
+        "spec": {},
+    }
+    mocker.patch(
+        "codeflare_sdk.ray.cluster.cluster.Cluster.__init__", return_value=None
+    )
     mock_cluster_instance = mocker.Mock()
     mock_cluster_instance.resource_yaml = mock_cluster_resource
-    mocker.patch("codeflare_sdk.ray.cluster.cluster.Cluster", return_value=mock_cluster_instance)
-    
+    mocker.patch(
+        "codeflare_sdk.ray.cluster.cluster.Cluster", return_value=mock_cluster_instance
+    )
+
     # Mock RayJob creation
-    mock_co_api.create_namespaced_custom_object.return_value = {"metadata": {"name": "test-pending-job"}}
-    
+    mock_co_api.create_namespaced_custom_object.return_value = {
+        "metadata": {"name": "test-pending-job"}
+    }
+
     # Mock job status progression: PENDING -> RUNNING -> SUCCEEDED
     pending_response = {
         "status": {
             "jobDeploymentStatus": "Initializing",
             "jobStatus": "PENDING",
-            "jobId": "pending-job-123"
+            "jobId": "pending-job-123",
         }
     }
     running_response = {
         "status": {
-            "jobDeploymentStatus": "Running", 
+            "jobDeploymentStatus": "Running",
             "jobStatus": "RUNNING",
-            "jobId": "pending-job-123"
+            "jobId": "pending-job-123",
         }
     }
     succeeded_response = {
         "status": {
             "jobDeploymentStatus": "Running",
             "jobStatus": "SUCCEEDED",
-            "jobId": "pending-job-123"
+            "jobId": "pending-job-123",
         }
     }
-    
+
     mock_co_api.get_namespaced_custom_object_status.side_effect = [
-        pending_response, running_response, succeeded_response
+        pending_response,
+        running_response,
+        succeeded_response,
     ]
     mocker.patch("time.sleep")
-    
+
     cluster_config = ClusterConfiguration(name="test-cluster", namespace="test-ns")
     job_config = RayJobSpec(entrypoint="python script.py")
-    
+
     result = Cluster.run_job_with_managed_cluster(
-        cluster_config=cluster_config,
-        job_config=job_config,
-        wait_for_completion=True
+        cluster_config=cluster_config, job_config=job_config, wait_for_completion=True
     )
-    
+
     assert result["job_status"] == "SUCCEEDED"
     assert result["job_submission_id"] == "pending-job-123"
 
@@ -1145,37 +1212,47 @@ def test_run_job_with_managed_cluster_api_exception(mocker):
     """Test RayJob creation with API exception."""
     from codeflare_sdk.ray.job.job import RayJobSpec
     from kubernetes.client.rest import ApiException
-    
+
     # Mock dependencies
     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
     mocker.patch("codeflare_sdk.ray.cluster.cluster.config_check")
-    
+
     mock_api_client = mocker.Mock()
-    mocker.patch("codeflare_sdk.common.kubernetes_cluster.auth.get_api_client", return_value=mock_api_client)
-    
+    mocker.patch(
+        "codeflare_sdk.common.kubernetes_cluster.auth.get_api_client",
+        return_value=mock_api_client,
+    )
+
     mock_co_api = mocker.Mock()
     mocker.patch("kubernetes.client.CustomObjectsApi", return_value=mock_co_api)
-    
+
     # Mock Cluster creation
-    mock_cluster_resource = {"apiVersion": "ray.io/v1", "kind": "RayCluster", "spec": {}}
-    mocker.patch("codeflare_sdk.ray.cluster.cluster.Cluster.__init__", return_value=None)
+    mock_cluster_resource = {
+        "apiVersion": "ray.io/v1",
+        "kind": "RayCluster",
+        "spec": {},
+    }
+    mocker.patch(
+        "codeflare_sdk.ray.cluster.cluster.Cluster.__init__", return_value=None
+    )
     mock_cluster_instance = mocker.Mock()
     mock_cluster_instance.resource_yaml = mock_cluster_resource
-    mocker.patch("codeflare_sdk.ray.cluster.cluster.Cluster", return_value=mock_cluster_instance)
-    
+    mocker.patch(
+        "codeflare_sdk.ray.cluster.cluster.Cluster", return_value=mock_cluster_instance
+    )
+
     # Mock API exception during job creation (correct constructor)
     mock_co_api.create_namespaced_custom_object.side_effect = ApiException(
         status=400, reason="Bad Request"
     )
-    
+
     cluster_config = ClusterConfiguration(name="test-cluster", namespace="test-ns")
     job_config = RayJobSpec(entrypoint="python script.py")
-    
+
     try:
         Cluster.run_job_with_managed_cluster(
-            cluster_config=cluster_config,
-            job_config=job_config
+            cluster_config=cluster_config, job_config=job_config
         )
         assert False, "Expected ApiException"
     except ApiException as e:
@@ -1186,28 +1263,41 @@ def test_run_job_with_managed_cluster_api_exception(mocker):
 def test_run_job_with_managed_cluster_missing_status_fields(mocker):
     """Test RayJob with missing status fields - should not wait for completion."""
     from codeflare_sdk.ray.job.job import RayJobSpec
-    
+
     # Mock dependencies
     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
     mocker.patch("codeflare_sdk.ray.cluster.cluster.config_check")
-    
+
     mock_api_client = mocker.Mock()
-    mocker.patch("codeflare_sdk.common.kubernetes_cluster.auth.get_api_client", return_value=mock_api_client)
-    
+    mocker.patch(
+        "codeflare_sdk.common.kubernetes_cluster.auth.get_api_client",
+        return_value=mock_api_client,
+    )
+
     mock_co_api = mocker.Mock()
     mocker.patch("kubernetes.client.CustomObjectsApi", return_value=mock_co_api)
-    
+
     # Mock Cluster creation
-    mock_cluster_resource = {"apiVersion": "ray.io/v1", "kind": "RayCluster", "spec": {}}
-    mocker.patch("codeflare_sdk.ray.cluster.cluster.Cluster.__init__", return_value=None)
+    mock_cluster_resource = {
+        "apiVersion": "ray.io/v1",
+        "kind": "RayCluster",
+        "spec": {},
+    }
+    mocker.patch(
+        "codeflare_sdk.ray.cluster.cluster.Cluster.__init__", return_value=None
+    )
     mock_cluster_instance = mocker.Mock()
     mock_cluster_instance.resource_yaml = mock_cluster_resource
-    mocker.patch("codeflare_sdk.ray.cluster.cluster.Cluster", return_value=mock_cluster_instance)
-    
+    mocker.patch(
+        "codeflare_sdk.ray.cluster.cluster.Cluster", return_value=mock_cluster_instance
+    )
+
     # Mock RayJob creation
-    mock_co_api.create_namespaced_custom_object.return_value = {"metadata": {"name": "test-missing-fields"}}
-    
+    mock_co_api.create_namespaced_custom_object.return_value = {
+        "metadata": {"name": "test-missing-fields"}
+    }
+
     # Mock job status with missing fields - but don't wait for completion to avoid timeout
     mock_status_response = {
         "status": {
@@ -1217,70 +1307,88 @@ def test_run_job_with_managed_cluster_missing_status_fields(mocker):
     }
     mock_co_api.get_namespaced_custom_object_status.return_value = mock_status_response
     mocker.patch("time.sleep")
-    
+
     cluster_config = ClusterConfiguration(name="test-cluster", namespace="test-ns")
     job_config = RayJobSpec(entrypoint="python script.py")
-    
+
     # Don't wait for completion to avoid timeout with missing status fields
     result = Cluster.run_job_with_managed_cluster(
         cluster_config=cluster_config,
         job_config=job_config,
-        wait_for_completion=False  # Key change: don't wait
+        wait_for_completion=False,  # Key change: don't wait
     )
-    
+
     # Should handle missing fields gracefully
     assert "job_cr_name" in result
     # When not waiting, we should get the submitted state
-    assert result.get("job_status") in [None, "SUBMITTED", "SUBMITTED_NOT_FOUND", "PENDING"]
+    assert result.get("job_status") in [
+        None,
+        "SUBMITTED",
+        "SUBMITTED_NOT_FOUND",
+        "PENDING",
+    ]
 
 
 def test_run_job_with_managed_cluster_custom_job_name(mocker):
     """Test RayJob with custom job CR name."""
     from codeflare_sdk.ray.job.job import RayJobSpec
-    
+
     # Mock dependencies
     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
     mocker.patch("codeflare_sdk.ray.cluster.cluster.config_check")
-    
+
     mock_api_client = mocker.Mock()
-    mocker.patch("codeflare_sdk.common.kubernetes_cluster.auth.get_api_client", return_value=mock_api_client)
-    
+    mocker.patch(
+        "codeflare_sdk.common.kubernetes_cluster.auth.get_api_client",
+        return_value=mock_api_client,
+    )
+
     mock_co_api = mocker.Mock()
     mocker.patch("kubernetes.client.CustomObjectsApi", return_value=mock_co_api)
-    
+
     # Mock Cluster creation
-    mock_cluster_resource = {"apiVersion": "ray.io/v1", "kind": "RayCluster", "spec": {}}
-    mocker.patch("codeflare_sdk.ray.cluster.cluster.Cluster.__init__", return_value=None)
+    mock_cluster_resource = {
+        "apiVersion": "ray.io/v1",
+        "kind": "RayCluster",
+        "spec": {},
+    }
+    mocker.patch(
+        "codeflare_sdk.ray.cluster.cluster.Cluster.__init__", return_value=None
+    )
     mock_cluster_instance = mocker.Mock()
     mock_cluster_instance.resource_yaml = mock_cluster_resource
-    mocker.patch("codeflare_sdk.ray.cluster.cluster.Cluster", return_value=mock_cluster_instance)
-    
+    mocker.patch(
+        "codeflare_sdk.ray.cluster.cluster.Cluster", return_value=mock_cluster_instance
+    )
+
     # Mock successful RayJob creation with custom name
     custom_job_name = "my-custom-rayjob-name"
-    mock_co_api.create_namespaced_custom_object.return_value = {"metadata": {"name": custom_job_name}}
-    
+    mock_co_api.create_namespaced_custom_object.return_value = {
+        "metadata": {"name": custom_job_name}
+    }
+
     # Mock job completion
     mock_status_response = {
         "status": {
             "jobDeploymentStatus": "Running",
             "jobStatus": "SUCCEEDED",
-            "jobId": "custom-job-123"
+            "jobId": "custom-job-123",
         }
     }
     mock_co_api.get_namespaced_custom_object_status.return_value = mock_status_response
     mocker.patch("time.sleep")
-    
+
     cluster_config = ClusterConfiguration(name="test-cluster", namespace="test-ns")
     job_config = RayJobSpec(entrypoint="python script.py")
-    
+
     result = Cluster.run_job_with_managed_cluster(
         cluster_config=cluster_config,
         job_config=job_config,
         job_cr_name=custom_job_name,
-        wait_for_completion=True
+        wait_for_completion=True,
     )
-    
+
     assert result["job_cr_name"] == custom_job_name
     assert result["job_submission_id"] == "custom-job-123"
     assert result["job_status"] == "SUCCEEDED"
@@ -1289,28 +1397,41 @@ def test_run_job_with_managed_cluster_custom_job_name(mocker):
 def test_run_job_with_managed_cluster_all_status_fields(mocker):
     """Test RayJob with all possible status fields populated."""
     from codeflare_sdk.ray.job.job import RayJobSpec
-    
+
     # Mock dependencies
     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
     mocker.patch("codeflare_sdk.ray.cluster.cluster.config_check")
-    
+
     mock_api_client = mocker.Mock()
-    mocker.patch("codeflare_sdk.common.kubernetes_cluster.auth.get_api_client", return_value=mock_api_client)
-    
+    mocker.patch(
+        "codeflare_sdk.common.kubernetes_cluster.auth.get_api_client",
+        return_value=mock_api_client,
+    )
+
     mock_co_api = mocker.Mock()
     mocker.patch("kubernetes.client.CustomObjectsApi", return_value=mock_co_api)
-    
+
     # Mock Cluster creation
-    mock_cluster_resource = {"apiVersion": "ray.io/v1", "kind": "RayCluster", "spec": {}}
-    mocker.patch("codeflare_sdk.ray.cluster.cluster.Cluster.__init__", return_value=None)
+    mock_cluster_resource = {
+        "apiVersion": "ray.io/v1",
+        "kind": "RayCluster",
+        "spec": {},
+    }
+    mocker.patch(
+        "codeflare_sdk.ray.cluster.cluster.Cluster.__init__", return_value=None
+    )
     mock_cluster_instance = mocker.Mock()
     mock_cluster_instance.resource_yaml = mock_cluster_resource
-    mocker.patch("codeflare_sdk.ray.cluster.cluster.Cluster", return_value=mock_cluster_instance)
-    
+    mocker.patch(
+        "codeflare_sdk.ray.cluster.cluster.Cluster", return_value=mock_cluster_instance
+    )
+
     # Mock RayJob creation
-    mock_co_api.create_namespaced_custom_object.return_value = {"metadata": {"name": "test-all-fields"}}
-    
+    mock_co_api.create_namespaced_custom_object.return_value = {
+        "metadata": {"name": "test-all-fields"}
+    }
+
     # Mock job status with all fields
     mock_status_response = {
         "status": {
@@ -1321,21 +1442,19 @@ def test_run_job_with_managed_cluster_all_status_fields(mocker):
             "jobId": "all-fields-job-456",
             "message": "Job completed successfully",
             "startTime": "2023-01-01T10:00:00Z",
-            "endTime": "2023-01-01T10:05:00Z"
+            "endTime": "2023-01-01T10:05:00Z",
         }
     }
     mock_co_api.get_namespaced_custom_object_status.return_value = mock_status_response
     mocker.patch("time.sleep")
-    
+
     cluster_config = ClusterConfiguration(name="test-cluster", namespace="test-ns")
     job_config = RayJobSpec(entrypoint="python comprehensive_script.py")
-    
+
     result = Cluster.run_job_with_managed_cluster(
-        cluster_config=cluster_config,
-        job_config=job_config,
-        wait_for_completion=True
+        cluster_config=cluster_config, job_config=job_config, wait_for_completion=True
     )
-    
+
     # Verify all fields are captured
     assert result["job_status"] == "SUCCEEDED"
     assert result["dashboard_url"] == "http://ray-dashboard:8265"
