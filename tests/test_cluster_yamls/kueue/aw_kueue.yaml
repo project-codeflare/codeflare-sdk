@@ -12,7 +12,8 @@ spec:
       kind: RayCluster
       metadata:
         labels:
-          controller-tools.k8s.io: '1.0'
+          controller-tools.k8s.io: "1.0"
+          ray.io/cluster: unit-test-aw-kueue
         name: unit-test-aw-kueue
         namespace: ns
       spec:
@@ -30,15 +31,19 @@ spec:
         headGroupSpec:
           enableIngress: false
           rayStartParams:
-            block: 'true'
+            block: "true"
             dashboard-host: 0.0.0.0
-            num-gpus: '0'
+            dashboard-port: "8265"
+            num-gpus: "0"
             resources: '"{}"'
           serviceType: ClusterIP
           template:
             spec:
               containers:
-              - image: "${image}"
+              - env:
+                - name: RAY_USAGE_STATS_ENABLED
+                  value: "0"
+                image: quay.io/modh/ray@sha256:6d076aeb38ab3c34a6a2ef0f58dc667089aa15826fa08a73273c629333e12f1e
                 imagePullPolicy: Always
                 lifecycle:
                   preStop:
@@ -75,9 +80,6 @@ spec:
                 - mountPath: /etc/ssl/certs/odh-ca-bundle.crt
                   name: odh-ca-cert
                   subPath: odh-ca-bundle.crt
-                env:
-                - name: RAY_USAGE_STATS_ENABLED
-                  value: '0'
               volumes:
               - configMap:
                   items:
@@ -99,14 +101,17 @@ spec:
           maxReplicas: 2
           minReplicas: 2
           rayStartParams:
-            block: 'true'
-            num-gpus: '0'
+            block: "true"
+            num-gpus: "0"
             resources: '"{}"'
           replicas: 2
           template:
             spec:
               containers:
-              - image: "${image}"
+              - env:
+                - name: RAY_USAGE_STATS_ENABLED
+                  value: "0"
+                image: quay.io/modh/ray@sha256:6d076aeb38ab3c34a6a2ef0f58dc667089aa15826fa08a73273c629333e12f1e
                 imagePullPolicy: Always
                 lifecycle:
                   preStop:
@@ -136,9 +141,6 @@ spec:
                 - mountPath: /etc/ssl/certs/odh-ca-bundle.crt
                   name: odh-ca-cert
                   subPath: odh-ca-bundle.crt
-                env:
-                - name: RAY_USAGE_STATS_ENABLED
-                  value: '0'
               volumes:
               - configMap:
                   items:
