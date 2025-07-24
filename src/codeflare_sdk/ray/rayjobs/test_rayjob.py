@@ -26,8 +26,8 @@ def test_rayjob_submit_success(mocker):
     mock_api_instance = MagicMock()
     mock_api_class.return_value = mock_api_instance
 
-    # Configure the mock to return success when submit is called
-    mock_api_instance.submit.return_value = {"metadata": {"name": "test-rayjob"}}
+    # Configure the mock to return success when submit_job is called
+    mock_api_instance.submit_job.return_value = {"metadata": {"name": "test-rayjob"}}
 
     # Create RayJob instance
     rayjob = RayJob(
@@ -45,8 +45,8 @@ def test_rayjob_submit_success(mocker):
     assert job_id == "test-rayjob"
 
     # Verify the API was called with correct parameters
-    mock_api_instance.submit.assert_called_once()
-    call_args = mock_api_instance.submit.call_args
+    mock_api_instance.submit_job.assert_called_once()
+    call_args = mock_api_instance.submit_job.call_args
 
     # Check the namespace parameter
     assert call_args.kwargs["k8s_namespace"] == "test-namespace"

@@ -21,6 +21,7 @@ cluster setup queue, a list of all existing clusters, and the user's working nam
 from time import sleep
 from typing import List, Optional, Tuple, Dict
 import copy
+import dataclasses
 
 from ray.job_submission import JobSubmissionClient, JobStatus
 import time
@@ -1059,10 +1060,13 @@ def get_cluster(
     )
     # 1. Prepare RayClusterSpec from ClusterConfiguration
     # Create a temporary config with appwrapper=False to ensure build_ray_cluster returns RayCluster YAML
-    temp_cluster_config_dict = cluster_config.dict(
-        exclude_none=True
-    )  # Assuming Pydantic V1 or similar .dict() method
+    temp_cluster_config_dict = dataclasses.asdict(cluster_config)
+    # Filter out None values similar to exclude_none=True in Pydantic
+    temp_cluster_config_dict = {k: v for k, v in temp_cluster_config_dict.items() if v is not None}
     temp_cluster_config_dict["appwrapper"] = False
+    # Set overwrite_default_resource_mapping=True to avoid conflicts when extended_resource_mapping 
+    # already contains the combined default and custom mappings from the original object
+    temp_cluster_config_dict["overwrite_default_resource_mapping"] = True
     temp_cluster_config_for_spec = ClusterConfiguration(**temp_cluster_config_dict)
     # Ignore the warning here for the lack of a ClusterConfiguration
     with warnings.catch_warnings():
