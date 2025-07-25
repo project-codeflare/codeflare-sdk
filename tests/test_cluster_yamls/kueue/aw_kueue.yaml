@@ -13,6 +13,7 @@ spec:
       metadata:
         labels:
           controller-tools.k8s.io: '1.0'
+          ray.io/cluster: unit-test-aw-kueue
         name: unit-test-aw-kueue
         namespace: ns
       spec:
@@ -32,6 +33,7 @@ spec:
           rayStartParams:
             block: 'true'
             dashboard-host: 0.0.0.0
+            dashboard-port: '8265'
             num-gpus: '0'
             resources: '"{}"'
           serviceType: ClusterIP

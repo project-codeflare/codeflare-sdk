@@ -10,6 +10,7 @@ metadata:
     key1: value1
     key2: value2
     kueue.x-k8s.io/queue-name: local-queue-default
+    ray.io/cluster: test-all-params
   name: test-all-params
   namespace: ns
 spec:
@@ -29,6 +30,7 @@ spec:
     rayStartParams:
       block: 'true'
       dashboard-host: 0.0.0.0
+      dashboard-port: '8265'
       num-gpus: '1'
       resources: '"{\"TPU\": 2}"'
     serviceType: ClusterIP

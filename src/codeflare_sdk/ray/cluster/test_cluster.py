@@ -758,5 +758,11 @@ def test_map_to_ray_cluster(mocker):
 
 # Make sure to always keep this function last
 def test_cleanup():
-    os.remove(f"{aw_dir}test-all-params.yaml")
-    os.remove(f"{aw_dir}aw-all-params.yaml")
+    # Remove files only if they exist
+    test_file = f"{aw_dir}test-all-params.yaml"
+    if os.path.exists(test_file):
+        os.remove(test_file)
+
+    aw_file = f"{aw_dir}aw-all-params.yaml"
+    if os.path.exists(aw_file):
+        os.remove(aw_file)
