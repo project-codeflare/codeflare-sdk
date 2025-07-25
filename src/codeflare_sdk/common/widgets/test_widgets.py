@@ -28,7 +28,7 @@ from kubernetes import client
 @patch.dict(
     "os.environ", {"JPY_SESSION_NAME": "example-test"}
 )  # Mock Jupyter environment variable
-def test_cluster_up_down_buttons(mocker):
+def test_cluster_apply_down_buttons(mocker):
     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch(
         "kubernetes.client.CustomObjectsApi.get_cluster_custom_object",
@@ -45,36 +45,38 @@ def test_cluster_up_down_buttons(mocker):
     ) as MockCheckbox, patch("ipywidgets.Output"), patch("ipywidgets.HBox"), patch(
         "ipywidgets.VBox"
     ), patch.object(
-        cluster, "up"
-    ) as mock_up, patch.object(
+        cluster, "apply"
+    ) as mock_apply, patch.object(
         cluster, "down"
     ) as mock_down, patch.object(
         cluster, "wait_ready"
     ) as mock_wait_ready:
         # Create mock button & CheckBox instances
-        mock_up_button = MagicMock()
+        mock_apply_button = MagicMock()
         mock_down_button = MagicMock()
         mock_wait_ready_check_box = MagicMock()
 
         # Ensure the mock Button class returns the mock button instances in sequence
         MockCheckbox.side_effect = [mock_wait_ready_check_box]
-        MockButton.side_effect = [mock_up_button, mock_down_button]
+        MockButton.side_effect = [mock_apply_button, mock_down_button]
 
         # Call the method under test
-        cf_widgets.cluster_up_down_buttons(cluster)
+        cf_widgets.cluster_apply_down_buttons(cluster)
 
         # Simulate checkbox being checked or unchecked
         mock_wait_ready_check_box.value = True  # Simulate checkbox being checked
 
         # Simulate the button clicks by calling the mock on_click handlers
-        mock_up_button.on_click.call_args[0][0](None)  # Simulate clicking "Cluster Up"
+        mock_apply_button.on_click.call_args[0][0](
+            None
+        )  # Simulate clicking "Cluster Apply"
         mock_down_button.on_click.call_args[0][0](
             None
         )  # Simulate clicking "Cluster Down"
 
-        # Check if the `up` and `down` methods were called
+        # Check if the `apply` and `down` methods were called
         mock_wait_ready.assert_called_once()
-        mock_up.assert_called_once()
+        mock_apply.assert_called_once()
         mock_down.assert_called_once()
 
 

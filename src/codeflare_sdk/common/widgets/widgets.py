@@ -271,19 +271,19 @@ class RayClusterManagerWidgets:
         )
 
 
-def cluster_up_down_buttons(
+def cluster_apply_down_buttons(
     cluster: "codeflare_sdk.ray.cluster.cluster.Cluster",
 ) -> widgets.Button:
     """
-    The cluster_up_down_buttons function returns two button widgets for a create and delete button.
+    The cluster_apply_down_buttons function returns two button widgets for a create and delete button.
     The function uses the appwrapper bool to distinguish between resource type for the tool tip.
     """
     resource = "Ray Cluster"
     if cluster.config.appwrapper:
         resource = "AppWrapper"
 
-    up_button = widgets.Button(
-        description="Cluster Up",
+    apply_button = widgets.Button(
+        description="Cluster Apply",
         tooltip=f"Create the {resource}",
         icon="play",
     )
@@ -298,13 +298,13 @@ def cluster_up_down_buttons(
     output = widgets.Output()
 
     # Display the buttons in an HBox wrapped in a VBox which includes the wait_ready Checkbox
-    button_display = widgets.HBox([up_button, delete_button])
+    button_display = widgets.HBox([apply_button, delete_button])
     display(widgets.VBox([button_display, wait_ready_check]), output)
 
-    def on_up_button_clicked(b):  # Handle the up button click event
+    def on_apply_button_clicked(b):  # Handle the apply button click event
         with output:
             output.clear_output()
-            cluster.up()
+            cluster.apply()
 
             # If the wait_ready Checkbox is clicked(value == True) trigger the wait_ready function
             if wait_ready_check.value:
@@ -315,7 +315,7 @@ def cluster_up_down_buttons(
             output.clear_output()
             cluster.down()
 
-    up_button.on_click(on_up_button_clicked)
+    apply_button.on_click(on_apply_button_clicked)
     delete_button.on_click(on_down_button_clicked)
 
 

@@ -43,7 +43,7 @@ from ..appwrapper import (
     AppWrapperStatus,
 )
 from ...common.widgets.widgets import (
-    cluster_up_down_buttons,
+    cluster_apply_down_buttons,
     is_notebook,
 )
 from kubernetes import client
@@ -88,7 +88,7 @@ class Cluster:
             self.resource_yaml = self.create_resource()
 
         if is_notebook():
-            cluster_up_down_buttons(self)
+            cluster_apply_down_buttons(self)
 
     def get_dynamic_client(self):  # pragma: no cover
         return DynamicClient(get_api_client())
