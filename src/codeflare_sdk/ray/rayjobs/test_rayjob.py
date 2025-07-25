@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import pytest
 from unittest.mock import MagicMock
 from codeflare_sdk.ray.rayjobs.rayjob import RayJob
 
@@ -45,8 +46,8 @@ def test_rayjob_submit_success(mocker):
     assert job_id == "test-rayjob"
 
     # Verify the API was called with correct parameters
-    mock_api_instance.submit.assert_called_once()
-    call_args = mock_api_instance.submit.call_args
+    mock_api_instance.submit_job.assert_called_once()
+    call_args = mock_api_instance.submit_job.call_args
 
     # Check the namespace parameter
     assert call_args.kwargs["k8s_namespace"] == "test-namespace"
@@ -58,3 +59,30 @@ def test_rayjob_submit_success(mocker):
     assert job_cr["spec"]["entrypoint"] == "python -c 'print(\"hello world\")'"
     assert job_cr["spec"]["clusterSelector"]["ray.io/cluster"] == "test-ray-cluster"
     assert job_cr["spec"]["runtimeEnvYAML"] == "{'pip': ['requests']}"
+
+
+def test_rayjob_submit_failure(mocker):
+    """Test RayJob submission failure."""
+    # Mock kubernetes config loading
+    mocker.patch("kubernetes.config.load_kube_config")
+
+    # Mock the RayjobApi class entirely
+    mock_api_class = mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayjobApi")
+    mock_api_instance = MagicMock()
+    mock_api_class.return_value = mock_api_instance
+
+    # Configure the mock to return failure (False/None) when submit_job is called
+    mock_api_instance.submit_job.return_value = None
+
+    # Create a RayJob instance
+    rayjob = RayJob(
+        job_name="test-rayjob",
+        cluster_name="test-ray-cluster",
+        namespace="default",
+        entrypoint="python script.py",
+        runtime_env={"pip": ["numpy"]},
+    )
+
+    # Test that RuntimeError is raised on failure
+    with pytest.raises(RuntimeError, match="Failed to submit RayJob test-rayjob"):
+        rayjob.submit()
