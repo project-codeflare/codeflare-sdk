@@ -67,25 +67,25 @@ test.describe("Visual Regression", () => {
 
     // At this point, all cells have been ran, and their screenshots have been captured.
     // We now interact with the widgets in the notebook.
-    const upDownWidgetCellIndex = 3; // 4 on OpenShift
+    const applyDownWidgetCellIndex = 3; // 4 on OpenShift
 
-    await waitForWidget(page, upDownWidgetCellIndex, 'input[type="checkbox"]');
-    await waitForWidget(page, upDownWidgetCellIndex, 'button:has-text("Cluster Down")');
-    await waitForWidget(page, upDownWidgetCellIndex, 'button:has-text("Cluster Up")');
+    await waitForWidget(page, applyDownWidgetCellIndex, 'input[type="checkbox"]');
+    await waitForWidget(page, applyDownWidgetCellIndex, 'button:has-text("Cluster Down")');
+    await waitForWidget(page, applyDownWidgetCellIndex, 'button:has-text("Cluster Apply")');
 
-    await interactWithWidget(page, upDownWidgetCellIndex, 'input[type="checkbox"]', async (checkbox) => {
+    await interactWithWidget(page, applyDownWidgetCellIndex, 'input[type="checkbox"]', async (checkbox) => {
       await checkbox.click();
       const isChecked = await checkbox.isChecked();
       expect(isChecked).toBe(true);
     });
 
-    await interactWithWidget(page, upDownWidgetCellIndex, 'button:has-text("Cluster Down")', async (button) => {
+    await interactWithWidget(page, applyDownWidgetCellIndex, 'button:has-text("Cluster Down")', async (button) => {
       await button.click();
       const clusterDownMessage = await page.waitForSelector('text=The requested resource could not be located.', { timeout: 5000 });
       expect(await clusterDownMessage.innerText()).toContain('The requested resource could not be located.');
     });
 
-    await interactWithWidget(page, upDownWidgetCellIndex, 'button:has-text("Cluster Up")', async (button) => {
+    await interactWithWidget(page, applyDownWidgetCellIndex, 'button:has-text("Cluster Apply")', async (button) => {
       await button.click();
 
       const successMessage = await page.waitForSelector('text=Ray Cluster: \'widgettest\' has successfully been created', { timeout: 10000 });
@@ -103,7 +103,7 @@ test.describe("Visual Regression", () => {
 
     await runPreviousCell(page, cellCount, '(<CodeFlareClusterStatus.READY: 1>, True)');
 
-    await interactWithWidget(page, upDownWidgetCellIndex, 'button:has-text("Cluster Down")', async (button) => {
+    await interactWithWidget(page, applyDownWidgetCellIndex, 'button:has-text("Cluster Down")', async (button) => {
       await button.click();
       const clusterDownMessage = await page.waitForSelector('text=Ray Cluster: \'widgettest\' has successfully been deleted', { timeout: 5000 });
       expect(clusterDownMessage).not.toBeNull();
@@ -116,7 +116,7 @@ test.describe("Visual Regression", () => {
     await cell.fill('"widgettest-1"');
     await page.notebook.runCell(cellCount - 3, true); // Run ClusterConfiguration cell
 
-    await interactWithWidget(page, upDownWidgetCellIndex, 'button:has-text("Cluster Up")', async (button) => {
+    await interactWithWidget(page, applyDownWidgetCellIndex, 'button:has-text("Cluster Apply")', async (button) => {
       await button.click();
       const successMessage = await page.waitForSelector('text=Ray Cluster: \'widgettest-1\' has successfully been created', { timeout: 10000 });
       expect(successMessage).not.toBeNull();
