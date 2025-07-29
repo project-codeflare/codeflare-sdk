@@ -20,8 +20,12 @@ cluster setup queue, a list of all existing clusters, and the user's working nam
 
 from time import sleep
 from typing import List, Optional, Tuple, Dict
+import copy
 
-from ray.job_submission import JobSubmissionClient
+from ray.job_submission import JobSubmissionClient, JobStatus
+import time
+import uuid
+import warnings
 
 from ...common.kubernetes_cluster.auth import (
     config_check,
@@ -57,7 +61,6 @@ from kubernetes import client as k8s_client
 from kubernetes.client.rest import ApiException
 
 from kubernetes.client.rest import ApiException
-import warnings
 
 CF_SDK_FIELD_MANAGER = "codeflare-sdk"
 
@@ -762,6 +765,7 @@ def get_cluster(
         head_extended_resource_requests=head_extended_resources,
         worker_extended_resource_requests=worker_extended_resources,
     )
+
     # Ignore the warning here for the lack of a ClusterConfiguration
     with warnings.catch_warnings():
         warnings.filterwarnings(
