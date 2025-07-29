@@ -6,6 +6,9 @@ from .client import (
 
 from .rayjobs import (
     RayJob,
+    RayJobDeploymentStatus,
+    CodeflareRayJobStatus,
+    RayJobInfo,
 )
 
 from .cluster import (
