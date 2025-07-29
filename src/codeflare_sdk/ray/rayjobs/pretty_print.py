@@ -40,6 +40,7 @@ def print_job_status(job_info: RayJobInfo):
 
     # Add timing information if available
     if job_info.start_time:
+        table.add_row()
         table.add_row(f"[bold]Started:[/bold] {job_info.start_time}")
 
     # Add attempt counts if there are failures
