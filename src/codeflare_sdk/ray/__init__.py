@@ -4,6 +4,10 @@ from .client import (
     RayJobClient,
 )
 
+from .rayjobs import (
+    RayJob,
+)
+
 from .cluster import (
     Cluster,
     ClusterConfiguration,
