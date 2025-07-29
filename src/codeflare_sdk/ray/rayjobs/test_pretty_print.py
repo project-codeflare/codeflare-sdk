@@ -106,6 +106,7 @@ def test_print_job_status_running_format(mocker):
         call("[bold]Status:[/bold] Running"),
         call("[bold]RayCluster:[/bold] test-cluster"),
         call("[bold]Namespace:[/bold] test-ns"),
+        call(),  # Empty row before timing info
         call("[bold]Started:[/bold] 2025-07-28T11:37:07Z"),
     ]
     mock_inner_table.add_row.assert_has_calls(expected_calls)
@@ -166,6 +167,7 @@ def test_print_job_status_complete_format(mocker):
         call("[bold]Status:[/bold] Complete"),
         call("[bold]RayCluster:[/bold] prod-cluster"),
         call("[bold]Namespace:[/bold] prod-ns"),
+        call(),  # Empty row before timing info
         call("[bold]Started:[/bold] 2025-07-28T11:37:07Z"),
     ]
     mock_inner_table.add_row.assert_has_calls(expected_calls)
@@ -215,6 +217,7 @@ def test_print_job_status_failed_with_attempts_format(mocker):
         call("[bold]Status:[/bold] Failed"),
         call("[bold]RayCluster:[/bold] test-cluster"),
         call("[bold]Namespace:[/bold] test-ns"),
+        call(),  # Empty row before timing info
         call("[bold]Started:[/bold] 2025-07-28T11:37:07Z"),
         call("[bold]Failed Attempts:[/bold] 3"),  # Failed attempts should be shown
     ]
