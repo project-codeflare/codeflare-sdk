@@ -4,7 +4,7 @@ name: Coverage Badge
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, ray-jobs-feature ]
 
 jobs:
   report:
