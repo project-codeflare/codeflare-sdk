@@ -25,7 +25,7 @@ openshift-client = "1.0.18"
 rich = ">=12.5,<14.0"
 ray = {version = "2.47.1", extras = ["data", "default"]}
 kubernetes = ">= 27.2.0"
-cryptography = "43.0.3"
+cryptography = "45.0.5"
 executing = "1.2.0"
 pydantic = "< 2"
 ipywidgets = "8.1.2"
