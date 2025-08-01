@@ -1,4 +1,4 @@
-# CodeFlare SDK
+# CodeFlare SDK -> TESTING CI
 
 [![Python application](https://github.com/project-codeflare/codeflare-sdk/actions/workflows/unit-tests.yml/badge.svg?branch=main)](https://github.com/project-codeflare/codeflare-sdk/actions/workflows/unit-tests.yml)
 ![coverage badge](./coverage.svg)
