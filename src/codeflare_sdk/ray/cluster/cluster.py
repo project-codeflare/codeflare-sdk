@@ -16,6 +16,8 @@
 The cluster sub-module contains the definition of the Cluster object, which represents
 the resources requested by the user. It also contains functions for checking the
 cluster setup queue, a list of all existing clusters, and the user's working namespace.
+
+E2E TESTING
 """
 
 from time import sleep
