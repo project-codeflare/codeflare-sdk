@@ -19,6 +19,17 @@ from codeflare_sdk.common.utils.constants import (
 )
 
 
+def update_image(image) -> str:
+    """
+    The update_image() function automatically sets the image config parameter to a preset image based on Python version if not specified.
+    This now points to the centralized function in utils.py.
+    """
+    if not image:
+        # Pull the image based on the matching Python version (or output a warning if not supported)
+        image = get_ray_image_for_python_version(warn_on_unsupported=True)
+    return image
+
+
 def get_ray_image_for_python_version(python_version=None, warn_on_unsupported=True):
     """
     Get the appropriate Ray image for a given Python version.

@@ -106,7 +106,7 @@ def test_view_clusters(mocker, capsys):
     # Prepare to run view_clusters when notebook environment is detected
     mocker.patch("codeflare_sdk.common.widgets.widgets.is_notebook", return_value=True)
     mock_get_current_namespace = mocker.patch(
-        "codeflare_sdk.ray.cluster.cluster.get_current_namespace",
+        "codeflare_sdk.common.utils.get_current_namespace",
         return_value="default",
     )
     namespace = mock_get_current_namespace.return_value
@@ -250,7 +250,7 @@ def test_ray_cluster_manager_widgets_init(mocker, capsys):
         return_value=test_ray_clusters_df,
     )
     mocker.patch(
-        "codeflare_sdk.ray.cluster.cluster.get_current_namespace",
+        "codeflare_sdk.common.utils.get_current_namespace",
         return_value=namespace,
     )
     mock_delete_cluster = mocker.patch(
