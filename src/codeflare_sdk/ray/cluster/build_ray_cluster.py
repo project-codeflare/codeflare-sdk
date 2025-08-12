@@ -21,7 +21,7 @@ from ...common import _kube_api_error_handling
 from ...common.kubernetes_cluster import get_api_client, config_check
 from kubernetes.client.exceptions import ApiException
 from ...common.utils.constants import RAY_VERSION
-from ...common.utils.utils import get_ray_image_for_python_version
+from ...common.utils.utils import update_image
 import codeflare_sdk
 import os
 
@@ -95,9 +95,6 @@ VOLUMES = [
         ),
     ),
 ]
-
-# Use centralized mapping from constants (so that we only have to update constants.py)
-SUPPORTED_PYTHON_VERSIONS = constants.SUPPORTED_PYTHON_VERSIONS
 
 
 # RayCluster/AppWrapper builder function
@@ -271,17 +268,6 @@ def with_nb_annotations(annotations: dict):
 
 
 # Head/Worker container related functions
-def update_image(image) -> str:
-    """
-    The update_image() function automatically sets the image config parameter to a preset image based on Python version if not specified.
-    This now points to the centralized function in utils.py.
-    """
-    if not image:
-        # Pull the image based on the matching Python version (or output a warning if not supported)
-        image = get_ray_image_for_python_version(warn_on_unsupported=True)
-    return image
-
-
 def get_pod_spec(
     cluster: "codeflare_sdk.ray.cluster.Cluster",
     containers: List,

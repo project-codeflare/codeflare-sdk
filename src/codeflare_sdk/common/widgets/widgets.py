@@ -26,6 +26,8 @@ from kubernetes.client.rest import ApiException
 import ipywidgets as widgets
 from IPython.display import display, HTML, Javascript
 import pandas as pd
+
+from ...common.utils import get_current_namespace
 from ...ray.cluster.config import ClusterConfiguration
 from ...ray.cluster.status import RayClusterStatus
 from ..kubernetes_cluster import _kube_api_error_handling
@@ -43,8 +45,6 @@ class RayClusterManagerWidgets:
     """
 
     def __init__(self, ray_clusters_df: pd.DataFrame, namespace: str = None):
-        from ...ray.cluster.cluster import get_current_namespace
-
         # Data
         self.ray_clusters_df = ray_clusters_df
         self.namespace = get_current_namespace() if not namespace else namespace
@@ -353,7 +353,7 @@ def view_clusters(namespace: str = None):
         )
         return  # Exit function if not in Jupyter Notebook
 
-    from ...ray.cluster.cluster import get_current_namespace
+    from ...common.utils import get_current_namespace
 
     if not namespace:
         namespace = get_current_namespace()
