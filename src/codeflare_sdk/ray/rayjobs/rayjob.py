@@ -140,7 +140,6 @@ class RayJob:
             self.cluster_name = cluster_name
             logger.info(f"Using existing cluster: {self.cluster_name}")
 
-        # Initialize the KubeRay job API client
         self._api = RayjobApi()
 
         logger.info(f"Initialized RayJob: {self.name} in namespace: {self.namespace}")
