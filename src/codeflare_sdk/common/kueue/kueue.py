@@ -18,6 +18,8 @@ from codeflare_sdk.common.kubernetes_cluster.auth import config_check, get_api_c
 from kubernetes import client
 from kubernetes.client.exceptions import ApiException
 
+from ...common.utils import get_current_namespace
+
 
 def get_default_kueue_name(namespace: str) -> Optional[str]:
     """
@@ -81,7 +83,6 @@ def list_local_queues(
         List[dict]:
             A list of dictionaries containing the name of the local queue and the available flavors
     """
-    from ...ray.cluster.cluster import get_current_namespace
 
     if namespace is None:  # pragma: no cover
         namespace = get_current_namespace()

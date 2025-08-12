@@ -40,7 +40,7 @@ def test_gen_names_without_name(mocker):
 def test_update_image_without_supported_python_version(mocker):
     # Mock SUPPORTED_PYTHON_VERSIONS
     mocker.patch.dict(
-        "codeflare_sdk.ray.cluster.build_ray_cluster.SUPPORTED_PYTHON_VERSIONS",
+        "codeflare_sdk.common.utils.constants.SUPPORTED_PYTHON_VERSIONS",
         {
             "3.11": "ray-py3.11",
             "3.12": "ray-py3.12",
