@@ -971,3 +971,24 @@ def test_rayjob_user_override_shutdown_behavior(mocker):
     )
 
     assert rayjob_override_priority.shutdown_after_job_finishes is True
+
+
+def test_build_ray_cluster_spec_with_gcs_ft(mocker):
+    """Test build_ray_cluster_spec with GCS fault tolerance enabled."""
+    from codeflare_sdk.ray.rayjobs.config import RayJobClusterConfig
+
+    # Create a test cluster config with GCS FT enabled
+    cluster_config = RayJobClusterConfig(
+        enable_gcs_ft=True,
+        redis_address="redis://redis-service:6379",
+        external_storage_namespace="storage-ns",
+    )
+
+    # Build the spec using the method on the cluster config
+    spec = cluster_config.build_ray_cluster_spec("test-cluster")
+
+    # Verify GCS fault tolerance options
+    assert "gcsFaultToleranceOptions" in spec
+    gcs_ft = spec["gcsFaultToleranceOptions"]
+    assert gcs_ft["redisAddress"] == "redis://redis-service:6379"
+    assert gcs_ft["externalStorageNamespace"] == "storage-ns"
