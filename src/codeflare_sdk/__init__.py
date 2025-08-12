@@ -11,6 +11,7 @@ from .ray import (
     AppWrapperStatus,
     RayJobClient,
     RayJob,
+    RayJobClusterConfig,
 )
 
 from .common.widgets import view_clusters
