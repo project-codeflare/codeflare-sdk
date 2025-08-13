@@ -13,7 +13,7 @@
 # limitations under the License.
 
 """
-The config sub-module contains the definition of the RayJobClusterConfig dataclass,
+The config sub-module contains the definition of the ManagedClusterConfig dataclass,
 which is used to specify resource requirements and other details when creating a
 Cluster object.
 """
@@ -106,7 +106,7 @@ DEFAULT_VOLUMES = [
 
 
 @dataclass
-class RayJobClusterConfig:
+class ManagedClusterConfig:
     """
     This dataclass is used to specify resource requirements and other details for RayJobs.
     The cluster name and namespace are automatically derived from the RayJob configuration.
@@ -181,6 +181,8 @@ class RayJobClusterConfig:
     external_storage_namespace: Optional[str] = None
 
     def __post_init__(self):
+        self.envs["RAY_USAGE_STATS_ENABLED"] = "0"
+
         if self.enable_gcs_ft:
             if not self.redis_address:
                 raise ValueError(
@@ -225,7 +227,7 @@ class RayJobClusterConfig:
             self.worker_memory_limits = f"{self.worker_memory_limits}G"
 
     def _validate_types(self):
-        """Validate the types of all fields in the RayJobClusterConfig dataclass."""
+        """Validate the types of all fields in the ManagedClusterConfig dataclass."""
         errors = []
         for field_info in fields(self):
             value = getattr(self, field_info.name)
@@ -270,10 +272,10 @@ class RayJobClusterConfig:
 
     def build_ray_cluster_spec(self, cluster_name: str) -> Dict[str, Any]:
         """
-        Build the RayCluster spec from RayJobClusterConfig for embedding in RayJob.
+        Build the RayCluster spec from ManagedClusterConfig for embedding in RayJob.
 
         Args:
-            self: The cluster configuration object (RayJobClusterConfig)
+            self: The cluster configuration object (ManagedClusterConfig)
             cluster_name: The name for the cluster (derived from RayJob name)
 
         Returns:
