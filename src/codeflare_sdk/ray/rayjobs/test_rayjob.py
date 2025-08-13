@@ -265,10 +265,10 @@ def test_build_ray_cluster_spec(mocker):
             "workerGroupSpecs": [{"replicas": 2}],
         },
     }
-    # Use RayJobClusterConfig which has the build_ray_cluster_spec method
-    from codeflare_sdk.ray.rayjobs.config import RayJobClusterConfig
+    # Use ManagedClusterConfig which has the build_ray_cluster_spec method
+    from codeflare_sdk.ray.rayjobs.config import ManagedClusterConfig
 
-    cluster_config = RayJobClusterConfig(num_workers=2)
+    cluster_config = ManagedClusterConfig(num_workers=2)
 
     # Mock the method that will be called
     mocker.patch.object(
@@ -345,10 +345,10 @@ def test_build_rayjob_cr_with_auto_cluster(mocker):
             "workerGroupSpecs": [{"replicas": 2}],
         },
     }
-    # Use RayJobClusterConfig and mock its build_ray_cluster_spec method
-    from codeflare_sdk.ray.rayjobs.config import RayJobClusterConfig
+    # Use ManagedClusterConfig and mock its build_ray_cluster_spec method
+    from codeflare_sdk.ray.rayjobs.config import ManagedClusterConfig
 
-    cluster_config = RayJobClusterConfig(num_workers=2)
+    cluster_config = ManagedClusterConfig(num_workers=2)
 
     # Mock the method that will be called
     mocker.patch.object(
@@ -406,10 +406,10 @@ def test_submit_with_auto_cluster(mocker):
     mock_api_class.return_value = mock_api_instance
     mock_api_instance.submit_job.return_value = True
 
-    # Use RayJobClusterConfig and mock its build_ray_cluster_spec method
-    from codeflare_sdk.ray.rayjobs.config import RayJobClusterConfig
+    # Use ManagedClusterConfig and mock its build_ray_cluster_spec method
+    from codeflare_sdk.ray.rayjobs.config import ManagedClusterConfig
 
-    cluster_config = RayJobClusterConfig(num_workers=1)
+    cluster_config = ManagedClusterConfig(num_workers=1)
 
     # Mock the method that will be called
     mocker.patch.object(
@@ -488,9 +488,9 @@ def test_shutdown_behavior_with_cluster_config(mocker):
     """Test that shutdown_after_job_finishes is True when cluster_config is provided."""
     mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayjobApi")
 
-    from codeflare_sdk.ray.rayjobs.config import RayJobClusterConfig
+    from codeflare_sdk.ray.rayjobs.config import ManagedClusterConfig
 
-    cluster_config = RayJobClusterConfig()
+    cluster_config = ManagedClusterConfig()
 
     rayjob = RayJob(
         job_name="test-job",
@@ -517,12 +517,12 @@ def test_shutdown_behavior_with_existing_cluster(mocker):
 
 
 def test_rayjob_with_rayjob_cluster_config(mocker):
-    """Test RayJob with the new RayJobClusterConfig."""
+    """Test RayJob with the new ManagedClusterConfig."""
     mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayjobApi")
 
-    from codeflare_sdk.ray.rayjobs.config import RayJobClusterConfig
+    from codeflare_sdk.ray.rayjobs.config import ManagedClusterConfig
 
-    cluster_config = RayJobClusterConfig(
+    cluster_config = ManagedClusterConfig(
         num_workers=2,
         head_cpu_requests="500m",
         head_memory_requests="512Mi",
@@ -540,13 +540,13 @@ def test_rayjob_with_rayjob_cluster_config(mocker):
 
 
 def test_rayjob_cluster_config_validation(mocker):
-    """Test validation of RayJobClusterConfig parameters."""
+    """Test validation of ManagedClusterConfig parameters."""
     mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayjobApi")
 
-    from codeflare_sdk.ray.rayjobs.config import RayJobClusterConfig
+    from codeflare_sdk.ray.rayjobs.config import ManagedClusterConfig
 
     # Test with minimal valid config
-    cluster_config = RayJobClusterConfig()
+    cluster_config = ManagedClusterConfig()
 
     rayjob = RayJob(
         job_name="test-job",
@@ -581,9 +581,9 @@ def test_build_ray_cluster_spec_integration(mocker):
     # Mock the RayjobApi class entirely
     mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayjobApi")
 
-    from codeflare_sdk.ray.rayjobs.config import RayJobClusterConfig
+    from codeflare_sdk.ray.rayjobs.config import ManagedClusterConfig
 
-    cluster_config = RayJobClusterConfig()
+    cluster_config = ManagedClusterConfig()
 
     # Mock the build_ray_cluster_spec method on the cluster config
     mock_spec = {"spec": "test-spec"}
@@ -658,9 +658,9 @@ def test_rayjob_cluster_name_generation_with_config(mocker):
     """Test cluster name generation when using cluster_config."""
     mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayjobApi")
 
-    from codeflare_sdk.ray.rayjobs.config import RayJobClusterConfig
+    from codeflare_sdk.ray.rayjobs.config import ManagedClusterConfig
 
-    cluster_config = RayJobClusterConfig()
+    cluster_config = ManagedClusterConfig()
 
     rayjob = RayJob(
         job_name="my-job",
@@ -685,9 +685,9 @@ def test_rayjob_namespace_propagation_to_cluster_config(mocker):
         return_value="detected-ns",
     )
 
-    from codeflare_sdk.ray.rayjobs.config import RayJobClusterConfig
+    from codeflare_sdk.ray.rayjobs.config import ManagedClusterConfig
 
-    cluster_config = RayJobClusterConfig()
+    cluster_config = ManagedClusterConfig()
 
     rayjob = RayJob(
         job_name="test-job",
@@ -735,10 +735,10 @@ def test_rayjob_constructor_parameter_validation(mocker):
 
 def test_build_ray_cluster_spec_function(mocker):
     """Test the build_ray_cluster_spec method directly."""
-    from codeflare_sdk.ray.rayjobs.config import RayJobClusterConfig
+    from codeflare_sdk.ray.rayjobs.config import ManagedClusterConfig
 
     # Create a test cluster config
-    cluster_config = RayJobClusterConfig(
+    cluster_config = ManagedClusterConfig(
         num_workers=2,
         head_cpu_requests="500m",
         head_memory_requests="512Mi",
@@ -774,10 +774,10 @@ def test_build_ray_cluster_spec_function(mocker):
 
 def test_build_ray_cluster_spec_with_accelerators(mocker):
     """Test build_ray_cluster_spec with GPU accelerators."""
-    from codeflare_sdk.ray.rayjobs.config import RayJobClusterConfig
+    from codeflare_sdk.ray.rayjobs.config import ManagedClusterConfig
 
     # Create a test cluster config with GPU accelerators
-    cluster_config = RayJobClusterConfig(
+    cluster_config = ManagedClusterConfig(
         head_accelerators={"nvidia.com/gpu": 1},
         worker_accelerators={"nvidia.com/gpu": 2},
     )
@@ -801,7 +801,7 @@ def test_build_ray_cluster_spec_with_accelerators(mocker):
 
 def test_build_ray_cluster_spec_with_custom_volumes(mocker):
     """Test build_ray_cluster_spec with custom volumes and volume mounts."""
-    from codeflare_sdk.ray.rayjobs.config import RayJobClusterConfig
+    from codeflare_sdk.ray.rayjobs.config import ManagedClusterConfig
     from kubernetes.client import V1Volume, V1VolumeMount
 
     # Create custom volumes and volume mounts
@@ -809,7 +809,7 @@ def test_build_ray_cluster_spec_with_custom_volumes(mocker):
     custom_volume_mount = V1VolumeMount(name="custom-data", mount_path="/data")
 
     # Create a test cluster config with custom volumes
-    cluster_config = RayJobClusterConfig(
+    cluster_config = ManagedClusterConfig(
         volumes=[custom_volume],
         volume_mounts=[custom_volume_mount],
     )
@@ -831,10 +831,10 @@ def test_build_ray_cluster_spec_with_custom_volumes(mocker):
 
 def test_build_ray_cluster_spec_with_environment_variables(mocker):
     """Test build_ray_cluster_spec with environment variables."""
-    from codeflare_sdk.ray.rayjobs.config import RayJobClusterConfig
+    from codeflare_sdk.ray.rayjobs.config import ManagedClusterConfig
 
     # Create a test cluster config with environment variables
-    cluster_config = RayJobClusterConfig(
+    cluster_config = ManagedClusterConfig(
         envs={"CUDA_VISIBLE_DEVICES": "0", "RAY_DISABLE_IMPORT_WARNING": "1"},
     )
 
@@ -863,7 +863,7 @@ def test_build_ray_cluster_spec_with_environment_variables(mocker):
 
 def test_build_ray_cluster_spec_with_tolerations(mocker):
     """Test build_ray_cluster_spec with tolerations."""
-    from codeflare_sdk.ray.rayjobs.config import RayJobClusterConfig
+    from codeflare_sdk.ray.rayjobs.config import ManagedClusterConfig
     from kubernetes.client import V1Toleration
 
     # Create test tolerations
@@ -875,7 +875,7 @@ def test_build_ray_cluster_spec_with_tolerations(mocker):
     )
 
     # Create a test cluster config with tolerations
-    cluster_config = RayJobClusterConfig(
+    cluster_config = ManagedClusterConfig(
         head_tolerations=[head_toleration],
         worker_tolerations=[worker_toleration],
     )
@@ -900,10 +900,10 @@ def test_build_ray_cluster_spec_with_tolerations(mocker):
 
 def test_build_ray_cluster_spec_with_image_pull_secrets(mocker):
     """Test build_ray_cluster_spec with image pull secrets."""
-    from codeflare_sdk.ray.rayjobs.config import RayJobClusterConfig
+    from codeflare_sdk.ray.rayjobs.config import ManagedClusterConfig
 
     # Create a test cluster config with image pull secrets
-    cluster_config = RayJobClusterConfig(
+    cluster_config = ManagedClusterConfig(
         image_pull_secrets=["my-registry-secret", "another-secret"]
     )
 
@@ -947,9 +947,9 @@ def test_rayjob_user_override_shutdown_behavior(mocker):
     assert rayjob_existing_override.shutdown_after_job_finishes is True
 
     # Test 2: User overrides shutdown to False even when creating new cluster
-    from codeflare_sdk.ray.rayjobs.config import RayJobClusterConfig
+    from codeflare_sdk.ray.rayjobs.config import ManagedClusterConfig
 
-    cluster_config = RayJobClusterConfig()
+    cluster_config = ManagedClusterConfig()
 
     rayjob_new_override = RayJob(
         job_name="test-job",
@@ -975,10 +975,10 @@ def test_rayjob_user_override_shutdown_behavior(mocker):
 
 def test_build_ray_cluster_spec_with_gcs_ft(mocker):
     """Test build_ray_cluster_spec with GCS fault tolerance enabled."""
-    from codeflare_sdk.ray.rayjobs.config import RayJobClusterConfig
+    from codeflare_sdk.ray.rayjobs.config import ManagedClusterConfig
 
     # Create a test cluster config with GCS FT enabled
-    cluster_config = RayJobClusterConfig(
+    cluster_config = ManagedClusterConfig(
         enable_gcs_ft=True,
         redis_address="redis://redis-service:6379",
         external_storage_namespace="storage-ns",
