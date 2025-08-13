@@ -6,7 +6,7 @@ from .client import (
 
 from .rayjobs import (
     RayJob,
-    RayJobClusterConfig,
+    ManagedClusterConfig,
     RayJobDeploymentStatus,
     CodeflareRayJobStatus,
     RayJobInfo,
