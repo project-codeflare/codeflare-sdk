@@ -44,6 +44,79 @@ requirements for creating the Ray Cluster.
   documentation on building a custom image
   `here <https://github.com/opendatahub-io/distributed-workloads/tree/main/images/runtime/examples>`__.
 
+Ray Version Compatibility
+-------------------------
+
+ The CodeFlare SDK requires that the Ray version in your runtime image matches the Ray version used by the SDK itself.When you specify a custom runtime image, the SDK will automatically validate that the Ray version in the image matches this requirement.
+
+Version Validation Behavior
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The SDK performs the following validation when creating a cluster:
+
+1. **Compatible versions**: If the runtime image contains Ray 2.47.1, the cluster will be created successfully.
+
+2. **Version mismatch**: If the runtime image contains a different Ray version, cluster creation will fail with a detailed error message explaining the mismatch.
+
+3. **Unknown versions**: If the SDK cannot determine the Ray version from the image name (e.g., SHA-based tags), a warning will be issued but cluster creation will continue.
+
+Examples
+~~~~~~~~
+
+**Compatible image (recommended)**:
+
+.. code:: python
+
+   # This will work - versions match
+   cluster = Cluster(ClusterConfiguration(
+       name='ray-example',
+       image='quay.io/modh/ray:2.47.1-py311-cu121'
+   ))
+
+**Incompatible image (will fail)**:
+
+.. code:: python
+
+   # This will fail with a version mismatch error
+   cluster = Cluster(ClusterConfiguration(
+       name='ray-example',
+       image='ray:2.46.0'  # Different version!
+   ))
+
+**SHA-based image (will warn)**:
+
+.. code:: python
+
+   # This will issue a warning but continue
+   cluster = Cluster(ClusterConfiguration(
+       name='ray-example',
+       image='quay.io/modh/ray@sha256:abc123...'
+   ))
+
+Best Practices
+~~~~~~~~~~~~~~
+
+- **Use versioned tags**: Always use semantic version tags (e.g., `ray:2.47.1`) rather than `latest` or SHA-based tags for better version detection.
+
+- **Test compatibility**: When building custom images, test them with the CodeFlare SDK to ensure compatibility.
+
+- **Check SDK version**: You can check the Ray version used by the SDK with:
+
+.. code:: python
+
+   from codeflare_sdk.common.utils.constants import RAY_VERSION
+   print(f"CodeFlare SDK uses Ray version: {RAY_VERSION}")
+
+**Why is version matching important?**
+
+Ray version mismatches can cause:
+
+- Incompatible API calls between the SDK and Ray cluster
+- Unexpected behavior in job submission and cluster management
+- Potential data corruption or job failures
+- Difficult-to-debug runtime errors
+
+
 Ray Usage Statistics
 -------------------
 
