@@ -1,3 +1,3 @@
-from .rayjob import RayJob, RayJobClusterConfig
+from .rayjob import RayJob, ManagedClusterConfig
 from .status import RayJobDeploymentStatus, CodeflareRayJobStatus, RayJobInfo
-from .config import RayJobClusterConfig
+from .config import ManagedClusterConfig
