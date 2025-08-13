@@ -1,3 +1,18 @@
 ignore:
   - "**/*.ipynb"
   - "demo-notebooks/**"
+  - "**/__init__.py"
+
+coverage:
+  precision: 2
+  round: down
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 2.5%
+    patch:
+      default:
+        target: 85%
+        threshold: 2.5%
+

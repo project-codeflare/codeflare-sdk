@@ -20,7 +20,7 @@ import logging
 from typing import Dict, Any, Optional, Tuple
 from python_client.kuberay_job_api import RayjobApi
 
-from codeflare_sdk.ray.rayjobs.config import RayJobClusterConfig
+from codeflare_sdk.ray.rayjobs.config import ManagedClusterConfig
 
 from ...common.utils import get_current_namespace
 
@@ -48,7 +48,7 @@ class RayJob:
         job_name: str,
         entrypoint: str,
         cluster_name: Optional[str] = None,
-        cluster_config: Optional[RayJobClusterConfig] = None,
+        cluster_config: Optional[ManagedClusterConfig] = None,
         namespace: Optional[str] = None,
         runtime_env: Optional[Dict[str, Any]] = None,
         shutdown_after_job_finishes: Optional[bool] = None,
