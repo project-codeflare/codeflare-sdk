@@ -1,6 +1,10 @@
+[project]
+name = "codeflare-sdk"
+version = "0.30.0"
+
 [tool.poetry]
 name = "codeflare-sdk"
-version = "0.0.0-dev"
+version = "0.30.0"
 description = "Python SDK for codeflare client"
 
 license = "Apache-2.0"
@@ -60,3 +64,7 @@ markers = [
 addopts = "--timeout=900"
 testpaths = ["src/codeflare_sdk"]
 collect_ignore = ["src/codeflare_sdk/common/utils/unit_test_support.py"]
+
+[build-system]
+requires = ["poetry-core>=1.6.0"]
+build-backend = "poetry.core.masonry.api"
