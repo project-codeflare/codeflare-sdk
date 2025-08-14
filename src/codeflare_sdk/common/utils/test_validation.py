@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import pytest
 from codeflare_sdk.common.utils.validation import (
     extract_ray_version_from_image,
     validate_ray_version_compatibility,
