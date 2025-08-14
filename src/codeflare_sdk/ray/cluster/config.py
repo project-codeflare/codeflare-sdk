@@ -23,6 +23,7 @@ import warnings
 from dataclasses import dataclass, field, fields
 from typing import Dict, List, Optional, Union, get_args, get_origin
 from kubernetes.client import V1Toleration, V1Volume, V1VolumeMount
+from ...common.utils.validation import validate_ray_version_compatibility
 
 dir = pathlib.Path(__file__).parent.parent.resolve()
 
@@ -182,6 +183,7 @@ class ClusterConfiguration:
         self._validate_extended_resource_requests(
             self.worker_extended_resource_requests
         )
+        self._validate_ray_version_compatibility()
 
     def _combine_extended_resource_mapping(self):
         if overwritten := set(self.extended_resource_mapping.keys()).intersection(
@@ -289,3 +291,15 @@ class ClusterConfiguration:
             return isinstance(value, expected_type)
 
         return check_type(value, expected_type)
+
+    def _validate_ray_version_compatibility(self):
+        """
+        Validate that the Ray version in the runtime image matches the SDK's Ray version.
+        Raises ValueError if there is a version mismatch.
+        """
+        is_compatible, message = validate_ray_version_compatibility(self.image)
+
+        if not is_compatible:
+            raise ValueError(message)
+        elif "Warning:" in message:
+            warnings.warn(message)

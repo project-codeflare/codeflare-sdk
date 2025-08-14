@@ -20,11 +20,13 @@ from codeflare_sdk.common.utils.unit_test_support import (
     get_template_variables,
 )
 from codeflare_sdk.ray.cluster.cluster import ClusterConfiguration, Cluster
+from codeflare_sdk.common.utils.constants import RAY_VERSION
 from pathlib import Path
 import filecmp
 import pytest
 import os
 import yaml
+import warnings
 
 parent = Path(__file__).resolve().parents[4]  # project directory
 expected_clusters_dir = f"{parent}/tests/test_cluster_yamls"
@@ -247,3 +249,114 @@ def test_ray_usage_stats_enabled(mocker):
 def test_cleanup():
     os.remove(f"{aw_dir}test-all-params.yaml")
     os.remove(f"{aw_dir}aw-all-params.yaml")
+
+
+def test_ray_version_validation_compatible_image(mocker):
+    """Test that compatible Ray image versions pass validation."""
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch("kubernetes.client.CustomObjectsApi.list_namespaced_custom_object")
+
+    # Compatible version should not raise an exception
+    config = ClusterConfiguration(
+        name="test-cluster", namespace="test-ns", image=f"ray:{RAY_VERSION}"
+    )
+    assert config.image == f"ray:{RAY_VERSION}"
+
+
+def test_ray_version_validation_compatible_image_with_suffix(mocker):
+    """Test that compatible Ray image versions with suffixes pass validation."""
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch("kubernetes.client.CustomObjectsApi.list_namespaced_custom_object")
+
+    # Compatible version with suffix should not raise an exception
+    config = ClusterConfiguration(
+        name="test-cluster",
+        namespace="test-ns",
+        image=f"quay.io/modh/ray:{RAY_VERSION}-py311-cu121",
+    )
+    assert config.image == f"quay.io/modh/ray:{RAY_VERSION}-py311-cu121"
+
+
+def test_ray_version_validation_incompatible_image(mocker):
+    """Test that incompatible Ray image versions raise ValueError."""
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch("kubernetes.client.CustomObjectsApi.list_namespaced_custom_object")
+
+    # Incompatible version should raise ValueError
+    with pytest.raises(ValueError, match="Ray version mismatch detected"):
+        ClusterConfiguration(
+            name="test-cluster",
+            namespace="test-ns",
+            image="ray:2.46.0",  # Different from current RAY_VERSION
+        )
+
+
+def test_ray_version_validation_no_custom_image(mocker):
+    """Test that no custom image (default) passes validation."""
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch("kubernetes.client.CustomObjectsApi.list_namespaced_custom_object")
+
+    # No custom image should not raise an exception (will use default)
+    config = ClusterConfiguration(
+        name="test-cluster",
+        namespace="test-ns"
+        # image not specified - will use default
+    )
+    assert config.image == ""
+
+
+def test_ray_version_validation_unknown_version_warning(mocker):
+    """Test that unknown Ray versions issue a warning but don't fail."""
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch("kubernetes.client.CustomObjectsApi.list_namespaced_custom_object")
+
+    # SHA-based image should issue warning but not fail
+    with warnings.catch_warnings(record=True) as warning_list:
+        warnings.simplefilter("always")
+        config = ClusterConfiguration(
+            name="test-cluster",
+            namespace="test-ns",
+            image="quay.io/modh/ray@sha256:6d076aeb38ab3c34a6a2ef0f58dc667089aa15826fa08a73273c629333e12f1e",
+        )
+
+        # Check that a warning was issued
+        assert len(warning_list) >= 1
+        warning_messages = [str(w.message) for w in warning_list]
+        assert any("Cannot determine Ray version" in msg for msg in warning_messages)
+
+
+def test_ray_version_validation_custom_image_warning(mocker):
+    """Test that custom images without version info issue a warning."""
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch("kubernetes.client.CustomObjectsApi.list_namespaced_custom_object")
+
+    # Custom image without version should issue warning but not fail
+    with warnings.catch_warnings(record=True) as warning_list:
+        warnings.simplefilter("always")
+        config = ClusterConfiguration(
+            name="test-cluster", namespace="test-ns", image="my-custom-ray:latest"
+        )
+
+        # Check that a warning was issued
+        assert len(warning_list) >= 1
+        warning_messages = [str(w.message) for w in warning_list]
+        assert any("Cannot determine Ray version" in msg for msg in warning_messages)
+
+
+def test_ray_version_validation_error_message_content(mocker):
+    """Test that validation error messages contain expected content."""
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch("kubernetes.client.CustomObjectsApi.list_namespaced_custom_object")
+
+    # Test error message content
+    with pytest.raises(ValueError) as exc_info:
+        ClusterConfiguration(
+            name="test-cluster", namespace="test-ns", image="ray:2.46.0"
+        )
+
+    error_message = str(exc_info.value)
+    assert "Ray version mismatch detected" in error_message
+    assert "CodeFlare SDK uses Ray" in error_message
+    assert "runtime image uses Ray" in error_message
+    assert "compatibility issues" in error_message
+    assert "Please use a runtime image" in error_message
