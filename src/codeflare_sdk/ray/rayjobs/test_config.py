@@ -131,3 +131,42 @@ def test_ray_usage_stats_with_other_user_envs():
 
     # Total count should be correct (3 user envs)
     assert len(config.envs) == 3
+
+
+def test_add_script_volumes_existing_volume_early_return():
+    """Test add_script_volumes early return when volume already exists."""
+    from kubernetes.client import V1Volume, V1ConfigMapVolumeSource
+
+    config = ManagedClusterConfig()
+
+    # Pre-add a volume with same name
+    existing_volume = V1Volume(
+        name="ray-job-scripts",
+        config_map=V1ConfigMapVolumeSource(name="existing-scripts"),
+    )
+    config.volumes.append(existing_volume)
+
+    # Should return early and not add duplicate
+    config.add_script_volumes(configmap_name="new-scripts")
+
+    # Should still have only one volume, no mount added
+    assert len(config.volumes) == 1
+    assert len(config.volume_mounts) == 0
+
+
+def test_add_script_volumes_existing_mount_early_return():
+    """Test add_script_volumes early return when mount already exists."""
+    from kubernetes.client import V1VolumeMount
+
+    config = ManagedClusterConfig()
+
+    # Pre-add a mount with same name
+    existing_mount = V1VolumeMount(name="ray-job-scripts", mount_path="/existing/path")
+    config.volume_mounts.append(existing_mount)
+
+    # Should return early and not add duplicate
+    config.add_script_volumes(configmap_name="new-scripts")
+
+    # Should still have only one mount, no volume added
+    assert len(config.volumes) == 0
+    assert len(config.volume_mounts) == 1

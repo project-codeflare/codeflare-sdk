@@ -18,9 +18,14 @@ RayJob client for submitting and managing Ray jobs using the kuberay python clie
 
 import logging
 import warnings
+import os
+import re
+import ast
 from typing import Dict, Any, Optional, Tuple
+from kubernetes import client
+from ...common.kubernetes_cluster.auth import get_api_client
 from python_client.kuberay_job_api import RayjobApi
-
+from python_client.kuberay_cluster_api import RayClusterApi
 from codeflare_sdk.ray.rayjobs.config import ManagedClusterConfig
 
 from ...common.utils import get_current_namespace
@@ -35,6 +40,8 @@ from . import pretty_print
 
 
 logger = logging.getLogger(__name__)
+
+mount_path = "/home/ray/scripts"
 
 
 class RayJob:
@@ -143,6 +150,7 @@ class RayJob:
             logger.info(f"Using existing cluster: {self.cluster_name}")
 
         self._api = RayjobApi()
+        self._cluster_api = RayClusterApi()
 
         logger.info(f"Initialized RayJob: {self.name} in namespace: {self.namespace}")
 
@@ -153,6 +161,17 @@ class RayJob:
 
         # Validate Ray version compatibility for both cluster_config and runtime_env
         self._validate_ray_version_compatibility()
+        # Automatically handle script files for new clusters
+        if self._cluster_config is not None:
+            scripts = self._extract_script_files_from_entrypoint()
+            if scripts:
+                self._handle_script_volumes_for_new_cluster(scripts)
+
+        # Handle script files for existing clusters
+        elif self._cluster_name:
+            scripts = self._extract_script_files_from_entrypoint()
+            if scripts:
+                self._handle_script_volumes_for_existing_cluster(scripts)
 
         # Build the RayJob custom resource
         rayjob_cr = self._build_rayjob_cr()
@@ -323,3 +342,265 @@ class RayJob:
         return status_mapping.get(
             deployment_status, (CodeflareRayJobStatus.UNKNOWN, False)
         )
+
+    def _extract_script_files_from_entrypoint(self) -> Optional[Dict[str, str]]:
+        """
+        Extract local Python script files from entrypoint command, plus their dependencies.
+
+        Returns:
+            Dict of {script_name: script_content} if local scripts found, None otherwise
+        """
+        if not self.entrypoint:
+            return None
+
+        scripts = {}
+        # mount_path = "/home/ray/scripts"
+        processed_files = set()  # Avoid infinite loops
+
+        # Look for Python file patterns in entrypoint (e.g., "python script.py", "python /path/to/script.py")
+        python_file_pattern = r"(?:python\s+)?([./\w/]+\.py)"
+        matches = re.findall(python_file_pattern, self.entrypoint)
+
+        # Process main scripts from entrypoint files
+        for script_path in matches:
+            self._process_script_and_imports(
+                script_path, scripts, mount_path, processed_files
+            )
+
+        # Update entrypoint paths to use mounted locations
+        for script_path in matches:
+            if script_path in [os.path.basename(s) for s in processed_files]:
+                old_path = script_path
+                new_path = f"{mount_path}/{os.path.basename(script_path)}"
+                self.entrypoint = self.entrypoint.replace(old_path, new_path)
+
+        return scripts if scripts else None
+
+    def _process_script_and_imports(
+        self,
+        script_path: str,
+        scripts: Dict[str, str],
+        mount_path: str,
+        processed_files: set,
+    ):
+        """Recursively process a script and its local imports"""
+        if script_path in processed_files:
+            return
+
+        # Check if it's a local file (not already a container path)
+        if script_path.startswith("/home/ray/") or not os.path.isfile(script_path):
+            return
+
+        processed_files.add(script_path)
+
+        try:
+            with open(script_path, "r") as f:
+                script_content = f.read()
+
+            script_name = os.path.basename(script_path)
+            scripts[script_name] = script_content
+
+            logger.info(
+                f"Found local script: {script_path} -> will mount at {mount_path}/{script_name}"
+            )
+
+            # Parse imports in this script to find dependencies
+            self._find_local_imports(
+                script_content,
+                script_path,
+                lambda path: self._process_script_and_imports(
+                    path, scripts, mount_path, processed_files
+                ),
+            )
+
+        except (IOError, OSError) as e:
+            logger.warning(f"Could not read script file {script_path}: {e}")
+
+    def _find_local_imports(
+        self, script_content: str, script_path: str, process_callback
+    ):
+        """
+        Find local Python imports in script content and process them.
+
+        Args:
+            script_content: The content of the Python script
+            script_path: Path to the current script (for relative imports)
+            process_callback: Function to call for each found local import
+        """
+
+        try:
+            # Parse the Python AST to find imports
+            tree = ast.parse(script_content)
+            script_dir = os.path.dirname(os.path.abspath(script_path))
+
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Import):
+                    # Handle: import module_name
+                    for alias in node.names:
+                        potential_file = os.path.join(script_dir, f"{alias.name}.py")
+                        if os.path.isfile(potential_file):
+                            process_callback(potential_file)
+
+                elif isinstance(node, ast.ImportFrom):
+                    # Handle: from module_name import something
+                    if node.module:
+                        potential_file = os.path.join(script_dir, f"{node.module}.py")
+                        if os.path.isfile(potential_file):
+                            process_callback(potential_file)
+
+        except (SyntaxError, ValueError) as e:
+            logger.debug(f"Could not parse imports from {script_path}: {e}")
+
+    def _handle_script_volumes_for_new_cluster(self, scripts: Dict[str, str]):
+        """Handle script volumes for new clusters (uses ManagedClusterConfig)."""
+        # Validate ConfigMap size before creation
+        self._cluster_config.validate_configmap_size(scripts)
+
+        # Build ConfigMap spec using config.py
+        configmap_spec = self._cluster_config.build_script_configmap_spec(
+            job_name=self.name, namespace=self.namespace, scripts=scripts
+        )
+
+        # Create ConfigMap via Kubernetes API
+        configmap_name = self._create_configmap_from_spec(configmap_spec)
+
+        # Add volumes to cluster config (config.py handles spec building)
+        self._cluster_config.add_script_volumes(
+            configmap_name=configmap_name, mount_path="/home/ray/scripts"
+        )
+
+    def _handle_script_volumes_for_existing_cluster(self, scripts: Dict[str, str]):
+        """Handle script volumes for existing clusters (updates RayCluster CR)."""
+        # Create config builder for utility methods
+        config_builder = ManagedClusterConfig()
+
+        # Validate ConfigMap size before creation
+        config_builder.validate_configmap_size(scripts)
+
+        # Build ConfigMap spec using config.py
+        configmap_spec = config_builder.build_script_configmap_spec(
+            job_name=self.name, namespace=self.namespace, scripts=scripts
+        )
+
+        # Create ConfigMap via Kubernetes API
+        configmap_name = self._create_configmap_from_spec(configmap_spec)
+
+        # Update existing RayCluster
+        self._update_existing_cluster_for_scripts(configmap_name, config_builder)
+
+    def _create_configmap_from_spec(self, configmap_spec: Dict[str, Any]) -> str:
+        """
+        Create ConfigMap from specification via Kubernetes API.
+
+        Args:
+            configmap_spec: ConfigMap specification dictionary
+
+        Returns:
+            str: Name of the created ConfigMap
+        """
+
+        configmap_name = configmap_spec["metadata"]["name"]
+
+        # Convert dict spec to V1ConfigMap
+        configmap = client.V1ConfigMap(
+            metadata=client.V1ObjectMeta(**configmap_spec["metadata"]),
+            data=configmap_spec["data"],
+        )
+
+        # Create ConfigMap via Kubernetes API
+        k8s_api = client.CoreV1Api(get_api_client())
+        try:
+            k8s_api.create_namespaced_config_map(
+                namespace=self.namespace, body=configmap
+            )
+            logger.info(
+                f"Created ConfigMap '{configmap_name}' with {len(configmap_spec['data'])} scripts"
+            )
+        except client.ApiException as e:
+            if e.status == 409:  # Already exists
+                logger.info(f"ConfigMap '{configmap_name}' already exists, updating...")
+                k8s_api.replace_namespaced_config_map(
+                    name=configmap_name, namespace=self.namespace, body=configmap
+                )
+            else:
+                raise RuntimeError(
+                    f"Failed to create ConfigMap '{configmap_name}': {e}"
+                )
+
+        return configmap_name
+
+    # Note: This only works once the pods have been restarted as the configmaps won't be picked up until then :/
+    def _update_existing_cluster_for_scripts(
+        self, configmap_name: str, config_builder: ManagedClusterConfig
+    ):
+        """
+        Update existing RayCluster to add script volumes and mounts.
+
+        Args:
+            configmap_name: Name of the ConfigMap containing scripts
+            config_builder: ManagedClusterConfig instance for building specs
+        """
+
+        # Get existing RayCluster
+        api_instance = client.CustomObjectsApi(get_api_client())
+        try:
+            ray_cluster = self._cluster_api.get_ray_cluster(
+                name=self.cluster_name,
+                k8s_namespace=self.namespace,
+            )
+        except client.ApiException as e:
+            raise RuntimeError(f"Failed to get RayCluster '{self.cluster_name}': {e}")
+
+        # Build script volume and mount specifications using config.py
+        script_volume, script_mount = config_builder.build_script_volume_specs(
+            configmap_name=configmap_name, mount_path="/home/ray/scripts"
+        )
+
+        # Helper function to check for duplicate volumes/mounts
+        def volume_exists(volumes_list, volume_name):
+            return any(v.get("name") == volume_name for v in volumes_list)
+
+        def mount_exists(mounts_list, mount_name):
+            return any(m.get("name") == mount_name for m in mounts_list)
+
+        # Add volumes and mounts to head group
+        head_spec = ray_cluster["spec"]["headGroupSpec"]["template"]["spec"]
+        if "volumes" not in head_spec:
+            head_spec["volumes"] = []
+        if not volume_exists(head_spec["volumes"], script_volume["name"]):
+            head_spec["volumes"].append(script_volume)
+
+        head_container = head_spec["containers"][0]  # Ray head container
+        if "volumeMounts" not in head_container:
+            head_container["volumeMounts"] = []
+        if not mount_exists(head_container["volumeMounts"], script_mount["name"]):
+            head_container["volumeMounts"].append(script_mount)
+
+        # Add volumes and mounts to worker groups
+        for worker_group in ray_cluster["spec"]["workerGroupSpecs"]:
+            worker_spec = worker_group["template"]["spec"]
+            if "volumes" not in worker_spec:
+                worker_spec["volumes"] = []
+            if not volume_exists(worker_spec["volumes"], script_volume["name"]):
+                worker_spec["volumes"].append(script_volume)
+
+            worker_container = worker_spec["containers"][0]  # Ray worker container
+            if "volumeMounts" not in worker_container:
+                worker_container["volumeMounts"] = []
+            if not mount_exists(worker_container["volumeMounts"], script_mount["name"]):
+                worker_container["volumeMounts"].append(script_mount)
+
+        # Update the RayCluster
+        try:
+            self._cluster_api.patch_ray_cluster(
+                name=self.cluster_name,
+                ray_patch=ray_cluster,
+                k8s_namespace=self.namespace,
+            )
+            logger.info(
+                f"Updated RayCluster '{self.cluster_name}' with script volumes from ConfigMap '{configmap_name}'"
+            )
+        except client.ApiException as e:
+            raise RuntimeError(
+                f"Failed to update RayCluster '{self.cluster_name}': {e}"
+            )
