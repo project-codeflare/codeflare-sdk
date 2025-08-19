@@ -20,7 +20,7 @@ Cluster object.
 
 import pathlib
 from dataclasses import dataclass, field, fields
-from typing import Dict, List, Optional, Union, get_args, get_origin, Any
+from typing import Dict, List, Optional, Union, get_args, get_origin, Any, Tuple
 from kubernetes.client import (
     V1ConfigMapVolumeSource,
     V1KeyToPath,
@@ -515,3 +515,88 @@ class ManagedClusterConfig:
             }
 
         return gcs_ft_options
+
+    def add_script_volumes(
+        self, configmap_name: str, mount_path: str = "/home/ray/scripts"
+    ):
+        """
+        Add script volume and mount references to cluster configuration.
+
+        Args:
+            configmap_name: Name of the ConfigMap containing scripts
+            mount_path: Where to mount scripts in containers (default: /home/ray/scripts)
+        """
+        # Check if script volume already exists
+        volume_name = "ray-job-scripts"
+        existing_volume = next(
+            (v for v in self.volumes if getattr(v, "name", None) == volume_name), None
+        )
+        if existing_volume:
+            logger.debug(f"Script volume '{volume_name}' already exists, skipping...")
+            return
+
+        # Check if script mount already exists
+        existing_mount = next(
+            (m for m in self.volume_mounts if getattr(m, "name", None) == volume_name),
+            None,
+        )
+        if existing_mount:
+            logger.debug(
+                f"Script volume mount '{volume_name}' already exists, skipping..."
+            )
+            return
+
+        # Add script volume to cluster configuration
+        script_volume = V1Volume(
+            name=volume_name, config_map=V1ConfigMapVolumeSource(name=configmap_name)
+        )
+        self.volumes.append(script_volume)
+
+        # Add script volume mount to cluster configuration
+        script_mount = V1VolumeMount(name=volume_name, mount_path=mount_path)
+        self.volume_mounts.append(script_mount)
+
+        logger.info(
+            f"Added script volume '{configmap_name}' to cluster config: mount_path={mount_path}"
+        )
+
+    def build_script_configmap_spec(
+        self, job_name: str, namespace: str, scripts: Dict[str, str]
+    ) -> Dict[str, Any]:
+        """
+        Build ConfigMap specification for scripts (no API calls).
+
+        Args:
+            job_name: Name of the RayJob (used for ConfigMap naming)
+            namespace: Kubernetes namespace
+            scripts: Dictionary of script_name -> script_content
+
+        Returns:
+            Dict: ConfigMap specification ready for Kubernetes API
+        """
+        configmap_name = f"{job_name}-scripts"
+        return {
+            "apiVersion": "v1",
+            "kind": "ConfigMap",
+            "metadata": {"name": configmap_name, "namespace": namespace},
+            "data": scripts,
+        }
+
+    def build_script_volume_specs(
+        self, configmap_name: str, mount_path: str = "/home/ray/scripts"
+    ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+        """
+        Build volume and mount specifications for scripts (no API calls).
+
+        Args:
+            configmap_name: Name of the ConfigMap containing scripts
+            mount_path: Where to mount scripts in containers
+
+        Returns:
+            Tuple of (volume_spec, mount_spec) as dictionaries
+        """
+        volume_spec = {"name": "ray-job-scripts", "configMap": {"name": configmap_name}}
+
+        mount_spec = {"name": "ray-job-scripts", "mountPath": mount_path}
+
+        return volume_spec, mount_spec
