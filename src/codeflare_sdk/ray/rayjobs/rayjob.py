@@ -1,4 +1,4 @@
-# Copyright 2025 IBM, Red Hat
+# Copyright 2022-2025 IBM, Red Hat
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,12 +17,14 @@ RayJob client for submitting and managing Ray jobs using the kuberay python clie
 """
 
 import logging
+import warnings
 from typing import Dict, Any, Optional, Tuple
 from python_client.kuberay_job_api import RayjobApi
 
 from codeflare_sdk.ray.rayjobs.config import ManagedClusterConfig
 
 from ...common.utils import get_current_namespace
+from ...common.utils.validation import validate_ray_version_compatibility
 
 from .status import (
     RayJobDeploymentStatus,
@@ -149,6 +151,9 @@ class RayJob:
         if not self.entrypoint:
             raise ValueError("entrypoint must be provided to submit a RayJob")
 
+        # Validate Ray version compatibility for both cluster_config and runtime_env
+        self._validate_ray_version_compatibility()
+
         # Build the RayJob custom resource
         rayjob_cr = self._build_rayjob_cr()
 
@@ -212,6 +217,42 @@ class RayJob:
             logger.info(f"RayJob will use existing cluster: {self.cluster_name}")
 
         return rayjob_cr
+
+    def _validate_ray_version_compatibility(self):
+        """
+        Validate Ray version compatibility for cluster_config image only.
+        Raises ValueError if there is a version mismatch.
+        """
+        # Validate cluster_config image if creating new cluster
+        if self._cluster_config is not None:
+            self._validate_cluster_config_image()
+
+    def _validate_cluster_config_image(self):
+        """
+        Validate that the Ray version in cluster_config image matches the SDK's Ray version.
+        """
+        if not hasattr(self._cluster_config, "image"):
+            logger.debug(
+                "No image attribute found in cluster config, skipping validation"
+            )
+            return
+
+        image = self._cluster_config.image
+        if not image:
+            logger.debug("Cluster config image is empty, skipping validation")
+            return
+
+        if not isinstance(image, str):
+            logger.warning(
+                f"Cluster config image should be a string, got {type(image).__name__}: {image}"
+            )
+            return  # Skip validation for malformed image
+
+        is_compatible, is_warning, message = validate_ray_version_compatibility(image)
+        if not is_compatible:
+            raise ValueError(f"Cluster config image: {message}")
+        elif is_warning:
+            warnings.warn(f"Cluster config image: {message}")
 
     def status(
         self, print_to_console: bool = True

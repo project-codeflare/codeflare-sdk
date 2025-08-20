@@ -1,4 +1,4 @@
-# Copyright 2025 IBM, Red Hat
+# Copyright 2022-2025 IBM, Red Hat
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ from codeflare_sdk.common.utils.constants import CUDA_RUNTIME_IMAGE, RAY_VERSION
 
 from codeflare_sdk.ray.rayjobs.rayjob import RayJob
 from codeflare_sdk.ray.cluster.config import ClusterConfiguration
+from codeflare_sdk.ray.rayjobs.config import ManagedClusterConfig
 
 
 def test_rayjob_submit_success(mocker):
@@ -992,3 +993,153 @@ def test_build_ray_cluster_spec_with_gcs_ft(mocker):
     gcs_ft = spec["gcsFaultToleranceOptions"]
     assert gcs_ft["redisAddress"] == "redis://redis-service:6379"
     assert gcs_ft["externalStorageNamespace"] == "storage-ns"
+
+
+class TestRayVersionValidation:
+    """Test Ray version validation in RayJob."""
+
+    def test_submit_with_cluster_config_compatible_image_passes(self, mocker):
+        """Test that submission passes with compatible cluster_config image."""
+        mocker.patch("kubernetes.config.load_kube_config")
+        mock_api_class = mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayjobApi")
+        mock_api_instance = MagicMock()
+        mock_api_class.return_value = mock_api_instance
+        mock_api_instance.submit_job.return_value = True
+
+        cluster_config = ManagedClusterConfig(image=f"ray:{RAY_VERSION}")
+
+        rayjob = RayJob(
+            job_name="test-job",
+            cluster_config=cluster_config,
+            namespace="test-namespace",
+            entrypoint="python script.py",
+        )
+
+        # Should not raise any validation errors
+        result = rayjob.submit()
+        assert result == "test-job"
+
+    def test_submit_with_cluster_config_incompatible_image_fails(self, mocker):
+        """Test that submission fails with incompatible cluster_config image."""
+        mocker.patch("kubernetes.config.load_kube_config")
+        mock_api_class = mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayjobApi")
+        mock_api_instance = MagicMock()
+        mock_api_class.return_value = mock_api_instance
+
+        cluster_config = ManagedClusterConfig(image="ray:2.8.0")  # Different version
+
+        rayjob = RayJob(
+            job_name="test-job",
+            cluster_config=cluster_config,
+            namespace="test-namespace",
+            entrypoint="python script.py",
+        )
+
+        # Should raise ValueError for version mismatch
+        with pytest.raises(
+            ValueError, match="Cluster config image: Ray version mismatch detected"
+        ):
+            rayjob.submit()
+
+    def test_validate_ray_version_compatibility_method(self, mocker):
+        """Test the _validate_ray_version_compatibility method directly."""
+        mocker.patch("kubernetes.config.load_kube_config")
+        mock_api_class = mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayjobApi")
+        mock_api_instance = MagicMock()
+        mock_api_class.return_value = mock_api_instance
+
+        rayjob = RayJob(
+            job_name="test-job",
+            cluster_name="test-cluster",
+            namespace="test-namespace",
+            entrypoint="python script.py",
+        )
+
+        # Test with no cluster_config (should not raise)
+        rayjob._validate_ray_version_compatibility()  # Should not raise
+
+        # Test with compatible cluster_config version
+        rayjob._cluster_config = ManagedClusterConfig(image=f"ray:{RAY_VERSION}")
+        rayjob._validate_ray_version_compatibility()  # Should not raise
+
+        # Test with incompatible cluster_config version
+        rayjob._cluster_config = ManagedClusterConfig(image="ray:2.8.0")
+        with pytest.raises(
+            ValueError, match="Cluster config image: Ray version mismatch detected"
+        ):
+            rayjob._validate_ray_version_compatibility()
+
+        # Test with unknown cluster_config version (should warn but not fail)
+        rayjob._cluster_config = ManagedClusterConfig(image="custom-image:latest")
+        with pytest.warns(
+            UserWarning, match="Cluster config image: Cannot determine Ray version"
+        ):
+            rayjob._validate_ray_version_compatibility()
+
+    def test_validate_cluster_config_image_method(self, mocker):
+        """Test the _validate_cluster_config_image method directly."""
+        mocker.patch("kubernetes.config.load_kube_config")
+        mock_api_class = mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayjobApi")
+        mock_api_instance = MagicMock()
+        mock_api_class.return_value = mock_api_instance
+
+        rayjob = RayJob(
+            job_name="test-job",
+            cluster_config=ManagedClusterConfig(),
+            namespace="test-namespace",
+            entrypoint="python script.py",
+        )
+
+        # Test with no image (should not raise)
+        rayjob._validate_cluster_config_image()  # Should not raise
+
+        # Test with compatible image
+        rayjob._cluster_config.image = f"ray:{RAY_VERSION}"
+        rayjob._validate_cluster_config_image()  # Should not raise
+
+        # Test with incompatible image
+        rayjob._cluster_config.image = "ray:2.8.0"
+        with pytest.raises(
+            ValueError, match="Cluster config image: Ray version mismatch detected"
+        ):
+            rayjob._validate_cluster_config_image()
+
+        # Test with unknown image (should warn but not fail)
+        rayjob._cluster_config.image = "custom-image:latest"
+        with pytest.warns(
+            UserWarning, match="Cluster config image: Cannot determine Ray version"
+        ):
+            rayjob._validate_cluster_config_image()
+
+    def test_validate_cluster_config_image_edge_cases(self, mocker):
+        """Test edge cases in _validate_cluster_config_image method."""
+        mocker.patch("kubernetes.config.load_kube_config")
+        mock_api_class = mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayjobApi")
+        mock_api_instance = MagicMock()
+        mock_api_class.return_value = mock_api_instance
+
+        rayjob = RayJob(
+            job_name="test-job",
+            cluster_config=ManagedClusterConfig(),
+            namespace="test-namespace",
+            entrypoint="python script.py",
+        )
+
+        # Test with None image (should not raise)
+        rayjob._cluster_config.image = None
+        rayjob._validate_cluster_config_image()  # Should not raise
+
+        # Test with empty string image (should not raise)
+        rayjob._cluster_config.image = ""
+        rayjob._validate_cluster_config_image()  # Should not raise
+
+        # Test with non-string image (should log warning and skip)
+        rayjob._cluster_config.image = 123
+        rayjob._validate_cluster_config_image()  # Should log warning and not raise
+
+        # Test with cluster config that has no image attribute
+        class MockClusterConfig:
+            pass
+
+        rayjob._cluster_config = MockClusterConfig()
+        rayjob._validate_cluster_config_image()  # Should not raise
