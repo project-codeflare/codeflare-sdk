@@ -1,4 +1,4 @@
-# Copyright 2024 IBM, Red Hat
+# Copyright 2022-2025 IBM, Red Hat
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,11 +20,13 @@ from codeflare_sdk.common.utils.unit_test_support import (
     get_template_variables,
 )
 from codeflare_sdk.ray.cluster.cluster import ClusterConfiguration, Cluster
+from codeflare_sdk.common.utils.constants import RAY_VERSION
 from pathlib import Path
 import filecmp
 import pytest
 import os
 import yaml
+import warnings
 
 parent = Path(__file__).resolve().parents[4]  # project directory
 expected_clusters_dir = f"{parent}/tests/test_cluster_yamls"
