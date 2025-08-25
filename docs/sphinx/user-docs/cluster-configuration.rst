@@ -155,20 +155,3 @@ Example configuration:
 
 .. note::
    You need to have a Redis instance deployed in your Kubernetes cluster before using this feature.
-
-Deprecating Parameters
-----------------------
-
-The following parameters of the ``ClusterConfiguration`` are being
-deprecated.
-
-.. list-table::
-   :header-rows: 1
-   :widths: auto
-
-   * - Deprecated Parameter
-     - Replaced By
-   * - ``head_cpus``
-     - ``head_cpu_requests``, ``head_cpu_limits``
-   * - ``head_memory``
-     - ``head_memory_requests``, ``head_memory_limits``
