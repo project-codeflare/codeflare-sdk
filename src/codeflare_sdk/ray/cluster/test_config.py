@@ -135,23 +135,6 @@ def test_config_creation_wrong_type():
     assert len(str(error_info.value).splitlines()) == 4
 
 
-@pytest.mark.filterwarnings("ignore::UserWarning")
-def test_cluster_config_deprecation_conversion(mocker):
-    config = ClusterConfiguration(
-        name="test",
-        head_cpus=3,
-        head_memory=16,
-    )
-    assert config.head_cpu_requests == 3
-    assert config.head_cpu_limits == 3
-    assert config.head_memory_requests == "16G"
-    assert config.head_memory_limits == "16G"
-    assert config.worker_memory_requests == "2G"
-    assert config.worker_memory_limits == "2G"
-    assert config.worker_cpu_requests == 1
-    assert config.worker_cpu_limits == 1
-
-
 def test_gcs_fault_tolerance_config_validation():
     config = ClusterConfiguration(
         name="test",
