@@ -50,10 +50,6 @@ class ClusterConfiguration:
             The name of the cluster.
         namespace:
             The namespace in which the cluster should be created.
-        head_cpus:
-            The number of CPUs to allocate to the head node.
-        head_memory:
-            The amount of memory to allocate to the head node.
         head_extended_resource_requests:
             A dictionary of extended resource requests for the head node. ex: {"nvidia.com/gpu": 1}
         head_tolerations:
@@ -104,10 +100,8 @@ class ClusterConfiguration:
     namespace: Optional[str] = None
     head_cpu_requests: Union[int, str] = 2
     head_cpu_limits: Union[int, str] = 2
-    head_cpus: Optional[Union[int, str]] = None  # Deprecating
     head_memory_requests: Union[int, str] = 8
     head_memory_limits: Union[int, str] = 8
-    head_memory: Optional[Union[int, str]] = None  # Deprecating
     head_extended_resource_requests: Dict[str, Union[str, int]] = field(
         default_factory=dict
     )
@@ -173,10 +167,8 @@ class ClusterConfiguration:
                 )
 
         self._validate_types()
-        self._memory_to_resource()
         self._memory_to_string()
         self._str_mem_no_unit_add_GB()
-        self._cpu_to_resource()
         self._combine_extended_resource_mapping()
         self._validate_extended_resource_requests(self.head_extended_resource_requests)
         self._validate_extended_resource_requests(
@@ -209,8 +201,6 @@ class ClusterConfiguration:
                 )
 
     def _str_mem_no_unit_add_GB(self):
-        if isinstance(self.head_memory, str) and self.head_memory.isdecimal():
-            self.head_memory = f"{self.head_memory}G"
         if (
             isinstance(self.worker_memory_requests, str)
             and self.worker_memory_requests.isdecimal()
@@ -231,20 +221,6 @@ class ClusterConfiguration:
             self.worker_memory_requests = f"{self.worker_memory_requests}G"
         if isinstance(self.worker_memory_limits, int):
             self.worker_memory_limits = f"{self.worker_memory_limits}G"
-
-    def _cpu_to_resource(self):
-        if self.head_cpus:
-            warnings.warn(
-                "head_cpus is being deprecated, use head_cpu_requests and head_cpu_limits"
-            )
-            self.head_cpu_requests = self.head_cpu_limits = self.head_cpus
-
-    def _memory_to_resource(self):
-        if self.head_memory:
-            warnings.warn(
-                "head_memory is being deprecated, use head_memory_requests and head_memory_limits"
-            )
-            self.head_memory_requests = self.head_memory_limits = self.head_memory
 
     def _validate_types(self):
         """Validate the types of all fields in the ClusterConfiguration dataclass."""
