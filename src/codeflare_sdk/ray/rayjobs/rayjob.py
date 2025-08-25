@@ -220,7 +220,7 @@ class RayJob:
 
     def _validate_ray_version_compatibility(self):
         """
-        Validate Ray version compatibility for cluster_config image only.
+        Validate Ray version compatibility for cluster_config image.
         Raises ValueError if there is a version mismatch.
         """
         # Validate cluster_config image if creating new cluster

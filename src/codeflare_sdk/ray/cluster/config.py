@@ -24,7 +24,6 @@ from dataclasses import dataclass, field, fields
 from typing import Dict, List, Optional, Union, get_args, get_origin
 from kubernetes.client import V1Toleration, V1Volume, V1VolumeMount
 
-
 dir = pathlib.Path(__file__).parent.parent.resolve()
 
 # https://docs.ray.io/en/latest/ray-core/scheduling/accelerators.html
