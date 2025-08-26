@@ -2,7 +2,6 @@ from time import sleep
 
 from codeflare_sdk import Cluster, ClusterConfiguration
 from codeflare_sdk.ray.rayjobs import RayJob
-from codeflare_sdk.ray.rayjobs.status import CodeflareRayJobStatus
 
 import pytest
 
@@ -105,104 +104,120 @@ class TestRayJobExistingClusterKind:
         ), f"Job submission failed, expected {job_name}, got {submission_result}"
         print(f"✅ Successfully submitted RayJob '{job_name}' against existing cluster")
 
-        # Debug: Check if RayJob resource was actually created
+        # Monitor the job status until completion using kubectl (Kind-specific workaround)
+        self.monitor_rayjob_completion_kubectl(job_name, timeout=900)
+
+        print(f"✅ RayJob '{job_name}' completed successfully against existing cluster!")
+
+    def monitor_rayjob_completion_kubectl(self, job_name: str, timeout: int = 900):
+        """
+        Monitor a RayJob until it completes or fails using kubectl directly.
+        This is a workaround for Kind clusters where the SDK status method doesn't work.
+
+        Args:
+            job_name: The name of the RayJob to monitor
+            timeout: Maximum time to wait in seconds (default: 15 minutes)
+        """
         import subprocess
         import time
 
-        print("🔍 Checking if RayJob resource exists in Kubernetes...")
-        for attempt in range(6):  # Check for 30 seconds
+        print(f"⏳ Monitoring RayJob '{job_name}' status using kubectl...")
+
+        elapsed_time = 0
+        check_interval = 10  # Check every 10 seconds
+
+        while elapsed_time < timeout:
             try:
-                # Check if RayJob resource exists
+                # Get RayJob status using kubectl
                 result = subprocess.run(
-                    ["kubectl", "get", "rayjobs", "-n", self.namespace, job_name],
+                    [
+                        "kubectl",
+                        "get",
+                        "rayjobs",
+                        "-n",
+                        self.namespace,
+                        job_name,
+                        "-o",
+                        "jsonpath={.status.jobDeploymentStatus}",
+                    ],
                     capture_output=True,
                     text=True,
                     timeout=10,
                 )
+
                 if result.returncode == 0:
-                    print(f"✅ RayJob resource '{job_name}' found in Kubernetes!")
-                    print(f"RayJob details:\n{result.stdout}")
-                    break
-                else:
-                    print(
-                        f"❌ Attempt {attempt + 1}: RayJob resource '{job_name}' not found"
+                    status = result.stdout.strip()
+
+                    # Also get job status for more details
+                    job_status_result = subprocess.run(
+                        [
+                            "kubectl",
+                            "get",
+                            "rayjobs",
+                            "-n",
+                            self.namespace,
+                            job_name,
+                            "-o",
+                            "jsonpath={.status.jobStatus}",
+                        ],
+                        capture_output=True,
+                        text=True,
+                        timeout=10,
                     )
-                    if attempt < 5:
-                        time.sleep(5)
+                    job_status = (
+                        job_status_result.stdout.strip()
+                        if job_status_result.returncode == 0
+                        else "Unknown"
+                    )
+
+                    print(
+                        f"📊 RayJob '{job_name}' - Deployment Status: {status}, Job Status: {job_status}"
+                    )
+
+                    # Check completion status
+                    if status == "Complete" or job_status == "SUCCEEDED":
+                        print(f"✅ RayJob '{job_name}' completed successfully!")
+                        return
+                    elif status == "Failed" or job_status == "FAILED":
+                        # Get error details
+                        try:
+                            error_result = subprocess.run(
+                                [
+                                    "kubectl",
+                                    "get",
+                                    "rayjobs",
+                                    "-n",
+                                    self.namespace,
+                                    job_name,
+                                    "-o",
+                                    "yaml",
+                                ],
+                                capture_output=True,
+                                text=True,
+                                timeout=10,
+                            )
+                            print(
+                                f"❌ RayJob '{job_name}' failed! Details:\n{error_result.stdout}"
+                            )
+                        except:
+                            pass
+                        raise AssertionError(f"❌ RayJob '{job_name}' failed!")
+                    elif status == "Running" or job_status == "RUNNING":
+                        print(f"🏃 RayJob '{job_name}' is still running...")
+                    else:
+                        print(f"⏳ RayJob '{job_name}' status: {status}")
+
+                else:
+                    print(f"❌ Could not get RayJob status: {result.stderr}")
+
             except Exception as e:
-                print(f"❌ Error checking RayJob: {e}")
-
-        # Also check what RayJob resources exist in the namespace
-        try:
-            result = subprocess.run(
-                ["kubectl", "get", "rayjobs", "-n", self.namespace],
-                capture_output=True,
-                text=True,
-                timeout=10,
-            )
-            print(f"📋 All RayJobs in namespace '{self.namespace}':\n{result.stdout}")
-        except Exception as e:
-            print(f"❌ Error listing RayJobs: {e}")
-
-        # Monitor the job status until completion
-        self.monitor_rayjob_completion(rayjob, timeout=900)
-
-        print(f"✅ RayJob '{job_name}' completed successfully against existing cluster!")
-
-    def monitor_rayjob_completion(self, rayjob: RayJob, timeout: int = 900):
-        """
-        Monitor a RayJob until it completes or fails.
-
-        Args:
-            rayjob: The RayJob instance to monitor
-            timeout: Maximum time to wait in seconds (default: 15 minutes)
-        """
-        print(f"⏳ Monitoring RayJob '{rayjob.name}' status...")
-
-        elapsed_time = 0
-        check_interval = 10  # Check every 10 seconds
-        job_found = False  # Track if we've seen the job at least once
-
-        while elapsed_time < timeout:
-            status, ready = rayjob.status(print_to_console=True)
-
-            # Track if we've found the job (not UNKNOWN status)
-            if status != CodeflareRayJobStatus.UNKNOWN:
-                job_found = True
-
-            # Check if job has completed (either successfully or failed)
-            if status == CodeflareRayJobStatus.COMPLETE:
-                print(f"✅ RayJob '{rayjob.name}' completed successfully!")
-                return
-            elif status == CodeflareRayJobStatus.FAILED:
-                raise AssertionError(f"❌ RayJob '{rayjob.name}' failed!")
-            elif status == CodeflareRayJobStatus.RUNNING:
-                print(f"🏃 RayJob '{rayjob.name}' is still running...")
-            elif status == CodeflareRayJobStatus.UNKNOWN:
-                if job_found:
-                    # If we've seen the job before but now it's unknown, that's concerning
-                    print(
-                        f"⚠️  RayJob '{rayjob.name}' status became unknown after being found"
-                    )
-                else:
-                    # Job hasn't appeared yet, this is normal initially
-                    print(
-                        f"⏳ Waiting for RayJob '{rayjob.name}' to appear in Kubernetes..."
-                    )
+                print(f"❌ Error checking RayJob status: {e}")
 
             # Wait before next check
             sleep(check_interval)
             elapsed_time += check_interval
 
         # If we reach here, the job has timed out
-        final_status, _ = rayjob.status(print_to_console=True)
-        if not job_found:
-            raise TimeoutError(
-                f"⏰ RayJob '{rayjob.name}' was never found in Kubernetes within {timeout} seconds. "
-                f"Check if the RayJob resource was created successfully."
-            )
-        else:
-            raise TimeoutError(
-                f"⏰ RayJob '{rayjob.name}' did not complete within {timeout} seconds. "
-                f"Final status: {final_status}"
-            )
+        raise TimeoutError(
+            f"⏰ RayJob '{job_name}' did not complete within {timeout} seconds."
+        )
