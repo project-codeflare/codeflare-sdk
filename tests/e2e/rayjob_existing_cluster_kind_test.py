@@ -157,7 +157,7 @@ class TestRayJobExistingClusterKind:
                     if result.returncode == 0:
                         print(f"📋 RayJob YAML details:\n{result.stdout}")
 
-                    # Also try to get pod logs
+                    # Try to get job submitter pod logs (these pods may be cleaned up quickly)
                     pod_result = subprocess.run(
                         [
                             "kubectl",
@@ -169,6 +169,7 @@ class TestRayJobExistingClusterKind:
                             f"ray.io/rayjob={rayjob.name}",
                             "-o",
                             "name",
+                            "--sort-by=.metadata.creationTimestamp",
                         ],
                         capture_output=True,
                         text=True,
@@ -195,6 +196,26 @@ class TestRayJobExistingClusterKind:
                             print(f"❌ Could not get pod logs: {log_result.stderr}")
                     else:
                         print(f"❌ Could not find pods for RayJob: {pod_result.stderr}")
+
+                    # Also try to get events related to the RayJob
+                    events_result = subprocess.run(
+                        [
+                            "kubectl",
+                            "get",
+                            "events",
+                            "-n",
+                            self.namespace,
+                            "--field-selector",
+                            f"involvedObject.name={rayjob.name}",
+                            "-o",
+                            "wide",
+                        ],
+                        capture_output=True,
+                        text=True,
+                        timeout=10,
+                    )
+                    if events_result.returncode == 0 and events_result.stdout.strip():
+                        print(f"📅 Events for RayJob:\n{events_result.stdout}")
 
                 except Exception as e:
                     print(f"❌ Error getting failure details: {e}")

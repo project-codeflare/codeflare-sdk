@@ -56,6 +56,7 @@ class RayJob:
         active_deadline_seconds: Optional[int] = None,
         entrypoint_num_cpus: Optional[int] = None,
         entrypoint_num_gpus: Optional[int] = None,
+        backoff_limit: int = 3,
     ):
         """
         Initialize a RayJob instance.
@@ -104,6 +105,7 @@ class RayJob:
         self.active_deadline_seconds = active_deadline_seconds
         self.entrypoint_num_cpus = entrypoint_num_cpus
         self.entrypoint_num_gpus = entrypoint_num_gpus
+        self.backoff_limit = backoff_limit
 
         # Auto-set shutdown_after_job_finishes based on cluster_config presence
         # If cluster_config is provided, we want to clean up the cluster after job finishes
@@ -186,6 +188,7 @@ class RayJob:
                 "entrypoint": self.entrypoint,
                 "shutdownAfterJobFinishes": self.shutdown_after_job_finishes,
                 "ttlSecondsAfterFinished": self.ttl_seconds_after_finished,
+                "backoffLimit": self.backoff_limit,
             },
         }
 
