@@ -95,7 +95,8 @@ class TestRayJobExistingClusterKind:
                 "pip": "./tests/e2e/mnist_pip_requirements.txt",
                 "env_vars": get_setup_env_variables(ACCELERATOR=accelerator),
             },
-            shutdown_after_job_finishes=False,  # Don't shutdown the existing cluster
+            shutdown_after_job_finishes=False,
+            entrypoint_num_gpus=number_of_gpus,
         )
 
         # Submit the job
