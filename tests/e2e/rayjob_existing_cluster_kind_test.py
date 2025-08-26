@@ -105,6 +105,10 @@ class TestRayJobExistingClusterKind:
         ), f"Job submission failed, expected {job_name}, got {submission_result}"
         print(f"✅ Successfully submitted RayJob '{job_name}' against existing cluster")
 
+        # Wait a moment for the RayJob resource to be created in Kubernetes
+        print("⏳ Waiting for RayJob resource to be processed by KubeRay operator...")
+        sleep(5)
+
         # Monitor the job status until completion
         self.monitor_rayjob_completion(rayjob, timeout=900)
 
@@ -122,9 +126,14 @@ class TestRayJobExistingClusterKind:
 
         elapsed_time = 0
         check_interval = 10  # Check every 10 seconds
+        job_found = False  # Track if we've seen the job at least once
 
         while elapsed_time < timeout:
             status, ready = rayjob.status(print_to_console=True)
+
+            # Track if we've found the job (not UNKNOWN status)
+            if status != CodeflareRayJobStatus.UNKNOWN:
+                job_found = True
 
             # Check if job has completed (either successfully or failed)
             if status == CodeflareRayJobStatus.COMPLETE:
@@ -135,7 +144,16 @@ class TestRayJobExistingClusterKind:
             elif status == CodeflareRayJobStatus.RUNNING:
                 print(f"🏃 RayJob '{rayjob.name}' is still running...")
             elif status == CodeflareRayJobStatus.UNKNOWN:
-                print(f"❓ RayJob '{rayjob.name}' status is unknown")
+                if job_found:
+                    # If we've seen the job before but now it's unknown, that's concerning
+                    print(
+                        f"⚠️  RayJob '{rayjob.name}' status became unknown after being found"
+                    )
+                else:
+                    # Job hasn't appeared yet, this is normal initially
+                    print(
+                        f"⏳ Waiting for RayJob '{rayjob.name}' to appear in Kubernetes..."
+                    )
 
             # Wait before next check
             sleep(check_interval)
@@ -143,7 +161,13 @@ class TestRayJobExistingClusterKind:
 
         # If we reach here, the job has timed out
         final_status, _ = rayjob.status(print_to_console=True)
-        raise TimeoutError(
-            f"⏰ RayJob '{rayjob.name}' did not complete within {timeout} seconds. "
-            f"Final status: {final_status}"
-        )
+        if not job_found:
+            raise TimeoutError(
+                f"⏰ RayJob '{rayjob.name}' was never found in Kubernetes within {timeout} seconds. "
+                f"Check if the RayJob resource was created successfully."
+            )
+        else:
+            raise TimeoutError(
+                f"⏰ RayJob '{rayjob.name}' did not complete within {timeout} seconds. "
+                f"Final status: {final_status}"
+            )
