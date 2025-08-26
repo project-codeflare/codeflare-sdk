@@ -66,12 +66,28 @@ instructions <https://www.substratus.ai/blog/kind-with-gpus>`__.
         # Add RBAC permissions to sdk-user
         kubectl create clusterrole list-ingresses --verb=get,list --resource=ingresses
         kubectl create clusterrolebinding sdk-user-list-ingresses --clusterrole=list-ingresses --user=sdk-user
-        kubectl create clusterrole appwrapper-creator --verb=get,list,create,delete,patch --resource=appwrappers
-        kubectl create clusterrolebinding sdk-user-appwrapper-creator --clusterrole=appwrapper-creator --user=sdk-user
         kubectl create clusterrole namespace-creator --verb=get,list,create,delete,patch --resource=namespaces
         kubectl create clusterrolebinding sdk-user-namespace-creator --clusterrole=namespace-creator --user=sdk-user
-        kubectl create clusterrole list-rayclusters --verb=get,list --resource=rayclusters
-        kubectl create clusterrolebinding sdk-user-list-rayclusters --clusterrole=list-rayclusters --user=sdk-user
+        kubectl create clusterrole raycluster-creator --verb=get,list,create,delete,patch --resource=rayclusters
+        kubectl create clusterrolebinding sdk-user-raycluster-creator --clusterrole=raycluster-creator --user=sdk-user
+        kubectl create clusterrole appwrapper-creator --verb=get,list,create,delete,patch --resource=appwrappers
+        kubectl create clusterrolebinding sdk-user-appwrapper-creator --clusterrole=appwrapper-creator --user=sdk-user
+        kubectl create clusterrole resourceflavor-creator --verb=get,list,create,delete --resource=resourceflavors
+        kubectl create clusterrolebinding sdk-user-resourceflavor-creator --clusterrole=resourceflavor-creator --user=sdk-user
+        kubectl create clusterrole clusterqueue-creator --verb=get,list,create,delete,patch --resource=clusterqueues
+        kubectl create clusterrolebinding sdk-user-clusterqueue-creator --clusterrole=clusterqueue-creator --user=sdk-user
+        kubectl create clusterrole localqueue-creator --verb=get,list,create,delete,patch --resource=localqueues
+        kubectl create clusterrolebinding sdk-user-localqueue-creator --clusterrole=localqueue-creator --user=sdk-user
+        kubectl create clusterrole list-secrets --verb=get,list --resource=secrets
+        kubectl create clusterrolebinding sdk-user-list-secrets --clusterrole=list-secrets --user=sdk-user
+        kubectl create clusterrole pod-creator --verb=get,list,watch --resource=pods
+        kubectl create clusterrolebinding sdk-user-pod-creator --clusterrole=pod-creator --user=sdk-user
+        kubectl create clusterrole service-reader --verb=get,list,watch --resource=services
+        kubectl create clusterrolebinding sdk-user-service-reader --clusterrole=service-reader --user=sdk-user
+        kubectl create clusterrole port-forward-pods --verb=create --resource=pods/portforward
+        kubectl create clusterrolebinding sdk-user-port-forward-pods-binding --clusterrole=port-forward-pods --user=sdk-user
+        kubectl create clusterrole rayjob-creator --verb=get,list,create,delete,patch --resource=rayjobs
+        kubectl create clusterrolebinding sdk-user-rayjob-creator --clusterrole=rayjob-creator --user=sdk-user
         kubectl config use-context sdk-user
 
    -  Install the latest development version of kueue
