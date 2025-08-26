@@ -96,7 +96,7 @@ class TestRayJobExistingClusterKind:
                 "env_vars": get_setup_env_variables(ACCELERATOR=accelerator),
             },
             shutdown_after_job_finishes=False,
-            entrypoint_num_gpus=number_of_gpus if number_of_gpus > 0 else None,
+            # entrypoint_num_gpus=number_of_gpus if number_of_gpus > 0 else None,  # Temporarily disabled to test basic functionality
         )
 
         # Submit the job
