@@ -257,6 +257,75 @@ class TestRayJobExistingClusterKind:
                             print(
                                 f"📋 RayJob YAML (Unknown status debug):\n{result.stdout}"
                             )
+
+                        # Also check for job pods that might be stuck
+                        job_pods_result = subprocess.run(
+                            [
+                                "kubectl",
+                                "get",
+                                "pods",
+                                "-n",
+                                self.namespace,
+                                "-l",
+                                f"ray.io/group=rayjob",
+                                "-o",
+                                "wide",
+                            ],
+                            capture_output=True,
+                            text=True,
+                            timeout=10,
+                        )
+                        if job_pods_result.returncode == 0:
+                            print(f"🔍 RayJob-related pods:\n{job_pods_result.stdout}")
+
+                        # Check for any pending pods in the namespace
+                        pending_pods_result = subprocess.run(
+                            [
+                                "kubectl",
+                                "get",
+                                "pods",
+                                "-n",
+                                self.namespace,
+                                "--field-selector=status.phase=Pending",
+                                "-o",
+                                "wide",
+                            ],
+                            capture_output=True,
+                            text=True,
+                            timeout=10,
+                        )
+                        if (
+                            pending_pods_result.returncode == 0
+                            and pending_pods_result.stdout.strip()
+                        ):
+                            print(
+                                f"⏸️ Pending pods in namespace:\n{pending_pods_result.stdout}"
+                            )
+
+                        # Get events for the entire namespace to see scheduling issues
+                        namespace_events_result = subprocess.run(
+                            [
+                                "kubectl",
+                                "get",
+                                "events",
+                                "-n",
+                                self.namespace,
+                                "--sort-by=.metadata.creationTimestamp",
+                                "-o",
+                                "wide",
+                            ],
+                            capture_output=True,
+                            text=True,
+                            timeout=10,
+                        )
+                        if (
+                            namespace_events_result.returncode == 0
+                            and namespace_events_result.stdout.strip()
+                        ):
+                            print(
+                                f"📅 Recent namespace events:\n{namespace_events_result.stdout}"
+                            )
+
                     except Exception as e:
                         print(f"❌ Error getting debug info: {e}")
 
