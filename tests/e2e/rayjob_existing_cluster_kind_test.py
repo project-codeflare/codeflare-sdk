@@ -132,6 +132,73 @@ class TestRayJobExistingClusterKind:
                 print(f"✅ RayJob '{rayjob.name}' completed successfully!")
                 return
             elif status == CodeflareRayJobStatus.FAILED:
+                # Get more details about the failure
+                print(f"❌ RayJob '{rayjob.name}' failed! Investigating...")
+
+                # Try to get failure details using kubectl
+                import subprocess
+
+                try:
+                    result = subprocess.run(
+                        [
+                            "kubectl",
+                            "get",
+                            "rayjobs",
+                            "-n",
+                            self.namespace,
+                            rayjob.name,
+                            "-o",
+                            "yaml",
+                        ],
+                        capture_output=True,
+                        text=True,
+                        timeout=10,
+                    )
+                    if result.returncode == 0:
+                        print(f"📋 RayJob YAML details:\n{result.stdout}")
+
+                    # Also try to get pod logs
+                    pod_result = subprocess.run(
+                        [
+                            "kubectl",
+                            "get",
+                            "pods",
+                            "-n",
+                            self.namespace,
+                            "-l",
+                            f"ray.io/rayjob={rayjob.name}",
+                            "-o",
+                            "name",
+                        ],
+                        capture_output=True,
+                        text=True,
+                        timeout=10,
+                    )
+                    if pod_result.returncode == 0 and pod_result.stdout.strip():
+                        pod_name = pod_result.stdout.strip().split("/")[-1]
+                        log_result = subprocess.run(
+                            [
+                                "kubectl",
+                                "logs",
+                                "-n",
+                                self.namespace,
+                                pod_name,
+                                "--tail=50",
+                            ],
+                            capture_output=True,
+                            text=True,
+                            timeout=10,
+                        )
+                        if log_result.returncode == 0:
+                            print(f"📝 Pod logs for {pod_name}:\n{log_result.stdout}")
+                        else:
+                            print(f"❌ Could not get pod logs: {log_result.stderr}")
+                    else:
+                        print(f"❌ Could not find pods for RayJob: {pod_result.stderr}")
+
+                except Exception as e:
+                    print(f"❌ Error getting failure details: {e}")
+
                 raise AssertionError(f"❌ RayJob '{rayjob.name}' failed!")
             elif status == CodeflareRayJobStatus.RUNNING:
                 print(f"🏃 RayJob '{rayjob.name}' is still running...")
