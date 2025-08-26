@@ -86,7 +86,7 @@ instructions <https://www.substratus.ai/blog/kind-with-gpus>`__.
         kubectl create clusterrolebinding sdk-user-service-reader --clusterrole=service-reader --user=sdk-user
         kubectl create clusterrole port-forward-pods --verb=create --resource=pods/portforward
         kubectl create clusterrolebinding sdk-user-port-forward-pods-binding --clusterrole=port-forward-pods --user=sdk-user
-        kubectl create clusterrole rayjob-creator --verb=get,list,create,delete,patch --resource=rayjobs
+        kubectl create clusterrole rayjob-creator --verb=get,list,create,delete,patch --resource=rayjobs --resource=rayjobs/status
         kubectl create clusterrolebinding sdk-user-rayjob-creator --clusterrole=rayjob-creator --user=sdk-user
         kubectl config use-context sdk-user
 
