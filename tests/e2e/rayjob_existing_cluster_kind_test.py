@@ -107,11 +107,13 @@ class TestRayJobExistingClusterKind:
         print(f"✅ Successfully submitted RayJob '{job_name}' against existing cluster")
 
         # Monitor the job status until completion
-        self.monitor_rayjob_completion(rayjob, timeout=900)
+        self.monitor_rayjob_completion(
+            rayjob, timeout=360
+        )  # 6 minutes for faster debugging
 
         print(f"✅ RayJob '{job_name}' completed successfully against existing cluster!")
 
-    def monitor_rayjob_completion(self, rayjob: RayJob, timeout: int = 900):
+    def monitor_rayjob_completion(self, rayjob: RayJob, timeout: int = 360):
         """
         Monitor a RayJob until it completes or fails.
 
@@ -224,7 +226,48 @@ class TestRayJobExistingClusterKind:
             elif status == CodeflareRayJobStatus.RUNNING:
                 print(f"🏃 RayJob '{rayjob.name}' is still running...")
             elif status == CodeflareRayJobStatus.UNKNOWN:
-                print(f"❓ RayJob '{rayjob.name}' status is unknown")
+                print(f"❓ RayJob '{rayjob.name}' status is unknown - investigating...")
+
+                # If we've been in Unknown status for too long, get debug info
+                if elapsed_time > 120:  # After 2 minutes of Unknown status
+                    print(
+                        f"⚠️ Job has been in Unknown status for {elapsed_time}s - getting debug info..."
+                    )
+
+                    # Get detailed YAML to understand why status is Unknown
+                    import subprocess
+
+                    try:
+                        result = subprocess.run(
+                            [
+                                "kubectl",
+                                "get",
+                                "rayjobs",
+                                "-n",
+                                self.namespace,
+                                rayjob.name,
+                                "-o",
+                                "yaml",
+                            ],
+                            capture_output=True,
+                            text=True,
+                            timeout=10,
+                        )
+                        if result.returncode == 0:
+                            print(
+                                f"📋 RayJob YAML (Unknown status debug):\n{result.stdout}"
+                            )
+                    except Exception as e:
+                        print(f"❌ Error getting debug info: {e}")
+
+                    # Break out of Unknown status loop after 4 minutes
+                    if elapsed_time > 240:
+                        print(
+                            f"⏰ Breaking out of Unknown status loop after {elapsed_time}s"
+                        )
+                        raise AssertionError(
+                            f"❌ RayJob '{rayjob.name}' stuck in Unknown status for too long"
+                        )
 
             # Wait before next check
             sleep(check_interval)
