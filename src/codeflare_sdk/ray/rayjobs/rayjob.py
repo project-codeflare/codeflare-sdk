@@ -194,14 +194,10 @@ class RayJob:
             rayjob_cr["spec"]["activeDeadlineSeconds"] = self.active_deadline_seconds
 
         # Add entrypoint resource requirements if specified
-        entrypoint_resources = {}
         if self.entrypoint_num_cpus is not None:
-            entrypoint_resources["cpu"] = str(self.entrypoint_num_cpus)
+            rayjob_cr["spec"]["entrypointNumCpus"] = self.entrypoint_num_cpus
         if self.entrypoint_num_gpus is not None:
-            entrypoint_resources["gpu"] = str(self.entrypoint_num_gpus)
-
-        if entrypoint_resources:
-            rayjob_cr["spec"]["entrypointResources"] = entrypoint_resources
+            rayjob_cr["spec"]["entrypointNumGpus"] = self.entrypoint_num_gpus
 
         # Add runtime environment if specified
         if self.runtime_env:
