@@ -54,6 +54,8 @@ class RayJob:
         shutdown_after_job_finishes: Optional[bool] = None,
         ttl_seconds_after_finished: int = 0,
         active_deadline_seconds: Optional[int] = None,
+        entrypoint_num_cpus: Optional[int] = None,
+        entrypoint_num_gpus: Optional[int] = None,
     ):
         """
         Initialize a RayJob instance.
@@ -100,6 +102,8 @@ class RayJob:
         self.runtime_env = runtime_env
         self.ttl_seconds_after_finished = ttl_seconds_after_finished
         self.active_deadline_seconds = active_deadline_seconds
+        self.entrypoint_num_cpus = entrypoint_num_cpus
+        self.entrypoint_num_gpus = entrypoint_num_gpus
 
         # Auto-set shutdown_after_job_finishes based on cluster_config presence
         # If cluster_config is provided, we want to clean up the cluster after job finishes
@@ -188,6 +192,16 @@ class RayJob:
         # Add active deadline if specified
         if self.active_deadline_seconds:
             rayjob_cr["spec"]["activeDeadlineSeconds"] = self.active_deadline_seconds
+
+        # Add entrypoint resource requirements if specified
+        entrypoint_resources = {}
+        if self.entrypoint_num_cpus is not None:
+            entrypoint_resources["cpu"] = str(self.entrypoint_num_cpus)
+        if self.entrypoint_num_gpus is not None:
+            entrypoint_resources["gpu"] = str(self.entrypoint_num_gpus)
+
+        if entrypoint_resources:
+            rayjob_cr["spec"]["entrypointResources"] = entrypoint_resources
 
         # Add runtime environment if specified
         if self.runtime_env:
