@@ -105,9 +105,38 @@ class TestRayJobExistingClusterKind:
         ), f"Job submission failed, expected {job_name}, got {submission_result}"
         print(f"✅ Successfully submitted RayJob '{job_name}' against existing cluster")
 
-        # Wait a moment for the RayJob resource to be created in Kubernetes
-        print("⏳ Waiting for RayJob resource to be processed by KubeRay operator...")
-        sleep(5)
+        # Debug: Check if RayJob resource was actually created
+        import subprocess
+        import time
+        
+        print("🔍 Checking if RayJob resource exists in Kubernetes...")
+        for attempt in range(6):  # Check for 30 seconds
+            try:
+                # Check if RayJob resource exists
+                result = subprocess.run(
+                    ["kubectl", "get", "rayjobs", "-n", self.namespace, job_name],
+                    capture_output=True, text=True, timeout=10
+                )
+                if result.returncode == 0:
+                    print(f"✅ RayJob resource '{job_name}' found in Kubernetes!")
+                    print(f"RayJob details:\n{result.stdout}")
+                    break
+                else:
+                    print(f"❌ Attempt {attempt + 1}: RayJob resource '{job_name}' not found")
+                    if attempt < 5:
+                        time.sleep(5)
+            except Exception as e:
+                print(f"❌ Error checking RayJob: {e}")
+                
+        # Also check what RayJob resources exist in the namespace
+        try:
+            result = subprocess.run(
+                ["kubectl", "get", "rayjobs", "-n", self.namespace],
+                capture_output=True, text=True, timeout=10
+            )
+            print(f"📋 All RayJobs in namespace '{self.namespace}':\n{result.stdout}")
+        except Exception as e:
+            print(f"❌ Error listing RayJobs: {e}")
 
         # Monitor the job status until completion
         self.monitor_rayjob_completion(rayjob, timeout=900)
