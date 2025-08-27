@@ -25,7 +25,7 @@ from typing import Dict, Any, Optional, Tuple
 from kubernetes import client
 from ...common.kubernetes_cluster.auth import get_api_client
 from python_client.kuberay_job_api import RayjobApi
-
+from python_client.kuberay_cluster_api import RayClusterApi
 from codeflare_sdk.ray.rayjobs.config import ManagedClusterConfig
 
 from ...common.utils import get_current_namespace
@@ -40,6 +40,8 @@ from . import pretty_print
 
 
 logger = logging.getLogger(__name__)
+
+mount_path = "/home/ray/scripts"
 
 
 class RayJob:
@@ -148,6 +150,7 @@ class RayJob:
             logger.info(f"Using existing cluster: {self.cluster_name}")
 
         self._api = RayjobApi()
+        self._cluster_api = RayClusterApi()
 
         logger.info(f"Initialized RayJob: {self.name} in namespace: {self.namespace}")
 
@@ -351,7 +354,7 @@ class RayJob:
             return None
 
         scripts = {}
-        mount_path = "/home/ray/scripts"
+        # mount_path = "/home/ray/scripts"
         processed_files = set()  # Avoid infinite loops
 
         # Look for Python file patterns in entrypoint (e.g., "python script.py", "python /path/to/script.py")
@@ -450,6 +453,9 @@ class RayJob:
 
     def _handle_script_volumes_for_new_cluster(self, scripts: Dict[str, str]):
         """Handle script volumes for new clusters (uses ManagedClusterConfig)."""
+        # Validate ConfigMap size before creation
+        self._cluster_config.validate_configmap_size(scripts)
+        
         # Build ConfigMap spec using config.py
         configmap_spec = self._cluster_config.build_script_configmap_spec(
             job_name=self.name, namespace=self.namespace, scripts=scripts
@@ -467,6 +473,9 @@ class RayJob:
         """Handle script volumes for existing clusters (updates RayCluster CR)."""
         # Create config builder for utility methods
         config_builder = ManagedClusterConfig()
+        
+        # Validate ConfigMap size before creation
+        config_builder.validate_configmap_size(scripts)
 
         # Build ConfigMap spec using config.py
         configmap_spec = config_builder.build_script_configmap_spec(
@@ -535,12 +544,9 @@ class RayJob:
         # Get existing RayCluster
         api_instance = client.CustomObjectsApi(get_api_client())
         try:
-            ray_cluster = api_instance.get_namespaced_custom_object(
-                group="ray.io",
-                version="v1",
-                namespace=self.namespace,
-                plural="rayclusters",
+            ray_cluster = self._cluster_api.get_ray_cluster(
                 name=self.cluster_name,
+                k8s_namespace=self.namespace,
             )
         except client.ApiException as e:
             raise RuntimeError(f"Failed to get RayCluster '{self.cluster_name}': {e}")
@@ -586,13 +592,10 @@ class RayJob:
 
         # Update the RayCluster
         try:
-            api_instance.patch_namespaced_custom_object(
-                group="ray.io",
-                version="v1",
-                namespace=self.namespace,
-                plural="rayclusters",
+            self._cluster_api.patch_ray_cluster(
                 name=self.cluster_name,
-                body=ray_cluster,
+                ray_cluster=ray_cluster,
+                k8s_namespace=self.namespace,
             )
             logger.info(
                 f"Updated RayCluster '{self.cluster_name}' with script volumes from ConfigMap '{configmap_name}'"
