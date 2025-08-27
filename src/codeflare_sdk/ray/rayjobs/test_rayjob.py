@@ -1150,6 +1150,8 @@ class TestRayVersionValidation:
 
         rayjob._cluster_config = MockClusterConfig()
         rayjob._validate_cluster_config_image()  # Should not raise
+
+
 def test_extract_script_files_from_entrypoint_single_script(mocker, tmp_path):
     """Test extracting a single script file from entrypoint."""
     # Mock kubernetes config loading
@@ -1738,15 +1740,15 @@ def test_update_existing_cluster_get_cluster_error(mocker):
     mock_rayjob_api = mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayjobApi")
 
     # Mock RayClusterApi with error
-    mock_cluster_api_class = mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayClusterApi")
+    mock_cluster_api_class = mocker.patch(
+        "codeflare_sdk.ray.rayjobs.rayjob.RayClusterApi"
+    )
     mock_cluster_api_instance = mocker.Mock()
     mock_cluster_api_class.return_value = mock_cluster_api_instance
 
     from kubernetes.client import ApiException
 
-    mock_cluster_api_instance.get_ray_cluster.side_effect = ApiException(
-        status=404
-    )
+    mock_cluster_api_instance.get_ray_cluster.side_effect = ApiException(status=404)
 
     from codeflare_sdk.ray.rayjobs.config import ManagedClusterConfig
 
@@ -1770,7 +1772,9 @@ def test_update_existing_cluster_patch_error(mocker):
     mock_rayjob_api = mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayjobApi")
 
     # Mock RayClusterApi
-    mock_cluster_api_class = mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayClusterApi")
+    mock_cluster_api_class = mocker.patch(
+        "codeflare_sdk.ray.rayjobs.rayjob.RayClusterApi"
+    )
     mock_cluster_api_instance = mocker.Mock()
     mock_cluster_api_class.return_value = mock_cluster_api_instance
 
@@ -1794,9 +1798,7 @@ def test_update_existing_cluster_patch_error(mocker):
 
     from kubernetes.client import ApiException
 
-    mock_cluster_api_instance.patch_ray_cluster.side_effect = ApiException(
-        status=500
-    )
+    mock_cluster_api_instance.patch_ray_cluster.side_effect = ApiException(status=500)
 
     from codeflare_sdk.ray.rayjobs.config import ManagedClusterConfig
 
