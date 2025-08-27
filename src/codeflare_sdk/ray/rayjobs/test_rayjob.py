@@ -446,11 +446,13 @@ def test_submit_with_auto_cluster(mocker):
 
 def test_namespace_auto_detection_success(mocker):
     """Test successful namespace auto-detection."""
+    mocker.patch("kubernetes.config.load_kube_config")
     mocker.patch(
         "codeflare_sdk.ray.rayjobs.rayjob.get_current_namespace",
         return_value="detected-ns",
     )
     mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayjobApi")
+    mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayClusterApi")
 
     rayjob = RayJob(
         job_name="test-job", entrypoint="python script.py", cluster_name="test-cluster"
@@ -461,10 +463,12 @@ def test_namespace_auto_detection_success(mocker):
 
 def test_namespace_auto_detection_fallback(mocker):
     """Test that namespace auto-detection failure raises an error."""
+    mocker.patch("kubernetes.config.load_kube_config")
     mocker.patch(
         "codeflare_sdk.ray.rayjobs.rayjob.get_current_namespace", return_value=None
     )
     mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayjobApi")
+    mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayClusterApi")
 
     with pytest.raises(ValueError, match="Could not auto-detect Kubernetes namespace"):
         RayJob(
@@ -476,11 +480,13 @@ def test_namespace_auto_detection_fallback(mocker):
 
 def test_namespace_explicit_override(mocker):
     """Test that explicit namespace overrides auto-detection."""
+    mocker.patch("kubernetes.config.load_kube_config")
     mocker.patch(
         "codeflare_sdk.ray.rayjobs.rayjob.get_current_namespace",
         return_value="detected-ns",
     )
     mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayjobApi")
+    mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayClusterApi")
 
     rayjob = RayJob(
         job_name="test-job",
@@ -494,7 +500,9 @@ def test_namespace_explicit_override(mocker):
 
 def test_shutdown_behavior_with_cluster_config(mocker):
     """Test that shutdown_after_job_finishes is True when cluster_config is provided."""
+    mocker.patch("kubernetes.config.load_kube_config")
     mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayjobApi")
+    mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayClusterApi")
 
     from codeflare_sdk.ray.rayjobs.config import ManagedClusterConfig
 
@@ -512,7 +520,9 @@ def test_shutdown_behavior_with_cluster_config(mocker):
 
 def test_shutdown_behavior_with_existing_cluster(mocker):
     """Test that shutdown_after_job_finishes is False when using existing cluster."""
+    mocker.patch("kubernetes.config.load_kube_config")
     mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayjobApi")
+    mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayClusterApi")
 
     rayjob = RayJob(
         job_name="test-job",
@@ -526,7 +536,9 @@ def test_shutdown_behavior_with_existing_cluster(mocker):
 
 def test_rayjob_with_rayjob_cluster_config(mocker):
     """Test RayJob with the new ManagedClusterConfig."""
+    mocker.patch("kubernetes.config.load_kube_config")
     mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayjobApi")
+    mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayClusterApi")
 
     from codeflare_sdk.ray.rayjobs.config import ManagedClusterConfig
 
@@ -549,7 +561,9 @@ def test_rayjob_with_rayjob_cluster_config(mocker):
 
 def test_rayjob_cluster_config_validation(mocker):
     """Test validation of ManagedClusterConfig parameters."""
+    mocker.patch("kubernetes.config.load_kube_config")
     mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayjobApi")
+    mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayClusterApi")
 
     from codeflare_sdk.ray.rayjobs.config import ManagedClusterConfig
 
@@ -621,7 +635,9 @@ def test_build_ray_cluster_spec_integration(mocker):
 
 def test_rayjob_with_runtime_env(mocker):
     """Test RayJob with runtime environment configuration."""
+    mocker.patch("kubernetes.config.load_kube_config")
     mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayjobApi")
+    mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayClusterApi")
 
     runtime_env = {"pip": ["numpy", "pandas"]}
 
@@ -642,7 +658,9 @@ def test_rayjob_with_runtime_env(mocker):
 
 def test_rayjob_with_active_deadline_and_ttl(mocker):
     """Test RayJob with both active deadline and TTL settings."""
+    mocker.patch("kubernetes.config.load_kube_config")
     mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayjobApi")
+    mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayClusterApi")
 
     rayjob = RayJob(
         job_name="test-job",
@@ -664,7 +682,9 @@ def test_rayjob_with_active_deadline_and_ttl(mocker):
 
 def test_rayjob_cluster_name_generation_with_config(mocker):
     """Test cluster name generation when using cluster_config."""
+    mocker.patch("kubernetes.config.load_kube_config")
     mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayjobApi")
+    mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayClusterApi")
 
     from codeflare_sdk.ray.rayjobs.config import ManagedClusterConfig
 
@@ -684,7 +704,9 @@ def test_rayjob_cluster_name_generation_with_config(mocker):
 
 def test_rayjob_namespace_propagation_to_cluster_config(mocker):
     """Test that job namespace is propagated to cluster config when None."""
+    mocker.patch("kubernetes.config.load_kube_config")
     mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayjobApi")
+    mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayClusterApi")
 
     from codeflare_sdk.ray.rayjobs.rayjob import get_current_namespace
 
@@ -719,7 +741,9 @@ def test_rayjob_error_handling_invalid_cluster_config(mocker):
 
 def test_rayjob_constructor_parameter_validation(mocker):
     """Test constructor parameter validation."""
+    mocker.patch("kubernetes.config.load_kube_config")
     mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayjobApi")
+    mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayClusterApi")
 
     # Test with valid parameters
     rayjob = RayJob(
@@ -941,7 +965,9 @@ def test_build_ray_cluster_spec_with_image_pull_secrets(mocker):
 
 def test_rayjob_user_override_shutdown_behavior(mocker):
     """Test that user can override the auto-detected shutdown behavior."""
+    mocker.patch("kubernetes.config.load_kube_config")
     mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayjobApi")
+    mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayClusterApi")
 
     # Test 1: User overrides shutdown to True even when using existing cluster
     rayjob_existing_override = RayJob(
@@ -1009,6 +1035,7 @@ class TestRayVersionValidation:
         """Test that submission passes with compatible cluster_config image."""
         mocker.patch("kubernetes.config.load_kube_config")
         mock_api_class = mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayjobApi")
+        mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayClusterApi")
         mock_api_instance = MagicMock()
         mock_api_class.return_value = mock_api_instance
         mock_api_instance.submit_job.return_value = True
@@ -1030,6 +1057,7 @@ class TestRayVersionValidation:
         """Test that submission fails with incompatible cluster_config image."""
         mocker.patch("kubernetes.config.load_kube_config")
         mock_api_class = mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayjobApi")
+        mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayClusterApi")
         mock_api_instance = MagicMock()
         mock_api_class.return_value = mock_api_instance
 
@@ -1052,6 +1080,7 @@ class TestRayVersionValidation:
         """Test the _validate_ray_version_compatibility method directly."""
         mocker.patch("kubernetes.config.load_kube_config")
         mock_api_class = mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayjobApi")
+        mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayClusterApi")
         mock_api_instance = MagicMock()
         mock_api_class.return_value = mock_api_instance
 
@@ -1087,6 +1116,7 @@ class TestRayVersionValidation:
         """Test the _validate_cluster_config_image method directly."""
         mocker.patch("kubernetes.config.load_kube_config")
         mock_api_class = mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayjobApi")
+        mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayClusterApi")
         mock_api_instance = MagicMock()
         mock_api_class.return_value = mock_api_instance
 
@@ -1122,6 +1152,7 @@ class TestRayVersionValidation:
         """Test edge cases in _validate_cluster_config_image method."""
         mocker.patch("kubernetes.config.load_kube_config")
         mock_api_class = mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayjobApi")
+        mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayClusterApi")
         mock_api_instance = MagicMock()
         mock_api_class.return_value = mock_api_instance
 
