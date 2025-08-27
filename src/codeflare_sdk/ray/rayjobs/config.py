@@ -41,7 +41,7 @@ from kubernetes.client import (
 
 import logging
 
-from ...common.utils.constants import RAY_VERSION
+from ...common.utils.constants import MOUNT_PATH, RAY_VERSION
 from ...common.utils.utils import update_image
 
 logger = logging.getLogger(__name__)
@@ -141,14 +141,6 @@ class ManagedClusterConfig:
             A list of V1Volume objects to add to the Cluster
         volume_mounts:
             A list of V1VolumeMount objects to add to the Cluster
-        enable_gcs_ft:
-            A boolean indicating whether to enable GCS fault tolerance.
-        redis_address:
-            The address of the Redis server to use for GCS fault tolerance, required when enable_gcs_ft is True.
-        redis_password_secret:
-            Kubernetes secret reference containing Redis password. ex: {"name": "secret-name", "key": "password-key"}
-        external_storage_namespace:
-            The storage namespace to use for GCS fault tolerance. By default, KubeRay sets it to the UID of RayCluster.
     """
 
     head_cpu_requests: Union[int, str] = 2
@@ -175,34 +167,9 @@ class ManagedClusterConfig:
     annotations: Dict[str, str] = field(default_factory=dict)
     volumes: list[V1Volume] = field(default_factory=list)
     volume_mounts: list[V1VolumeMount] = field(default_factory=list)
-    enable_gcs_ft: bool = False
-    redis_address: Optional[str] = None
-    redis_password_secret: Optional[Dict[str, str]] = None
-    external_storage_namespace: Optional[str] = None
 
     def __post_init__(self):
         self.envs["RAY_USAGE_STATS_ENABLED"] = "0"
-
-        if self.enable_gcs_ft:
-            if not self.redis_address:
-                raise ValueError(
-                    "redis_address must be provided when enable_gcs_ft is True"
-                )
-
-            if self.redis_password_secret and not isinstance(
-                self.redis_password_secret, dict
-            ):
-                raise ValueError(
-                    "redis_password_secret must be a dictionary with 'name' and 'key' fields"
-                )
-
-            if self.redis_password_secret and (
-                "name" not in self.redis_password_secret
-                or "key" not in self.redis_password_secret
-            ):
-                raise ValueError(
-                    "redis_password_secret must contain both 'name' and 'key' fields"
-                )
 
         self._validate_types()
         self._memory_to_string()
@@ -287,11 +254,6 @@ class ManagedClusterConfig:
             "headGroupSpec": self._build_head_group_spec(),
             "workerGroupSpecs": [self._build_worker_group_spec(cluster_name)],
         }
-
-        # Add GCS fault tolerance if enabled
-        if self.enable_gcs_ft:
-            gcs_ft_options = self._build_gcs_ft_options()
-            ray_cluster_spec["gcsFaultToleranceOptions"] = gcs_ft_options
 
         return ray_cluster_spec
 
@@ -496,31 +458,7 @@ class ManagedClusterConfig:
         """Build environment variables list."""
         return [V1EnvVar(name=key, value=value) for key, value in self.envs.items()]
 
-    def _build_gcs_ft_options(self) -> Dict[str, Any]:
-        """Build GCS fault tolerance options."""
-        gcs_ft_options = {"redisAddress": self.redis_address}
-
-        if (
-            hasattr(self, "external_storage_namespace")
-            and self.external_storage_namespace
-        ):
-            gcs_ft_options["externalStorageNamespace"] = self.external_storage_namespace
-
-        if hasattr(self, "redis_password_secret") and self.redis_password_secret:
-            gcs_ft_options["redisPassword"] = {
-                "valueFrom": {
-                    "secretKeyRef": {
-                        "name": self.redis_password_secret["name"],
-                        "key": self.redis_password_secret["key"],
-                    }
-                }
-            }
-
-        return gcs_ft_options
-
-    def add_script_volumes(
-        self, configmap_name: str, mount_path: str = "/home/ray/scripts"
-    ):
+    def add_script_volumes(self, configmap_name: str, mount_path: str = MOUNT_PATH):
         """
         Add script volume and mount references to cluster configuration.
 
@@ -592,7 +530,7 @@ class ManagedClusterConfig:
         }
 
     def build_script_volume_specs(
-        self, configmap_name: str, mount_path: str = "/home/ray/scripts"
+        self, configmap_name: str, mount_path: str = MOUNT_PATH
     ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
         """
         Build volume and mount specifications for scripts
