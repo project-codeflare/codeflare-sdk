@@ -60,7 +60,7 @@ class TestRayJobExistingClusterKind:
             )
         )
 
-        cluster.up()
+        cluster.apply()
         cluster.status()
         cluster.wait_ready()
         cluster.status()
