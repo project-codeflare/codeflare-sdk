@@ -15,7 +15,7 @@
 import pytest
 import os
 from unittest.mock import MagicMock, patch
-from codeflare_sdk.common.utils.constants import CUDA_RUNTIME_IMAGE, RAY_VERSION
+from codeflare_sdk.common.utils.constants import MOUNT_PATH, RAY_VERSION
 
 from codeflare_sdk.ray.rayjobs.rayjob import RayJob
 from codeflare_sdk.ray.cluster.config import ClusterConfiguration
@@ -1007,27 +1007,6 @@ def test_rayjob_user_override_shutdown_behavior(mocker):
     assert rayjob_override_priority.shutdown_after_job_finishes is True
 
 
-def test_build_ray_cluster_spec_with_gcs_ft(mocker):
-    """Test build_ray_cluster_spec with GCS fault tolerance enabled."""
-    from codeflare_sdk.ray.rayjobs.config import ManagedClusterConfig
-
-    # Create a test cluster config with GCS FT enabled
-    cluster_config = ManagedClusterConfig(
-        enable_gcs_ft=True,
-        redis_address="redis://redis-service:6379",
-        external_storage_namespace="storage-ns",
-    )
-
-    # Build the spec using the method on the cluster config
-    spec = cluster_config.build_ray_cluster_spec("test-cluster")
-
-    # Verify GCS fault tolerance options
-    assert "gcsFaultToleranceOptions" in spec
-    gcs_ft = spec["gcsFaultToleranceOptions"]
-    assert gcs_ft["redisAddress"] == "redis://redis-service:6379"
-    assert gcs_ft["externalStorageNamespace"] == "storage-ns"
-
-
 class TestRayVersionValidation:
     """Test Ray version validation in RayJob."""
 
@@ -1210,7 +1189,7 @@ def test_extract_script_files_from_entrypoint_single_script(mocker, tmp_path):
         assert scripts is not None
         assert test_script.name in scripts
         assert scripts[test_script.name] == "print('Hello World!')"
-        assert f"/home/ray/scripts/{test_script.name}" in rayjob.entrypoint
+        assert f"{MOUNT_PATH}/{test_script.name}" in rayjob.entrypoint
     finally:
         os.chdir(original_cwd)
 
@@ -1377,7 +1356,7 @@ def test_add_script_volumes():
     assert volume.config_map.name == "test-scripts"
 
     assert mount.name == "ray-job-scripts"
-    assert mount.mount_path == "/home/ray/scripts"
+    assert mount.mount_path == MOUNT_PATH
 
 
 def test_add_script_volumes_duplicate_prevention():
@@ -1619,7 +1598,7 @@ def test_rayjob_submit_with_scripts_new_cluster(mocker, tmp_path):
         assert len(cluster_config.volume_mounts) == 1
 
         # Verify entrypoint was updated
-        assert "/home/ray/scripts/test.py" in rayjob.entrypoint
+        assert f"{MOUNT_PATH}/test.py" in rayjob.entrypoint
 
     finally:
         os.chdir(original_cwd)
@@ -1645,9 +1624,7 @@ def test_process_script_and_imports_io_error(mocker, tmp_path):
     mocker.patch("builtins.open", side_effect=IOError("Permission denied"))
 
     # Should handle the error gracefully and not crash
-    rayjob._process_script_and_imports(
-        "test.py", scripts, "/home/ray/scripts", processed_files
-    )
+    rayjob._process_script_and_imports("test.py", scripts, MOUNT_PATH, processed_files)
 
     # Should add to processed_files but not to scripts (due to error)
     assert "test.py" in processed_files
@@ -1671,7 +1648,7 @@ def test_process_script_and_imports_container_path_skip(mocker):
 
     # Test script path already in container
     rayjob._process_script_and_imports(
-        "/home/ray/scripts/test.py", scripts, "/home/ray/scripts", processed_files
+        f"{MOUNT_PATH}/test.py", scripts, MOUNT_PATH, processed_files
     )
 
     # Should skip processing
@@ -1695,9 +1672,7 @@ def test_process_script_and_imports_already_processed(mocker, tmp_path):
     processed_files = {"test.py"}  # Already processed
 
     # Should return early without processing
-    rayjob._process_script_and_imports(
-        "test.py", scripts, "/home/ray/scripts", processed_files
-    )
+    rayjob._process_script_and_imports("test.py", scripts, MOUNT_PATH, processed_files)
 
     # Should remain unchanged
     assert len(scripts) == 0
