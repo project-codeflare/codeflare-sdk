@@ -54,7 +54,7 @@ class TestRayJobExistingClusterKind:
                 worker_memory_requests=1,
                 worker_memory_limits=4,
                 # worker_extended_resource_requests={gpu_resource_name: number_of_gpus},
-                image="rayproject/ray:2.47.1",
+                # image="rayproject/ray:2.47.1",
                 write_to_file=True,
                 verify_tls=False,
             )
