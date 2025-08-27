@@ -561,6 +561,13 @@ class ManagedClusterConfig:
         logger.info(
             f"Added script volume '{configmap_name}' to cluster config: mount_path={mount_path}"
         )
+        
+    def validate_configmap_size(self, scripts: Dict[str, str]) -> None:
+        total_size = sum(len(content.encode("utf-8")) for content in scripts.values())
+        if total_size > 1024 * 1024:  # 1MB
+            raise ValueError(
+                f"ConfigMap size exceeds 1MB limit. Total size: {total_size} bytes"
+            )
 
     def build_script_configmap_spec(
         self, job_name: str, namespace: str, scripts: Dict[str, str]

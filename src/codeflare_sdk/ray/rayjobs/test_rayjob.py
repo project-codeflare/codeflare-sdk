@@ -32,6 +32,9 @@ def test_rayjob_submit_success(mocker):
     mock_api_instance = MagicMock()
     mock_api_class.return_value = mock_api_instance
 
+    # Mock the RayClusterApi class
+    mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayClusterApi")
+
     # Configure the mock to return success when submit is called
     mock_api_instance.submit.return_value = {"metadata": {"name": "test-rayjob"}}
 
@@ -75,6 +78,9 @@ def test_rayjob_submit_failure(mocker):
     mock_api_class = mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayjobApi")
     mock_api_instance = MagicMock()
     mock_api_class.return_value = mock_api_instance
+
+    # Mock the RayClusterApi class
+    mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayClusterApi")
 
     # Configure the mock to return failure (False/None) when submit_job is called
     mock_api_instance.submit_job.return_value = None
@@ -1729,20 +1735,18 @@ def test_create_configmap_api_error_non_409(mocker):
 def test_update_existing_cluster_get_cluster_error(mocker):
     """Test _update_existing_cluster_for_scripts handles get cluster errors."""
     mocker.patch("kubernetes.config.load_kube_config")
-    mock_api_class = mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayjobApi")
+    mock_rayjob_api = mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayjobApi")
 
-    # Mock CustomObjectsApi with error
-    mock_custom_api = mocker.patch("kubernetes.client.CustomObjectsApi")
-    mock_api_instance = mocker.Mock()
-    mock_custom_api.return_value = mock_api_instance
+    # Mock RayClusterApi with error
+    mock_cluster_api_class = mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayClusterApi")
+    mock_cluster_api_instance = mocker.Mock()
+    mock_cluster_api_class.return_value = mock_cluster_api_instance
 
     from kubernetes.client import ApiException
 
-    mock_api_instance.get_namespaced_custom_object.side_effect = ApiException(
+    mock_cluster_api_instance.get_ray_cluster.side_effect = ApiException(
         status=404
     )
-
-    mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.get_api_client")
 
     from codeflare_sdk.ray.rayjobs.config import ManagedClusterConfig
 
@@ -1763,15 +1767,15 @@ def test_update_existing_cluster_get_cluster_error(mocker):
 def test_update_existing_cluster_patch_error(mocker):
     """Test _update_existing_cluster_for_scripts handles patch errors."""
     mocker.patch("kubernetes.config.load_kube_config")
-    mock_api_class = mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayjobApi")
+    mock_rayjob_api = mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayjobApi")
 
-    # Mock CustomObjectsApi
-    mock_custom_api = mocker.patch("kubernetes.client.CustomObjectsApi")
-    mock_api_instance = mocker.Mock()
-    mock_custom_api.return_value = mock_api_instance
+    # Mock RayClusterApi
+    mock_cluster_api_class = mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayClusterApi")
+    mock_cluster_api_instance = mocker.Mock()
+    mock_cluster_api_class.return_value = mock_cluster_api_instance
 
     # Mock successful get but failed patch
-    mock_api_instance.get_namespaced_custom_object.return_value = {
+    mock_cluster_api_instance.get_ray_cluster.return_value = {
         "spec": {
             "headGroupSpec": {
                 "template": {
@@ -1790,11 +1794,9 @@ def test_update_existing_cluster_patch_error(mocker):
 
     from kubernetes.client import ApiException
 
-    mock_api_instance.patch_namespaced_custom_object.side_effect = ApiException(
+    mock_cluster_api_instance.patch_ray_cluster.side_effect = ApiException(
         status=500
     )
-
-    mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.get_api_client")
 
     from codeflare_sdk.ray.rayjobs.config import ManagedClusterConfig
 
