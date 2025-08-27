@@ -24,8 +24,11 @@ def test_rayjob_status(mocker):
     """
     Test the RayJob status method with different deployment statuses.
     """
+    # Mock kubernetes config loading
+    mocker.patch("kubernetes.config.load_kube_config")
     # Mock the RayjobApi to avoid actual Kubernetes calls
     mock_api_class = mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayjobApi")
+    mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayClusterApi")
     mock_api_instance = mock_api_class.return_value
 
     # Create a RayJob instance
@@ -101,7 +104,9 @@ def test_rayjob_status_unknown_deployment_status(mocker):
     """
     Test handling of unknown deployment status from the API.
     """
+    mocker.patch("kubernetes.config.load_kube_config")
     mock_api_class = mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayjobApi")
+    mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayClusterApi")
     mock_api_instance = mock_api_class.return_value
 
     rayjob = RayJob(
@@ -129,7 +134,9 @@ def test_rayjob_status_missing_fields(mocker):
     """
     Test handling of API response with missing fields.
     """
+    mocker.patch("kubernetes.config.load_kube_config")
     mock_api_class = mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayjobApi")
+    mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayClusterApi")
     mock_api_instance = mock_api_class.return_value
 
     rayjob = RayJob(
@@ -154,8 +161,11 @@ def test_map_to_codeflare_status(mocker):
     """
     Test the _map_to_codeflare_status helper method directly.
     """
+    # Mock kubernetes config loading
+    mocker.patch("kubernetes.config.load_kube_config")
     # Mock the RayjobApi constructor to avoid authentication issues
     mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayjobApi")
+    mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayClusterApi")
 
     rayjob = RayJob(
         job_name="test-job",
@@ -217,8 +227,10 @@ def test_rayjob_status_print_no_job_found(mocker):
     """
     Test that pretty_print.print_no_job_found is called when no job is found and print_to_console=True.
     """
+    mocker.patch("kubernetes.config.load_kube_config")
     # Mock the RayjobApi and pretty_print
     mock_api_class = mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayjobApi")
+    mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayClusterApi")
     mock_api_instance = mock_api_class.return_value
     mock_print_no_job_found = mocker.patch(
         "codeflare_sdk.ray.rayjobs.pretty_print.print_no_job_found"
@@ -248,8 +260,10 @@ def test_rayjob_status_print_job_found(mocker):
     """
     Test that pretty_print.print_job_status is called when job is found and print_to_console=True.
     """
+    mocker.patch("kubernetes.config.load_kube_config")
     # Mock the RayjobApi and pretty_print
     mock_api_class = mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayjobApi")
+    mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayClusterApi")
     mock_api_instance = mock_api_class.return_value
     mock_print_job_status = mocker.patch(
         "codeflare_sdk.ray.rayjobs.pretty_print.print_job_status"
