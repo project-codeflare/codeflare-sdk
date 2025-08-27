@@ -455,7 +455,7 @@ class RayJob:
         """Handle script volumes for new clusters (uses ManagedClusterConfig)."""
         # Validate ConfigMap size before creation
         self._cluster_config.validate_configmap_size(scripts)
-        
+
         # Build ConfigMap spec using config.py
         configmap_spec = self._cluster_config.build_script_configmap_spec(
             job_name=self.name, namespace=self.namespace, scripts=scripts
@@ -473,7 +473,7 @@ class RayJob:
         """Handle script volumes for existing clusters (updates RayCluster CR)."""
         # Create config builder for utility methods
         config_builder = ManagedClusterConfig()
-        
+
         # Validate ConfigMap size before creation
         config_builder.validate_configmap_size(scripts)
 
@@ -594,7 +594,7 @@ class RayJob:
         try:
             self._cluster_api.patch_ray_cluster(
                 name=self.cluster_name,
-                ray_cluster=ray_cluster,
+                ray_patch=ray_cluster,
                 k8s_namespace=self.namespace,
             )
             logger.info(
