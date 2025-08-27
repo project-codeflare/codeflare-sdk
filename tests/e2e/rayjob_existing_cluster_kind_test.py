@@ -46,11 +46,12 @@ class TestRayJobExistingClusterKind:
                 num_workers=1,
                 head_cpu_requests="500m",
                 head_cpu_limits="500m",
-                worker_cpu_requests=2,
-                worker_cpu_limits=4,
-                worker_memory_requests=4,
-                worker_memory_limits=8,
+                worker_cpu_requests="500m",
+                worker_cpu_limits=1,
+                worker_memory_requests=1,
+                worker_memory_limits=4,
                 worker_extended_resource_requests={gpu_resource_name: number_of_gpus},
+                image="rayproject/ray:2.47.1",
                 write_to_file=True,
                 verify_tls=False,
             )
@@ -95,8 +96,7 @@ class TestRayJobExistingClusterKind:
                 "pip": "./tests/e2e/mnist_pip_requirements.txt",
                 "env_vars": get_setup_env_variables(ACCELERATOR=accelerator),
             },
-            shutdown_after_job_finishes=False,
-            # entrypoint_num_gpus=number_of_gpus if number_of_gpus > 0 else None,  # Temporarily disabled to test basic functionality
+            shutdown_after_job_finishes=False,  # Don't shutdown the existing cluster
         )
 
         # Submit the job
@@ -107,16 +107,13 @@ class TestRayJobExistingClusterKind:
         print(f"✅ Successfully submitted RayJob '{job_name}' against existing cluster")
 
         # Monitor the job status until completion
-        self.monitor_rayjob_completion(
-            rayjob, timeout=360
-        )  # 6 minutes for faster debugging
+        self.monitor_rayjob_completion(rayjob, timeout=900)
 
         print(f"✅ RayJob '{job_name}' completed successfully against existing cluster!")
 
-    def monitor_rayjob_completion(self, rayjob: RayJob, timeout: int = 360):
+    def monitor_rayjob_completion(self, rayjob: RayJob, timeout: int = 900):
         """
         Monitor a RayJob until it completes or fails.
-
         Args:
             rayjob: The RayJob instance to monitor
             timeout: Maximum time to wait in seconds (default: 15 minutes)
@@ -134,209 +131,11 @@ class TestRayJobExistingClusterKind:
                 print(f"✅ RayJob '{rayjob.name}' completed successfully!")
                 return
             elif status == CodeflareRayJobStatus.FAILED:
-                # Get more details about the failure
-                print(f"❌ RayJob '{rayjob.name}' failed! Investigating...")
-
-                # Try to get failure details using kubectl
-                import subprocess
-
-                try:
-                    result = subprocess.run(
-                        [
-                            "kubectl",
-                            "get",
-                            "rayjobs",
-                            "-n",
-                            self.namespace,
-                            rayjob.name,
-                            "-o",
-                            "yaml",
-                        ],
-                        capture_output=True,
-                        text=True,
-                        timeout=10,
-                    )
-                    if result.returncode == 0:
-                        print(f"📋 RayJob YAML details:\n{result.stdout}")
-
-                    # Try to get job submitter pod logs (these pods may be cleaned up quickly)
-                    pod_result = subprocess.run(
-                        [
-                            "kubectl",
-                            "get",
-                            "pods",
-                            "-n",
-                            self.namespace,
-                            "-l",
-                            f"ray.io/rayjob={rayjob.name}",
-                            "-o",
-                            "name",
-                            "--sort-by=.metadata.creationTimestamp",
-                        ],
-                        capture_output=True,
-                        text=True,
-                        timeout=10,
-                    )
-                    if pod_result.returncode == 0 and pod_result.stdout.strip():
-                        pod_name = pod_result.stdout.strip().split("/")[-1]
-                        log_result = subprocess.run(
-                            [
-                                "kubectl",
-                                "logs",
-                                "-n",
-                                self.namespace,
-                                pod_name,
-                                "--tail=50",
-                            ],
-                            capture_output=True,
-                            text=True,
-                            timeout=10,
-                        )
-                        if log_result.returncode == 0:
-                            print(f"📝 Pod logs for {pod_name}:\n{log_result.stdout}")
-                        else:
-                            print(f"❌ Could not get pod logs: {log_result.stderr}")
-                    else:
-                        print(f"❌ Could not find pods for RayJob: {pod_result.stderr}")
-
-                    # Also try to get events related to the RayJob
-                    events_result = subprocess.run(
-                        [
-                            "kubectl",
-                            "get",
-                            "events",
-                            "-n",
-                            self.namespace,
-                            "--field-selector",
-                            f"involvedObject.name={rayjob.name}",
-                            "-o",
-                            "wide",
-                        ],
-                        capture_output=True,
-                        text=True,
-                        timeout=10,
-                    )
-                    if events_result.returncode == 0 and events_result.stdout.strip():
-                        print(f"📅 Events for RayJob:\n{events_result.stdout}")
-
-                except Exception as e:
-                    print(f"❌ Error getting failure details: {e}")
-
                 raise AssertionError(f"❌ RayJob '{rayjob.name}' failed!")
             elif status == CodeflareRayJobStatus.RUNNING:
                 print(f"🏃 RayJob '{rayjob.name}' is still running...")
             elif status == CodeflareRayJobStatus.UNKNOWN:
-                print(f"❓ RayJob '{rayjob.name}' status is unknown - investigating...")
-
-                # If we've been in Unknown status for too long, get debug info
-                if elapsed_time > 120:  # After 2 minutes of Unknown status
-                    print(
-                        f"⚠️ Job has been in Unknown status for {elapsed_time}s - getting debug info..."
-                    )
-
-                    # Get detailed YAML to understand why status is Unknown
-                    import subprocess
-
-                    try:
-                        result = subprocess.run(
-                            [
-                                "kubectl",
-                                "get",
-                                "rayjobs",
-                                "-n",
-                                self.namespace,
-                                rayjob.name,
-                                "-o",
-                                "yaml",
-                            ],
-                            capture_output=True,
-                            text=True,
-                            timeout=10,
-                        )
-                        if result.returncode == 0:
-                            print(
-                                f"📋 RayJob YAML (Unknown status debug):\n{result.stdout}"
-                            )
-
-                        # Also check for job pods that might be stuck
-                        job_pods_result = subprocess.run(
-                            [
-                                "kubectl",
-                                "get",
-                                "pods",
-                                "-n",
-                                self.namespace,
-                                "-l",
-                                f"ray.io/group=rayjob",
-                                "-o",
-                                "wide",
-                            ],
-                            capture_output=True,
-                            text=True,
-                            timeout=10,
-                        )
-                        if job_pods_result.returncode == 0:
-                            print(f"🔍 RayJob-related pods:\n{job_pods_result.stdout}")
-
-                        # Check for any pending pods in the namespace
-                        pending_pods_result = subprocess.run(
-                            [
-                                "kubectl",
-                                "get",
-                                "pods",
-                                "-n",
-                                self.namespace,
-                                "--field-selector=status.phase=Pending",
-                                "-o",
-                                "wide",
-                            ],
-                            capture_output=True,
-                            text=True,
-                            timeout=10,
-                        )
-                        if (
-                            pending_pods_result.returncode == 0
-                            and pending_pods_result.stdout.strip()
-                        ):
-                            print(
-                                f"⏸️ Pending pods in namespace:\n{pending_pods_result.stdout}"
-                            )
-
-                        # Get events for the entire namespace to see scheduling issues
-                        namespace_events_result = subprocess.run(
-                            [
-                                "kubectl",
-                                "get",
-                                "events",
-                                "-n",
-                                self.namespace,
-                                "--sort-by=.metadata.creationTimestamp",
-                                "-o",
-                                "wide",
-                            ],
-                            capture_output=True,
-                            text=True,
-                            timeout=10,
-                        )
-                        if (
-                            namespace_events_result.returncode == 0
-                            and namespace_events_result.stdout.strip()
-                        ):
-                            print(
-                                f"📅 Recent namespace events:\n{namespace_events_result.stdout}"
-                            )
-
-                    except Exception as e:
-                        print(f"❌ Error getting debug info: {e}")
-
-                    # Break out of Unknown status loop after 4 minutes
-                    if elapsed_time > 240:
-                        print(
-                            f"⏰ Breaking out of Unknown status loop after {elapsed_time}s"
-                        )
-                        raise AssertionError(
-                            f"❌ RayJob '{rayjob.name}' stuck in Unknown status for too long"
-                        )
+                print(f"❓ RayJob '{rayjob.name}' status is unknown")
 
             # Wait before next check
             sleep(check_interval)
