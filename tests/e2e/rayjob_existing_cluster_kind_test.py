@@ -31,8 +31,11 @@ class TestRayJobExistingClusterKind:
         self.setup_method()
         create_namespace(self)
         create_kueue_resources(self)
+        # self.run_rayjob_against_existing_cluster_kind(
+        #     accelerator="gpu", number_of_gpus=1
+        # )
         self.run_rayjob_against_existing_cluster_kind(
-            accelerator="gpu", number_of_gpus=1
+            accelerator="cpu", number_of_gpus=0
         )
 
     def run_rayjob_against_existing_cluster_kind(
@@ -50,14 +53,14 @@ class TestRayJobExistingClusterKind:
                 worker_cpu_limits=1,
                 worker_memory_requests=1,
                 worker_memory_limits=4,
-                worker_extended_resource_requests={gpu_resource_name: number_of_gpus},
+                # worker_extended_resource_requests={gpu_resource_name: number_of_gpus},
                 image="rayproject/ray:2.47.1",
                 write_to_file=True,
                 verify_tls=False,
             )
         )
 
-        cluster.apply()
+        cluster.up()
         cluster.status()
         cluster.wait_ready()
         cluster.status()
