@@ -22,6 +22,7 @@ import os
 import re
 import ast
 from typing import Dict, Any, Optional, Tuple
+from codeflare_sdk.common.utils.constants import MOUNT_PATH
 from kubernetes import client
 from ...common.kubernetes_cluster.auth import get_api_client
 from python_client.kuberay_job_api import RayjobApi
@@ -40,8 +41,6 @@ from . import pretty_print
 
 
 logger = logging.getLogger(__name__)
-
-mount_path = "/home/ray/scripts"
 
 
 class RayJob:
@@ -354,7 +353,6 @@ class RayJob:
             return None
 
         scripts = {}
-        # mount_path = "/home/ray/scripts"
         processed_files = set()  # Avoid infinite loops
 
         # Look for Python file patterns in entrypoint (e.g., "python script.py", "python /path/to/script.py")
@@ -364,14 +362,14 @@ class RayJob:
         # Process main scripts from entrypoint files
         for script_path in matches:
             self._process_script_and_imports(
-                script_path, scripts, mount_path, processed_files
+                script_path, scripts, MOUNT_PATH, processed_files
             )
 
         # Update entrypoint paths to use mounted locations
         for script_path in matches:
             if script_path in [os.path.basename(s) for s in processed_files]:
                 old_path = script_path
-                new_path = f"{mount_path}/{os.path.basename(script_path)}"
+                new_path = f"{MOUNT_PATH}/{os.path.basename(script_path)}"
                 self.entrypoint = self.entrypoint.replace(old_path, new_path)
 
         return scripts if scripts else None
@@ -466,7 +464,7 @@ class RayJob:
 
         # Add volumes to cluster config (config.py handles spec building)
         self._cluster_config.add_script_volumes(
-            configmap_name=configmap_name, mount_path="/home/ray/scripts"
+            configmap_name=configmap_name, mount_path=MOUNT_PATH
         )
 
     def _handle_script_volumes_for_existing_cluster(self, scripts: Dict[str, str]):
@@ -541,8 +539,6 @@ class RayJob:
             config_builder: ManagedClusterConfig instance for building specs
         """
 
-        # Get existing RayCluster
-        api_instance = client.CustomObjectsApi(get_api_client())
         try:
             ray_cluster = self._cluster_api.get_ray_cluster(
                 name=self.cluster_name,
@@ -553,7 +549,7 @@ class RayJob:
 
         # Build script volume and mount specifications using config.py
         script_volume, script_mount = config_builder.build_script_volume_specs(
-            configmap_name=configmap_name, mount_path="/home/ray/scripts"
+            configmap_name=configmap_name, mount_path=MOUNT_PATH
         )
 
         # Helper function to check for duplicate volumes/mounts
