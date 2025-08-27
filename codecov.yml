@@ -15,4 +15,3 @@ coverage:
       default:
         target: 85%
         threshold: 2.5%
-
