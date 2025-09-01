@@ -170,3 +170,26 @@ def test_add_script_volumes_existing_mount_early_return():
     # Should still have only one mount, no volume added
     assert len(config.volumes) == 0
     assert len(config.volume_mounts) == 1
+
+
+def test_build_script_configmap_spec_labels():
+    """Test that build_script_configmap_spec creates ConfigMap with correct labels."""
+    config = ManagedClusterConfig()
+
+    job_name = "test-job"
+    namespace = "test-namespace"
+    scripts = {"script.py": "print('hello')", "helper.py": "# helper code"}
+
+    configmap_spec = config.build_script_configmap_spec(job_name, namespace, scripts)
+
+    assert configmap_spec["apiVersion"] == "v1"
+    assert configmap_spec["kind"] == "ConfigMap"
+    assert configmap_spec["metadata"]["name"] == f"{job_name}-scripts"
+    assert configmap_spec["metadata"]["namespace"] == namespace
+
+    labels = configmap_spec["metadata"]["labels"]
+    assert labels["ray.io/job-name"] == job_name
+    assert labels["app.kubernetes.io/managed-by"] == "codeflare-sdk"
+    assert labels["app.kubernetes.io/component"] == "rayjob-scripts"
+
+    assert configmap_spec["data"] == scripts
