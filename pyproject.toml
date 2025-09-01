@@ -33,7 +33,7 @@ cryptography = "43.0.3"
 executing = "1.2.0"
 pydantic = "< 2"
 ipywidgets = "8.1.2"
-python-client = { git = "https://github.com/ray-project/kuberay.git", subdirectory = "clients/python-client", rev = "49419654418865a5838adc7f323f13d82454aa18" }
+python-client = { git = "https://github.com/ray-project/kuberay.git", subdirectory = "clients/python-client", rev = "a16c0365e3b19a202d835097e1139eca9406b383" }
 
 [[tool.poetry.source]]
 name = "pypi"
