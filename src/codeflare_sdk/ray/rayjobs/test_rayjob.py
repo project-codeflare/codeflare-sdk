@@ -1376,16 +1376,13 @@ def test_add_script_volumes_duplicate_prevention():
 
 def test_create_configmap_from_spec(mocker):
     """Test creating ConfigMap via Kubernetes API."""
-    # Mock kubernetes config loading
     mocker.patch("kubernetes.config.load_kube_config")
     mock_api_class = mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayjobApi")
 
-    # Mock Kubernetes API
     mock_k8s_api = mocker.patch("kubernetes.client.CoreV1Api")
     mock_api_instance = MagicMock()
     mock_k8s_api.return_value = mock_api_instance
 
-    # Mock get_api_client
     mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.get_api_client")
 
     rayjob = RayJob(
@@ -1410,19 +1407,15 @@ def test_create_configmap_from_spec(mocker):
 
 def test_create_configmap_already_exists(mocker):
     """Test creating ConfigMap when it already exists (409 conflict)."""
-    # Mock kubernetes config loading
     mocker.patch("kubernetes.config.load_kube_config")
     mock_api_class = mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayjobApi")
 
-    # Mock Kubernetes API
     mock_k8s_api = mocker.patch("kubernetes.client.CoreV1Api")
     mock_api_instance = MagicMock()
     mock_k8s_api.return_value = mock_api_instance
 
-    # Mock get_api_client
     mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.get_api_client")
 
-    # Mock API exception for conflict
     from kubernetes.client import ApiException
 
     mock_api_instance.create_namespaced_config_map.side_effect = ApiException(
@@ -1450,17 +1443,178 @@ def test_create_configmap_already_exists(mocker):
     mock_api_instance.replace_namespaced_config_map.assert_called_once()
 
 
-def test_handle_script_volumes_for_new_cluster(mocker, tmp_path):
-    """Test handling script volumes for new cluster creation."""
+def test_create_configmap_with_owner_reference_basic(mocker, caplog):
+    """Test creating ConfigMap with owner reference from valid RayJob result."""
     # Mock kubernetes config loading
     mocker.patch("kubernetes.config.load_kube_config")
     mock_api_class = mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayjobApi")
 
-    # Mock ConfigMap creation
+    # Mock Kubernetes API
+    mock_k8s_api = mocker.patch("kubernetes.client.CoreV1Api")
+    mock_api_instance = MagicMock()
+    mock_k8s_api.return_value = mock_api_instance
+
+    # Mock get_api_client
+    mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.get_api_client")
+
+    # Mock client.V1ObjectMeta and V1ConfigMap
+    mock_v1_metadata = mocker.patch("kubernetes.client.V1ObjectMeta")
+    mock_metadata_instance = MagicMock()
+    mock_v1_metadata.return_value = mock_metadata_instance
+
+    rayjob = RayJob(
+        job_name="test-job",
+        cluster_name="existing-cluster",
+        entrypoint="python test.py",
+        namespace="test-namespace",
+    )
+
+    configmap_spec = {
+        "apiVersion": "v1",
+        "kind": "ConfigMap",
+        "metadata": {
+            "name": "test-scripts",
+            "namespace": "test-namespace",
+            "labels": {
+                "ray.io/job-name": "test-job",
+                "app.kubernetes.io/managed-by": "codeflare-sdk",
+                "app.kubernetes.io/component": "rayjob-scripts",
+            },
+        },
+        "data": {"test.py": "print('test')"},
+    }
+
+    # Valid RayJob result with UID
+    rayjob_result = {
+        "metadata": {
+            "name": "test-job",
+            "namespace": "test-namespace",
+            "uid": "a4dd4c5a-ab61-411d-b4d1-4abb5177422a",
+        }
+    }
+
+    with caplog.at_level("INFO"):
+        result = rayjob._create_configmap_from_spec(configmap_spec, rayjob_result)
+
+    assert result == "test-scripts"
+
+    # Verify owner reference was set
+    expected_owner_ref = mocker.ANY  # We'll check via the logs
+    assert (
+        "Adding owner reference to ConfigMap 'test-scripts' with RayJob UID: a4dd4c5a-ab61-411d-b4d1-4abb5177422a"
+        in caplog.text
+    )
+
+    # Verify owner_references was set on metadata
+    assert mock_metadata_instance.owner_references is not None
+    mock_api_instance.create_namespaced_config_map.assert_called_once()
+
+
+def test_create_configmap_without_owner_reference_no_uid(mocker, caplog):
+    """Test creating ConfigMap without owner reference when RayJob has no UID."""
+    mocker.patch("kubernetes.config.load_kube_config")
+    mock_api_class = mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayjobApi")
+
+    mock_k8s_api = mocker.patch("kubernetes.client.CoreV1Api")
+    mock_api_instance = MagicMock()
+    mock_k8s_api.return_value = mock_api_instance
+
+    mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.get_api_client")
+
+    mock_v1_metadata = mocker.patch("kubernetes.client.V1ObjectMeta")
+    mock_metadata_instance = MagicMock()
+    mock_v1_metadata.return_value = mock_metadata_instance
+
+    rayjob = RayJob(
+        job_name="test-job",
+        cluster_name="existing-cluster",
+        entrypoint="python test.py",
+        namespace="test-namespace",
+    )
+
+    configmap_spec = {
+        "apiVersion": "v1",
+        "kind": "ConfigMap",
+        "metadata": {"name": "test-scripts", "namespace": "test-namespace"},
+        "data": {"test.py": "print('test')"},
+    }
+
+    # RayJob result without UID
+    rayjob_result = {
+        "metadata": {
+            "name": "test-job",
+            "namespace": "test-namespace",
+            # No UID field
+        }
+    }
+
+    with caplog.at_level("WARNING"):
+        result = rayjob._create_configmap_from_spec(configmap_spec, rayjob_result)
+
+    assert result == "test-scripts"
+
+    # Verify warning was logged and no owner reference was set
+    assert (
+        "No valid RayJob result with UID found, ConfigMap 'test-scripts' will not have owner reference"
+        in caplog.text
+    )
+
+    # The important part is that the warning was logged, indicating no owner reference was set
+    mock_api_instance.create_namespaced_config_map.assert_called_once()
+
+
+def test_create_configmap_with_invalid_rayjob_result(mocker, caplog):
+    """Test creating ConfigMap with None or invalid rayjob_result."""
+    # Mock kubernetes config loading
+    mocker.patch("kubernetes.config.load_kube_config")
+    mock_api_class = mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayjobApi")
+
+    # Mock Kubernetes API
+    mock_k8s_api = mocker.patch("kubernetes.client.CoreV1Api")
+    mock_api_instance = MagicMock()
+    mock_k8s_api.return_value = mock_api_instance
+
+    # Mock get_api_client
+    mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.get_api_client")
+
+    rayjob = RayJob(
+        job_name="test-job",
+        cluster_name="existing-cluster",
+        entrypoint="python test.py",
+        namespace="test-namespace",
+    )
+
+    configmap_spec = {
+        "apiVersion": "v1",
+        "kind": "ConfigMap",
+        "metadata": {"name": "test-scripts", "namespace": "test-namespace"},
+        "data": {"test.py": "print('test')"},
+    }
+
+    # Test with None
+    with caplog.at_level("WARNING"):
+        result = rayjob._create_configmap_from_spec(configmap_spec, None)
+
+    assert result == "test-scripts"
+    assert "No valid RayJob result with UID found" in caplog.text
+
+    # Test with string instead of dict
+    caplog.clear()
+    with caplog.at_level("WARNING"):
+        result = rayjob._create_configmap_from_spec(configmap_spec, "not-a-dict")
+
+    assert result == "test-scripts"
+    assert "No valid RayJob result with UID found" in caplog.text
+
+
+def test_handle_script_volumes_for_new_cluster(mocker, tmp_path):
+    """Test handling script volumes for new cluster creation."""
+    mocker.patch("kubernetes.config.load_kube_config")
+    mock_api_class = mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayjobApi")
+
     mock_create = mocker.patch.object(RayJob, "_create_configmap_from_spec")
     mock_create.return_value = "test-job-scripts"
 
-    # Create test script
     test_script = tmp_path / "test.py"
     test_script.write_text("print('test')")
 
@@ -1482,10 +1636,8 @@ def test_handle_script_volumes_for_new_cluster(mocker, tmp_path):
         scripts = {"test.py": "print('test')"}
         rayjob._handle_script_volumes_for_new_cluster(scripts)
 
-        # Verify ConfigMap creation was called
         mock_create.assert_called_once()
 
-        # Verify volumes were added to cluster config
         assert len(cluster_config.volumes) == 1
         assert len(cluster_config.volume_mounts) == 1
 
@@ -1495,11 +1647,9 @@ def test_handle_script_volumes_for_new_cluster(mocker, tmp_path):
 
 def test_ast_parsing_import_detection(mocker, tmp_path):
     """Test AST parsing correctly detects import statements."""
-    # Mock kubernetes config loading
     mocker.patch("kubernetes.config.load_kube_config")
     mock_api_class = mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayjobApi")
 
-    # Create scripts with different import patterns
     main_script = tmp_path / "main.py"
     main_script.write_text(
         """# Different import patterns
@@ -1537,7 +1687,6 @@ def func2(): pass
 
         scripts = rayjob._extract_script_files_from_entrypoint()
 
-        # Should find all local dependencies
         assert scripts is not None
         assert len(scripts) == 4  # main + 3 dependencies
         assert "main.py" in scripts
@@ -1547,6 +1696,73 @@ def func2(): pass
 
     finally:
         os.chdir(original_cwd)
+
+
+def test_script_handling_timing_after_rayjob_submission(mocker, tmp_path):
+    """Test that script handling happens after RayJob is submitted (not before)."""
+    mocker.patch("kubernetes.config.load_kube_config")
+
+    mock_api_class = mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayjobApi")
+    mock_api_instance = MagicMock()
+    mock_api_class.return_value = mock_api_instance
+
+    submit_result = {
+        "metadata": {
+            "name": "test-job",
+            "namespace": "test-namespace",
+            "uid": "test-uid-12345",
+        }
+    }
+    mock_api_instance.submit_job.return_value = submit_result
+
+    mock_handle_new = mocker.patch.object(
+        RayJob, "_handle_script_volumes_for_new_cluster"
+    )
+
+    mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayClusterApi")
+
+    test_script = tmp_path / "test.py"
+    test_script.write_text("print('test')")
+
+    call_order = []
+
+    def track_submit(*args, **kwargs):
+        call_order.append("submit_job")
+        return submit_result
+
+    def track_handle_scripts(*args, **kwargs):
+        call_order.append("handle_scripts")
+        assert len(args) >= 2
+        assert args[1] == submit_result  # rayjob_result should be second arg
+
+    mock_api_instance.submit_job.side_effect = track_submit
+    mock_handle_new.side_effect = track_handle_scripts
+
+    original_cwd = os.getcwd()
+    try:
+        os.chdir(tmp_path)
+
+        from codeflare_sdk.ray.rayjobs.config import ManagedClusterConfig
+
+        cluster_config = ManagedClusterConfig()
+
+        rayjob = RayJob(
+            job_name="test-job",
+            cluster_config=cluster_config,
+            entrypoint="python test.py",
+            namespace="test-namespace",
+        )
+
+        rayjob.submit()
+    finally:
+        os.chdir(original_cwd)
+
+    assert call_order == ["submit_job", "handle_scripts"]
+
+    mock_api_instance.submit_job.assert_called_once()
+    mock_handle_new.assert_called_once()
+
+    mock_handle_new.assert_called_with({"test.py": "print('test')"}, submit_result)
 
 
 def test_rayjob_submit_with_scripts_new_cluster(mocker, tmp_path):
@@ -1674,9 +1890,117 @@ def test_process_script_and_imports_already_processed(mocker, tmp_path):
     # Should return early without processing
     rayjob._process_script_and_imports("test.py", scripts, MOUNT_PATH, processed_files)
 
-    # Should remain unchanged
     assert len(scripts) == 0
     assert processed_files == {"test.py"}
+
+
+def test_submit_with_scripts_owner_reference_integration(mocker, tmp_path, caplog):
+    """Integration test for submit() with local scripts to verify end-to-end owner reference flow."""
+    # Mock kubernetes config loading
+    mocker.patch("kubernetes.config.load_kube_config")
+
+    # Mock the RayjobApi
+    mock_api_class = mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayjobApi")
+    mock_api_instance = MagicMock()
+    mock_api_class.return_value = mock_api_instance
+
+    # RayJob submission returns result with UID
+    submit_result = {
+        "metadata": {
+            "name": "test-job",
+            "namespace": "test-namespace",
+            "uid": "unique-rayjob-uid-12345",
+        }
+    }
+    mock_api_instance.submit_job.return_value = submit_result
+
+    # Mock Kubernetes ConfigMap API
+    mock_k8s_api = mocker.patch("kubernetes.client.CoreV1Api")
+    mock_k8s_instance = MagicMock()
+    mock_k8s_api.return_value = mock_k8s_instance
+    mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.get_api_client")
+
+    # Capture the ConfigMap that gets created
+    created_configmap = None
+
+    def capture_configmap(namespace, body):
+        nonlocal created_configmap
+        created_configmap = body
+        return body
+
+    mock_k8s_instance.create_namespaced_config_map.side_effect = capture_configmap
+
+    # Create test scripts
+    test_script = tmp_path / "main.py"
+    test_script.write_text("import helper\nprint('main')")
+
+    helper_script = tmp_path / "helper.py"
+    helper_script.write_text("def help(): print('helper')")
+
+    # Change to temp directory for script detection
+    original_cwd = os.getcwd()
+    try:
+        os.chdir(tmp_path)
+
+        from codeflare_sdk.ray.rayjobs.config import ManagedClusterConfig
+
+        cluster_config = ManagedClusterConfig()
+
+        rayjob = RayJob(
+            job_name="test-job",
+            cluster_config=cluster_config,
+            entrypoint="python main.py",
+            namespace="test-namespace",
+        )
+
+        with caplog.at_level("INFO"):
+            result = rayjob.submit()
+
+        assert result == "test-job"
+
+        # Verify RayJob was submitted first
+        mock_api_instance.submit_job.assert_called_once()
+
+        # Verify ConfigMap was created with owner reference
+        mock_k8s_instance.create_namespaced_config_map.assert_called_once()
+        assert created_configmap is not None
+
+        # Verify owner reference was set correctly
+        assert hasattr(created_configmap.metadata, "owner_references")
+        assert created_configmap.metadata.owner_references is not None
+        assert len(created_configmap.metadata.owner_references) == 1
+
+        owner_ref = created_configmap.metadata.owner_references[0]
+        assert owner_ref.api_version == "ray.io/v1"
+        assert owner_ref.kind == "RayJob"
+        assert owner_ref.name == "test-job"
+        assert owner_ref.uid == "unique-rayjob-uid-12345"
+        assert owner_ref.controller is True
+        assert owner_ref.block_owner_deletion is True
+
+        # Verify labels were set
+        assert created_configmap.metadata.labels["ray.io/job-name"] == "test-job"
+        assert (
+            created_configmap.metadata.labels["app.kubernetes.io/managed-by"]
+            == "codeflare-sdk"
+        )
+        assert (
+            created_configmap.metadata.labels["app.kubernetes.io/component"]
+            == "rayjob-scripts"
+        )
+
+        # Verify scripts were included
+        assert "main.py" in created_configmap.data
+        assert "helper.py" in created_configmap.data
+
+        # Verify log message
+        assert (
+            "Adding owner reference to ConfigMap 'test-job-scripts' with RayJob UID: unique-rayjob-uid-12345"
+            in caplog.text
+        )
+
+    finally:
+        os.chdir(original_cwd)
 
 
 def test_find_local_imports_syntax_error(mocker):
