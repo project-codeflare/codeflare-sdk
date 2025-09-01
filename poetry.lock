@@ -3399,8 +3399,8 @@ kubernetes = ">=25.0.0"
 [package.source]
 type = "git"
 url = "https://github.com/ray-project/kuberay.git"
-reference = "d1e750d9beac612ad455b951c1a789f971409ab3"
-resolved_reference = "d1e750d9beac612ad455b951c1a789f971409ab3"
+reference = "a16c0365e3b19a202d835097e1139eca9406b383"
+resolved_reference = "a16c0365e3b19a202d835097e1139eca9406b383"
 subdirectory = "clients/python-client"
 
 [[package]]
@@ -4790,4 +4790,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.11"
-content-hash = "d854f6abffad6c08100fdfeeb53d41fac01ef253f3d3b07cae3608d44768d4ee"
+content-hash = "4634ae18b5b5f4bda0d926f60cc1c64e927b5435cc04a360ee0996436e91edbe"
