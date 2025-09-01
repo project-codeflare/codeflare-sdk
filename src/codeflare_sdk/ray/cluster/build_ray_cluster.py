@@ -21,6 +21,7 @@ from ...common import _kube_api_error_handling
 from ...common.kubernetes_cluster import get_api_client, config_check
 from kubernetes.client.exceptions import ApiException
 from ...common.utils.constants import RAY_VERSION
+from ...common.utils.utils import get_ray_image_for_python_version
 import codeflare_sdk
 import os
 
@@ -95,9 +96,8 @@ VOLUMES = [
     ),
 ]
 
-SUPPORTED_PYTHON_VERSIONS = {
-    "3.11": constants.CUDA_RUNTIME_IMAGE,
-}
+# Use centralized mapping from constants (so that we only have to update constants.py)
+SUPPORTED_PYTHON_VERSIONS = constants.SUPPORTED_PYTHON_VERSIONS
 
 
 # RayCluster/AppWrapper builder function
@@ -272,16 +272,11 @@ def with_nb_annotations(annotations: dict):
 def update_image(image) -> str:
     """
     The update_image() function automatically sets the image config parameter to a preset image based on Python version if not specified.
-    If no Ray image exists for the given Python version a warning is produced.
+    This now points to the centralized function in utils.py.
     """
     if not image:
-        python_version = f"{sys.version_info.major}.{sys.version_info.minor}"
-        if python_version in SUPPORTED_PYTHON_VERSIONS:
-            image = SUPPORTED_PYTHON_VERSIONS[python_version]
-        else:
-            warnings.warn(
-                f"No default Ray image defined for {python_version}. Please provide your own image or use one of the following python versions: {', '.join(SUPPORTED_PYTHON_VERSIONS.keys())}."
-            )
+        # Pull the image based on the matching Python version (or output a warning if not supported)
+        image = get_ray_image_for_python_version(warn_on_unsupported=True)
     return image
 
 

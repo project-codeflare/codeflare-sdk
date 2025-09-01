@@ -115,7 +115,9 @@ class TestRayLocalInteractiveKind:
 
             ref = heavy_calculation.remote(3000)
             result = ray.get(ref)
-            assert result == 1789.4644387076714
+            assert (
+                result == 1789.4644387076728
+            )  # Updated result after moving to Python 3.12 (0.0000000000008% difference to old assertion)
             ray.cancel(ref)
             ray.shutdown()
 
