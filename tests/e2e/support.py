@@ -8,6 +8,7 @@ from codeflare_sdk.common.kubernetes_cluster.kube_api_helpers import (
     _kube_api_error_handling,
 )
 from codeflare_sdk.common.utils import constants
+from codeflare_sdk.common.utils.utils import get_ray_image_for_python_version
 
 
 def get_ray_cluster(cluster_name, namespace):
@@ -27,7 +28,10 @@ def get_ray_cluster(cluster_name, namespace):
 
 
 def get_ray_image():
-    return os.getenv("RAY_IMAGE", constants.CUDA_RUNTIME_IMAGE)
+    return os.getenv(
+        "RAY_IMAGE",
+        get_ray_image_for_python_version(warn_on_unsupported=False),
+    )
 
 
 def get_setup_env_variables(**kwargs):
