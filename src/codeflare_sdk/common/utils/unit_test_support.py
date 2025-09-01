@@ -15,6 +15,7 @@
 import string
 import sys
 from codeflare_sdk.common.utils import constants
+from codeflare_sdk.common.utils.utils import get_ray_image_for_python_version
 from codeflare_sdk.ray.cluster.cluster import (
     Cluster,
     ClusterConfiguration,
@@ -69,7 +70,7 @@ def create_cluster_wrong_type():
         worker_extended_resource_requests={"nvidia.com/gpu": 7},
         appwrapper=True,
         image_pull_secrets=["unit-test-pull-secret"],
-        image=constants.CUDA_RUNTIME_IMAGE,
+        image=constants.CUDA_PY312_RUNTIME_IMAGE,
         write_to_file=True,
         labels={1: 1},
     )
@@ -294,8 +295,8 @@ def apply_template(yaml_file_path, variables):
 
 
 def get_expected_image():
-    # TODO: Select image based on Python version
-    return constants.CUDA_RUNTIME_IMAGE
+    # Use centralized image selection logic (fallback to 3.12 for test consistency)
+    return get_ray_image_for_python_version(warn_on_unsupported=True)
 
 
 def get_template_variables():

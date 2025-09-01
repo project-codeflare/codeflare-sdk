@@ -43,6 +43,7 @@ def test_update_image_without_supported_python_version(mocker):
         "codeflare_sdk.ray.cluster.build_ray_cluster.SUPPORTED_PYTHON_VERSIONS",
         {
             "3.11": "ray-py3.11",
+            "3.12": "ray-py3.12",
         },
     )
 
@@ -60,7 +61,7 @@ def test_update_image_without_supported_python_version(mocker):
 
     # Assert that the warning was called with the expected message
     warn_mock.assert_called_once_with(
-        "No default Ray image defined for 3.8. Please provide your own image or use one of the following python versions: 3.11."
+        "No default Ray image defined for 3.8. Please provide your own image or use one of the following python versions: 3.11, 3.12."
     )
 
     # Assert that no image was set since the Python version is not supported
