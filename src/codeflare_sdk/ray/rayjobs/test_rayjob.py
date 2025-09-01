@@ -390,7 +390,7 @@ def test_submit_validation_no_entrypoint(mocker):
     )
 
     with pytest.raises(
-        ValueError, match="entrypoint must be provided to submit a RayJob"
+        ValueError, match="Entrypoint must be provided to submit a RayJob"
     ):
         rayjob.submit()
 
@@ -1878,3 +1878,123 @@ def test_add_script_volumes_existing_mount_skip():
     # Should still have only one mount and no volume added
     assert len(config.volumes) == 0  # Volume not added due to mount skip
     assert len(config.volume_mounts) == 1
+
+
+def test_rayjob_stop_success(mocker, caplog):
+    """Test successful RayJob stop operation."""
+    mocker.patch("kubernetes.config.load_kube_config")
+
+    mock_api_class = mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayjobApi")
+    mock_api_instance = MagicMock()
+    mock_api_class.return_value = mock_api_instance
+
+    mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayClusterApi")
+
+    mock_api_instance.suspend_job.return_value = {
+        "metadata": {"name": "test-rayjob"},
+        "spec": {"suspend": True},
+    }
+
+    rayjob = RayJob(
+        job_name="test-rayjob",
+        cluster_name="test-cluster",
+        namespace="test-namespace",
+        entrypoint="python script.py",
+    )
+
+    with caplog.at_level("INFO"):
+        result = rayjob.stop()
+
+    assert result is True
+
+    mock_api_instance.suspend_job.assert_called_once_with(
+        name="test-rayjob", k8s_namespace="test-namespace"
+    )
+
+    # Verify success message was logged
+    assert "Successfully stopped the RayJob test-rayjob" in caplog.text
+
+
+def test_rayjob_stop_failure(mocker):
+    """Test RayJob stop operation when API call fails."""
+    mocker.patch("kubernetes.config.load_kube_config")
+
+    mock_api_class = mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayjobApi")
+    mock_api_instance = MagicMock()
+    mock_api_class.return_value = mock_api_instance
+
+    mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayClusterApi")
+
+    mock_api_instance.suspend_job.return_value = None
+
+    rayjob = RayJob(
+        job_name="test-rayjob",
+        cluster_name="test-cluster",
+        namespace="test-namespace",
+        entrypoint="python script.py",
+    )
+
+    with pytest.raises(RuntimeError, match="Failed to stop the RayJob test-rayjob"):
+        rayjob.stop()
+
+    mock_api_instance.suspend_job.assert_called_once_with(
+        name="test-rayjob", k8s_namespace="test-namespace"
+    )
+
+
+def test_rayjob_resubmit_success(mocker):
+    """Test successful RayJob resubmit operation."""
+    mocker.patch("kubernetes.config.load_kube_config")
+
+    mock_api_class = mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayjobApi")
+    mock_api_instance = MagicMock()
+    mock_api_class.return_value = mock_api_instance
+
+    mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayClusterApi")
+
+    mock_api_instance.resubmit_job.return_value = {
+        "metadata": {"name": "test-rayjob"},
+        "spec": {"suspend": False},
+    }
+
+    rayjob = RayJob(
+        job_name="test-rayjob",
+        cluster_name="test-cluster",
+        namespace="test-namespace",
+        entrypoint="python script.py",
+    )
+
+    result = rayjob.resubmit()
+
+    assert result is True
+
+    mock_api_instance.resubmit_job.assert_called_once_with(
+        name="test-rayjob", k8s_namespace="test-namespace"
+    )
+
+
+def test_rayjob_resubmit_failure(mocker):
+    """Test RayJob resubmit operation when API call fails."""
+    mocker.patch("kubernetes.config.load_kube_config")
+
+    mock_api_class = mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayjobApi")
+    mock_api_instance = MagicMock()
+    mock_api_class.return_value = mock_api_instance
+
+    mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayClusterApi")
+
+    mock_api_instance.resubmit_job.return_value = None
+
+    rayjob = RayJob(
+        job_name="test-rayjob",
+        cluster_name="test-cluster",
+        namespace="test-namespace",
+        entrypoint="python script.py",
+    )
+
+    with pytest.raises(RuntimeError, match="Failed to resubmit the RayJob test-rayjob"):
+        rayjob.resubmit()
+
+    mock_api_instance.resubmit_job.assert_called_once_with(
+        name="test-rayjob", k8s_namespace="test-namespace"
+    )

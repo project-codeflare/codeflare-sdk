@@ -154,29 +154,24 @@ class RayJob:
         logger.info(f"Initialized RayJob: {self.name} in namespace: {self.namespace}")
 
     def submit(self) -> str:
-        # Validate required parameters
         if not self.entrypoint:
-            raise ValueError("entrypoint must be provided to submit a RayJob")
+            raise ValueError("Entrypoint must be provided to submit a RayJob")
 
-        # Validate Ray version compatibility for both cluster_config and runtime_env
         self._validate_ray_version_compatibility()
+
         # Automatically handle script files for new clusters
         if self._cluster_config is not None:
             scripts = self._extract_script_files_from_entrypoint()
             if scripts:
                 self._handle_script_volumes_for_new_cluster(scripts)
-
-        # Handle script files for existing clusters
         elif self._cluster_name:
             scripts = self._extract_script_files_from_entrypoint()
             if scripts:
                 self._handle_script_volumes_for_existing_cluster(scripts)
 
-        # Build the RayJob custom resource
         rayjob_cr = self._build_rayjob_cr()
 
-        # Submit the job - KubeRay operator handles everything else
-        logger.info(f"Submitting RayJob {self.name} to KubeRay operator")
+        logger.info(f"Submitting RayJob {self.name} to Kuberay operator")
         result = self._api.submit_job(k8s_namespace=self.namespace, job=rayjob_cr)
 
         if result:
@@ -189,11 +184,31 @@ class RayJob:
         else:
             raise RuntimeError(f"Failed to submit RayJob {self.name}")
 
+    def stop(self):
+        """
+        Suspend the Ray job.
+        """
+        stopped = self._api.suspend_job(name=self.name, k8s_namespace=self.namespace)
+        if stopped:
+            logger.info(f"Successfully stopped the RayJob {self.name}")
+            return True
+        else:
+            raise RuntimeError(f"Failed to stop the RayJob {self.name}")
+
+    def resubmit(self):
+        """
+        Resubmit the Ray job.
+        """
+        if self._api.resubmit_job(name=self.name, k8s_namespace=self.namespace):
+            logger.info(f"Successfully resubmitted the RayJob {self.name}")
+            return True
+        else:
+            raise RuntimeError(f"Failed to resubmit the RayJob {self.name}")
+
     def _build_rayjob_cr(self) -> Dict[str, Any]:
         """
         Build the RayJob custom resource specification using native RayJob capabilities.
         """
-        # Basic RayJob custom resource structure
         rayjob_cr = {
             "apiVersion": "ray.io/v1",
             "kind": "RayJob",
