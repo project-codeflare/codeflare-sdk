@@ -55,9 +55,9 @@ class TestHeterogeneousClustersOauth:
                     namespace=self.namespace,
                     name=cluster_name,
                     num_workers=1,
-                    head_cpu_requests="500m",
-                    head_cpu_limits="500m",
-                    worker_cpu_requests="500m",
+                    head_cpu_requests=1,
+                    head_cpu_limits=1,
+                    worker_cpu_requests=1,
                     worker_cpu_limits=1,
                     worker_memory_requests=1,
                     worker_memory_limits=4,
@@ -66,7 +66,7 @@ class TestHeterogeneousClustersOauth:
                     local_queue=queue_name,
                 )
             )
-            cluster.up()
+            cluster.apply()
             sleep(5)
             node_name = get_pod_node(self, self.namespace, cluster_name)
             print(f"Cluster {cluster_name}-{flavor} is running on node: {node_name}")

@@ -44,6 +44,10 @@ class TestRayLocalInteractiveOauth:
                 namespace=self.namespace,
                 name=cluster_name,
                 num_workers=1,
+                head_memory_requests=6,
+                head_memory_limits=8,
+                head_cpu_requests=1,
+                head_cpu_limits=1,
                 worker_cpu_requests=1,
                 worker_cpu_limits=1,
                 worker_memory_requests=1,
@@ -52,7 +56,7 @@ class TestRayLocalInteractiveOauth:
                 verify_tls=False,
             )
         )
-        cluster.up()
+        cluster.apply()
         cluster.wait_ready()
 
         generate_cert.generate_tls_cert(cluster_name, self.namespace)

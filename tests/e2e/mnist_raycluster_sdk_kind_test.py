@@ -54,7 +54,7 @@ class TestRayClusterSDKKind:
             )
         )
 
-        cluster.up()
+        cluster.apply()
 
         cluster.status()
 

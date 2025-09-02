@@ -55,7 +55,7 @@ class TestRayClusterSDKAppWrapperKind:
             )
         )
 
-        cluster.up()
+        cluster.apply()
 
         cluster.status()
 
