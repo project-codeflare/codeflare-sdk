@@ -46,19 +46,19 @@ class TestRayClusterSDKOauth:
                 name="mnist",
                 namespace=self.namespace,
                 num_workers=1,
-                head_cpu_requests="500m",
-                head_cpu_limits="500m",
+                head_memory_requests=6,
+                head_memory_limits=8,
                 worker_cpu_requests=1,
                 worker_cpu_limits=1,
-                worker_memory_requests=1,
-                worker_memory_limits=4,
+                worker_memory_requests=6,
+                worker_memory_limits=8,
                 image=ray_image,
                 write_to_file=True,
                 verify_tls=False,
             )
         )
 
-        cluster.up()
+        cluster.apply()
 
         cluster.status()
 

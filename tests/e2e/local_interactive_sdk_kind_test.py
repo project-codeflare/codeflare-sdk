@@ -65,7 +65,7 @@ class TestRayLocalInteractiveKind:
             )
         )
 
-        cluster.up()
+        cluster.apply()
 
         cluster.wait_ready()
         cluster.status()

@@ -26,7 +26,7 @@ cluster = Cluster(
     )
 )
 
-cluster.up()
+cluster.apply()
 
 cluster.status()
 

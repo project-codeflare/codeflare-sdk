@@ -63,7 +63,7 @@ class TestHeterogeneousClustersKind:
                     local_queue=queue_name,
                 )
             )
-            cluster.up()
+            cluster.apply()
             sleep(5)
             node_name = get_pod_node(self, self.namespace, cluster_name)
             print(f"Cluster {cluster_name}-{flavor} is running on node: {node_name}")
