@@ -523,7 +523,15 @@ class ManagedClusterConfig:
         return {
             "apiVersion": "v1",
             "kind": "ConfigMap",
-            "metadata": {"name": configmap_name, "namespace": namespace},
+            "metadata": {
+                "name": configmap_name,
+                "namespace": namespace,
+                "labels": {
+                    "ray.io/job-name": job_name,
+                    "app.kubernetes.io/managed-by": "codeflare-sdk",
+                    "app.kubernetes.io/component": "rayjob-scripts",
+                },
+            },
             "data": scripts,
         }
 

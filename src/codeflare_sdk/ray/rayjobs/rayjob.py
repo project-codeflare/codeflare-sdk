@@ -154,33 +154,29 @@ class RayJob:
         logger.info(f"Initialized RayJob: {self.name} in namespace: {self.namespace}")
 
     def submit(self) -> str:
-        # Validate required parameters
         if not self.entrypoint:
-            raise ValueError("entrypoint must be provided to submit a RayJob")
+            raise ValueError("Entrypoint must be provided to submit a RayJob")
 
-        # Validate Ray version compatibility for both cluster_config and runtime_env
         self._validate_ray_version_compatibility()
-        # Automatically handle script files for new clusters
-        if self._cluster_config is not None:
-            scripts = self._extract_script_files_from_entrypoint()
-            if scripts:
-                self._handle_script_volumes_for_new_cluster(scripts)
 
-        # Handle script files for existing clusters
-        elif self._cluster_name:
-            scripts = self._extract_script_files_from_entrypoint()
-            if scripts:
-                self._handle_script_volumes_for_existing_cluster(scripts)
-
-        # Build the RayJob custom resource
         rayjob_cr = self._build_rayjob_cr()
 
-        # Submit the job - KubeRay operator handles everything else
-        logger.info(f"Submitting RayJob {self.name} to KubeRay operator")
+        logger.info(f"Submitting RayJob {self.name} to Kuberay operator")
         result = self._api.submit_job(k8s_namespace=self.namespace, job=rayjob_cr)
 
         if result:
             logger.info(f"Successfully submitted RayJob {self.name}")
+
+            # Handle script files after RayJob creation so we can set owner reference
+            if self._cluster_config is not None:
+                scripts = self._extract_script_files_from_entrypoint()
+                if scripts:
+                    self._handle_script_volumes_for_new_cluster(scripts, result)
+            elif self._cluster_name:
+                scripts = self._extract_script_files_from_entrypoint()
+                if scripts:
+                    self._handle_script_volumes_for_existing_cluster(scripts, result)
+
             if self.shutdown_after_job_finishes:
                 logger.info(
                     f"Cluster will be automatically cleaned up {self.ttl_seconds_after_finished}s after job completion"
@@ -189,11 +185,42 @@ class RayJob:
         else:
             raise RuntimeError(f"Failed to submit RayJob {self.name}")
 
+    def stop(self):
+        """
+        Suspend the Ray job.
+        """
+        stopped = self._api.suspend_job(name=self.name, k8s_namespace=self.namespace)
+        if stopped:
+            logger.info(f"Successfully stopped the RayJob {self.name}")
+            return True
+        else:
+            raise RuntimeError(f"Failed to stop the RayJob {self.name}")
+
+    def resubmit(self):
+        """
+        Resubmit the Ray job.
+        """
+        if self._api.resubmit_job(name=self.name, k8s_namespace=self.namespace):
+            logger.info(f"Successfully resubmitted the RayJob {self.name}")
+            return True
+        else:
+            raise RuntimeError(f"Failed to resubmit the RayJob {self.name}")
+
+    def delete(self):
+        """
+        Delete the Ray job.
+        """
+        deleted = self._api.delete_job(name=self.name, k8s_namespace=self.namespace)
+        if deleted:
+            logger.info(f"Successfully deleted the RayJob {self.name}")
+            return True
+        else:
+            raise RuntimeError(f"Failed to delete the RayJob {self.name}")
+
     def _build_rayjob_cr(self) -> Dict[str, Any]:
         """
         Build the RayJob custom resource specification using native RayJob capabilities.
         """
-        # Basic RayJob custom resource structure
         rayjob_cr = {
             "apiVersion": "ray.io/v1",
             "kind": "RayJob",
@@ -449,7 +476,9 @@ class RayJob:
         except (SyntaxError, ValueError) as e:
             logger.debug(f"Could not parse imports from {script_path}: {e}")
 
-    def _handle_script_volumes_for_new_cluster(self, scripts: Dict[str, str]):
+    def _handle_script_volumes_for_new_cluster(
+        self, scripts: Dict[str, str], rayjob_result: Dict[str, Any] = None
+    ):
         """Handle script volumes for new clusters (uses ManagedClusterConfig)."""
         # Validate ConfigMap size before creation
         self._cluster_config.validate_configmap_size(scripts)
@@ -459,15 +488,17 @@ class RayJob:
             job_name=self.name, namespace=self.namespace, scripts=scripts
         )
 
-        # Create ConfigMap via Kubernetes API
-        configmap_name = self._create_configmap_from_spec(configmap_spec)
+        # Create ConfigMap via Kubernetes API with owner reference
+        configmap_name = self._create_configmap_from_spec(configmap_spec, rayjob_result)
 
         # Add volumes to cluster config (config.py handles spec building)
         self._cluster_config.add_script_volumes(
             configmap_name=configmap_name, mount_path=MOUNT_PATH
         )
 
-    def _handle_script_volumes_for_existing_cluster(self, scripts: Dict[str, str]):
+    def _handle_script_volumes_for_existing_cluster(
+        self, scripts: Dict[str, str], rayjob_result: Dict[str, Any] = None
+    ):
         """Handle script volumes for existing clusters (updates RayCluster CR)."""
         # Create config builder for utility methods
         config_builder = ManagedClusterConfig()
@@ -480,18 +511,21 @@ class RayJob:
             job_name=self.name, namespace=self.namespace, scripts=scripts
         )
 
-        # Create ConfigMap via Kubernetes API
-        configmap_name = self._create_configmap_from_spec(configmap_spec)
+        # Create ConfigMap via Kubernetes API with owner reference
+        configmap_name = self._create_configmap_from_spec(configmap_spec, rayjob_result)
 
         # Update existing RayCluster
         self._update_existing_cluster_for_scripts(configmap_name, config_builder)
 
-    def _create_configmap_from_spec(self, configmap_spec: Dict[str, Any]) -> str:
+    def _create_configmap_from_spec(
+        self, configmap_spec: Dict[str, Any], rayjob_result: Dict[str, Any] = None
+    ) -> str:
         """
         Create ConfigMap from specification via Kubernetes API.
 
         Args:
             configmap_spec: ConfigMap specification dictionary
+            rayjob_result: The result from RayJob creation containing UID
 
         Returns:
             str: Name of the created ConfigMap
@@ -499,9 +533,35 @@ class RayJob:
 
         configmap_name = configmap_spec["metadata"]["name"]
 
+        metadata = client.V1ObjectMeta(**configmap_spec["metadata"])
+
+        # Add owner reference if we have the RayJob result
+        if (
+            rayjob_result
+            and isinstance(rayjob_result, dict)
+            and rayjob_result.get("metadata", {}).get("uid")
+        ):
+            logger.info(
+                f"Adding owner reference to ConfigMap '{configmap_name}' with RayJob UID: {rayjob_result['metadata']['uid']}"
+            )
+            metadata.owner_references = [
+                client.V1OwnerReference(
+                    api_version="ray.io/v1",
+                    kind="RayJob",
+                    name=self.name,
+                    uid=rayjob_result["metadata"]["uid"],
+                    controller=True,
+                    block_owner_deletion=True,
+                )
+            ]
+        else:
+            logger.warning(
+                f"No valid RayJob result with UID found, ConfigMap '{configmap_name}' will not have owner reference. Result: {rayjob_result}"
+            )
+
         # Convert dict spec to V1ConfigMap
         configmap = client.V1ConfigMap(
-            metadata=client.V1ObjectMeta(**configmap_spec["metadata"]),
+            metadata=metadata,
             data=configmap_spec["data"],
         )
 

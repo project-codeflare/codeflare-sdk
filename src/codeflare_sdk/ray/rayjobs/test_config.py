@@ -82,6 +82,40 @@ def test_gpu_validation_fails_with_unsupported_accelerator():
         ManagedClusterConfig(head_accelerators={"unsupported.com/accelerator": 1})
 
 
+def test_config_type_validation_errors(mocker):
+    """Test that type validation properly raises errors with incorrect types."""
+    # Mock the _is_type method to return False for type checking
+    mocker.patch.object(
+        ManagedClusterConfig,
+        "_is_type",
+        side_effect=lambda value, expected_type: False,  # Always fail type check
+    )
+
+    # This should raise TypeError during initialization
+    with pytest.raises(TypeError, match="Type validation failed"):
+        ManagedClusterConfig()
+
+
+def test_config_is_type_method():
+    """Test the _is_type static method for type checking."""
+    # Test basic types
+    assert ManagedClusterConfig._is_type("test", str) is True
+    assert ManagedClusterConfig._is_type(123, int) is True
+    assert ManagedClusterConfig._is_type(123, str) is False
+
+    # Test optional types (Union with None)
+    from typing import Optional
+
+    assert ManagedClusterConfig._is_type(None, Optional[str]) is True
+    assert ManagedClusterConfig._is_type("test", Optional[str]) is True
+    assert ManagedClusterConfig._is_type(123, Optional[str]) is False
+
+    # Test dict types
+    assert ManagedClusterConfig._is_type({}, dict) is True
+    assert ManagedClusterConfig._is_type({"key": "value"}, dict) is True
+    assert ManagedClusterConfig._is_type([], dict) is False
+
+
 def test_ray_usage_stats_always_disabled_by_default():
     """Test that RAY_USAGE_STATS_ENABLED is always set to '0' by default"""
     config = ManagedClusterConfig()
@@ -170,3 +204,26 @@ def test_add_script_volumes_existing_mount_early_return():
     # Should still have only one mount, no volume added
     assert len(config.volumes) == 0
     assert len(config.volume_mounts) == 1
+
+
+def test_build_script_configmap_spec_labels():
+    """Test that build_script_configmap_spec creates ConfigMap with correct labels."""
+    config = ManagedClusterConfig()
+
+    job_name = "test-job"
+    namespace = "test-namespace"
+    scripts = {"script.py": "print('hello')", "helper.py": "# helper code"}
+
+    configmap_spec = config.build_script_configmap_spec(job_name, namespace, scripts)
+
+    assert configmap_spec["apiVersion"] == "v1"
+    assert configmap_spec["kind"] == "ConfigMap"
+    assert configmap_spec["metadata"]["name"] == f"{job_name}-scripts"
+    assert configmap_spec["metadata"]["namespace"] == namespace
+
+    labels = configmap_spec["metadata"]["labels"]
+    assert labels["ray.io/job-name"] == job_name
+    assert labels["app.kubernetes.io/managed-by"] == "codeflare-sdk"
+    assert labels["app.kubernetes.io/component"] == "rayjob-scripts"
+
+    assert configmap_spec["data"] == scripts
