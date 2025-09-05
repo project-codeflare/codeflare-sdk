@@ -82,6 +82,40 @@ def test_gpu_validation_fails_with_unsupported_accelerator():
         ManagedClusterConfig(head_accelerators={"unsupported.com/accelerator": 1})
 
 
+def test_config_type_validation_errors(mocker):
+    """Test that type validation properly raises errors with incorrect types."""
+    # Mock the _is_type method to return False for type checking
+    mocker.patch.object(
+        ManagedClusterConfig,
+        "_is_type",
+        side_effect=lambda value, expected_type: False,  # Always fail type check
+    )
+
+    # This should raise TypeError during initialization
+    with pytest.raises(TypeError, match="Type validation failed"):
+        ManagedClusterConfig()
+
+
+def test_config_is_type_method():
+    """Test the _is_type static method for type checking."""
+    # Test basic types
+    assert ManagedClusterConfig._is_type("test", str) is True
+    assert ManagedClusterConfig._is_type(123, int) is True
+    assert ManagedClusterConfig._is_type(123, str) is False
+
+    # Test optional types (Union with None)
+    from typing import Optional
+
+    assert ManagedClusterConfig._is_type(None, Optional[str]) is True
+    assert ManagedClusterConfig._is_type("test", Optional[str]) is True
+    assert ManagedClusterConfig._is_type(123, Optional[str]) is False
+
+    # Test dict types
+    assert ManagedClusterConfig._is_type({}, dict) is True
+    assert ManagedClusterConfig._is_type({"key": "value"}, dict) is True
+    assert ManagedClusterConfig._is_type([], dict) is False
+
+
 def test_ray_usage_stats_always_disabled_by_default():
     """Test that RAY_USAGE_STATS_ENABLED is always set to '0' by default"""
     config = ManagedClusterConfig()
