@@ -33,7 +33,7 @@ cryptography = "43.0.3"
 executing = "1.2.0"
 pydantic = ">= 2.10.6"
 ipywidgets = "8.1.2"
-python-client = { git = "https://github.com/ray-project/kuberay.git", subdirectory = "clients/python-client", rev = "a16c0365e3b19a202d835097e1139eca9406b383" }
+python-client = { git = "https://github.com/ray-project/kuberay.git", subdirectory = "clients/python-client", rev = "b2fd91b58c2bbe22f9b4f730c5a8f3180c05e570" }
 
 [[tool.poetry.source]]
 name = "pypi"
@@ -58,6 +58,10 @@ coverage = "7.6.4"
 pytest-mock = "3.11.1"
 pytest-timeout = "2.3.1"
 jupyterlab = "4.3.1"
+
+
+[tool.poetry.group.dev.dependencies]
+diff-cover = "^9.6.0"
 
 [tool.pytest.ini_options]
 filterwarnings = [
