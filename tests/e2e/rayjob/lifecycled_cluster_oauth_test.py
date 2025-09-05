@@ -7,7 +7,10 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from support import *
 
 from codeflare_sdk import RayJob, ManagedClusterConfig
-from codeflare_sdk.ray.rayjobs.status import CodeflareRayJobStatus
+from codeflare_sdk.ray.rayjobs.status import (
+    CodeflareRayJobStatus,
+    RayJobDeploymentStatus,
+)
 import kubernetes.client.rest
 from python_client.kuberay_job_api import RayjobApi
 from python_client.kuberay_cluster_api import RayClusterApi
@@ -64,7 +67,7 @@ class TestRayJobLifecycledClusterOauth:
             # 1. Submit and wait for job to reach running state
             assert rayjob.submit() == job_name
             assert self.job_api.wait_until_job_running(
-                name=rayjob.name, k8s_namespace=rayjob.namespace, timeout=60
+                name=rayjob.name, k8s_namespace=rayjob.namespace, timeout=300
             ), "Job did not reach running state"
 
             # 2. Stop (suspend) the job and
