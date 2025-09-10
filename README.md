@@ -29,7 +29,7 @@ It is possible to use the Release Github workflow to do the release. This is gen
 
 ### Manual Releases
 
-The following instructions apply when doing release manually. This may be required in instances where the automation is failing.
+The following instructions apply when doinga release manually. This may be required in instances where the automation is failing.
 
 - Check and update the version in "pyproject.toml" file.
 - Commit all the changes to the repository.

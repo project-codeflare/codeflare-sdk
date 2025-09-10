@@ -404,6 +404,7 @@ def assert_get_cluster_and_jobsubmit(
 
     # Validate the number of jobs in the list
     assert len(job_list) == 1
+    assert len(job_list) != 0
 
     # Validate the submission ID matches
     assert job_list[0].submission_id == submission_id
