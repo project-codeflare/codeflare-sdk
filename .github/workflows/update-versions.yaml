@@ -1,0 +1,334 @@
+name: Update SDK, Ray, and CUDA Versions & Runtime Image SHAs
+
+on:
+  workflow_dispatch:
+    inputs:
+      new_sdk_version:
+        description: 'New SDK version (e.g., 0.32.0)'
+        required: false
+        type: string
+        default: ''
+      new_ray_version:
+        description: 'New Ray version (e.g., 2.48.0)'
+        required: false
+        type: string
+        default: ''
+      new_cuda_py311_sha:
+        description: 'New CUDA Python 3.11 runtime image SHA (e.g., abc123...)'
+        required: false
+        type: string
+        default: ''
+      new_cuda_py312_sha:
+        description: 'New CUDA Python 3.12 runtime image SHA (e.g., def456...)'
+        required: false
+        type: string
+        default: ''
+      new_cuda_version_py311:
+        description: 'New CUDA version for Python 3.11 (e.g., cu121)'
+        required: false
+        type: string
+        default: ''
+      new_cuda_version_py312:
+        description: 'New CUDA version for Python 3.12 (e.g., cu128)'
+        required: false
+        type: string
+        default: ''
+
+env:
+  PR_BRANCH_NAME: ray-version-update-${{ github.run_id }}
+
+jobs:
+  update-versions:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+
+      - name: Configure git and create branch
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git checkout main
+          git pull origin main
+          git checkout -b ${{ env.PR_BRANCH_NAME }}
+
+      - name: Update constants.py
+        run: |
+          # Update Ray version if provided
+          if [ -n "${{ github.event.inputs.new_ray_version }}" ]; then
+            sed -i "s/RAY_VERSION = \"[^\"]*\"/RAY_VERSION = \"${{ github.event.inputs.new_ray_version }}\"/" src/codeflare_sdk/common/utils/constants.py
+
+            # Update comments with new Ray version and CUDA versions if both are provided
+            if [ -n "${{ github.event.inputs.new_cuda_version_py311 }}" ]; then
+              sed -i "s/\* For python 3.11:ray:[^\"]*/\* For python 3.11:ray:${{ github.event.inputs.new_ray_version }}-py311-${{ github.event.inputs.new_cuda_version_py311 }}/" src/codeflare_sdk/common/utils/constants.py
+            fi
+            if [ -n "${{ github.event.inputs.new_cuda_version_py312 }}" ]; then
+              sed -i "s/\* For python 3.12:ray:[^\"]*/\* For python 3.12:ray:${{ github.event.inputs.new_ray_version }}-py312-${{ github.event.inputs.new_cuda_version_py312 }}/" src/codeflare_sdk/common/utils/constants.py
+            fi
+          fi
+
+          # Update runtime image SHAs if provided
+          if [ -n "${{ github.event.inputs.new_cuda_py311_sha }}" ]; then
+            sed -i "s/CUDA_PY311_RUNTIME_IMAGE = \"quay\.io\/modh\/ray@sha256:[^\"]*\"/CUDA_PY311_RUNTIME_IMAGE = \"quay.io\/modh\/ray@sha256:${{ github.event.inputs.new_cuda_py311_sha }}\"/" src/codeflare_sdk/common/utils/constants.py
+          fi
+
+          if [ -n "${{ github.event.inputs.new_cuda_py312_sha }}" ]; then
+            sed -i "s/CUDA_PY312_RUNTIME_IMAGE = \"quay\.io\/modh\/ray@sha256:[^\"]*\"/CUDA_PY312_RUNTIME_IMAGE = \"quay.io\/modh\/ray@sha256:${{ github.event.inputs.new_cuda_py312_sha }}\"/" src/codeflare_sdk/common/utils/constants.py
+          fi
+
+      - name: Update pyproject.toml
+        run: |
+          # Update Ray dependency version in pyproject.toml if Ray version is provided
+          if [ -n "${{ github.event.inputs.new_ray_version }}" ]; then
+            sed -i "s/ray = {version = \"[^\"]*\", extras = \[\"data\", \"default\"\]}/ray = {version = \"${{ github.event.inputs.new_ray_version }}\", extras = [\"data\", \"default\"]}/" pyproject.toml
+          fi
+
+          # Update SDK version in pyproject.toml if SDK version is provided
+          if [ -n "${{ github.event.inputs.new_sdk_version }}" ]; then
+            # Update both [project] and [tool.poetry] version fields
+            sed -i "s/^version = \"[^\"]*\"/version = \"${{ github.event.inputs.new_sdk_version }}\"/" pyproject.toml
+          fi
+
+      - name: Update documentation files
+        run: |
+          # Update documentation files with new Ray version and image tags if provided
+          if [ -n "${{ github.event.inputs.new_ray_version }}" ] && [ -n "${{ github.event.inputs.new_cuda_version_py311 }}" ]; then
+            find docs/ -name "*.rst" -exec sed -i "s/quay\.io\/modh\/ray:[0-9]\+\.[0-9]\+\.[0-9]\+-py311-cu[0-9]\+/quay.io\/modh\/ray:${{ github.event.inputs.new_ray_version }}-py311-${{ github.event.inputs.new_cuda_version_py311 }}/g" {} \;
+            find docs/ -name "*.rst" -exec sed -i "s/quay\.io\/modh\/ray:[0-9]\+\.[0-9]\+\.[0-9]\+-py311-rocm[0-9]\+/quay.io\/modh\/ray:${{ github.event.inputs.new_ray_version }}-py311-rocm62/g" {} \;
+          fi
+
+          if [ -n "${{ github.event.inputs.new_ray_version }}" ] && [ -n "${{ github.event.inputs.new_cuda_version_py312 }}" ]; then
+            find docs/ -name "*.rst" -exec sed -i "s/quay\.io\/modh\/ray:[0-9]\+\.[0-9]\+\.[0-9]\+-py312-cu[0-9]\+/quay.io\/modh\/ray:${{ github.event.inputs.new_ray_version }}-py312-${{ github.event.inputs.new_cuda_version_py312 }}/g" {} \;
+          fi
+
+      - name: Update notebook files
+        run: |
+          # Update notebook files with new Ray version and image tags if provided
+          if [ -n "${{ github.event.inputs.new_ray_version }}" ] && [ -n "${{ github.event.inputs.new_cuda_version_py311 }}" ]; then
+            find demo-notebooks/ -name "*.ipynb" -exec sed -i "s/quay\.io\/modh\/ray:[0-9]\+\.[0-9]\+\.[0-9]\+-py311-cu[0-9]\+/quay.io\/modh\/ray:${{ github.event.inputs.new_ray_version }}-py311-${{ github.event.inputs.new_cuda_version_py311 }}/g" {} \;
+          fi
+
+          if [ -n "${{ github.event.inputs.new_ray_version }}" ] && [ -n "${{ github.event.inputs.new_cuda_version_py312 }}" ]; then
+            find demo-notebooks/ -name "*.ipynb" -exec sed -i "s/quay\.io\/modh\/ray:[0-9]\+\.[0-9]\+\.[0-9]\+-py312-cu[0-9]\+/quay.io\/modh\/ray:${{ github.event.inputs.new_ray_version }}-py312-${{ github.event.inputs.new_cuda_version_py312 }}/g" {} \;
+          fi
+
+          # Update notebook files with new Ray version only (for cases where CUDA version isn't specified)
+          if [ -n "${{ github.event.inputs.new_ray_version }}" ] && [ -z "${{ github.event.inputs.new_cuda_version_py311 }}" ] && [ -z "${{ github.event.inputs.new_cuda_version_py312 }}" ]; then
+            # Update Ray version in image tags while preserving existing CUDA versions
+            find demo-notebooks/ -name "*.ipynb" -exec sed -i "s/quay\.io\/modh\/ray:[0-9]\+\.[0-9]\+\.[0-9]\+-py311-cu[0-9]\+/quay.io\/modh\/ray:${{ github.event.inputs.new_ray_version }}-py311-cu121/g" {} \;
+            find demo-notebooks/ -name "*.ipynb" -exec sed -i "s/quay\.io\/modh\/ray:[0-9]\+\.[0-9]\+\.[0-9]\+-py312-cu[0-9]\+/quay.io\/modh\/ray:${{ github.event.inputs.new_ray_version }}-py312-cu128/g" {} \;
+          fi
+
+      - name: Update YAML test files
+        run: |
+          # Update YAML files with new Ray version if provided
+          if [ -n "${{ github.event.inputs.new_ray_version }}" ]; then
+            find tests/ -name "*.yaml" -exec sed -i "s/rayVersion: [0-9]\+\.[0-9]\+\.[0-9]\+/rayVersion: ${{ github.event.inputs.new_ray_version }}/g" {} \;
+          fi
+
+          # Update image tags in YAML files if Ray version and CUDA versions are provided
+          if [ -n "${{ github.event.inputs.new_ray_version }}" ] && [ -n "${{ github.event.inputs.new_cuda_version_py311 }}" ]; then
+            find tests/ -name "*.yaml" -exec sed -i "s/quay\.io\/modh\/ray:[0-9]\+\.[0-9]\+\.[0-9]\+-py311-cu[0-9]\+/quay.io\/modh\/ray:${{ github.event.inputs.new_ray_version }}-py311-${{ github.event.inputs.new_cuda_version_py311 }}/g" {} \;
+          fi
+
+      - name: Update output YAML files
+        run: |
+          # Update output YAML files in demo-notebooks if Ray version and CUDA version are provided
+          if [ -n "${{ github.event.inputs.new_ray_version }}" ] && [ -n "${{ github.event.inputs.new_cuda_version_py311 }}" ]; then
+            find demo-notebooks/ -name "*.yaml" -exec sed -i "s/quay\.io\/modh\/ray:[0-9]\+\.[0-9]\+\.[0-9]\+-py311-cu[0-9]\+/quay.io\/modh\/ray:${{ github.event.inputs.new_ray_version }}-py311-${{ github.event.inputs.new_cuda_version_py311 }}/g" {} \;
+          fi
+
+      - name: Validate updates
+        run: |
+          # Check if constants.py was updated correctly (only if Ray version was provided)
+          if [ -n "${{ github.event.inputs.new_ray_version }}" ]; then
+            if ! grep -q "RAY_VERSION = \"${{ github.event.inputs.new_ray_version }}\"" src/codeflare_sdk/common/utils/constants.py; then
+              echo "✗ Ray version not found in constants.py"
+              echo "Expected: RAY_VERSION = \"${{ github.event.inputs.new_ray_version }}\""
+              echo "Found:"
+              grep "RAY_VERSION" src/codeflare_sdk/common/utils/constants.py || echo "  (not found)"
+              exit 1
+            fi
+
+            # Check if pyproject.toml was updated correctly
+            if ! grep -q "ray = {version = \"${{ github.event.inputs.new_ray_version }}\"" pyproject.toml; then
+              echo "✗ Ray version not found in pyproject.toml"
+              echo "Expected: ray = {version = \"${{ github.event.inputs.new_ray_version }}\""
+              echo "Found:"
+              grep "ray = " pyproject.toml || echo "  (not found)"
+              exit 1
+            fi
+          fi
+
+          # Check if SDK version was updated correctly (only if SDK version was provided)
+          if [ -n "${{ github.event.inputs.new_sdk_version }}" ]; then
+            if ! grep -q "version = \"${{ github.event.inputs.new_sdk_version }}\"" pyproject.toml; then
+              echo "✗ SDK version not found in pyproject.toml"
+              echo "Expected: version = \"${{ github.event.inputs.new_sdk_version }}\""
+              echo "Found:"
+              grep "version = " pyproject.toml || echo "  (not found)"
+              exit 1
+            fi
+          fi
+
+          # Check if runtime images were updated (only if SHAs were provided)
+          if [ -n "${{ github.event.inputs.new_cuda_py311_sha }}" ]; then
+            if ! grep -q "quay.io/modh/ray@sha256:${{ github.event.inputs.new_cuda_py311_sha }}" src/codeflare_sdk/common/utils/constants.py; then
+              echo "✗ Python 3.11 runtime image not found"
+              echo "Expected: quay.io/modh/ray@sha256:${{ github.event.inputs.new_cuda_py311_sha }}"
+              echo "Found:"
+              grep "CUDA_PY311_RUNTIME_IMAGE" src/codeflare_sdk/common/utils/constants.py || echo "  (not found)"
+              exit 1
+            fi
+          fi
+
+          if [ -n "${{ github.event.inputs.new_cuda_py312_sha }}" ]; then
+            if ! grep -q "quay.io/modh/ray@sha256:${{ github.event.inputs.new_cuda_py312_sha }}" src/codeflare_sdk/common/utils/constants.py; then
+              echo "✗ Python 3.12 runtime image not found"
+              echo "Expected: quay.io/modh/ray@sha256:${{ github.event.inputs.new_cuda_py312_sha }}"
+              echo "Found:"
+              grep "CUDA_PY312_RUNTIME_IMAGE" src/codeflare_sdk/common/utils/constants.py || echo "  (not found)"
+              exit 1
+            fi
+          fi
+
+      - name: Check for changes
+        id: check-changes
+        run: |
+          if git diff --quiet; then
+            echo "has-changes=false" >> $GITHUB_OUTPUT
+          else
+            echo "has-changes=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Commit changes
+        if: steps.check-changes.outputs.has-changes == 'true'
+        run: |
+          git add .
+
+          # Build commit message based on what was updated
+          COMMIT_MSG="Update Ray configuration"
+
+          if [ -n "${{ github.event.inputs.new_ray_version }}" ]; then
+            COMMIT_MSG="$COMMIT_MSG
+
+          - Updated Ray version to ${{ github.event.inputs.new_ray_version }} in constants.py and pyproject.toml"
+          fi
+
+          if [ -n "${{ github.event.inputs.new_sdk_version }}" ]; then
+            COMMIT_MSG="$COMMIT_MSG
+          - Updated SDK version to ${{ github.event.inputs.new_sdk_version }} in pyproject.toml"
+          fi
+
+          if [ -n "${{ github.event.inputs.new_cuda_py311_sha }}" ]; then
+            COMMIT_MSG="$COMMIT_MSG
+          - Updated Python 3.11 CUDA runtime image SHA"
+          fi
+
+          if [ -n "${{ github.event.inputs.new_cuda_py312_sha }}" ]; then
+            COMMIT_MSG="$COMMIT_MSG
+          - Updated Python 3.12 CUDA runtime image SHA"
+          fi
+
+          if [ -n "${{ github.event.inputs.new_cuda_version_py311 }}" ] || [ -n "${{ github.event.inputs.new_cuda_version_py312 }}" ]; then
+            COMMIT_MSG="$COMMIT_MSG
+          - Updated documentation and notebook files with new CUDA versions"
+          fi
+
+          COMMIT_MSG="$COMMIT_MSG
+
+          Parameters provided:
+          - Ray version: ${{ github.event.inputs.new_ray_version }}
+          - SDK version: ${{ github.event.inputs.new_sdk_version }}
+          - Python 3.11 CUDA version: ${{ github.event.inputs.new_cuda_version_py311 }}
+          - Python 3.12 CUDA version: ${{ github.event.inputs.new_cuda_version_py312 }}
+          - Python 3.11 runtime SHA: ${{ github.event.inputs.new_cuda_py311_sha }}
+          - Python 3.12 runtime SHA: ${{ github.event.inputs.new_cuda_py312_sha }}"
+
+          git commit -m "$COMMIT_MSG"
+
+      - name: Push changes
+        if: steps.check-changes.outputs.has-changes == 'true'
+        run: |
+          git push origin ${{ env.PR_BRANCH_NAME }}
+
+      - name: Create Pull Request
+        if: steps.check-changes.outputs.has-changes == 'true'
+        run: |
+          # Get current versions for comparison
+          CURRENT_SDK_VERSION=$(grep -E "^version = " pyproject.toml | head -1 | sed 's/version = "\([^"]*\)"/\1/')
+          CURRENT_RAY_VERSION=$(grep "RAY_VERSION = " src/codeflare_sdk/common/utils/constants.py | sed 's/RAY_VERSION = "\([^"]*\)"/\1/')
+
+          PR_TITLE="Pre-Release Version Updates"
+
+          PR_BODY="## Pre-Release Version Updates
+
+          This PR contains automated version updates for the upcoming release.
+
+          ### Changes Made:"
+
+          if [ -n "${{ github.event.inputs.new_sdk_version }}" ]; then
+            PR_BODY="$PR_BODY
+          - **CodeFlare SDK**: Bumped from \`v${CURRENT_SDK_VERSION}\` to \`v${{ github.event.inputs.new_sdk_version }}\`"
+          fi
+
+          if [ -n "${{ github.event.inputs.new_ray_version }}" ]; then
+            PR_BODY="$PR_BODY
+          - **Ray**: Bumped from \`v${CURRENT_RAY_VERSION}\` to \`v${{ github.event.inputs.new_ray_version }}\`"
+          fi
+
+          if [ -n "${{ github.event.inputs.new_cuda_py311_sha }}" ]; then
+            PR_BODY="$PR_BODY
+          - **Python 3.11 CUDA Runtime**: Updated to [\`${{ github.event.inputs.new_cuda_py311_sha }}\`](https://quay.io/repository/modh/ray/manifest/sha256:${{ github.event.inputs.new_cuda_py311_sha }})"
+            if [ -n "${{ github.event.inputs.new_cuda_version_py311 }}" ]; then
+              PR_BODY="$PR_BODY (CUDA \`${{ github.event.inputs.new_cuda_version_py311 }}\`)"
+            fi
+          fi
+
+          if [ -n "${{ github.event.inputs.new_cuda_py312_sha }}" ]; then
+            PR_BODY="$PR_BODY
+          - **Python 3.12 CUDA Runtime**: Updated to [\`${{ github.event.inputs.new_cuda_py312_sha }}\`](https://quay.io/repository/modh/ray/manifest/sha256:${{ github.event.inputs.new_cuda_py312_sha }})"
+            if [ -n "${{ github.event.inputs.new_cuda_version_py312 }}" ]; then
+              PR_BODY="$PR_BODY (CUDA \`${{ github.event.inputs.new_cuda_version_py312 }}\`)"
+            fi
+          fi
+
+          PR_BODY="$PR_BODY
+
+          ### Testing:
+          Please run the test suite to ensure all changes work correctly:
+          \`\`\`bash
+          poetry install
+          poetry run pytest
+          \`\`\`
+
+          ### Review Checklist:
+          - [ ] Verify version updates are correct
+          - [ ] Check that runtime image SHAs are valid
+          - [ ] Run tests to verify compatibility"
+
+          # Create PR using GitHub CLI
+          gh pr create \
+            --title "$PR_TITLE" \
+            --body "$PR_BODY" \
+            --base main \
+            --head ${{ env.PR_BRANCH_NAME }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Comment on workflow run
+        if: steps.check-changes.outputs.has-changes == 'false'
+        run: |
+          echo "No changes were made. Please verify the input parameters."
