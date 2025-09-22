@@ -149,6 +149,14 @@ class RayJob:
 
         self._validate_ray_version_compatibility()
 
+        # Extract scripts to check if we need ConfigMaps
+        scripts = self._extract_script_files_from_entrypoint()
+
+        # Pre-declare ConfigMap in cluster config for new clusters
+        if scripts and self._cluster_config:
+            configmap_name = f"{self.name}-scripts"
+            self._cluster_config.add_script_volumes(configmap_name, MOUNT_PATH)
+
         rayjob_cr = self._build_rayjob_cr()
 
         logger.info(f"Submitting RayJob {self.name} to Kuberay operator")
@@ -157,19 +165,40 @@ class RayJob:
         if result:
             logger.info(f"Successfully submitted RayJob {self.name}")
 
-            # Handle script files after RayJob creation so we can set owner reference
-            if self._cluster_config is not None:
-                scripts = self._extract_script_files_from_entrypoint()
-                if scripts:
-                    self._handle_script_volumes_for_new_cluster(scripts, result)
-            elif self._cluster_name:
-                scripts = self._extract_script_files_from_entrypoint()
-                if scripts:
-                    self._handle_script_volumes_for_existing_cluster(scripts, result)
+            # Create ConfigMap with owner reference after RayJob exists
+            if scripts:
+                self._create_script_configmap(scripts, result)
 
             return self.name
         else:
             raise RuntimeError(f"Failed to submit RayJob {self.name}")
+
+    def _create_script_configmap(
+        self, scripts: Dict[str, str], rayjob_result: Dict[str, Any]
+    ):
+        """
+        Create ConfigMap with owner reference for script files.
+
+        For new clusters: ConfigMap volume was pre-declared, just create it.
+        For existing clusters: Create ConfigMap and patch the cluster.
+        """
+        # Get a config builder for utility methods
+        config_builder = (
+            self._cluster_config if self._cluster_config else ManagedClusterConfig()
+        )
+
+        # Validate and build ConfigMap spec
+        config_builder.validate_configmap_size(scripts)
+        configmap_spec = config_builder.build_script_configmap_spec(
+            job_name=self.name, namespace=self.namespace, scripts=scripts
+        )
+
+        # Create ConfigMap with owner reference
+        configmap_name = self._create_configmap_from_spec(configmap_spec, rayjob_result)
+
+        # For existing clusters, update the cluster with volumes
+        if self._cluster_name and not self._cluster_config:
+            self._update_existing_cluster_for_scripts(configmap_name, config_builder)
 
     def stop(self):
         """
@@ -487,47 +516,6 @@ class RayJob:
 
         except (SyntaxError, ValueError) as e:
             logger.debug(f"Could not parse imports from {script_path}: {e}")
-
-    def _handle_script_volumes_for_new_cluster(
-        self, scripts: Dict[str, str], rayjob_result: Dict[str, Any] = None
-    ):
-        """Handle script volumes for new clusters (uses ManagedClusterConfig)."""
-        # Validate ConfigMap size before creation
-        self._cluster_config.validate_configmap_size(scripts)
-
-        # Build ConfigMap spec using config.py
-        configmap_spec = self._cluster_config.build_script_configmap_spec(
-            job_name=self.name, namespace=self.namespace, scripts=scripts
-        )
-
-        # Create ConfigMap via Kubernetes API with owner reference
-        configmap_name = self._create_configmap_from_spec(configmap_spec, rayjob_result)
-
-        # Add volumes to cluster config (config.py handles spec building)
-        self._cluster_config.add_script_volumes(
-            configmap_name=configmap_name, mount_path=MOUNT_PATH
-        )
-
-    def _handle_script_volumes_for_existing_cluster(
-        self, scripts: Dict[str, str], rayjob_result: Dict[str, Any] = None
-    ):
-        """Handle script volumes for existing clusters (updates RayCluster CR)."""
-        # Create config builder for utility methods
-        config_builder = ManagedClusterConfig()
-
-        # Validate ConfigMap size before creation
-        config_builder.validate_configmap_size(scripts)
-
-        # Build ConfigMap spec using config.py
-        configmap_spec = config_builder.build_script_configmap_spec(
-            job_name=self.name, namespace=self.namespace, scripts=scripts
-        )
-
-        # Create ConfigMap via Kubernetes API with owner reference
-        configmap_name = self._create_configmap_from_spec(configmap_spec, rayjob_result)
-
-        # Update existing RayCluster
-        self._update_existing_cluster_for_scripts(configmap_name, config_builder)
 
     def _create_configmap_from_spec(
         self, configmap_spec: Dict[str, Any], rayjob_result: Dict[str, Any] = None

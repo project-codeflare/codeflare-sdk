@@ -247,6 +247,7 @@ class ManagedClusterConfig:
         """
         ray_cluster_spec = {
             "rayVersion": RAY_VERSION,
+            "enableInTreeAutoscaling": False,  # Required for Kueue-managed jobs
             "headGroupSpec": self._build_head_group_spec(),
             "workerGroupSpecs": [self._build_worker_group_spec(cluster_name)],
         }

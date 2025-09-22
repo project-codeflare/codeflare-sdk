@@ -586,6 +586,8 @@ def test_build_ray_cluster_spec_function():
 
     spec = cluster_config.build_ray_cluster_spec("test-cluster")
     assert "rayVersion" in spec
+    assert "enableInTreeAutoscaling" in spec
+    assert spec["enableInTreeAutoscaling"] is False  # Required for Kueue
     assert "headGroupSpec" in spec
     assert "workerGroupSpecs" in spec
 
@@ -1304,11 +1306,13 @@ def func2(): pass
         os.chdir(original_cwd)
 
 
-def test_script_handling_timing_after_rayjob_submission(
-    mocker, auto_mock_setup, tmp_path
-):
-    """Test that script handling happens after RayJob is submitted (not before)."""
-    mock_api_instance = auto_mock_setup["rayjob_api"]
+def test_script_handling_kubernetes_best_practice_flow(mocker, tmp_path):
+    """Test the Kubernetes best practice flow: pre-declare volume, submit, create ConfigMap."""
+    mocker.patch("kubernetes.config.load_kube_config")
+
+    mock_api_class = mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayjobApi")
+    mock_api_instance = MagicMock()
+    mock_api_class.return_value = mock_api_instance
 
     submit_result = {
         "metadata": {
@@ -1319,9 +1323,8 @@ def test_script_handling_timing_after_rayjob_submission(
     }
     mock_api_instance.submit_job.return_value = submit_result
 
-    mock_handle_new = mocker.patch.object(
-        RayJob, "_handle_script_volumes_for_new_cluster"
-    )
+    mock_create_cm = mocker.patch.object(RayJob, "_create_script_configmap")
+    mock_add_volumes = mocker.patch.object(ManagedClusterConfig, "add_script_volumes")
 
     # RayClusterApi is already mocked by auto_mock_setup
 
@@ -1330,17 +1333,22 @@ def test_script_handling_timing_after_rayjob_submission(
 
     call_order = []
 
+    def track_add_volumes(*args, **kwargs):
+        call_order.append("add_volumes")
+        # Should be called with ConfigMap name
+        assert args[0] == "test-job-scripts"
+
     def track_submit(*args, **kwargs):
         call_order.append("submit_job")
         return submit_result
 
-    def track_handle_scripts(*args, **kwargs):
-        call_order.append("handle_scripts")
-        assert len(args) >= 2
+    def track_create_cm(*args, **kwargs):
+        call_order.append("create_configmap")
         assert args[1] == submit_result  # rayjob_result should be second arg
 
+    mock_add_volumes.side_effect = track_add_volumes
     mock_api_instance.submit_job.side_effect = track_submit
-    mock_handle_new.side_effect = track_handle_scripts
+    mock_create_cm.side_effect = track_create_cm
 
     original_cwd = os.getcwd()
     try:
@@ -1359,12 +1367,14 @@ def test_script_handling_timing_after_rayjob_submission(
     finally:
         os.chdir(original_cwd)
 
-    assert call_order == ["submit_job", "handle_scripts"]
+    # Verify the order: add volumes → submit → create ConfigMap
+    assert call_order == ["add_volumes", "submit_job", "create_configmap"]
 
+    mock_add_volumes.assert_called_once()
     mock_api_instance.submit_job.assert_called_once()
-    mock_handle_new.assert_called_once()
+    mock_create_cm.assert_called_once()
 
-    mock_handle_new.assert_called_with({"test.py": "print('test')"}, submit_result)
+    mock_create_cm.assert_called_with({"test.py": "print('test')"}, submit_result)
 
 
 def test_rayjob_submit_with_scripts_new_cluster(auto_mock_setup, tmp_path):
