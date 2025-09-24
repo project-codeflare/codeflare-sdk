@@ -5,7 +5,7 @@ The below are used to define the default runtime image for the Ray Cluster.
 * For python 3.12:ray:2.47.1-py312-cu128
 """
 CUDA_PY311_RUNTIME_IMAGE = "quay.io/modh/ray@sha256:6d076aeb38ab3c34a6a2ef0f58dc667089aa15826fa08a73273c629333e12f1e"
-CUDA_PY312_RUNTIME_IMAGE = "quay.io/modh/ray@sha256:9c72e890f5c66bb2a0f0d940120539ffc875fb6fed83380cbe2eba938e8789b1"
+CUDA_PY312_RUNTIME_IMAGE = "quay.io/modh/ray@sha256:fb6f207de63e442c67bb48955cf0584f3704281faf17b90419cfa274fdec63c5"
 
 # Centralized image selection
 SUPPORTED_PYTHON_VERSIONS = {
