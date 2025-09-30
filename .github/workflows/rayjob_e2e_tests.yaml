@@ -115,6 +115,10 @@ jobs:
           kubectl create clusterrolebinding sdk-user-service-reader --clusterrole=service-reader --user=sdk-user
           kubectl create clusterrole port-forward-pods --verb=create --resource=pods/portforward
           kubectl create clusterrolebinding sdk-user-port-forward-pods-binding --clusterrole=port-forward-pods --user=sdk-user
+          kubectl create clusterrole configmap-manager --verb=get,list,create,delete,update,patch --resource=configmaps
+          kubectl create clusterrolebinding sdk-user-configmap-manager --clusterrole=configmap-manager --user=sdk-user
+          kubectl create clusterrole workload-reader --verb=get,list,watch --resource=workloads
+          kubectl create clusterrolebinding sdk-user-workload-reader --clusterrole=workload-reader --user=sdk-user
           kubectl config use-context sdk-user
 
       - name: Run RayJob E2E tests
@@ -126,7 +130,7 @@ jobs:
           pip install poetry
           poetry install --with test,docs
           echo "Running RayJob e2e tests..."
-          poetry run pytest -v -s ./tests/e2e/rayjob/rayjob_lifecycled_cluster_test.py > ${CODEFLARE_TEST_OUTPUT_DIR}/pytest_output_rayjob.log 2>&1
+          poetry run pytest -v -s ./tests/e2e/rayjob/ > ${CODEFLARE_TEST_OUTPUT_DIR}/pytest_output_rayjob.log 2>&1
 
       - name: Switch to kind-cluster context to print logs
         if: always() && steps.deploy.outcome == 'success'

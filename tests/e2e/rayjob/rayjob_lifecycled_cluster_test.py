@@ -193,7 +193,7 @@ class TestRayJobLifecycledCluster:
     def verify_configmap_with_owner_reference(self, rayjob: RayJob):
         """Verify that the ConfigMap was created with proper owner reference to the RayJob."""
         v1 = client.CoreV1Api()
-        configmap_name = f"{rayjob.name}-scripts"
+        configmap_name = f"{rayjob.name}-files"
 
         try:
             # Get the ConfigMap
@@ -237,7 +237,7 @@ class TestRayJobLifecycledCluster:
             )
             assert (
                 configmap.metadata.labels.get("app.kubernetes.io/component")
-                == "rayjob-scripts"
+                == "rayjob-files"
             )
 
             print(f"✓ ConfigMap {configmap_name} verified with proper owner reference")
