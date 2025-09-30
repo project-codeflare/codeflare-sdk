@@ -60,7 +60,11 @@ class TestRayJobExistingCluster:
         )
 
         cluster.apply()
-        sleep(20)
+
+        # Wait for cluster to be ready (with Kueue admission)
+        print(f"Waiting for cluster '{cluster_name}' to be ready...")
+        cluster.wait_ready(timeout=300, dashboard_check=False)
+        print(f"✓ Cluster '{cluster_name}' is ready")
 
         # RayJob with explicit local_queue
         rayjob_explicit = RayJob(
