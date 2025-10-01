@@ -41,7 +41,7 @@ def test_none_local_queue(mocker):
     config.local_queue = None
 
     cluster = Cluster(config)
-    assert cluster.config.local_queue == None
+    assert cluster.config.local_queue is None
 
 
 def test_cluster_creation_local_queue(mocker):

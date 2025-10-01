@@ -137,11 +137,7 @@ def get_setup_env_variables(**kwargs):
         env_vars[str(key)] = value
 
     # Use specified pip index url instead of default(https://pypi.org/simple) if related environment variables exists
-    if (
-        "PIP_INDEX_URL" in os.environ
-        and os.environ.get("PIP_INDEX_URL") != None
-        and os.environ.get("PIP_INDEX_URL") != ""
-    ):
+    if os.environ.get("PIP_INDEX_URL", "") != "":
         env_vars["PIP_INDEX_URL"] = os.environ.get("PIP_INDEX_URL")
         env_vars["PIP_TRUSTED_HOST"] = os.environ.get("PIP_TRUSTED_HOST")
     else:
@@ -149,11 +145,7 @@ def get_setup_env_variables(**kwargs):
         env_vars["PIP_TRUSTED_HOST"] = "pypi.org"
 
     # Use specified storage bucket reference from which to download datasets
-    if (
-        "AWS_DEFAULT_ENDPOINT" in os.environ
-        and os.environ.get("AWS_DEFAULT_ENDPOINT") != None
-        and os.environ.get("AWS_DEFAULT_ENDPOINT") != ""
-    ):
+    if os.environ.get("AWS_DEFAULT_ENDPOINT", "") != "":
         env_vars["AWS_DEFAULT_ENDPOINT"] = os.environ.get("AWS_DEFAULT_ENDPOINT")
         env_vars["AWS_ACCESS_KEY_ID"] = os.environ.get("AWS_ACCESS_KEY_ID")
         env_vars["AWS_SECRET_ACCESS_KEY"] = os.environ.get("AWS_SECRET_ACCESS_KEY")

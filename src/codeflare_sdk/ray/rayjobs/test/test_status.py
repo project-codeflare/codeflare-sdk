@@ -43,7 +43,7 @@ def test_rayjob_status(mocker):
     mock_api_instance.get_job_status.return_value = None
     status, ready = rayjob.status(print_to_console=False)
     assert status == CodeflareRayJobStatus.UNKNOWN
-    assert ready == False
+    assert ready is False
 
     # Test case 2: Running job
     mock_api_instance.get_job_status.return_value = {
@@ -56,7 +56,7 @@ def test_rayjob_status(mocker):
     }
     status, ready = rayjob.status(print_to_console=False)
     assert status == CodeflareRayJobStatus.RUNNING
-    assert ready == False
+    assert ready is False
 
     # Test case 3: Complete job
     mock_api_instance.get_job_status.return_value = {
@@ -70,7 +70,7 @@ def test_rayjob_status(mocker):
     }
     status, ready = rayjob.status(print_to_console=False)
     assert status == CodeflareRayJobStatus.COMPLETE
-    assert ready == True
+    assert ready is True
 
     # Test case 4: Failed job
     mock_api_instance.get_job_status.return_value = {
@@ -84,7 +84,7 @@ def test_rayjob_status(mocker):
     }
     status, ready = rayjob.status(print_to_console=False)
     assert status == CodeflareRayJobStatus.FAILED
-    assert ready == False
+    assert ready is False
 
     # Test case 5: Suspended job
     mock_api_instance.get_job_status.return_value = {
@@ -97,7 +97,7 @@ def test_rayjob_status(mocker):
     }
     status, ready = rayjob.status(print_to_console=False)
     assert status == CodeflareRayJobStatus.SUSPENDED
-    assert ready == False
+    assert ready is False
 
 
 def test_rayjob_status_unknown_deployment_status(mocker):
@@ -127,7 +127,7 @@ def test_rayjob_status_unknown_deployment_status(mocker):
 
     status, ready = rayjob.status(print_to_console=False)
     assert status == CodeflareRayJobStatus.UNKNOWN
-    assert ready == False
+    assert ready is False
 
 
 def test_rayjob_status_missing_fields(mocker):
@@ -154,7 +154,7 @@ def test_rayjob_status_missing_fields(mocker):
 
     status, ready = rayjob.status(print_to_console=False)
     assert status == CodeflareRayJobStatus.RUNNING
-    assert ready == False
+    assert ready is False
 
 
 def test_map_to_codeflare_status(mocker):
@@ -177,23 +177,23 @@ def test_map_to_codeflare_status(mocker):
     # Test all deployment status mappings
     status, ready = rayjob._map_to_codeflare_status(RayJobDeploymentStatus.COMPLETE)
     assert status == CodeflareRayJobStatus.COMPLETE
-    assert ready == True
+    assert ready is True
 
     status, ready = rayjob._map_to_codeflare_status(RayJobDeploymentStatus.RUNNING)
     assert status == CodeflareRayJobStatus.RUNNING
-    assert ready == False
+    assert ready is False
 
     status, ready = rayjob._map_to_codeflare_status(RayJobDeploymentStatus.FAILED)
     assert status == CodeflareRayJobStatus.FAILED
-    assert ready == False
+    assert ready is False
 
     status, ready = rayjob._map_to_codeflare_status(RayJobDeploymentStatus.SUSPENDED)
     assert status == CodeflareRayJobStatus.SUSPENDED
-    assert ready == False
+    assert ready is False
 
     status, ready = rayjob._map_to_codeflare_status(RayJobDeploymentStatus.UNKNOWN)
     assert status == CodeflareRayJobStatus.UNKNOWN
-    assert ready == False
+    assert ready is False
 
 
 def test_rayjob_info_dataclass():
@@ -253,7 +253,7 @@ def test_rayjob_status_print_no_job_found(mocker):
     # Verify the pretty print function was called
     mock_print_no_job_found.assert_called_once_with("test-job", "test-ns")
     assert status == CodeflareRayJobStatus.UNKNOWN
-    assert ready == False
+    assert ready is False
 
 
 def test_rayjob_status_print_job_found(mocker):
@@ -301,7 +301,7 @@ def test_rayjob_status_print_job_found(mocker):
     assert call_args.cluster_name == "test-cluster"
 
     assert status == CodeflareRayJobStatus.RUNNING
-    assert ready == False
+    assert ready is False
 
 
 def test_rayjob_status_all_deployment_states(mocker):
@@ -370,4 +370,4 @@ def test_rayjob_status_with_end_time(mocker):
 
     status, ready = rayjob.status(print_to_console=False)
     assert status == CodeflareRayJobStatus.COMPLETE
-    assert ready == True
+    assert ready is True

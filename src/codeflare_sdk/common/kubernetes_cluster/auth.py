@@ -20,16 +20,17 @@ Legacy: TokenAuthentication and KubeConfigFileAuthentication are deprecated but 
 """
 
 import abc
-import warnings
-from kubernetes import client, config
 import os
-import urllib3
-from .kube_api_helpers import _kube_api_error_handling
-
+import warnings
 from typing import Optional
 
+import urllib3
+
 # Import kube-authkit (mandatory dependency)
-from kube_authkit import get_k8s_client, AuthConfig
+from kube_authkit import AuthConfig, get_k8s_client
+from kubernetes import client, config
+
+from .kube_api_helpers import _kube_api_error_handling
 
 global api_client
 api_client = None
@@ -263,7 +264,7 @@ def config_check() -> str:
 
     # Legacy implementation
     home_directory = os.path.expanduser("~")
-    if config_path == None and api_client == None:
+    if config_path is None and api_client is None:
         if os.path.isfile("%s/.kube/config" % home_directory):
             try:
                 config.load_kube_config()
@@ -279,7 +280,7 @@ def config_check() -> str:
                 "Action not permitted, have you put in correct/up-to-date auth credentials?"
             )
 
-    if config_path != None and api_client == None:
+    if config_path is not None and api_client is None:
         return config_path
 
 
@@ -317,7 +318,7 @@ def get_api_client() -> client.ApiClient:
         client.ApiClient:
             The Kubernetes API client object.
     """
-    if api_client != None:
+    if api_client is not None:
         return api_client
     to_return = client.ApiClient()
     _client_with_cert(to_return)

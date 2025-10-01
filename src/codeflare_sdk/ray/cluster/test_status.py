@@ -66,7 +66,7 @@ def test_cluster_status(mocker):
     )
     status, ready = cf.status()
     assert status == CodeFlareClusterStatus.UNKNOWN
-    assert ready == False
+    assert ready is False
 
     mocker.patch(
         "codeflare_sdk.ray.cluster.cluster._ray_cluster_status", return_value=fake_ray
@@ -74,22 +74,22 @@ def test_cluster_status(mocker):
 
     status, ready = cf.status()
     assert status == CodeFlareClusterStatus.STARTING
-    assert ready == False
+    assert ready is False
 
     fake_ray.status = RayClusterStatus.FAILED
     status, ready = cf.status()
     assert status == CodeFlareClusterStatus.FAILED
-    assert ready == False
+    assert ready is False
 
     fake_ray.status = RayClusterStatus.UNHEALTHY
     status, ready = cf.status()
     assert status == CodeFlareClusterStatus.FAILED
-    assert ready == False
+    assert ready is False
 
     fake_ray.status = RayClusterStatus.READY
     status, ready = cf.status()
     assert status == CodeFlareClusterStatus.READY
-    assert ready == True
+    assert ready is True
 
 
 def rc_status_fields(group, version, namespace, plural, *args):
@@ -108,7 +108,7 @@ def test_rc_status(mocker):
         side_effect=rc_status_fields,
     )
     rc = _ray_cluster_status("test-rc", "test-ns")
-    assert rc == None
+    assert rc is None
 
 
 # Make sure to always keep this function last
