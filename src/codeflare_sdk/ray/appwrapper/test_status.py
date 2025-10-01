@@ -51,34 +51,34 @@ def test_cluster_status(mocker):
     )
     status, ready = cf.status()
     assert status == CodeFlareClusterStatus.UNKNOWN
-    assert ready == False
+    assert ready is False
 
     mocker.patch(
         "codeflare_sdk.ray.cluster.cluster._app_wrapper_status", return_value=fake_aw
     )
     status, ready = cf.status()
     assert status == CodeFlareClusterStatus.FAILED
-    assert ready == False
+    assert ready is False
 
     fake_aw.status = AppWrapperStatus.SUSPENDED
     status, ready = cf.status()
     assert status == CodeFlareClusterStatus.QUEUED
-    assert ready == False
+    assert ready is False
 
     fake_aw.status = AppWrapperStatus.RESUMING
     status, ready = cf.status()
     assert status == CodeFlareClusterStatus.STARTING
-    assert ready == False
+    assert ready is False
 
     fake_aw.status = AppWrapperStatus.RESETTING
     status, ready = cf.status()
     assert status == CodeFlareClusterStatus.STARTING
-    assert ready == False
+    assert ready is False
 
     fake_aw.status = AppWrapperStatus.RUNNING
     status, ready = cf.status()
     assert status == CodeFlareClusterStatus.UNKNOWN
-    assert ready == False
+    assert ready is False
 
 
 def aw_status_fields(group, version, namespace, plural, *args):
@@ -97,7 +97,7 @@ def test_aw_status(mocker):
         side_effect=aw_status_fields,
     )
     aw = _app_wrapper_status("test-aw", "test-ns")
-    assert aw == None
+    assert aw is None
 
 
 # Make sure to always keep this function last
