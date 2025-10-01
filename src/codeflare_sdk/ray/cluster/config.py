@@ -200,6 +200,10 @@ class ClusterConfiguration:
                     f"extended resource '{k}' not found in extended_resource_mapping, available resources are {list(self.extended_resource_mapping.keys())}, to add more supported resources use extended_resource_mapping. i.e. extended_resource_mapping = {{'{k}': 'FOO_BAR'}}"
                 )
 
+    # add mock method to trigger e2es
+    def mock_method(self):
+        return "mock_method"
+
     def _str_mem_no_unit_add_GB(self):
         if (
             isinstance(self.worker_memory_requests, str)
