@@ -12,19 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import filecmp
+import os
+from pathlib import Path
+
+import pytest
+import yaml
+
 from codeflare_sdk.common.utils.unit_test_support import (
     apply_template,
-    get_example_extended_storage_opts,
-    create_cluster_wrong_type,
     create_cluster_all_config_params,
+    create_cluster_wrong_type,
+    get_example_extended_storage_opts,
     get_template_variables,
 )
-from codeflare_sdk.ray.cluster.cluster import ClusterConfiguration, Cluster
-from pathlib import Path
-import filecmp
-import pytest
-import os
-import yaml
+from codeflare_sdk.ray.cluster.cluster import Cluster, ClusterConfiguration
 
 parent = Path(__file__).resolve().parents[4]  # project directory
 expected_clusters_dir = f"{parent}/tests/test_cluster_yamls"
@@ -77,14 +79,14 @@ def test_config_creation_all_parameters(mocker):
     }
     assert cluster.config.image == "example/ray:tag"
     assert cluster.config.image_pull_secrets == ["secret1", "secret2"]
-    assert cluster.config.write_to_file == True
-    assert cluster.config.verify_tls == True
+    assert cluster.config.write_to_file is True
+    assert cluster.config.verify_tls is True
     assert cluster.config.labels == {"key1": "value1", "key2": "value2"}
     assert cluster.config.worker_extended_resource_requests == {"nvidia.com/gpu": 1}
     assert (
         cluster.config.extended_resource_mapping == expected_extended_resource_mapping
     )
-    assert cluster.config.overwrite_default_resource_mapping == True
+    assert cluster.config.overwrite_default_resource_mapping is True
     assert cluster.config.local_queue == "local-queue-default"
     assert cluster.config.annotations == {
         "app.kubernetes.io/managed-by": "test-prefix",

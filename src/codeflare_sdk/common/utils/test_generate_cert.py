@@ -45,10 +45,10 @@ def test_generate_ca_cert():
     cert_pub_key_bytes = cert.public_key().public_bytes(
         Encoding.PEM, PublicFormat.SubjectPublicKeyInfo
     )
-    assert type(key) == str
-    assert type(certificate) == str
+    assert isinstance(key, str)
+    assert isinstance(certificate, str)
     # Veirfy ca.cert is self signed
-    assert cert.verify_directly_issued_by(cert) == None
+    assert cert.verify_directly_issued_by(cert) is None
     # Verify cert has the public key bytes from the private key
     assert cert_pub_key_bytes == private_pub_key_bytes
 
@@ -104,7 +104,7 @@ def test_generate_tls_cert(mocker):
         tls_cert = load_pem_x509_certificate(f.read().encode("utf-8"))
     with open(os.path.join(tls_dir, "ca.crt"), "r") as f:
         root_cert = load_pem_x509_certificate(f.read().encode("utf-8"))
-    assert tls_cert.verify_directly_issued_by(root_cert) == None
+    assert tls_cert.verify_directly_issued_by(root_cert) is None
 
     # Verify RSA key size is 3072 bits for security compliance
     with open(os.path.join(tls_dir, "tls.key"), "rb") as f:
@@ -219,7 +219,7 @@ def test_generate_tls_cert_with_ca_key_fallback(mocker):
         tls_cert = load_pem_x509_certificate(f.read().encode("utf-8"))
     with open(os.path.join(tls_dir, "ca.crt"), "r") as f:
         root_cert = load_pem_x509_certificate(f.read().encode("utf-8"))
-    assert tls_cert.verify_directly_issued_by(root_cert) == None
+    assert tls_cert.verify_directly_issued_by(root_cert) is None
 
     # Cleanup for this test
     os.remove(os.path.join(tls_dir, "ca.crt"))
@@ -335,7 +335,7 @@ def test_refresh_tls_cert(mocker):
 
     # Refresh should remove and regenerate
     result = refresh_tls_cert("refresh-test", "default")
-    assert result == True
+    assert result is True
     assert tls_dir.exists()  # Should exist again
 
     # Cleanup

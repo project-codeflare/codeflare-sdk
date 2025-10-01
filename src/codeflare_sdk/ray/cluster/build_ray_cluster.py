@@ -467,7 +467,7 @@ def add_queue_label(cluster: "codeflare_sdk.ray.cluster.Cluster", labels: dict):
     The add_queue_label() function updates the given base labels with the local queue label if Kueue exists on the Cluster
     """
     lq_name = cluster.config.local_queue or get_default_local_queue(cluster, labels)
-    if lq_name == None:
+    if lq_name is None:
         return
     elif not local_queue_exists(cluster):
         # ValueError removed to pass validation to validating admission policy

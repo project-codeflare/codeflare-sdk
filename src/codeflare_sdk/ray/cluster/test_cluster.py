@@ -525,7 +525,7 @@ def test_wait_ready(mocker, capsys):
         cf.wait_ready(timeout=5)
         assert 1 == 0
     except Exception as e:
-        assert type(e) == TimeoutError
+        assert isinstance(e, TimeoutError)
 
     captured = capsys.readouterr()
     assert (
@@ -663,7 +663,7 @@ def test_list_queue_rayclusters(mocker, capsys):
     ]
     mocker.patch("kubernetes.client.ApisApi", return_value=mock_api)
 
-    assert _is_openshift_cluster() == True
+    assert _is_openshift_cluster() is True
     mocker.patch(
         "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
         return_value=get_obj_none("ray.io", "v1", "ns", "rayclusters"),
