@@ -211,7 +211,7 @@ def add_queue_label(item: dict, namespace: str, local_queue: Optional[str]):
             If the provided or default local queue does not exist in the namespace.
     """
     lq_name = local_queue or get_default_kueue_name(namespace)
-    if lq_name == None:
+    if lq_name is None:
         return
     elif not local_queue_exists(namespace, lq_name):
         raise ValueError(

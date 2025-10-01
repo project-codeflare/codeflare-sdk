@@ -18,45 +18,26 @@ the resources requested by the user. It also contains functions for checking the
 cluster setup queue, a list of all existing clusters, and the user's working namespace.
 """
 
-from time import sleep
-from typing import List, Optional, Tuple, Dict
-import copy
-
-from ray.job_submission import JobSubmissionClient
 import warnings
+from time import sleep
+from typing import Dict, List, Optional, Tuple
 
+import requests
+import yaml
+from kubernetes import client
+from kubernetes.client.rest import ApiException
+from kubernetes.dynamic import DynamicClient
+from ray.job_submission import JobSubmissionClient
+
+from ...common import _kube_api_error_handling
+from ...common.kubernetes_cluster.auth import config_check, get_api_client
 from ...common.utils import get_current_namespace
-
-from ...common.kubernetes_cluster.auth import (
-    config_check,
-    get_api_client,
-)
+from ...common.widgets.widgets import cluster_apply_down_buttons, is_notebook
 from . import pretty_print
 from .build_ray_cluster import build_ray_cluster, head_worker_gpu_count_from_cluster
 from .build_ray_cluster import write_to_file as write_cluster_to_file
-from ...common import _kube_api_error_handling
-
 from .config import ClusterConfiguration
-from .status import (
-    CodeFlareClusterStatus,
-    RayCluster,
-    RayClusterStatus,
-)
-from ...common.widgets.widgets import (
-    cluster_apply_down_buttons,
-    is_notebook,
-)
-from kubernetes import client
-import yaml
-import os
-import requests
-
-from kubernetes import config
-from kubernetes.dynamic import DynamicClient
-from kubernetes import client as k8s_client
-from kubernetes.client.rest import ApiException
-
-from kubernetes.client.rest import ApiException
+from .status import CodeFlareClusterStatus, RayCluster, RayClusterStatus
 
 CF_SDK_FIELD_MANAGER = "codeflare-sdk"
 
@@ -539,8 +520,9 @@ class Cluster:
         This is called by connection methods (cluster_uri, local_client_url, job_client)
         to help users debug mTLS connection issues.
         """
-        from codeflare_sdk.common.utils.generate_cert import _get_tls_base_dir
         from pathlib import Path
+
+        from codeflare_sdk.common.utils.generate_cert import _get_tls_base_dir
 
         cert_dir = _get_tls_base_dir() / f"{self.config.name}-{self.config.namespace}"
 
@@ -668,7 +650,7 @@ class Cluster:
                     ingress.metadata.name == f"ray-dashboard-{self.config.name}"
                     or ingress.metadata.name.startswith(f"{self.config.name}-ingress")
                 ):
-                    if annotations == None:
+                    if annotations is None:
                         protocol = "http"
                     elif "route.openshift.io/termination" in annotations:
                         protocol = "https"
@@ -952,7 +934,7 @@ def _apply_ray_cluster(
 def _get_ingress_domain(self):  # pragma: no cover
     config_check()
 
-    if self.config.namespace != None:
+    if self.config.namespace is not None:
         namespace = self.config.namespace
     else:
         namespace = get_current_namespace()
@@ -1084,7 +1066,7 @@ def _map_to_ray_cluster(rc) -> Optional[RayCluster]:
                     ingress.metadata.name == f"ray-dashboard-{rc_name}"
                     or ingress.metadata.name.startswith(f"{rc_name}-ingress")
                 ):
-                    if annotations == None:
+                    if annotations is None:
                         protocol = "http"
                     elif "route.openshift.io/termination" in annotations:
                         protocol = "https"
