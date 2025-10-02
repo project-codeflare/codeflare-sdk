@@ -131,10 +131,8 @@ class ManagedClusterConfig:
         accelerator_configs:
             A dictionary of custom resource mappings to map extended resource requests to RayCluster resource names.
             Defaults to DEFAULT_ACCELERATORS but can be overridden with custom mappings.
-        local_queue:
-            The name of the queue to use for the cluster.
         annotations:
-            A dictionary of annotations to apply to the cluster.
+            A dictionary of annotations to apply to the Job.
         volumes:
             A list of V1Volume objects to add to the Cluster
         volume_mounts:
@@ -161,7 +159,6 @@ class ManagedClusterConfig:
     accelerator_configs: Dict[str, str] = field(
         default_factory=lambda: DEFAULT_ACCELERATORS.copy()
     )
-    local_queue: Optional[str] = None
     annotations: Dict[str, str] = field(default_factory=dict)
     volumes: list[V1Volume] = field(default_factory=list)
     volume_mounts: list[V1VolumeMount] = field(default_factory=list)
@@ -248,7 +245,6 @@ class ManagedClusterConfig:
         """
         ray_cluster_spec = {
             "rayVersion": RAY_VERSION,
-            "enableInTreeAutoscaling": False,
             "headGroupSpec": self._build_head_group_spec(),
             "workerGroupSpecs": [self._build_worker_group_spec(cluster_name)],
         }
@@ -288,7 +284,6 @@ class ManagedClusterConfig:
         """Build Ray start parameters for head node."""
         params = {
             "dashboard-host": "0.0.0.0",
-            "dashboard-port": "8265",
             "block": "true",
         }
 
@@ -346,11 +341,8 @@ class ManagedClusterConfig:
                 self.head_accelerators,
             ),
             volume_mounts=self._generate_volume_mounts(),
+            env=self._build_env_vars() if hasattr(self, "envs") and self.envs else None,
         )
-
-        # Add environment variables if specified
-        if hasattr(self, "envs") and self.envs:
-            container.env = self._build_env_vars()
 
         return container
 
@@ -373,11 +365,8 @@ class ManagedClusterConfig:
                 self.worker_accelerators,
             ),
             volume_mounts=self._generate_volume_mounts(),
+            env=self._build_env_vars() if hasattr(self, "envs") and self.envs else None,
         )
-
-        # Add environment variables if specified
-        if hasattr(self, "envs") and self.envs:
-            container.env = self._build_env_vars()
 
         return container
 

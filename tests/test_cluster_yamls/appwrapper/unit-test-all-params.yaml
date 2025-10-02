@@ -39,7 +39,6 @@ spec:
           rayStartParams:
             block: 'true'
             dashboard-host: 0.0.0.0
-            dashboard-port: '8265'
             num-gpus: '1'
             resources: '"{\"TPU\": 2}"'
           serviceType: ClusterIP

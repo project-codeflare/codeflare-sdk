@@ -5,13 +5,13 @@ on:
   pull_request:
     branches:
       - main
-      - 'release-*'
+      - "release-*"
       - ray-jobs-feature
     paths-ignore:
-      - 'docs/**'
-      - '**.adoc'
-      - '**.md'
-      - 'LICENSE'
+      - "docs/**"
+      - "**.adoc"
+      - "**.md"
+      - "LICENSE"
 
 concurrency:
   group: ${{ github.head_ref }}-${{ github.workflow }}
@@ -33,9 +33,9 @@ jobs:
       - name: Checkout common repo code
         uses: actions/checkout@v4
         with:
-          repository: 'project-codeflare/codeflare-common'
-          ref: 'main'
-          path: 'common'
+          repository: "project-codeflare/codeflare-common"
+          ref: "main"
+          path: "common"
 
       - name: Checkout CodeFlare operator repository
         uses: actions/checkout@v4
@@ -46,7 +46,7 @@ jobs:
       - name: Set Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: './codeflare-operator/go.mod'
+          go-version-file: "./codeflare-operator/go.mod"
           cache-dependency-path: "./codeflare-operator/go.sum"
 
       - name: Set up gotestfmt
@@ -57,8 +57,8 @@ jobs:
       - name: Set up specific Python version
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
-          cache: 'pip' # caching pip dependencies
+          python-version: "3.11"
+          cache: "pip" # caching pip dependencies
 
       - name: Setup NVidia GPU environment for KinD
         uses: ./common/github-actions/nvidia-gpu-setup
@@ -76,7 +76,7 @@ jobs:
         run: |
           cd codeflare-operator
           echo Setting up CodeFlare stack
-          make setup-e2e
+          make setup-e2e KUEUE_VERSION=v0.13.4 KUERAY_VERSION=v1.4.0
           echo Deploying CodeFlare operator
           make deploy -e IMG="${CODEFLARE_OPERATOR_IMG}" -e ENV="e2e"
           kubectl wait --timeout=120s --for=condition=Available=true deployment -n openshift-operators codeflare-operator-manager
@@ -122,9 +122,15 @@ jobs:
           pip install poetry
           poetry install --with test,docs
           echo "Running e2e tests..."
-          poetry run pytest -v -s ./tests/e2e -m 'kind and nvidia_gpu' > ${CODEFLARE_TEST_OUTPUT_DIR}/pytest_output.log 2>&1
+          poetry run pytest -v -s ./tests/e2e/ -m 'kind and nvidia_gpu' > ${CODEFLARE_TEST_OUTPUT_DIR}/pytest_output.log 2>&1
         env:
           GRPC_DNS_RESOLVER: "native"
+
+      - name: Run RayJob E2E tests
+        run: |
+          export CODEFLARE_TEST_OUTPUT_DIR=${{ env.TEMP_DIR }}
+          echo "CODEFLARE_TEST_OUTPUT_DIR=${CODEFLARE_TEST_OUTPUT_DIR}" >> $GITHUB_ENV
+          poetry run pytest -v -s ./tests/e2e/rayjob > ${CODEFLARE_TEST_OUTPUT_DIR}/pytest_output_rayjob.log 2>&1
 
       - name: Switch to kind-cluster context to print logs
         if: always() && steps.deploy.outcome == 'success'
@@ -135,6 +141,7 @@ jobs:
         run: |
           echo "Printing Pytest output logs"
           cat ${CODEFLARE_TEST_OUTPUT_DIR}/pytest_output.log
+          cat ${CODEFLARE_TEST_OUTPUT_DIR}/pytest_output_rayjob.log
 
       - name: Print CodeFlare operator logs
         if: always() && steps.deploy.outcome == 'success'
@@ -146,7 +153,7 @@ jobs:
         if: always() && steps.deploy.outcome == 'success'
         run: |
           echo "Printing KubeRay operator logs"
-          kubectl logs -n ray-system --tail -1 -l app.kubernetes.io/name=kuberay | tee ${CODEFLARE_TEST_OUTPUT_DIR}/kuberay.log
+          kubectl logs -n default --tail -1 -l app.kubernetes.io/name=kuberay | tee ${CODEFLARE_TEST_OUTPUT_DIR}/kuberay.log
 
       - name: Export all KinD pod logs
         uses: ./common/github-actions/kind-export-logs
