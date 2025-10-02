@@ -1,5 +1,5 @@
-# e2e tests workflow for CodeFlare-SDK
-name: e2e
+# rayjob e2e tests workflow for CodeFlare-SDK
+name: rayjob-e2e
 
 on:
   pull_request:
@@ -21,7 +21,7 @@ env:
   CODEFLARE_OPERATOR_IMG: "quay.io/project-codeflare/codeflare-operator:dev"
 
 jobs:
-  kubernetes:
+  kubernetes-rayjob:
     runs-on: gpu-t4-4-core
 
     steps:
@@ -117,7 +117,7 @@ jobs:
           kubectl create clusterrolebinding sdk-user-port-forward-pods-binding --clusterrole=port-forward-pods --user=sdk-user
           kubectl config use-context sdk-user
 
-      - name: Run e2e tests
+      - name: Run RayJob E2E tests
         run: |
           export CODEFLARE_TEST_OUTPUT_DIR=${{ env.TEMP_DIR }}
           echo "CODEFLARE_TEST_OUTPUT_DIR=${CODEFLARE_TEST_OUTPUT_DIR}" >> $GITHUB_ENV
@@ -125,10 +125,8 @@ jobs:
           set -euo pipefail
           pip install poetry
           poetry install --with test,docs
-          echo "Running e2e tests..."
-          poetry run pytest -v -s ./tests/e2e/ -m 'kind and nvidia_gpu' > ${CODEFLARE_TEST_OUTPUT_DIR}/pytest_output.log 2>&1
-        env:
-          GRPC_DNS_RESOLVER: "native"
+          echo "Running RayJob e2e tests..."
+          poetry run pytest -v -s ./tests/e2e/rayjob/rayjob_lifecycled_cluster_test.py > ${CODEFLARE_TEST_OUTPUT_DIR}/pytest_output_rayjob.log 2>&1
 
       - name: Switch to kind-cluster context to print logs
         if: always() && steps.deploy.outcome == 'success'
@@ -138,7 +136,7 @@ jobs:
         if: always() && steps.deploy.outcome == 'success'
         run: |
           echo "Printing Pytest output logs"
-          cat ${CODEFLARE_TEST_OUTPUT_DIR}/pytest_output.log
+          cat ${CODEFLARE_TEST_OUTPUT_DIR}/pytest_output_rayjob.log
 
       - name: Print CodeFlare operator logs
         if: always() && steps.deploy.outcome == 'success'

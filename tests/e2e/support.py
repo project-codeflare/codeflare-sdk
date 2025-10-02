@@ -2,6 +2,7 @@ import os
 import random
 import string
 import subprocess
+from time import sleep
 from codeflare_sdk import get_cluster
 from kubernetes import client, config
 from codeflare_sdk.common.kubernetes_cluster.kube_api_helpers import (
@@ -26,8 +27,82 @@ def get_ray_cluster(cluster_name, namespace):
         raise
 
 
+def is_openshift():
+    """Detect if running on OpenShift by checking for OpenShift-specific API resources."""
+    try:
+        api = client.ApiClient()
+        discovery = client.ApisApi(api)
+        # Check for OpenShift-specific API group
+        groups = discovery.get_api_versions().groups
+        for group in groups:
+            if group.name == "image.openshift.io":
+                return True
+        return False
+    except Exception:
+        # If we can't determine, assume it's not OpenShift
+        return False
+
+
 def get_ray_image():
-    return os.getenv("RAY_IMAGE", constants.CUDA_RUNTIME_IMAGE)
+    """
+    Get appropriate Ray image based on platform (OpenShift vs Kind/vanilla K8s).
+
+    The tests marked with @pytest.mark.openshift can run on both OpenShift and Kind clusters
+    with Kueue installed. This function automatically selects the appropriate image:
+    - OpenShift: Uses the CUDA runtime image (quay.io/modh/ray:...)
+    - Kind/K8s: Uses the standard Ray image (rayproject/ray:VERSION)
+
+    You can override this behavior by setting the RAY_IMAGE environment variable.
+    """
+    # Allow explicit override via environment variable
+    if "RAY_IMAGE" in os.environ:
+        return os.environ["RAY_IMAGE"]
+
+    # Auto-detect platform and return appropriate image
+    if is_openshift():
+        return constants.CUDA_RUNTIME_IMAGE
+    else:
+        # Use standard Ray image for Kind/vanilla K8s
+        return f"rayproject/ray:{constants.RAY_VERSION}"
+
+
+def get_platform_appropriate_resources():
+    """
+    Get appropriate resource configurations based on platform.
+
+    OpenShift with MODH images requires more memory than Kind with standard Ray images.
+
+    Returns:
+        dict: Resource configurations with keys:
+            - head_cpu_requests, head_cpu_limits
+            - head_memory_requests, head_memory_limits
+            - worker_cpu_requests, worker_cpu_limits
+            - worker_memory_requests, worker_memory_limits
+    """
+    if is_openshift():
+        # MODH runtime images require more memory
+        return {
+            "head_cpu_requests": "1",
+            "head_cpu_limits": "1.5",
+            "head_memory_requests": 7,
+            "head_memory_limits": 8,
+            "worker_cpu_requests": "1",
+            "worker_cpu_limits": "1",
+            "worker_memory_requests": 5,
+            "worker_memory_limits": 6,
+        }
+    else:
+        # Standard Ray images require less memory
+        return {
+            "head_cpu_requests": "1",
+            "head_cpu_limits": "1.5",
+            "head_memory_requests": 7,
+            "head_memory_limits": 8,
+            "worker_cpu_requests": "1",
+            "worker_cpu_limits": "1",
+            "worker_memory_requests": 2,
+            "worker_memory_limits": 3,
+        }
 
 
 def get_setup_env_variables(**kwargs):
@@ -143,6 +218,17 @@ def run_oc_command(args):
         return None
 
 
+def run_kubectl_command(args):
+    try:
+        result = subprocess.run(
+            ["kubectl"] + args, capture_output=True, text=True, check=True
+        )
+        return result.stdout.strip()
+    except subprocess.CalledProcessError as e:
+        print(f"Error executing 'kubectl {' '.join(args)}': {e}")
+        return None
+
+
 def create_cluster_queue(self, cluster_queue, flavor):
     cluster_queue_json = {
         "apiVersion": "kueue.x-k8s.io/v1beta1",
@@ -157,9 +243,9 @@ def create_cluster_queue(self, cluster_queue, flavor):
                         {
                             "name": flavor,
                             "resources": [
-                                {"name": "cpu", "nominalQuota": 9},
-                                {"name": "memory", "nominalQuota": "36Gi"},
-                                {"name": "nvidia.com/gpu", "nominalQuota": 1},
+                                {"name": "cpu", "nominalQuota": 20},
+                                {"name": "memory", "nominalQuota": "80Gi"},
+                                {"name": "nvidia.com/gpu", "nominalQuota": 2},
                             ],
                         },
                     ],
@@ -297,7 +383,6 @@ def create_kueue_resources(
 
 
 def delete_kueue_resources(self):
-    # Delete if given cluster-queue exists
     for cq in self.cluster_queues:
         try:
             self.custom_api.delete_cluster_custom_object(
@@ -405,3 +490,234 @@ def assert_get_cluster_and_jobsubmit(
     assert job_list[0].submission_id == submission_id
 
     cluster.down()
+
+
+def wait_for_kueue_admission(self, job_api, job_name, namespace, timeout=120):
+    print(f"Waiting for Kueue admission of job '{job_name}'...")
+    elapsed_time = 0
+    check_interval = 5
+
+    while elapsed_time < timeout:
+        try:
+            job_cr = job_api.get_job(name=job_name, k8s_namespace=namespace)
+
+            # Check if the job is no longer suspended
+            is_suspended = job_cr.get("spec", {}).get("suspend", False)
+
+            if not is_suspended:
+                print(f"✓ Job '{job_name}' admitted by Kueue (no longer suspended)")
+                return True
+
+            # Debug: Check workload status every 10 seconds
+            if elapsed_time % 10 == 0:
+                workload = get_kueue_workload_for_job(self, job_name, namespace)
+                if workload:
+                    conditions = workload.get("status", {}).get("conditions", [])
+                    print(f"  DEBUG: Workload conditions for '{job_name}':")
+                    for condition in conditions:
+                        print(
+                            f"    - {condition.get('type')}: {condition.get('status')} - {condition.get('reason', '')} - {condition.get('message', '')}"
+                        )
+
+            # Optional: Check status conditions for more details
+            conditions = job_cr.get("status", {}).get("conditions", [])
+            for condition in conditions:
+                if (
+                    condition.get("type") == "Suspended"
+                    and condition.get("status") == "False"
+                ):
+                    print(
+                        f"✓ Job '{job_name}' admitted by Kueue (Suspended=False condition)"
+                    )
+                    return True
+
+        except Exception as e:
+            print(f"Error checking job status: {e}")
+
+        sleep(check_interval)
+        elapsed_time += check_interval
+
+    print(f"✗ Timeout waiting for Kueue admission of job '{job_name}'")
+    return False
+
+
+def create_limited_kueue_resources(self):
+    print("Creating limited Kueue resources for preemption testing...")
+
+    # Create a resource flavor with default (no special labels/tolerations)
+    resource_flavor = f"limited-flavor-{random_choice()}"
+    create_resource_flavor(
+        self, resource_flavor, default=True, with_labels=False, with_tolerations=False
+    )
+    self.resource_flavors = [resource_flavor]
+
+    # Create a cluster queue with very limited resources
+    # Adjust quota based on platform - OpenShift needs more memory
+    if is_openshift():
+        # MODH images need more memory, so higher quota but still limited to allow only 1 job
+        cpu_quota = 3
+        memory_quota = "15Gi"  # One job needs ~8Gi head, allow some buffer
+    else:
+        # Standard Ray images - one job needs ~8G head + 500m submitter
+        cpu_quota = 3
+        memory_quota = "10Gi"  # Enough for one job (8G head + submitter), but not two
+
+    cluster_queue_name = f"limited-cq-{random_choice()}"
+    cluster_queue_json = {
+        "apiVersion": "kueue.x-k8s.io/v1beta1",
+        "kind": "ClusterQueue",
+        "metadata": {"name": cluster_queue_name},
+        "spec": {
+            "namespaceSelector": {},
+            "resourceGroups": [
+                {
+                    "coveredResources": ["cpu", "memory"],
+                    "flavors": [
+                        {
+                            "name": resource_flavor,
+                            "resources": [
+                                {
+                                    "name": "cpu",
+                                    "nominalQuota": cpu_quota,
+                                },
+                                {
+                                    "name": "memory",
+                                    "nominalQuota": memory_quota,
+                                },
+                            ],
+                        }
+                    ],
+                }
+            ],
+        },
+    }
+
+    try:
+        self.custom_api.create_cluster_custom_object(
+            group="kueue.x-k8s.io",
+            plural="clusterqueues",
+            version="v1beta1",
+            body=cluster_queue_json,
+        )
+        print(f"✓ Created limited ClusterQueue: {cluster_queue_name}")
+    except Exception as e:
+        print(f"Error creating limited ClusterQueue: {e}")
+        raise
+
+    self.cluster_queues = [cluster_queue_name]
+
+    # Create a local queue
+    local_queue_name = f"limited-lq-{random_choice()}"
+    create_local_queue(self, cluster_queue_name, local_queue_name, is_default=True)
+    self.local_queues = [local_queue_name]
+
+    print("✓ Limited Kueue resources created successfully")
+
+
+def get_kueue_workload_for_job(self, job_name, namespace):
+    try:
+        # List all workloads in the namespace
+        workloads = self.custom_api.list_namespaced_custom_object(
+            group="kueue.x-k8s.io",
+            version="v1beta1",
+            plural="workloads",
+            namespace=namespace,
+        )
+
+        # Find workload with matching RayJob owner reference
+        for workload in workloads.get("items", []):
+            owner_refs = workload.get("metadata", {}).get("ownerReferences", [])
+
+            for owner_ref in owner_refs:
+                if (
+                    owner_ref.get("kind") == "RayJob"
+                    and owner_ref.get("name") == job_name
+                ):
+                    workload_name = workload.get("metadata", {}).get("name")
+                    print(
+                        f"✓ Found Kueue workload '{workload_name}' for RayJob '{job_name}'"
+                    )
+                    return workload
+
+        print(f"✗ No Kueue workload found for RayJob '{job_name}'")
+        return None
+
+    except Exception as e:
+        print(f"Error getting Kueue workload for job '{job_name}': {e}")
+        return None
+
+
+def wait_for_job_status(
+    job_api, rayjob_name: str, namespace: str, expected_status: str, timeout: int = 30
+) -> bool:
+    """
+    Wait for a RayJob to reach a specific deployment status.
+
+    Args:
+        job_api: RayjobApi instance
+        rayjob_name: Name of the RayJob
+        namespace: Namespace of the RayJob
+        expected_status: Expected jobDeploymentStatus value
+        timeout: Maximum time to wait in seconds
+
+    Returns:
+        bool: True if status reached, False if timeout
+    """
+    elapsed_time = 0
+    check_interval = 2
+
+    while elapsed_time < timeout:
+        status = job_api.get_job_status(name=rayjob_name, k8s_namespace=namespace)
+        if status and status.get("jobDeploymentStatus") == expected_status:
+            return True
+
+        sleep(check_interval)
+        elapsed_time += check_interval
+
+    return False
+
+
+def verify_rayjob_cluster_cleanup(
+    cluster_api, rayjob_name: str, namespace: str, timeout: int = 60
+):
+    """
+    Verify that the RayCluster created by a RayJob has been cleaned up.
+    Handles KubeRay's automatic suffix addition to cluster names.
+
+    Args:
+        cluster_api: RayClusterApi instance
+        rayjob_name: Name of the RayJob
+        namespace: Namespace to check
+        timeout: Maximum time to wait in seconds
+
+    Raises:
+        TimeoutError: If cluster is not cleaned up within timeout
+    """
+    elapsed_time = 0
+    check_interval = 5
+
+    while elapsed_time < timeout:
+        # List all RayClusters in the namespace
+        clusters = cluster_api.list_ray_clusters(
+            k8s_namespace=namespace, async_req=False
+        )
+
+        # Check if any cluster exists that starts with our job name
+        found = False
+        for cluster in clusters.get("items", []):
+            cluster_name = cluster.get("metadata", {}).get("name", "")
+            # KubeRay creates clusters with pattern: {job_name}-raycluster-{suffix}
+            if cluster_name.startswith(f"{rayjob_name}-raycluster"):
+                found = True
+                break
+
+        if not found:
+            # No cluster found, cleanup successful
+            return
+
+        sleep(check_interval)
+        elapsed_time += check_interval
+
+    raise TimeoutError(
+        f"RayCluster for job '{rayjob_name}' was not cleaned up within {timeout} seconds"
+    )
