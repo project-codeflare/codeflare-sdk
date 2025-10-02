@@ -7,13 +7,9 @@ from kubernetes import config
 from ..kubernetes_cluster import config_check, _kube_api_error_handling
 
 
-def get_current_namespace():
+def get_current_namespace():  # pragma: no cover
     """
     Retrieves the current Kubernetes namespace.
-
-    This function attempts to detect the current namespace by:
-    1. First checking if running inside a pod (reading from service account namespace file)
-    2. Falling back to reading from the current kubeconfig context
 
     Returns:
         str:

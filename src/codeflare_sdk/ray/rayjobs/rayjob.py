@@ -22,6 +22,7 @@ import os
 import re
 import ast
 from typing import Dict, Any, Optional, Tuple
+from codeflare_sdk.common.kueue.kueue import get_default_kueue_name
 from codeflare_sdk.common.utils.constants import MOUNT_PATH
 from kubernetes import client
 from ...common.kubernetes_cluster.auth import get_api_client
@@ -59,9 +60,9 @@ class RayJob:
         cluster_config: Optional[ManagedClusterConfig] = None,
         namespace: Optional[str] = None,
         runtime_env: Optional[Dict[str, Any]] = None,
-        shutdown_after_job_finishes: Optional[bool] = None,
         ttl_seconds_after_finished: int = 0,
         active_deadline_seconds: Optional[int] = None,
+        local_queue: Optional[str] = None,
     ):
         """
         Initialize a RayJob instance.
@@ -73,12 +74,11 @@ class RayJob:
             cluster_config: Configuration for creating a new cluster (optional if cluster_name provided)
             namespace: The Kubernetes namespace (auto-detected if not specified)
             runtime_env: Ray runtime environment configuration (optional)
-            shutdown_after_job_finishes: Whether to shut down cluster after job finishes (optional)
             ttl_seconds_after_finished: Seconds to wait before cleanup after job finishes (default: 0)
             active_deadline_seconds: Maximum time the job can run before being terminated (optional)
+            local_queue: The Kueue LocalQueue to submit the job to (optional)
 
         Note:
-            shutdown_after_job_finishes is automatically detected but can be overridden:
             - True if cluster_config is provided (new cluster will be cleaned up)
             - False if cluster_name is provided (existing cluster will not be shut down)
             - User can explicitly set this value to override auto-detection
@@ -108,17 +108,7 @@ class RayJob:
         self.runtime_env = runtime_env
         self.ttl_seconds_after_finished = ttl_seconds_after_finished
         self.active_deadline_seconds = active_deadline_seconds
-
-        # Auto-set shutdown_after_job_finishes based on cluster_config presence
-        # If cluster_config is provided, we want to clean up the cluster after job finishes
-        # If using existing cluster, we don't want to shut it down
-        # User can override this behavior by explicitly setting shutdown_after_job_finishes
-        if shutdown_after_job_finishes is not None:
-            self.shutdown_after_job_finishes = shutdown_after_job_finishes
-        elif cluster_config is not None:
-            self.shutdown_after_job_finishes = True
-        else:
-            self.shutdown_after_job_finishes = False
+        self.local_queue = local_queue
 
         if namespace is None:
             detected_namespace = get_current_namespace()
@@ -177,10 +167,6 @@ class RayJob:
                 if scripts:
                     self._handle_script_volumes_for_existing_cluster(scripts, result)
 
-            if self.shutdown_after_job_finishes:
-                logger.info(
-                    f"Cluster will be automatically cleaned up {self.ttl_seconds_after_finished}s after job completion"
-                )
             return self.name
         else:
             raise RuntimeError(f"Failed to submit RayJob {self.name}")
@@ -230,10 +216,36 @@ class RayJob:
             },
             "spec": {
                 "entrypoint": self.entrypoint,
-                "shutdownAfterJobFinishes": self.shutdown_after_job_finishes,
                 "ttlSecondsAfterFinished": self.ttl_seconds_after_finished,
+                "shutdownAfterJobFinishes": self._cluster_config is not None,
             },
         }
+
+        labels = {}
+        # If cluster_config is provided, use the local_queue from the cluster_config
+        if self._cluster_config is not None:
+            if self.local_queue:
+                labels["kueue.x-k8s.io/queue-name"] = self.local_queue
+            else:
+                default_queue = get_default_kueue_name(self.namespace)
+                if default_queue:
+                    labels["kueue.x-k8s.io/queue-name"] = default_queue
+                else:
+                    # No default queue found, use "default" as fallback
+                    labels["kueue.x-k8s.io/queue-name"] = "default"
+                    logger.warning(
+                        f"No default Kueue LocalQueue found in namespace '{self.namespace}'. "
+                        f"Using 'default' as the queue name. If a LocalQueue named 'default' "
+                        f"does not exist, the RayJob submission will fail. "
+                        f"To fix this, please explicitly specify the 'local_queue' parameter."
+                    )
+
+        rayjob_cr["metadata"]["labels"] = labels
+
+        # When using Kueue (queue label present), start with suspend=true
+        # Kueue will unsuspend the job once the workload is admitted
+        if labels.get("kueue.x-k8s.io/queue-name"):
+            rayjob_cr["spec"]["suspend"] = True
 
         # Add active deadline if specified
         if self.active_deadline_seconds:

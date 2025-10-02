@@ -302,3 +302,72 @@ def test_rayjob_status_print_job_found(mocker):
 
     assert status == CodeflareRayJobStatus.RUNNING
     assert ready == False
+
+
+def test_rayjob_status_all_deployment_states(mocker):
+    """Test RayJob status method with all deployment states."""
+    mocker.patch("kubernetes.config.load_kube_config")
+    mock_api_class = mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayjobApi")
+    mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayClusterApi")
+    mock_api_instance = mock_api_class.return_value
+
+    rayjob = RayJob(
+        job_name="test-job",
+        cluster_name="test-cluster",
+        namespace="test-ns",
+        entrypoint="python test.py",
+    )
+
+    # Test mapping of deployment statuses to CodeflareRayJobStatus
+    test_cases = [
+        # (deployment_status_str, expected CodeflareRayJobStatus, expected ready)
+        ("Complete", CodeflareRayJobStatus.COMPLETE, True),
+        ("Running", CodeflareRayJobStatus.RUNNING, False),
+        ("Failed", CodeflareRayJobStatus.FAILED, False),
+        ("Suspended", CodeflareRayJobStatus.SUSPENDED, False),
+    ]
+
+    for deployment_status_str, expected_status, expected_ready in test_cases:
+        mock_api_instance.get_job_status.return_value = {
+            "jobId": "test-job-abc123",
+            "jobDeploymentStatus": deployment_status_str,
+            "startTime": "2025-07-28T11:37:07Z",
+            "failed": 0,
+            "succeeded": 0,
+            "rayClusterName": "test-cluster",
+        }
+        status, ready = rayjob.status(print_to_console=False)
+        assert status == expected_status, f"Failed for {deployment_status_str}"
+        assert (
+            ready == expected_ready
+        ), f"Failed ready check for {deployment_status_str}"
+
+
+def test_rayjob_status_with_end_time(mocker):
+    """Test RayJob status with end time field."""
+    mocker.patch("kubernetes.config.load_kube_config")
+    mock_api_class = mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayjobApi")
+    mocker.patch("codeflare_sdk.ray.rayjobs.rayjob.RayClusterApi")
+    mock_api_instance = mock_api_class.return_value
+
+    rayjob = RayJob(
+        job_name="test-job",
+        cluster_name="test-cluster",
+        namespace="test-ns",
+        entrypoint="python test.py",
+    )
+
+    # Test with end time field
+    mock_api_instance.get_job_status.return_value = {
+        "jobId": "test-job-abc123",
+        "jobDeploymentStatus": "Complete",
+        "startTime": "2025-07-28T11:37:07Z",
+        "endTime": "2025-07-28T11:47:07Z",
+        "failed": 0,
+        "succeeded": 1,
+        "rayClusterName": "test-cluster",
+    }
+
+    status, ready = rayjob.status(print_to_console=False)
+    assert status == CodeflareRayJobStatus.COMPLETE
+    assert ready == True
