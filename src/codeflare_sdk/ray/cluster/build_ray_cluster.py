@@ -133,7 +133,6 @@ def build_ray_cluster(cluster: "codeflare_sdk.ray.cluster.Cluster"):
                 "enableIngress": False,
                 "rayStartParams": {
                     "dashboard-host": "0.0.0.0",
-                    "dashboard-port": "8265",
                     "block": "true",
                     "num-gpus": str(head_gpu_count),
                     "resources": head_resources,
