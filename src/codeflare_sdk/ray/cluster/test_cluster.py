@@ -45,7 +45,7 @@ expected_clusters_dir = f"{parent}/tests/test_cluster_yamls"
 aw_dir = os.path.expanduser("~/.codeflare/resources/")
 
 
-def test_cluster_up_down(mocker):
+def test_cluster_apply_down(mocker):
     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
     mocker.patch("codeflare_sdk.ray.cluster.cluster.Cluster._throw_for_no_raycluster")
@@ -70,7 +70,7 @@ def test_cluster_up_down(mocker):
         return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
     )
     cluster = create_cluster(mocker)
-    cluster.up()
+    cluster.apply()
     cluster.down()
 
 
@@ -252,7 +252,7 @@ def test_cluster_apply_without_appwrapper(mocker):
     print("Cluster applied without AppWrapper.")
 
 
-def test_cluster_up_down_no_mcad(mocker):
+def test_cluster_apply_down_no_mcad(mocker):
     mocker.patch("codeflare_sdk.ray.cluster.cluster.Cluster._throw_for_no_raycluster")
     mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
@@ -282,7 +282,7 @@ def test_cluster_up_down_no_mcad(mocker):
     config.name = "unit-test-cluster-ray"
     config.appwrapper = False
     cluster = Cluster(config)
-    cluster.up()
+    cluster.apply()
     cluster.down()
 
 
@@ -324,7 +324,7 @@ def test_cluster_uris(mocker):
     )
     assert (
         cluster.cluster_dashboard_uri()
-        == "Dashboard not available yet, have you run cluster.up()?"
+        == "Dashboard not available yet, have you run cluster.apply()?"
     )
 
     mocker.patch(
@@ -538,7 +538,7 @@ def test_wait_ready(mocker, capsys):
 
     captured = capsys.readouterr()
     assert (
-        "WARNING: Current cluster status is unknown, have you run cluster.up yet?"
+        "WARNING: Current cluster status is unknown, have you run cluster.apply() yet?"
         in captured.out
     )
     mocker.patch(
@@ -571,7 +571,7 @@ def test_list_queue_appwrappers(mocker, capsys):
     captured = capsys.readouterr()
     assert captured.out == (
         "╭──────────────────────────────────────────────────────────────────────────────╮\n"
-        "│ No resources found, have you run cluster.up() yet?                           │\n"
+        "│ No resources found, have you run cluster.apply() yet?                        │\n"
         "╰──────────────────────────────────────────────────────────────────────────────╯\n"
     )
     mocker.patch(
@@ -616,7 +616,7 @@ def test_list_queue_rayclusters(mocker, capsys):
     captured = capsys.readouterr()
     assert captured.out == (
         "╭──────────────────────────────────────────────────────────────────────────────╮\n"
-        "│ No resources found, have you run cluster.up() yet?                           │\n"
+        "│ No resources found, have you run cluster.apply() yet?                        │\n"
         "╰──────────────────────────────────────────────────────────────────────────────╯\n"
     )
     mocker.patch(
@@ -658,7 +658,7 @@ def test_list_clusters(mocker, capsys):
     captured = capsys.readouterr()
     assert captured.out == (
         "╭──────────────────────────────────────────────────────────────────────────────╮\n"
-        "│ No resources found, have you run cluster.up() yet?                           │\n"
+        "│ No resources found, have you run cluster.apply() yet?                        │\n"
         "╰──────────────────────────────────────────────────────────────────────────────╯\n"
     )
     mocker.patch(

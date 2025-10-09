@@ -30,7 +30,7 @@ of it's usage:
     ╰─────────────────────────────────────────────────────────────────╯
    (<CodeFlareClusterStatus.READY: 1>, True)
    cluster.down()
-   cluster.up() # This function will create an exact copy of the retrieved Ray Cluster only if the Ray Cluster has been previously deleted.
+   cluster.apply() # This function will create an exact copy of the retrieved Ray Cluster only if the Ray Cluster has been previously deleted.
 
 | These are the parameters the ``get_cluster()`` function accepts:
 | ``cluster_name: str # Required`` -> The name of the Ray Cluster.
