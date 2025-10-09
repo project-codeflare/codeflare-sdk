@@ -17,7 +17,7 @@ local_queue = "local-queue-mnist"
 
 
 # Creates a Ray cluster
-class TestMNISTRayClusterUp:
+class TestMNISTRayClusterApply:
     def setup_method(self):
         initialize_kubernetes_client(self)
         create_namespace_with_name(self, namespace)
@@ -63,7 +63,7 @@ class TestMNISTRayClusterUp:
         )
 
         try:
-            cluster.up()
+            cluster.apply()
             cluster.status()
             # wait for raycluster to be Ready
             cluster.wait_ready()

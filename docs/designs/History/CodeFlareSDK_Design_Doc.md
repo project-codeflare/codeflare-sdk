@@ -42,7 +42,7 @@ Users can customize their AppWrapper by passing their desired parameters to `Clu
 
 Our aim is to simplify the process of generating valid AppWrappers for RayClusters, so we will strive to find the appropriate balance between ease of use and exposing all possible AppWrapper parameters. And we will find this balance through user feedback.
 
-With a valid AppWrapper, we will use the Kubernetes python client to apply the AppWrapper to our Kubernetes cluster via a call to `cluster.up()`
+With a valid AppWrapper, we will use the Kubernetes python client to apply the AppWrapper to our Kubernetes cluster via a call to `cluster.apply()`
 
 We will also use the Kubernetes python client to get information about both the RayCluster and AppWrapper custom resources to monitor the status of our Framework Cluster via `cluster.status()` and `cluster.details()`.
 

@@ -30,7 +30,7 @@ from ..appwrapper.status import AppWrapper
 
 def print_no_resources_found():
     console = Console()
-    console.print(Panel("[red]No resources found, have you run cluster.up() yet?"))
+    console.print(Panel("[red]No resources found, have you run cluster.apply() yet?"))
 
 
 def print_app_wrappers_status(app_wrappers: List[AppWrapper], starting: bool = False):

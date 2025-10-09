@@ -68,7 +68,7 @@ class TestSetupSleepRayJob:
         )
 
         try:
-            cluster.up()
+            cluster.apply()
             cluster.status()
             # wait for raycluster to be Ready
             cluster.wait_ready()

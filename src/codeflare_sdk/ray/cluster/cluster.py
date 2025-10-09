@@ -426,7 +426,7 @@ class Cluster:
             status, ready = self.status(print_to_console=False)
             if status == CodeFlareClusterStatus.UNKNOWN:
                 print(
-                    "WARNING: Current cluster status is unknown, have you run cluster.up yet?"
+                    "WARNING: Current cluster status is unknown, have you run cluster.apply() yet?"
                 )
             if ready:
                 break
@@ -518,7 +518,7 @@ class Cluster:
                     elif "route.openshift.io/termination" in annotations:
                         protocol = "https"
                 return f"{protocol}://{ingress.spec.rules[0].host}"
-        return "Dashboard not available yet, have you run cluster.up()?"
+        return "Dashboard not available yet, have you run cluster.apply()?"
 
     def list_jobs(self) -> List:
         """

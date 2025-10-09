@@ -64,7 +64,7 @@ This will automatically set the ``RAY_USAGE_STATS_ENABLED`` environment variable
 The ``labels={"exampleLabel": "example"}`` parameter can be used to
 apply additional labels to the RayCluster resource.
 
-After creating their ``cluster``, a user can call ``cluster.up()`` and
+After creating their ``cluster``, a user can call ``cluster.apply()`` and
 ``cluster.down()`` to respectively create or remove the Ray Cluster.
 
 Custom Volumes/Volume Mounts

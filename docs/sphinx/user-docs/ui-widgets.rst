@@ -14,7 +14,7 @@ The Cluster Up/Down buttons appear after successfully initialising your
 `ClusterConfiguration <cluster-configuration.md#ray-cluster-configuration>`__.
 There are two buttons and a checkbox ``Cluster Up``, ``Cluster Down``
 and ``Wait for Cluster?`` which mimic the
-`cluster.up() <ray-cluster-interaction.md#clusterup>`__,
+`cluster.apply() <ray-cluster-interaction.md#clusterapply>`__,
 `cluster.down() <ray-cluster-interaction.md#clusterdown>`__ and
 `cluster.wait_ready() <ray-cluster-interaction.md#clusterwait_ready>`__
 functionality.
