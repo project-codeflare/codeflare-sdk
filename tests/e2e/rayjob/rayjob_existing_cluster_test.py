@@ -41,18 +41,22 @@ class TestRayJobExistingCluster:
             )
             auth.login()
 
+        resources = get_platform_appropriate_resources()
+
         cluster = Cluster(
             ClusterConfiguration(
                 name=cluster_name,
                 namespace=self.namespace,
                 num_workers=1,
-                head_cpu_requests="500m",
-                head_cpu_limits="500m",
-                worker_cpu_requests=1,
-                worker_cpu_limits=1,
-                worker_memory_requests=1,
-                worker_memory_limits=4,
-                image=get_ray_image(),
+                head_cpu_requests=resources["head_cpu_requests"],
+                head_cpu_limits=resources["head_cpu_limits"],
+                head_memory_requests=resources["head_memory_requests"],
+                head_memory_limits=resources["head_memory_limits"],
+                worker_cpu_requests=resources["worker_cpu_requests"],
+                worker_cpu_limits=resources["worker_cpu_limits"],
+                worker_memory_requests=resources["worker_memory_requests"],
+                worker_memory_limits=resources["worker_memory_limits"],
+                image=constants.CUDA_PY312_RUNTIME_IMAGE,
                 local_queue=self.local_queues[0],
                 write_to_file=True,
                 verify_tls=False,
@@ -63,7 +67,7 @@ class TestRayJobExistingCluster:
 
         # Wait for cluster to be ready (with Kueue admission)
         print(f"Waiting for cluster '{cluster_name}' to be ready...")
-        cluster.wait_ready(timeout=300, dashboard_check=False)
+        cluster.wait_ready(timeout=600)
         print(f"✓ Cluster '{cluster_name}' is ready")
 
         # RayJob with explicit local_queue
