@@ -40,7 +40,7 @@ def test_print_no_resources(capsys):
     captured = capsys.readouterr()
     assert captured.out == (
         "╭──────────────────────────────────────────────────────────────────────────────╮\n"
-        "│ No resources found, have you run cluster.apply() yet?                        │\n"
+        "│ No resources found, have you run cluster.apply() yet? Run cluster.details() to check if it's ready. │\n"
         "╰──────────────────────────────────────────────────────────────────────────────╯\n"
     )
 

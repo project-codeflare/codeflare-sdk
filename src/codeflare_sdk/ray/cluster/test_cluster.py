@@ -324,7 +324,7 @@ def test_cluster_uris(mocker):
     )
     assert (
         cluster.cluster_dashboard_uri()
-        == "Dashboard not available yet, have you run cluster.apply()?"
+        == "Dashboard not available yet, have you run cluster.apply()? Run cluster.details() to check if it's ready."
     )
 
     mocker.patch(
@@ -538,7 +538,7 @@ def test_wait_ready(mocker, capsys):
 
     captured = capsys.readouterr()
     assert (
-        "WARNING: Current cluster status is unknown, have you run cluster.apply() yet?"
+        "WARNING: Current cluster status is unknown, have you run cluster.apply() yet? Run cluster.details() to check if it's ready."
         in captured.out
     )
     mocker.patch(
@@ -571,7 +571,7 @@ def test_list_queue_appwrappers(mocker, capsys):
     captured = capsys.readouterr()
     assert captured.out == (
         "╭──────────────────────────────────────────────────────────────────────────────╮\n"
-        "│ No resources found, have you run cluster.apply() yet?                        │\n"
+        "│ No resources found, have you run cluster.apply() yet? Run cluster.details() to check if it's ready. │\n"
         "╰──────────────────────────────────────────────────────────────────────────────╯\n"
     )
     mocker.patch(
@@ -616,7 +616,7 @@ def test_list_queue_rayclusters(mocker, capsys):
     captured = capsys.readouterr()
     assert captured.out == (
         "╭──────────────────────────────────────────────────────────────────────────────╮\n"
-        "│ No resources found, have you run cluster.apply() yet?                        │\n"
+        "│ No resources found, have you run cluster.apply() yet? Run cluster.details() to check if it's ready. │\n"
         "╰──────────────────────────────────────────────────────────────────────────────╯\n"
     )
     mocker.patch(
@@ -658,7 +658,7 @@ def test_list_clusters(mocker, capsys):
     captured = capsys.readouterr()
     assert captured.out == (
         "╭──────────────────────────────────────────────────────────────────────────────╮\n"
-        "│ No resources found, have you run cluster.apply() yet?                        │\n"
+        "│ No resources found, have you run cluster.apply() yet? Run cluster.details() to check if it's ready. │\n"
         "╰──────────────────────────────────────────────────────────────────────────────╯\n"
     )
     mocker.patch(
