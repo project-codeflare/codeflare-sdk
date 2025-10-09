@@ -17,21 +17,24 @@ RayJob client for submitting and managing Ray jobs using the kuberay python clie
 """
 
 import logging
-import warnings
 import os
 import re
-import ast
-import yaml
-from typing import Dict, Any, Optional, Tuple, List
+import warnings
+from typing import Dict, Any, Optional, Tuple, Union
+
+from ray.runtime_env import RuntimeEnv
 from codeflare_sdk.common.kueue.kueue import get_default_kueue_name
 from codeflare_sdk.common.utils.constants import MOUNT_PATH
-from kubernetes import client
 
 from codeflare_sdk.common.utils.utils import get_ray_image_for_python_version
-from ...common.kubernetes_cluster.auth import get_api_client
 from python_client.kuberay_job_api import RayjobApi
 from python_client.kuberay_cluster_api import RayClusterApi
 from codeflare_sdk.ray.rayjobs.config import ManagedClusterConfig
+from codeflare_sdk.ray.rayjobs.runtime_env import (
+    create_file_configmap,
+    extract_all_local_files,
+    process_runtime_env,
+)
 
 from ...common.utils import get_current_namespace
 from ...common.utils.validation import validate_ray_version_compatibility
@@ -45,9 +48,6 @@ from . import pretty_print
 
 
 logger = logging.getLogger(__name__)
-
-# Regex pattern for finding Python files in entrypoint commands
-PYTHON_FILE_PATTERN = r"(?:python\s+)?([./\w/]+\.py)"
 
 
 class RayJob:
@@ -65,7 +65,7 @@ class RayJob:
         cluster_name: Optional[str] = None,
         cluster_config: Optional[ManagedClusterConfig] = None,
         namespace: Optional[str] = None,
-        runtime_env: Optional[Dict[str, Any]] = None,
+        runtime_env: Optional[Union[RuntimeEnv, Dict[str, Any]]] = None,
         ttl_seconds_after_finished: int = 0,
         active_deadline_seconds: Optional[int] = None,
         local_queue: Optional[str] = None,
@@ -79,7 +79,10 @@ class RayJob:
             cluster_name: The name of an existing Ray cluster (optional if cluster_config provided)
             cluster_config: Configuration for creating a new cluster (optional if cluster_name provided)
             namespace: The Kubernetes namespace (auto-detected if not specified)
-            runtime_env: Ray runtime environment configuration (optional)
+            runtime_env: Ray runtime environment configuration. Can be:
+                - RuntimeEnv object from ray.runtime_env
+                - Dict with keys like 'working_dir', 'pip', 'env_vars', etc.
+                Example: {"working_dir": "./my-scripts", "pip": ["requests"]}
             ttl_seconds_after_finished: Seconds to wait before cleanup after job finishes (default: 0)
             active_deadline_seconds: Maximum time the job can run before being terminated (optional)
             local_queue: The Kueue LocalQueue to submit the job to (optional)
@@ -111,7 +114,13 @@ class RayJob:
 
         self.name = job_name
         self.entrypoint = entrypoint
-        self.runtime_env = runtime_env
+
+        # Convert dict to RuntimeEnv if needed for user convenience
+        if isinstance(runtime_env, dict):
+            self.runtime_env = RuntimeEnv(**runtime_env)
+        else:
+            self.runtime_env = runtime_env
+
         self.ttl_seconds_after_finished = ttl_seconds_after_finished
         self.active_deadline_seconds = active_deadline_seconds
         self.local_queue = local_queue
@@ -153,10 +162,12 @@ class RayJob:
         if not self.entrypoint:
             raise ValueError("Entrypoint must be provided to submit a RayJob")
 
+        # Validate configuration before submitting
         self._validate_ray_version_compatibility()
+        self._validate_working_dir_entrypoint()
 
         # Extract files from entrypoint and runtime_env working_dir
-        files = self._extract_all_local_files()
+        files = extract_all_local_files(self)
 
         # Create ConfigMap for files (will be mounted to submitter pod)
         configmap_name = None
@@ -173,29 +184,11 @@ class RayJob:
 
             # Create ConfigMap with owner reference after RayJob exists
             if files:
-                self._create_file_configmap(files, result)
+                create_file_configmap(self, files, result)
 
             return self.name
         else:
             raise RuntimeError(f"Failed to submit RayJob {self.name}")
-
-    def _create_file_configmap(
-        self, files: Dict[str, str], rayjob_result: Dict[str, Any]
-    ):
-        """
-        Create ConfigMap with owner reference for local files.
-        """
-        # Use a basic config builder for ConfigMap creation
-        config_builder = ManagedClusterConfig()
-
-        # Validate and build ConfigMap spec
-        config_builder.validate_configmap_size(files)
-        configmap_spec = config_builder.build_file_configmap_spec(
-            job_name=self.name, namespace=self.namespace, files=files
-        )
-
-        # Create ConfigMap with owner reference
-        configmap_name = self._create_configmap_from_spec(configmap_spec, rayjob_result)
 
     def stop(self):
         """
@@ -252,6 +245,9 @@ class RayJob:
             },
         }
 
+        # Extract files once and use for both runtime_env and submitter pod
+        files = extract_all_local_files(self)
+
         labels = {}
         # If cluster_config is provided, use the local_queue from the cluster_config
         if self._cluster_config is not None:
@@ -282,11 +278,8 @@ class RayJob:
         if self.active_deadline_seconds:
             rayjob_cr["spec"]["activeDeadlineSeconds"] = self.active_deadline_seconds
 
-        # Extract files once and use for both runtime_env and submitter pod
-        files = self._extract_all_local_files()
-
         # Add runtime environment (can be inferred even if not explicitly specified)
-        processed_runtime_env = self._process_runtime_env(files)
+        processed_runtime_env = process_runtime_env(self, files)
         if processed_runtime_env:
             rayjob_cr["spec"]["runtimeEnvYAML"] = processed_runtime_env
 
@@ -323,6 +316,9 @@ class RayJob:
         """
         Build submitterPodTemplate with ConfigMap volume mount for local files.
 
+        If files contain working_dir.zip, an init container will unzip it before
+        the main submitter container runs.
+
         Args:
             files: Dict of file_name -> file_content
             configmap_name: Name of the ConfigMap containing the files
@@ -330,6 +326,8 @@ class RayJob:
         Returns:
             submitterPodTemplate specification
         """
+        from codeflare_sdk.ray.rayjobs.runtime_env import UNZIP_PATH
+
         # Image has to be hard coded for the job submitter
         image = get_ray_image_for_python_version()
         if (
@@ -341,8 +339,31 @@ class RayJob:
 
         # Build ConfigMap items for each file
         config_map_items = []
+        entrypoint_path = files.get(
+            "__entrypoint_path__"
+        )  # Metadata for single file case
+
         for file_name in files.keys():
-            config_map_items.append({"key": file_name, "path": file_name})
+            if file_name == "__entrypoint_path__":
+                continue  # Skip metadata key
+
+            # For single file case, use the preserved path structure
+            if entrypoint_path:
+                config_map_items.append({"key": file_name, "path": entrypoint_path})
+            else:
+                config_map_items.append({"key": file_name, "path": file_name})
+
+        # Check if we need to unzip working_dir
+        has_working_dir_zip = "working_dir.zip" in files
+
+        # Base volume mounts for main container
+        volume_mounts = [{"name": "ray-job-files", "mountPath": MOUNT_PATH}]
+
+        # If we have a zip file, we need shared volume for unzipped content
+        if has_working_dir_zip:
+            volume_mounts.append(
+                {"name": "unzipped-working-dir", "mountPath": UNZIP_PATH}
+            )
 
         submitter_pod_template = {
             "spec": {
@@ -351,9 +372,7 @@ class RayJob:
                     {
                         "name": "ray-job-submitter",
                         "image": image,
-                        "volumeMounts": [
-                            {"name": "ray-job-files", "mountPath": MOUNT_PATH}
-                        ],
+                        "volumeMounts": volume_mounts,
                     }
                 ],
                 "volumes": [
@@ -367,6 +386,33 @@ class RayJob:
                 ],
             }
         }
+
+        # Add init container and volume for unzipping if needed
+        if has_working_dir_zip:
+            # Add emptyDir volume for unzipped content
+            submitter_pod_template["spec"]["volumes"].append(
+                {"name": "unzipped-working-dir", "emptyDir": {}}
+            )
+
+            # Add init container to unzip before KubeRay's submitter runs
+            submitter_pod_template["spec"]["initContainers"] = [
+                {
+                    "name": "unzip-working-dir",
+                    "image": image,
+                    "command": ["/bin/sh", "-c"],
+                    "args": [
+                        # Decode base64 zip, save to temp file, extract, cleanup
+                        f"mkdir -p {UNZIP_PATH} && "
+                        f"python3 -m base64 -d {MOUNT_PATH}/working_dir.zip > /tmp/working_dir.zip && "
+                        f"python3 -m zipfile -e /tmp/working_dir.zip {UNZIP_PATH}/ && "
+                        f"rm /tmp/working_dir.zip && "
+                        f"echo 'Successfully unzipped working_dir to {UNZIP_PATH}' && "
+                        f"ls -la {UNZIP_PATH}"
+                    ],
+                    "volumeMounts": volume_mounts,
+                }
+            ]
+            logger.info(f"Added init container to unzip working_dir to {UNZIP_PATH}")
 
         logger.info(
             f"Built submitterPodTemplate with {len(files)} files mounted at {MOUNT_PATH}, using image: {image}"
@@ -408,6 +454,100 @@ class RayJob:
             raise ValueError(f"Cluster config image: {message}")
         elif is_warning:
             warnings.warn(f"Cluster config image: {message}")
+
+    def _validate_working_dir_entrypoint(self):
+        """
+        Validate entrypoint file configuration.
+
+        Checks:
+        1. Entrypoint doesn't redundantly reference working_dir
+        2. Local files exist before submission
+
+        Raises ValueError if validation fails.
+        """
+        # Skip validation for inline commands (python -c, etc.)
+        if re.search(r"\s+-c\s+", self.entrypoint):
+            return
+
+        # Match Python file references only
+        file_pattern = r"(?:python\d?\s+)?([./\w/-]+\.py)"
+        matches = re.findall(file_pattern, self.entrypoint)
+
+        if not matches:
+            return
+
+        entrypoint_path = matches[0]
+
+        # Get working_dir from runtime_env
+        runtime_env_dict = None
+        working_dir = None
+
+        if self.runtime_env:
+            runtime_env_dict = (
+                self.runtime_env.to_dict()
+                if hasattr(self.runtime_env, "to_dict")
+                else self.runtime_env
+            )
+            if runtime_env_dict and "working_dir" in runtime_env_dict:
+                working_dir = runtime_env_dict["working_dir"]
+
+        # Skip all validation for remote working_dir
+        if working_dir and not os.path.isdir(working_dir):
+            return
+
+        # Case 1: Local working_dir - check redundancy and file existence
+        if working_dir:
+            normalized_working_dir = os.path.normpath(working_dir)
+            normalized_entrypoint = os.path.normpath(entrypoint_path)
+
+            # Check for redundant directory reference
+            if normalized_entrypoint.startswith(normalized_working_dir + os.sep):
+                relative_to_working_dir = os.path.relpath(
+                    normalized_entrypoint, normalized_working_dir
+                )
+                working_dir_basename = os.path.basename(normalized_working_dir)
+                redundant_nested_path = os.path.join(
+                    normalized_working_dir,
+                    working_dir_basename,
+                    relative_to_working_dir,
+                )
+
+                if not os.path.exists(redundant_nested_path):
+                    raise ValueError(
+                        f"❌ Working directory conflict detected:\n"
+                        f"   working_dir: '{working_dir}'\n"
+                        f"   entrypoint references: '{entrypoint_path}'\n"
+                        f"\n"
+                        f"This will fail because the entrypoint runs from within working_dir.\n"
+                        f"It would look for: '{redundant_nested_path}' (which doesn't exist)\n"
+                        f"\n"
+                        f"Fix: Remove the directory prefix from your entrypoint:\n"
+                        f'   entrypoint = "python {relative_to_working_dir}"'
+                    )
+
+            # Check file exists within working_dir
+            if not normalized_entrypoint.startswith(normalized_working_dir + os.sep):
+                # Use normalized_working_dir (absolute path) for proper file existence check
+                full_entrypoint_path = os.path.join(
+                    normalized_working_dir, entrypoint_path
+                )
+                if not os.path.isfile(full_entrypoint_path):
+                    raise ValueError(
+                        f"❌ Entrypoint file not found:\n"
+                        f"   Looking for: '{full_entrypoint_path}'\n"
+                        f"   (working_dir: '{working_dir}', entrypoint file: '{entrypoint_path}')\n"
+                        f"\n"
+                        f"Please ensure the file exists at the expected location."
+                    )
+
+        # Case 2: No working_dir - validate local file exists
+        else:
+            if not os.path.isfile(entrypoint_path):
+                raise ValueError(
+                    f"❌ Entrypoint file not found: '{entrypoint_path}'\n"
+                    f"\n"
+                    f"Please ensure the file exists at the specified path."
+                )
 
     def status(
         self, print_to_console: bool = True
@@ -478,433 +618,3 @@ class RayJob:
         return status_mapping.get(
             deployment_status, (CodeflareRayJobStatus.UNKNOWN, False)
         )
-
-    def _extract_files_from_entrypoint(self) -> Optional[Dict[str, str]]:
-        """
-        Extract local Python script files from entrypoint command, plus their dependencies.
-
-        Returns:
-            Dict of {file_name: file_content} if local files found, None otherwise
-        """
-        if not self.entrypoint:
-            return None
-
-        files = {}
-        processed_files = set()  # Avoid infinite loops
-
-        # Look for Python file patterns in entrypoint (e.g., "python script.py", "python /path/to/script.py")
-        matches = re.findall(PYTHON_FILE_PATTERN, self.entrypoint)
-
-        # Process main files from entrypoint
-        for file_path in matches:
-            self._process_file_and_imports(
-                file_path, files, MOUNT_PATH, processed_files
-            )
-
-        return files if files else None
-
-    def _process_file_and_imports(
-        self,
-        file_path: str,
-        files: Dict[str, str],
-        mount_path: str,
-        processed_files: set,
-    ):
-        """
-        Recursively process a file and its local imports
-        """
-        if file_path in processed_files:
-            return
-
-        # Check if it's a local file (not already a container path)
-        if file_path.startswith("/home/ray/") or not os.path.isfile(file_path):
-            return
-
-        processed_files.add(file_path)
-
-        try:
-            with open(file_path, "r") as f:
-                file_content = f.read()
-
-            file_name = os.path.basename(file_path)
-            files[file_name] = file_content
-
-            logger.info(
-                f"Found local file: {file_path} -> will mount at {mount_path}/{file_name}"
-            )
-
-            # Parse imports in this file to find dependencies
-            self._find_local_imports(
-                file_content,
-                file_path,
-                lambda path: self._process_file_and_imports(
-                    path, files, mount_path, processed_files
-                ),
-            )
-
-        except (IOError, OSError) as e:
-            logger.warning(f"Could not read file {file_path}: {e}")
-
-    def _find_local_imports(self, file_content: str, file_path: str, process_callback):
-        """
-        Find local Python imports in file content and process them.
-
-        Args:
-            file_content: The content of the Python file
-            file_path: Path to the current file (for relative imports)
-            process_callback: Function to call for each found local import
-        """
-
-        try:
-            # Parse the Python AST to find imports
-            tree = ast.parse(file_content)
-            file_dir = os.path.dirname(os.path.abspath(file_path))
-
-            for node in ast.walk(tree):
-                if isinstance(node, ast.Import):
-                    # Handle: import module_name
-                    for alias in node.names:
-                        potential_file = os.path.join(file_dir, f"{alias.name}.py")
-                        if os.path.isfile(potential_file):
-                            process_callback(potential_file)
-
-                elif isinstance(node, ast.ImportFrom):
-                    # Handle: from module_name import something
-                    if node.module:
-                        potential_file = os.path.join(file_dir, f"{node.module}.py")
-                        if os.path.isfile(potential_file):
-                            process_callback(potential_file)
-
-        except (SyntaxError, ValueError) as e:
-            logger.debug(f"Could not parse imports from {file_path}: {e}")
-
-    def _extract_all_local_files(self) -> Optional[Dict[str, str]]:
-        """
-        Extract all local files from both entrypoint and runtime_env working_dir.
-
-        Note: If runtime_env has a remote working_dir, we don't extract local files
-        to avoid conflicts. The remote working_dir should contain all needed files.
-
-        Returns:
-            Dict of {file_name: file_content} if local files found, None otherwise
-        """
-        # If there's a remote working_dir, don't extract local files to avoid conflicts
-        if (
-            self.runtime_env
-            and "working_dir" in self.runtime_env
-            and not os.path.isdir(self.runtime_env["working_dir"])
-        ):
-            logger.info(
-                f"Remote working_dir detected: {self.runtime_env['working_dir']}. "
-                "Skipping local file extraction - all files should come from remote source."
-            )
-            return None
-
-        files = {}
-        processed_files = set()
-
-        # Extract files from entrypoint (always check for local files in entrypoint)
-        entrypoint_files = self._extract_files_from_entrypoint()
-        if entrypoint_files:
-            files.update(entrypoint_files)
-            processed_files.update(entrypoint_files.keys())
-
-        # Extract files from runtime_env working_dir if it's a local directory
-        if (
-            self.runtime_env
-            and "working_dir" in self.runtime_env
-            and os.path.isdir(self.runtime_env["working_dir"])
-        ):
-            working_dir_files = self._extract_working_dir_files(
-                self.runtime_env["working_dir"], processed_files
-            )
-            if working_dir_files:
-                files.update(working_dir_files)
-
-        # If no working_dir specified in runtime_env, try to infer and extract files from inferred directory
-        elif not self.runtime_env or "working_dir" not in self.runtime_env:
-            inferred_working_dir = self._infer_working_dir_from_entrypoint()
-            if inferred_working_dir:
-                working_dir_files = self._extract_working_dir_files(
-                    inferred_working_dir, processed_files
-                )
-                if working_dir_files:
-                    files.update(working_dir_files)
-
-        return files if files else None
-
-    def _extract_working_dir_files(
-        self, working_dir: str, processed_files: set
-    ) -> Dict[str, str]:
-        """
-        Extract all Python files from working directory.
-
-        Args:
-            working_dir: Path to working directory
-            processed_files: Set of already processed file names to avoid duplicates
-
-        Returns:
-            Dict of {file_name: file_content}
-        """
-        files_dict = {}
-
-        try:
-            for root, dirs, files in os.walk(working_dir):
-                for file in files:
-                    if file.endswith(".py") and file not in processed_files:
-                        file_path = os.path.join(root, file)
-                        try:
-                            with open(file_path, "r") as f:
-                                content = f.read()
-                            files_dict[file] = content
-                            processed_files.add(file)
-                            logger.info(
-                                f"Added working directory file: {file_path} -> {MOUNT_PATH}/{file}"
-                            )
-                        except (IOError, OSError) as e:
-                            logger.warning(f"Could not read file {file_path}: {e}")
-        except (IOError, OSError) as e:
-            logger.warning(f"Could not scan working directory {working_dir}: {e}")
-
-        return files_dict
-
-    def _process_runtime_env(
-        self, files: Optional[Dict[str, str]] = None
-    ) -> Optional[str]:
-        """
-        Process runtime_env field to handle env_vars, pip dependencies, and working_dir.
-        Can also infer working directory from entrypoint even if runtime_env is not provided.
-
-        Returns:
-            Processed runtime environment as YAML string, or None if no processing needed
-        """
-        processed_env = {}
-
-        # Handle env_vars
-        if self.runtime_env and "env_vars" in self.runtime_env:
-            processed_env["env_vars"] = self.runtime_env["env_vars"]
-            logger.info(
-                f"Added {len(self.runtime_env['env_vars'])} environment variables to runtime_env"
-            )
-
-        # Handle pip dependencies
-        if self.runtime_env and "pip" in self.runtime_env:
-            pip_deps = self._process_pip_dependencies(self.runtime_env["pip"])
-            if pip_deps:
-                processed_env["pip"] = pip_deps
-
-        # Handle working_dir - if it's a local path, set it to mount path
-        if self.runtime_env and "working_dir" in self.runtime_env:
-            working_dir = self.runtime_env["working_dir"]
-            if os.path.isdir(working_dir):
-                # Local working directory - will be mounted at MOUNT_PATH
-                processed_env["working_dir"] = MOUNT_PATH
-                logger.info(
-                    f"Local working directory will be packaged and mounted at: {MOUNT_PATH}"
-                )
-                self._adjust_entrypoint_for_mounted_files()
-            else:
-                # Remote URI (e.g., GitHub) - pass through as-is
-                processed_env["working_dir"] = working_dir
-                logger.info(f"Using remote working directory: {working_dir}")
-
-        # If no working_dir specified but we have files, set working_dir to mount path
-        elif not self.runtime_env or "working_dir" not in self.runtime_env:
-            if files:
-                # Local files found - will be mounted at MOUNT_PATH
-                processed_env["working_dir"] = MOUNT_PATH
-                logger.info(
-                    f"Local files will be packaged and mounted at: {MOUNT_PATH}"
-                )
-                self._adjust_entrypoint_for_mounted_files()
-
-        # Convert to YAML string if we have any processed environment
-        if processed_env:
-            return yaml.dump(processed_env, default_flow_style=False)
-
-        return None
-
-    def _process_pip_dependencies(self, pip_spec) -> Optional[List[str]]:
-        """
-        Process pip dependencies from runtime_env.
-
-        Args:
-            pip_spec: Can be a list of packages, a string path to requirements.txt, or dict
-
-        Returns:
-            List of pip dependencies
-        """
-        if isinstance(pip_spec, list):
-            # Already a list of dependencies
-            logger.info(f"Using provided pip dependencies: {len(pip_spec)} packages")
-            return pip_spec
-        elif isinstance(pip_spec, str):
-            # Assume it's a path to requirements.txt
-            return self._parse_requirements_file(pip_spec)
-        elif isinstance(pip_spec, dict):
-            # Handle dict format (e.g., {"packages": [...], "pip_check": False})
-            if "packages" in pip_spec:
-                logger.info(
-                    f"Using pip dependencies from dict: {len(pip_spec['packages'])} packages"
-                )
-                return pip_spec["packages"]
-
-        logger.warning(f"Unsupported pip specification format: {type(pip_spec)}")
-        return None
-
-    def _parse_requirements_file(self, requirements_path: str) -> Optional[List[str]]:
-        """
-        Parse a requirements.txt file and return list of dependencies.
-
-        Args:
-            requirements_path: Path to requirements.txt file
-
-        Returns:
-            List of pip dependencies
-        """
-        if not os.path.isfile(requirements_path):
-            logger.warning(f"Requirements file not found: {requirements_path}")
-            return None
-
-        try:
-            with open(requirements_path, "r") as f:
-                lines = f.readlines()
-
-            # Parse requirements, filtering out comments and empty lines
-            requirements = []
-            for line in lines:
-                line = line.strip()
-                if line and not line.startswith("#"):
-                    requirements.append(line)
-
-            logger.info(
-                f"Parsed {len(requirements)} dependencies from {requirements_path}"
-            )
-            return requirements
-
-        except (IOError, OSError) as e:
-            logger.warning(f"Could not read requirements file {requirements_path}: {e}")
-            return None
-
-    def _infer_working_dir_from_entrypoint(self) -> Optional[str]:
-        """
-        Infer working directory from entrypoint path when it contains directory components.
-        Only useful for entrypoints with paths like 'python src/script.py'.
-
-        Returns:
-            Inferred working directory path, or None if just simple filenames
-        """
-        if not self.entrypoint:
-            return None
-
-        # Look for Python file patterns in entrypoint
-        matches = re.findall(PYTHON_FILE_PATTERN, self.entrypoint)
-
-        for script_path in matches:
-            # Only infer working directory if the path has directory components
-            if "/" in script_path or "\\" in script_path:
-                if os.path.isfile(script_path):
-                    working_dir = os.path.dirname(os.path.abspath(script_path))
-                    logger.info(
-                        f"Inferred working directory from entrypoint: {working_dir}"
-                    )
-                    return working_dir
-                else:
-                    # File doesn't exist locally, but path has directory components
-                    working_dir = os.path.dirname(os.path.abspath(script_path))
-                    logger.info(
-                        f"Inferred working directory from entrypoint path: {working_dir}"
-                    )
-                    return working_dir
-
-        # For simple filenames like "script.py" we don't need to infer the working directory
-        return None
-
-    def _adjust_entrypoint_for_mounted_files(self):
-        """
-        Adjust the entrypoint command to use just filenames since files are mounted at MOUNT_PATH.
-        """
-        if not self.entrypoint:
-            return
-
-        # Look for Python file patterns in entrypoint
-        matches = re.findall(PYTHON_FILE_PATTERN, self.entrypoint)
-
-        for script_path in matches:
-            if os.path.isfile(script_path):
-                # Use just the filename since files will be mounted at MOUNT_PATH
-                filename = os.path.basename(script_path)
-                self.entrypoint = self.entrypoint.replace(script_path, filename)
-                logger.info(
-                    f"Adjusted entrypoint for mounted files: {script_path} -> {filename}"
-                )
-
-    def _create_configmap_from_spec(
-        self, configmap_spec: Dict[str, Any], rayjob_result: Dict[str, Any] = None
-    ) -> str:
-        """
-        Create ConfigMap from specification via Kubernetes API.
-
-        Args:
-            configmap_spec: ConfigMap specification dictionary
-            rayjob_result: The result from RayJob creation containing UID
-
-        Returns:
-            str: Name of the created ConfigMap
-        """
-
-        configmap_name = configmap_spec["metadata"]["name"]
-
-        metadata = client.V1ObjectMeta(**configmap_spec["metadata"])
-
-        # Add owner reference if we have the RayJob result
-        if (
-            rayjob_result
-            and isinstance(rayjob_result, dict)
-            and rayjob_result.get("metadata", {}).get("uid")
-        ):
-            logger.info(
-                f"Adding owner reference to ConfigMap '{configmap_name}' with RayJob UID: {rayjob_result['metadata']['uid']}"
-            )
-            metadata.owner_references = [
-                client.V1OwnerReference(
-                    api_version="ray.io/v1",
-                    kind="RayJob",
-                    name=self.name,
-                    uid=rayjob_result["metadata"]["uid"],
-                    controller=True,
-                    block_owner_deletion=True,
-                )
-            ]
-        else:
-            logger.warning(
-                f"No valid RayJob result with UID found, ConfigMap '{configmap_name}' will not have owner reference. Result: {rayjob_result}"
-            )
-
-        # Convert dict spec to V1ConfigMap
-        configmap = client.V1ConfigMap(
-            metadata=metadata,
-            data=configmap_spec["data"],
-        )
-
-        # Create ConfigMap via Kubernetes API
-        k8s_api = client.CoreV1Api(get_api_client())
-        try:
-            k8s_api.create_namespaced_config_map(
-                namespace=self.namespace, body=configmap
-            )
-            logger.info(
-                f"Created ConfigMap '{configmap_name}' with {len(configmap_spec['data'])} files"
-            )
-        except client.ApiException as e:
-            if e.status == 409:  # Already exists
-                logger.info(f"ConfigMap '{configmap_name}' already exists, updating...")
-                k8s_api.replace_namespaced_config_map(
-                    name=configmap_name, namespace=self.namespace, body=configmap
-                )
-            else:
-                raise RuntimeError(
-                    f"Failed to create ConfigMap '{configmap_name}': {e}"
-                )
-
-        return configmap_name
