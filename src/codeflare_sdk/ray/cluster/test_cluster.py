@@ -37,8 +37,11 @@ from pathlib import Path
 from unittest.mock import MagicMock
 from kubernetes import client
 import yaml
+import pytest
 import filecmp
 import os
+import ray
+import tempfile
 
 parent = Path(__file__).resolve().parents[4]  # project directory
 expected_clusters_dir = f"{parent}/tests/test_cluster_yamls"
@@ -377,8 +380,6 @@ def test_cluster_uris(mocker):
 
 
 def test_ray_job_wrapping(mocker):
-    import ray
-
     def ray_addr(self, *args):
         return self._address
 
@@ -768,6 +769,189 @@ def test_map_to_ray_cluster(mocker):
 
     assert result is not None
     assert result.dashboard == rc_dashboard
+
+
+def test_throw_for_no_raycluster_crd_errors(mocker):
+    """Test RayCluster CRD error handling"""
+    from kubernetes.client.rest import ApiException
+
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+
+    # Test 404 error - CRD not found
+    mock_api_404 = MagicMock()
+    mock_api_404.list_namespaced_custom_object.side_effect = ApiException(status=404)
+    mocker.patch("kubernetes.client.CustomObjectsApi", return_value=mock_api_404)
+
+    cluster = create_cluster(mocker)
+    with pytest.raises(
+        RuntimeError, match="RayCluster CustomResourceDefinition unavailable"
+    ):
+        cluster._throw_for_no_raycluster()
+
+    # Test other API error
+    mock_api_500 = MagicMock()
+    mock_api_500.list_namespaced_custom_object.side_effect = ApiException(status=500)
+    mocker.patch("kubernetes.client.CustomObjectsApi", return_value=mock_api_500)
+
+    cluster2 = create_cluster(mocker)
+    with pytest.raises(
+        RuntimeError, match="Failed to get RayCluster CustomResourceDefinition"
+    ):
+        cluster2._throw_for_no_raycluster()
+
+
+def test_cluster_apply_attribute_error_handling(mocker):
+    """Test AttributeError handling when DynamicClient fails"""
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+    mocker.patch("codeflare_sdk.ray.cluster.cluster.Cluster._throw_for_no_raycluster")
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
+        return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
+    )
+
+    # Mock get_dynamic_client to raise AttributeError
+    def raise_attribute_error():
+        raise AttributeError("DynamicClient initialization failed")
+
+    mocker.patch(
+        "codeflare_sdk.ray.cluster.cluster.Cluster.get_dynamic_client",
+        side_effect=raise_attribute_error,
+    )
+
+    cluster = create_cluster(mocker)
+
+    with pytest.raises(RuntimeError, match="Failed to initialize DynamicClient"):
+        cluster.apply()
+
+
+def test_cluster_namespace_handling(mocker, capsys):
+    """Test namespace validation in create_resource"""
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
+        return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
+    )
+
+    # Test with None namespace that gets set
+    mocker.patch(
+        "codeflare_sdk.ray.cluster.cluster.get_current_namespace", return_value=None
+    )
+
+    config = ClusterConfiguration(
+        name="test-cluster-ns",
+        namespace=None,  # Will trigger namespace check
+        num_workers=1,
+        worker_cpu_requests=1,
+        worker_cpu_limits=1,
+        worker_memory_requests=2,
+        worker_memory_limits=2,
+    )
+
+    cluster = Cluster(config)
+    captured = capsys.readouterr()
+    # Verify the warning message was printed
+    assert "Please specify with namespace=<your_current_namespace>" in captured.out
+    assert cluster.config.namespace is None
+
+
+def test_component_resources_with_write_to_file(mocker):
+    """Test _component_resources_up with write_to_file enabled"""
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
+        return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
+    )
+
+    # Mock the _create_resources function
+    mocker.patch("codeflare_sdk.ray.cluster.cluster._create_resources")
+
+    # Create cluster with write_to_file=True (without appwrapper)
+    config = ClusterConfiguration(
+        name="test-cluster-component",
+        namespace="ns",
+        num_workers=1,
+        worker_cpu_requests=1,
+        worker_cpu_limits=1,
+        worker_memory_requests=2,
+        worker_memory_limits=2,
+        write_to_file=True,
+        appwrapper=False,
+    )
+
+    cluster = Cluster(config)
+
+    # Mock file reading and test _component_resources_up
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
+        f.write("apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: test")
+        temp_file = f.name
+
+    try:
+        mock_api = MagicMock()
+        cluster.resource_yaml = temp_file
+        cluster._component_resources_up("ns", mock_api)
+        # If we got here without error, the write_to_file path was executed
+        assert True
+    finally:
+        os.unlink(temp_file)
+
+
+def test_get_cluster_status_functions(mocker):
+    """Test _app_wrapper_status and _ray_cluster_status functions"""
+    from codeflare_sdk.ray.cluster.cluster import (
+        _app_wrapper_status,
+        _ray_cluster_status,
+    )
+
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+    mocker.patch("codeflare_sdk.ray.cluster.cluster.config_check")
+
+    # Test _app_wrapper_status when cluster not found
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
+        return_value={"items": []},
+    )
+    result = _app_wrapper_status("non-existent-cluster", "ns")
+    assert result is None
+
+    # Test _ray_cluster_status when cluster not found
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
+        return_value={"items": []},
+    )
+    result = _ray_cluster_status("non-existent-cluster", "ns")
+    assert result is None
+
+
+def test_cluster_namespace_type_error(mocker):
+    """Test TypeError when namespace is not a string"""
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
+        return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
+    )
+
+    # Mock get_current_namespace to return a non-string value (e.g., int)
+    mocker.patch(
+        "codeflare_sdk.ray.cluster.cluster.get_current_namespace", return_value=12345
+    )
+
+    config = ClusterConfiguration(
+        name="test-cluster-type-error",
+        namespace=None,  # Will trigger namespace check
+        num_workers=1,
+        worker_cpu_requests=1,
+        worker_cpu_limits=1,
+        worker_memory_requests=2,
+        worker_memory_limits=2,
+    )
+
+    # This should raise TypeError because get_current_namespace returns int
+    with pytest.raises(
+        TypeError,
+        match="Namespace 12345 is of type.*Check your Kubernetes Authentication",
+    ):
+        Cluster(config)
 
 
 # Make sure to always keep this function last
