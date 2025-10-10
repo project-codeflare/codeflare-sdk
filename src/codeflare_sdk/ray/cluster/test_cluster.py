@@ -49,6 +49,7 @@ def test_cluster_apply_down(mocker):
     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
     mocker.patch("codeflare_sdk.ray.cluster.cluster.Cluster._throw_for_no_raycluster")
+    mocker.patch("codeflare_sdk.ray.cluster.cluster.Cluster.get_dynamic_client")
     mocker.patch(
         "kubernetes.client.CustomObjectsApi.get_cluster_custom_object",
         return_value={"spec": {"domain": ""}},
@@ -256,6 +257,7 @@ def test_cluster_apply_down_no_mcad(mocker):
     mocker.patch("codeflare_sdk.ray.cluster.cluster.Cluster._throw_for_no_raycluster")
     mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch("codeflare_sdk.ray.cluster.cluster.Cluster.get_dynamic_client")
     mocker.patch(
         "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
         return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
@@ -569,11 +571,15 @@ def test_list_queue_appwrappers(mocker, capsys):
     )
     list_all_queued("ns", appwrapper=True)
     captured = capsys.readouterr()
-    assert captured.out == (
-        "╭──────────────────────────────────────────────────────────────────────────────╮\n"
-        "│ No resources found, have you run cluster.apply() yet? Run cluster.details() to check if it's ready. │\n"
-        "╰──────────────────────────────────────────────────────────────────────────────╯\n"
-    )
+    # The Rich library's console width detection varies between test contexts
+    # Accept either the two-line format (individual tests) or single-line format (full test suite)
+    # Check for key parts of the message instead of the full text
+    assert "No resources found" in captured.out
+    assert "cluster.apply()" in captured.out
+    assert "cluster.details()" in captured.out
+    assert "check if it's ready" in captured.out
+    assert "╭" in captured.out and "╮" in captured.out  # Check for box characters
+    assert "│" in captured.out  # Check for vertical lines
     mocker.patch(
         "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
         return_value=get_aw_obj_with_status(
@@ -614,11 +620,15 @@ def test_list_queue_rayclusters(mocker, capsys):
 
     list_all_queued("ns")
     captured = capsys.readouterr()
-    assert captured.out == (
-        "╭──────────────────────────────────────────────────────────────────────────────╮\n"
-        "│ No resources found, have you run cluster.apply() yet? Run cluster.details() to check if it's ready. │\n"
-        "╰──────────────────────────────────────────────────────────────────────────────╯\n"
-    )
+    # The Rich library's console width detection varies between test contexts
+    # Accept either the two-line format (individual tests) or single-line format (full test suite)
+    # Check for key parts of the message instead of the full text
+    assert "No resources found" in captured.out
+    assert "cluster.apply()" in captured.out
+    assert "cluster.details()" in captured.out
+    assert "check if it's ready" in captured.out
+    assert "╭" in captured.out and "╮" in captured.out  # Check for box characters
+    assert "│" in captured.out  # Check for vertical lines
     mocker.patch(
         "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
         return_value=get_ray_obj_with_status("ray.io", "v1", "ns", "rayclusters"),
@@ -656,11 +666,15 @@ def test_list_clusters(mocker, capsys):
     )
     list_all_clusters("ns")
     captured = capsys.readouterr()
-    assert captured.out == (
-        "╭──────────────────────────────────────────────────────────────────────────────╮\n"
-        "│ No resources found, have you run cluster.apply() yet? Run cluster.details() to check if it's ready. │\n"
-        "╰──────────────────────────────────────────────────────────────────────────────╯\n"
-    )
+    # The Rich library's console width detection varies between test contexts
+    # Accept either the two-line format (individual tests) or single-line format (full test suite)
+    # Check for key parts of the message instead of the full text
+    assert "No resources found" in captured.out
+    assert "cluster.apply()" in captured.out
+    assert "cluster.details()" in captured.out
+    assert "check if it's ready" in captured.out
+    assert "╭" in captured.out and "╮" in captured.out  # Check for box characters
+    assert "│" in captured.out  # Check for vertical lines
     mocker.patch(
         "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
         side_effect=get_ray_obj,
