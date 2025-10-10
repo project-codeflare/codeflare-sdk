@@ -241,7 +241,9 @@ class Cluster:
         except AttributeError as e:
             raise RuntimeError(f"Failed to initialize DynamicClient: {e}")
         except Exception as e:  # pragma: no cover
-            if e.status == 422:
+            if (
+                hasattr(e, "status") and e.status == 422
+            ):  # adding status check to avoid returning false positive
                 print(
                     "WARNING: RayCluster creation rejected due to invalid Kueue configuration. Please contact your administrator."
                 )

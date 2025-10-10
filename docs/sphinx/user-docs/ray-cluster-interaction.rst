@@ -61,11 +61,6 @@ list_all_clusters()
    The following methods require a ``Cluster`` object to be
    initialized. See :doc:`./cluster-configuration`
 
-cluster.up()
-------------
-
-| The ``cluster.up()`` function creates a Ray Cluster in the given namespace.
-
 cluster.apply()
 ------------
 
