@@ -10,6 +10,7 @@ from .rayjobs import (
     RayJobDeploymentStatus,
     CodeflareRayJobStatus,
     RayJobInfo,
+    KueueWorkloadInfo,
 )
 
 from .cluster import (

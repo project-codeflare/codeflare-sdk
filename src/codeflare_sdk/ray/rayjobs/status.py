@@ -48,6 +48,20 @@ class CodeflareRayJobStatus(Enum):
 
 
 @dataclass
+class KueueWorkloadInfo:
+    """
+    For storing information about a Kueue workload associated with a RayJob.
+    """
+    
+    name: str
+    queue_name: str
+    status: str  # e.g., "Pending", "Admitted", "Finished"
+    priority: Optional[int] = None
+    creation_time: Optional[str] = None
+    admission_time: Optional[str] = None
+
+
+@dataclass
 class RayJobInfo:
     """
     For storing information about a Ray job.
@@ -62,3 +76,8 @@ class RayJobInfo:
     end_time: Optional[str] = None
     failed_attempts: int = 0
     succeeded_attempts: int = 0
+    # Kueue integration
+    kueue_workload: Optional[KueueWorkloadInfo] = None
+    local_queue: Optional[str] = None
+    # Cluster management
+    is_managed_cluster: bool = False

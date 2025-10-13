@@ -23,10 +23,12 @@ import warnings
 from typing import Dict, Any, Optional, Tuple, Union
 
 from ray.runtime_env import RuntimeEnv
+from kubernetes import client
+
 from codeflare_sdk.common.kueue.kueue import get_default_kueue_name
 from codeflare_sdk.common.utils.constants import MOUNT_PATH
-
 from codeflare_sdk.common.utils.utils import get_ray_image_for_python_version
+from codeflare_sdk.common.kubernetes_cluster.auth import get_api_client, config_check
 from codeflare_sdk.vendored.python_client.kuberay_job_api import RayjobApi
 from codeflare_sdk.vendored.python_client.kuberay_cluster_api import RayClusterApi
 from codeflare_sdk.ray.rayjobs.config import ManagedClusterConfig
@@ -43,11 +45,133 @@ from .status import (
     RayJobDeploymentStatus,
     CodeflareRayJobStatus,
     RayJobInfo,
+    KueueWorkloadInfo,
 )
 from . import pretty_print
 
+# Widget imports (optional, for Jupyter notebook support)
+try:
+    import ipywidgets as widgets
+    from IPython.display import display
+    WIDGETS_AVAILABLE = True
+except ImportError:
+    WIDGETS_AVAILABLE = False
+
 
 logger = logging.getLogger(__name__)
+
+
+def _get_kueue_workload_info(job_name: str, namespace: str, labels: dict) -> Optional[KueueWorkloadInfo]:
+    """
+    Get Kueue workload information for a RayJob if it's managed by Kueue.
+    
+    Args:
+        job_name: Name of the RayJob
+        namespace: Kubernetes namespace
+        labels: Labels from the RayJob metadata
+        
+    Returns:
+        KueueWorkloadInfo if the job is managed by Kueue, None otherwise
+    """
+    # Check if job has Kueue queue label
+    queue_name = labels.get("kueue.x-k8s.io/queue-name")
+    if not queue_name:
+        return None
+    
+    try:
+        # Check and load Kubernetes config (handles oc login, kubeconfig, etc.)
+        config_check()
+        # List all workloads in the namespace to find the one for this RayJob
+        api_instance = client.CustomObjectsApi(get_api_client())
+        workloads = api_instance.list_namespaced_custom_object(
+            group="kueue.x-k8s.io",
+            version="v1beta1",
+            plural="workloads",
+            namespace=namespace,
+        )
+        
+        # Find workload with matching RayJob owner reference
+        for workload in workloads.get("items", []):
+            owner_refs = workload.get("metadata", {}).get("ownerReferences", [])
+            
+            for owner_ref in owner_refs:
+                if (
+                    owner_ref.get("kind") == "RayJob" 
+                    and owner_ref.get("name") == job_name
+                ):
+                    # Found the workload for this RayJob
+                    workload_metadata = workload.get("metadata", {})
+                    workload_status = workload.get("status", {})
+                    
+                    # Extract workload information
+                    workload_info = KueueWorkloadInfo(
+                        name=workload_metadata.get("name", "unknown"),
+                        queue_name=queue_name,
+                        status=_get_workload_status_summary(workload_status),
+                        priority=workload.get("spec", {}).get("priority"),
+                        creation_time=workload_metadata.get("creationTimestamp"),
+                        admission_time=_get_admission_time(workload_status),
+                    )
+                    
+                    logger.debug(f"Found Kueue workload for RayJob {job_name}: {workload_info.name}")
+                    return workload_info
+        
+        # No workload found for this RayJob
+        logger.debug(f"No Kueue workload found for RayJob {job_name}")
+        return None
+        
+    except Exception as e:
+        logger.warning(f"Failed to get Kueue workload info for RayJob {job_name}: {e}")
+        return None
+
+
+def _get_workload_status_summary(workload_status: dict) -> str:
+    """
+    Get a summary status from Kueue workload status.
+    
+    Args:
+        workload_status: The status section from a Kueue workload CR
+        
+    Returns:
+        String summary of the workload status
+    """
+    conditions = workload_status.get("conditions", [])
+    
+    # Check conditions in priority order
+    for condition_type in ["Finished", "Admitted", "QuotaReserved", "Pending"]:
+        for condition in conditions:
+            if (
+                condition.get("type") == condition_type 
+                and condition.get("status") == "True"
+            ):
+                return condition_type
+    
+    # If no clear status, return "Unknown"
+    return "Unknown"
+
+
+def _get_admission_time(workload_status: dict) -> Optional[str]:
+    """
+    Get the admission time from Kueue workload status.
+    
+    Args:
+        workload_status: The status section from a Kueue workload CR
+        
+    Returns:
+        Admission timestamp if available, None otherwise
+    """
+    conditions = workload_status.get("conditions", [])
+    
+    for condition in conditions:
+        if (
+            condition.get("type") == "Admitted" 
+            and condition.get("status") == "True"
+        ):
+            return condition.get("lastTransitionTime")
+    
+    return None
+
+
 
 
 class RayJob:
@@ -57,6 +181,40 @@ class RayJob:
     This class provides a simplified interface for submitting and managing
     RayJob CRs (using the KubeRay RayJob python client).
     """
+    
+    # Global configuration for widget display preference
+    _default_use_widgets = False
+
+    @classmethod
+    def set_widgets_default(cls, use_widgets: bool):
+        """
+        Set the global default for widget display in Status() and List() methods.
+        
+        Args:
+            use_widgets (bool): Whether to use Jupyter widgets by default
+            
+        Example:
+            >>> from codeflare_sdk import RayJob
+            >>> RayJob.set_widgets_default(True)  # Enable widgets globally
+            >>> RayJob.Status("my-job")  # Now uses widgets by default
+            >>> RayJob.List()  # Now uses widgets by default
+        """
+        cls._default_use_widgets = use_widgets
+        logger.info(f"Set global widget default to: {use_widgets}")
+
+    @classmethod
+    def get_widgets_default(cls) -> bool:
+        """
+        Get the current global default for widget display.
+        
+        Returns:
+            bool: Current global widget setting
+            
+        Example:
+            >>> from codeflare_sdk import RayJob
+            >>> print(f"Widgets enabled: {RayJob.get_widgets_default()}")
+        """
+        return cls._default_use_widgets
 
     def __init__(
         self,
@@ -573,6 +731,27 @@ class RayJob:
         except ValueError:
             deployment_status = RayJobDeploymentStatus.UNKNOWN
 
+        # Get Kueue workload information if available
+        # We need to fetch the RayJob CR to get labels
+        kueue_workload = None
+        local_queue = None
+        try:
+            config_check()
+            api_instance = client.CustomObjectsApi(get_api_client())
+            rayjob_cr = api_instance.get_namespaced_custom_object(
+                group="ray.io",
+                version="v1",
+                namespace=self.namespace,
+                plural="rayjobs",
+                name=self.name,
+            )
+            labels = rayjob_cr.get("metadata", {}).get("labels", {})
+            local_queue = labels.get("kueue.x-k8s.io/queue-name")
+            if local_queue:
+                kueue_workload = _get_kueue_workload_info(self.name, self.namespace, labels)
+        except Exception as e:
+            logger.debug(f"Could not fetch Kueue workload info for {self.name}: {e}")
+
         # Create RayJobInfo dataclass
         job_info = RayJobInfo(
             name=self.name,
@@ -584,6 +763,9 @@ class RayJob:
             end_time=status_data.get("endTime"),
             failed_attempts=status_data.get("failed", 0),
             succeeded_attempts=status_data.get("succeeded", 0),
+            kueue_workload=kueue_workload,
+            local_queue=local_queue,
+            is_managed_cluster=self._cluster_config is not None,
         )
 
         # Map to CodeFlare status and determine readiness
@@ -593,6 +775,611 @@ class RayJob:
             pretty_print.print_job_status(job_info)
 
         return codeflare_status, ready
+
+    @staticmethod
+    def Status(
+        job_name: str,
+        namespace: Optional[str] = None,
+        use_widgets: Optional[bool] = None
+    ):
+        """
+        Get the status of a RayJob by name and display it with Rich console formatting.
+        
+        Args:
+            job_name (str): The name of the RayJob
+            namespace (Optional[str]): The Kubernetes namespace (auto-detected if not specified)
+            use_widgets (Optional[bool]): Whether to display in Jupyter widgets (default: None, uses global setting)
+        
+        Returns:
+            Tuple of (CodeflareRayJobStatus, ready: bool) when use_widgets=False (default), None when use_widgets=True
+        
+        Example:
+            >>> from codeflare_sdk.ray import RayJob
+            >>> status, ready = RayJob.Status("my-job")  # Rich console (default)
+            >>> RayJob.set_widgets_default(True)  # Enable widgets globally
+            >>> RayJob.Status("my-job")  # Now uses widgets by default
+        """
+        if namespace is None:
+            namespace = get_current_namespace()
+        
+        # Use global default if not specified
+        if use_widgets is None:
+            use_widgets = RayJob._default_use_widgets
+        
+        # Initialize the API (no parameters needed)
+        api = RayjobApi()
+        
+        try:
+            # Check and load Kubernetes config (handles oc login, kubeconfig, etc.)
+            config_check()
+            status_data = api.get_job_status(name=job_name, k8s_namespace=namespace)
+            
+            if not status_data:
+                if use_widgets:
+                    RayJob._display_job_status_widget(None, job_name, namespace)
+                    return None  # Don't return tuple to avoid Jupyter auto-display
+                else:
+                    pretty_print.print_no_job_found(job_name, namespace)
+                    return CodeflareRayJobStatus.UNKNOWN, False
+            
+            # Map deployment status to our enums
+            deployment_status_str = status_data.get("jobDeploymentStatus", "Unknown")
+            
+            try:
+                deployment_status = RayJobDeploymentStatus(deployment_status_str)
+            except ValueError:
+                deployment_status = RayJobDeploymentStatus.UNKNOWN
+            
+            # Create RayJobInfo dataclass - we need to determine cluster_name
+            cluster_name = status_data.get("rayClusterName", "unknown")
+            
+            # Get Kueue workload information and cluster management info
+            # We need to fetch the RayJob CR to get labels and spec
+            kueue_workload = None
+            local_queue = None
+            is_managed_cluster = False
+            try:
+                api_instance = client.CustomObjectsApi(get_api_client())
+                rayjob_cr = api_instance.get_namespaced_custom_object(
+                    group="ray.io",
+                    version="v1",
+                    namespace=namespace,
+                    plural="rayjobs",
+                    name=job_name,
+                )
+                labels = rayjob_cr.get("metadata", {}).get("labels", {})
+                spec = rayjob_cr.get("spec", {})
+                
+                # Determine if this is a managed cluster
+                is_managed_cluster = "rayClusterSpec" in spec
+                
+                local_queue = labels.get("kueue.x-k8s.io/queue-name")
+                if local_queue:
+                    kueue_workload = _get_kueue_workload_info(job_name, namespace, labels)
+            except Exception as e:
+                logger.debug(f"Could not fetch Kueue workload info for {job_name}: {e}")
+            
+            job_info = RayJobInfo(
+                name=job_name,
+                job_id=status_data.get("jobId", ""),
+                status=deployment_status,
+                namespace=namespace,
+                cluster_name=cluster_name,
+                start_time=status_data.get("startTime"),
+                end_time=status_data.get("endTime"),
+                failed_attempts=status_data.get("failed", 0),
+                succeeded_attempts=status_data.get("succeeded", 0),
+                kueue_workload=kueue_workload,
+                local_queue=local_queue,
+                is_managed_cluster=is_managed_cluster,
+            )
+            
+            # Map to CodeFlare status and determine readiness using static method
+            codeflare_status, ready = RayJob._map_to_codeflare_status_static(deployment_status)
+            
+            if use_widgets:
+                RayJob._display_job_status_widget(job_info, job_name, namespace)
+                return None  # Don't return tuple to avoid Jupyter auto-display
+            else:
+                pretty_print.print_job_status(job_info)
+                return codeflare_status, ready
+            
+        except Exception as e:
+            logger.error(f"Failed to get status for RayJob {job_name}: {e}")
+            if use_widgets:
+                RayJob._display_job_status_widget(None, job_name, namespace)
+                return None  # Don't return tuple to avoid Jupyter auto-display
+            else:
+                pretty_print.print_no_job_found(job_name, namespace)
+                return CodeflareRayJobStatus.UNKNOWN, False
+
+    @staticmethod
+    def List(
+        namespace: Optional[str] = None,
+        use_widgets: Optional[bool] = None,
+        page_size: int = 10,
+        page: int = 1
+    ):
+        """
+        List all RayJobs in a namespace and display them with Rich console formatting.
+        
+        Args:
+            namespace (Optional[str]): The Kubernetes namespace (auto-detected if not specified)
+            use_widgets (Optional[bool]): Whether to display in Jupyter widgets (default: None, uses global setting)
+            page_size (int): Number of jobs to display per page (default: 10)
+            page (int): Page number to display (default: 1)
+        
+        Returns:
+            list: List of RayJobInfo objects when use_widgets=False, None when use_widgets=True
+        
+        Example:
+            >>> from codeflare_sdk.ray import RayJob
+            >>> jobs = RayJob.List()  # First 10 jobs (default)
+            >>> RayJob.List(page=2)  # Next 10 jobs
+            >>> RayJob.List(page_size=5, page=1)  # First 5 jobs
+            >>> RayJob.set_widgets_default(True)  # Enable widgets globally
+        """
+        if namespace is None:
+            namespace = get_current_namespace()
+        
+        # Use global default if not specified
+        if use_widgets is None:
+            use_widgets = RayJob._default_use_widgets
+        
+        try:
+            # Check and load Kubernetes config (handles oc login, kubeconfig, etc.)
+            config_check()
+            # Use Kubernetes API to list RayJob custom resources
+            api_instance = client.CustomObjectsApi(get_api_client())
+            rayjobs = api_instance.list_namespaced_custom_object(
+                group="ray.io",
+                version="v1",
+                namespace=namespace,
+                plural="rayjobs",
+            )
+            
+            job_list = []
+            for rayjob_cr in rayjobs["items"]:
+                # Extract job information from the custom resource
+                metadata = rayjob_cr.get("metadata", {})
+                spec = rayjob_cr.get("spec", {})
+                status = rayjob_cr.get("status", {})
+                
+                job_name = metadata.get("name", "unknown")
+                job_id = status.get("jobId", "")
+                deployment_status_str = status.get("jobDeploymentStatus", "Unknown")
+                
+                try:
+                    deployment_status = RayJobDeploymentStatus(deployment_status_str)
+                except ValueError:
+                    deployment_status = RayJobDeploymentStatus.UNKNOWN
+                
+                # Get cluster name and determine if it's managed
+                cluster_name = "unknown"
+                is_managed_cluster = False
+                if "rayClusterSpec" in spec:
+                    cluster_name = f"{job_name}-cluster"  # Managed cluster
+                    is_managed_cluster = True
+                elif "clusterSelector" in spec:
+                    cluster_selector = spec["clusterSelector"]
+                    cluster_name = cluster_selector.get("ray.io/cluster", "unknown")
+                    is_managed_cluster = False
+                
+                # Get Kueue workload information if available
+                labels = metadata.get("labels", {})
+                local_queue = labels.get("kueue.x-k8s.io/queue-name")
+                kueue_workload = None
+                if local_queue:
+                    kueue_workload = _get_kueue_workload_info(job_name, namespace, labels)
+                
+                job_info = RayJobInfo(
+                    name=job_name,
+                    job_id=job_id,
+                    status=deployment_status,
+                    namespace=namespace,
+                    cluster_name=cluster_name,
+                    start_time=status.get("startTime"),
+                    end_time=status.get("endTime"),
+                    failed_attempts=status.get("failed", 0),
+                    succeeded_attempts=status.get("succeeded", 0),
+                    kueue_workload=kueue_workload,
+                    local_queue=local_queue,
+                    is_managed_cluster=is_managed_cluster,
+                )
+                job_list.append(job_info)
+            
+            # Apply pagination
+            total_jobs = len(job_list)
+            total_pages = (total_jobs + page_size - 1) // page_size  # Ceiling division
+            
+            # Validate page number
+            if page < 1:
+                page = 1
+            elif page > total_pages and total_pages > 0:
+                page = total_pages
+            
+            # Calculate pagination slice
+            start_idx = (page - 1) * page_size
+            end_idx = start_idx + page_size
+            paginated_jobs = job_list[start_idx:end_idx]
+            
+            # Create pagination info
+            pagination_info = {
+                "current_page": page,
+                "total_pages": total_pages,
+                "page_size": page_size,
+                "total_jobs": total_jobs,
+                "showing_start": start_idx + 1 if paginated_jobs else 0,
+                "showing_end": min(end_idx, total_jobs),
+            }
+            
+            if use_widgets:
+                RayJob._display_jobs_list_widget(paginated_jobs, namespace, pagination_info)
+                return None  # Don't return job_list to avoid Jupyter auto-display
+            else:
+                pretty_print.print_jobs_list(paginated_jobs, namespace, pagination_info)
+                return job_list  # Return full list for programmatic use
+            
+        except Exception as e:
+            logger.error(f"Failed to list RayJobs in namespace {namespace}: {e}")
+            empty_pagination_info = {
+                "current_page": 1,
+                "total_pages": 0,
+                "page_size": page_size,
+                "total_jobs": 0,
+                "showing_start": 0,
+                "showing_end": 0,
+            }
+            if use_widgets:
+                RayJob._display_jobs_list_widget([], namespace, empty_pagination_info)
+                return None  # Don't return empty list to avoid Jupyter auto-display
+            else:
+                pretty_print.print_jobs_list([], namespace, empty_pagination_info)
+                return []
+
+    @staticmethod
+    def _map_to_codeflare_status_static(
+        deployment_status: RayJobDeploymentStatus,
+    ) -> Tuple[CodeflareRayJobStatus, bool]:
+        """
+        Static version of status mapping for use by the static status method.
+        """
+        status_mapping = {
+            RayJobDeploymentStatus.COMPLETE: (CodeflareRayJobStatus.COMPLETE, True),
+            RayJobDeploymentStatus.FAILED: (CodeflareRayJobStatus.FAILED, True),
+            RayJobDeploymentStatus.RUNNING: (CodeflareRayJobStatus.RUNNING, False),
+            RayJobDeploymentStatus.SUSPENDED: (CodeflareRayJobStatus.SUSPENDED, False),
+            RayJobDeploymentStatus.UNKNOWN: (CodeflareRayJobStatus.UNKNOWN, False),
+        }
+        
+        return status_mapping.get(
+            deployment_status, (CodeflareRayJobStatus.UNKNOWN, False)
+        )
+
+    @staticmethod
+    def _display_job_status_widget(job_info: Optional[RayJobInfo], job_name: str, namespace: str):
+        """
+        Display RayJob status in a Jupyter widget.
+        
+        Args:
+            job_info: RayJobInfo object or None if job not found
+            job_name: Name of the job
+            namespace: Kubernetes namespace
+        """
+        if not WIDGETS_AVAILABLE:
+            # Fall back to console output if widgets not available
+            if job_info:
+                pretty_print.print_job_status(job_info)
+            else:
+                pretty_print.print_no_job_found(job_name, namespace)
+            return
+        
+        # Create the widget display
+        if job_info is None:
+            # Job not found - match the list widget styling
+            status_widget = widgets.HTML(
+                value=f"""
+                <div style="border: 2px solid #dc3545; border-radius: 8px; padding: 15px; background-color: #f8f9fa;">
+                    <h3 style="color: #dc3545; margin-top: 0;">❌ RayJob Not Found</h3>
+                    <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+                        <tr>
+                            <td style="border: 1px solid #dee2e6; padding: 8px; font-weight: bold;">Job Name:</td>
+                            <td style="border: 1px solid #dee2e6; padding: 8px;">{job_name}</td>
+                        </tr>
+                        <tr>
+                            <td style="border: 1px solid #dee2e6; padding: 8px; font-weight: bold;">Namespace:</td>
+                            <td style="border: 1px solid #dee2e6; padding: 8px;">{namespace}</td>
+                        </tr>
+                        <tr>
+                            <td style="border: 1px solid #dee2e6; padding: 8px; font-weight: bold;">Status:</td>
+                            <td style="border: 1px solid #dee2e6; padding: 8px; color: #666; font-style: italic;">The RayJob may have been deleted or never existed.</td>
+                        </tr>
+                    </table>
+                </div>
+                """
+            )
+        else:
+            # Job found - create status display matching list widget style
+            status_color, status_icon = RayJob._get_status_color_and_icon(job_info.status)
+            
+            # Build main job information table
+            job_table_rows = f"""
+                <tr>
+                    <td style="border: 1px solid #dee2e6; padding: 8px; font-weight: bold;">Name:</td>
+                    <td style="border: 1px solid #dee2e6; padding: 8px; font-weight: bold; color: #0066cc;">{job_info.name}</td>
+                </tr>
+                <tr>
+                    <td style="border: 1px solid #dee2e6; padding: 8px; font-weight: bold;">Job ID:</td>
+                    <td style="border: 1px solid #dee2e6; padding: 8px; font-family: monospace; font-size: 0.9em;">{job_info.job_id}</td>
+                </tr>
+                <tr>
+                    <td style="border: 1px solid #dee2e6; padding: 8px; font-weight: bold;">Status:</td>
+                    <td style="border: 1px solid #dee2e6; padding: 8px;">
+                        <span style="color: {status_color}; font-weight: bold;">{status_icon} {job_info.status.value}</span>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="border: 1px solid #dee2e6; padding: 8px; font-weight: bold;">RayCluster:</td>
+                    <td style="border: 1px solid #dee2e6; padding: 8px;">{job_info.cluster_name}</td>
+                </tr>
+                <tr>
+                    <td style="border: 1px solid #dee2e6; padding: 8px; font-weight: bold;">Namespace:</td>
+                    <td style="border: 1px solid #dee2e6; padding: 8px;">{job_info.namespace}</td>
+                </tr>
+                <tr>
+                    <td style="border: 1px solid #dee2e6; padding: 8px; font-weight: bold;">Managed Cluster:</td>
+                    <td style="border: 1px solid #dee2e6; padding: 8px;">
+                        {'<span style="color: #28a745; font-weight: bold;">✅ Yes (Job-managed)</span>' if job_info.is_managed_cluster else '<span style="color: #6c757d;">❌ No (Existing cluster)</span>'}
+                    </td>
+                </tr>
+            """
+            
+            # Add timing information if available
+            if job_info.start_time:
+                job_table_rows += f"""
+                <tr>
+                    <td style="border: 1px solid #dee2e6; padding: 8px; font-weight: bold;">Started:</td>
+                    <td style="border: 1px solid #dee2e6; padding: 8px;">{job_info.start_time}</td>
+                </tr>
+                """
+            
+            if job_info.end_time:
+                job_table_rows += f"""
+                <tr>
+                    <td style="border: 1px solid #dee2e6; padding: 8px; font-weight: bold;">Ended:</td>
+                    <td style="border: 1px solid #dee2e6; padding: 8px;">{job_info.end_time}</td>
+                </tr>
+                """
+            
+            # Add failure info if available
+            if job_info.failed_attempts > 0:
+                job_table_rows += f"""
+                <tr>
+                    <td style="border: 1px solid #dee2e6; padding: 8px; font-weight: bold;">Failed Attempts:</td>
+                    <td style="border: 1px solid #dee2e6; padding: 8px; color: #dc3545; font-weight: bold;">{job_info.failed_attempts}</td>
+                </tr>
+                """
+            
+            # Build Kueue section
+            kueue_section = ""
+            if job_info.kueue_workload:
+                kueue_color = "#007bff"  # Blue for Kueue
+                if job_info.kueue_workload.status == "Admitted":
+                    kueue_color = "#28a745"  # Green for admitted
+                elif job_info.kueue_workload.status == "Pending":
+                    kueue_color = "#ffc107"  # Yellow for pending
+                
+                kueue_rows = f"""
+                <tr style="background-color: #e7f3ff;">
+                    <td style="border: 1px solid #dee2e6; padding: 8px; font-weight: bold; color: {kueue_color};">🎯 Local Queue:</td>
+                    <td style="border: 1px solid #dee2e6; padding: 8px;">{job_info.local_queue}</td>
+                </tr>
+                <tr style="background-color: #e7f3ff;">
+                    <td style="border: 1px solid #dee2e6; padding: 8px; font-weight: bold; color: {kueue_color};">🎯 Workload Status:</td>
+                    <td style="border: 1px solid #dee2e6; padding: 8px;">
+                        <span style="color: {kueue_color}; font-weight: bold;">{job_info.kueue_workload.status}</span>
+                    </td>
+                </tr>
+                <tr style="background-color: #e7f3ff;">
+                    <td style="border: 1px solid #dee2e6; padding: 8px; font-weight: bold; color: {kueue_color};">🎯 Workload Name:</td>
+                    <td style="border: 1px solid #dee2e6; padding: 8px;">{job_info.kueue_workload.name}</td>
+                </tr>
+                """
+                
+                if job_info.kueue_workload.priority is not None:
+                    kueue_rows += f"""
+                <tr style="background-color: #e7f3ff;">
+                    <td style="border: 1px solid #dee2e6; padding: 8px; font-weight: bold; color: {kueue_color};">🎯 Priority:</td>
+                    <td style="border: 1px solid #dee2e6; padding: 8px;">{job_info.kueue_workload.priority}</td>
+                </tr>
+                    """
+                
+                if job_info.kueue_workload.admission_time:
+                    kueue_rows += f"""
+                <tr style="background-color: #e7f3ff;">
+                    <td style="border: 1px solid #dee2e6; padding: 8px; font-weight: bold; color: {kueue_color};">🎯 Admitted:</td>
+                    <td style="border: 1px solid #dee2e6; padding: 8px;">{job_info.kueue_workload.admission_time}</td>
+                </tr>
+                    """
+                
+                kueue_section = kueue_rows
+                
+            elif job_info.local_queue:
+                kueue_section = f"""
+                <tr style="background-color: #f8f9fa;">
+                    <td style="border: 1px solid #dee2e6; padding: 8px; font-weight: bold; color: #6c757d;">🎯 Local Queue:</td>
+                    <td style="border: 1px solid #dee2e6; padding: 8px;">{job_info.local_queue}</td>
+                </tr>
+                <tr style="background-color: #f8f9fa;">
+                    <td style="border: 1px solid #dee2e6; padding: 8px; font-weight: bold; color: #6c757d;">🎯 Workload Info:</td>
+                    <td style="border: 1px solid #dee2e6; padding: 8px; color: #666; font-style: italic;">Not available</td>
+                </tr>
+                """
+            
+            status_widget = widgets.HTML(
+                value=f"""
+                <div style="border: 2px solid {status_color}; border-radius: 8px; padding: 15px; background-color: #f8f9fa;">
+                    <h3 style="color: {status_color}; margin-top: 0;">{status_icon} RayJob Status</h3>
+                    <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+                        {job_table_rows}
+                        {kueue_section}
+                    </table>
+                </div>
+                """
+            )
+        
+        # Display the widget
+        display(status_widget)
+
+    @staticmethod
+    def _get_status_color_and_icon(status: RayJobDeploymentStatus) -> Tuple[str, str]:
+        """
+        Get color and icon for job status display.
+        
+        Returns:
+            Tuple of (color, icon)
+        """
+        status_mapping = {
+            RayJobDeploymentStatus.COMPLETE: ("#28a745", "✅"),
+            RayJobDeploymentStatus.RUNNING: ("#007bff", "🔄"),
+            RayJobDeploymentStatus.FAILED: ("#dc3545", "❌"),
+            RayJobDeploymentStatus.SUSPENDED: ("#ffc107", "⏸️"),
+            RayJobDeploymentStatus.UNKNOWN: ("#6c757d", "❓"),
+        }
+        return status_mapping.get(status, ("#6c757d", "❓"))
+
+    @staticmethod
+    def _display_jobs_list_widget(job_list, namespace: str, pagination_info: Optional[dict] = None):
+        """
+        Display a list of RayJobs in a Jupyter widget table with pagination.
+        
+        Args:
+            job_list: List of RayJobInfo objects (for current page)
+            namespace: Kubernetes namespace
+            pagination_info: Optional pagination information dict
+        """
+        if not WIDGETS_AVAILABLE:
+            # Fall back to console output if widgets not available
+            pretty_print.print_jobs_list(job_list, namespace, pagination_info)
+            return
+        
+        if not job_list:
+            # No jobs found
+            no_jobs_widget = widgets.HTML(
+                value=f"""
+                <div style="border: 2px solid #ffc107; border-radius: 8px; padding: 15px; background-color: #fff9e6;">
+                    <h3 style="color: #856404; margin-top: 0;">📋 No RayJobs Found</h3>
+                    <p><strong>Namespace:</strong> {namespace}</p>
+                    <p style="color: #666;">No RayJobs found in this namespace. Jobs may have been deleted or completed with TTL cleanup.</p>
+                </div>
+                """
+            )
+            display(no_jobs_widget)
+            return
+        
+        # Create table header with pagination info
+        title = f"📋 RayJobs in namespace: {namespace}"
+        if pagination_info and pagination_info["total_pages"] > 1:
+            title += f" (Page {pagination_info['current_page']} of {pagination_info['total_pages']})"
+        
+        table_html = f"""
+        <div style="border: 2px solid #007bff; border-radius: 8px; padding: 15px; background-color: #f8f9fa;">
+            <h3 style="color: #007bff; margin-top: 0;">{title}</h3>
+            <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+                <thead>
+                    <tr style="background-color: #e9ecef;">
+                        <th style="border: 1px solid #dee2e6; padding: 8px; text-align: left;">Status</th>
+                        <th style="border: 1px solid #dee2e6; padding: 8px; text-align: left;">Job Name</th>
+                        <th style="border: 1px solid #dee2e6; padding: 8px; text-align: left;">Job ID</th>
+                        <th style="border: 1px solid #dee2e6; padding: 8px; text-align: left;">Cluster</th>
+                        <th style="border: 1px solid #dee2e6; padding: 8px; text-align: left;">Managed</th>
+                        <th style="border: 1px solid #dee2e6; padding: 8px; text-align: left;">Queue</th>
+                        <th style="border: 1px solid #dee2e6; padding: 8px; text-align: left;">Kueue Status</th>
+                        <th style="border: 1px solid #dee2e6; padding: 8px; text-align: left;">Start Time</th>
+                    </tr>
+                </thead>
+                <tbody>
+        """
+        
+        # Add rows for each job
+        for job_info in job_list:
+            status_color, status_icon = RayJob._get_status_color_and_icon(job_info.status)
+            start_time = job_info.start_time or "N/A"
+            
+            # Cluster management info
+            managed_display = "✅ Yes" if job_info.is_managed_cluster else "❌ No"
+            managed_color = "#28a745" if job_info.is_managed_cluster else "#6c757d"
+            
+            # Kueue information
+            queue_display = job_info.local_queue or "N/A"
+            kueue_status_display = "N/A"
+            kueue_status_color = "#6c757d"
+            
+            if job_info.kueue_workload:
+                kueue_status_display = job_info.kueue_workload.status
+                if job_info.kueue_workload.status == "Admitted":
+                    kueue_status_color = "#28a745"  # Green
+                elif job_info.kueue_workload.status == "Pending":
+                    kueue_status_color = "#ffc107"  # Yellow
+                elif job_info.kueue_workload.status == "Finished":
+                    kueue_status_color = "#007bff"  # Blue
+            
+            table_html += f"""
+                    <tr>
+                        <td style="border: 1px solid #dee2e6; padding: 8px;">
+                            <span style="color: {status_color}; font-weight: bold;">
+                                {status_icon} {job_info.status.value}
+                            </span>
+                        </td>
+                        <td style="border: 1px solid #dee2e6; padding: 8px; font-weight: bold;">{job_info.name}</td>
+                        <td style="border: 1px solid #dee2e6; padding: 8px; font-family: monospace; font-size: 0.9em;">{job_info.job_id}</td>
+                        <td style="border: 1px solid #dee2e6; padding: 8px;">{job_info.cluster_name}</td>
+                        <td style="border: 1px solid #dee2e6; padding: 8px;">
+                            <span style="color: {managed_color}; font-weight: bold;">{managed_display}</span>
+                        </td>
+                        <td style="border: 1px solid #dee2e6; padding: 8px;">{queue_display}</td>
+                        <td style="border: 1px solid #dee2e6; padding: 8px;">
+                            <span style="color: {kueue_status_color}; font-weight: bold;">{kueue_status_display}</span>
+                        </td>
+                        <td style="border: 1px solid #dee2e6; padding: 8px; font-size: 0.9em;">{start_time}</td>
+                    </tr>
+            """
+        
+        table_html += """
+                </tbody>
+            </table>
+        """
+        
+        # Add pagination navigation info
+        if pagination_info and pagination_info["total_pages"] > 1:
+            table_html += f"""
+            <div style="margin-top: 10px; padding: 10px; background-color: #e9ecef; border-radius: 4px;">
+                <p style="margin: 0; color: #6c757d; font-size: 0.9em;">
+                    Showing {pagination_info['showing_start']}-{pagination_info['showing_end']} 
+                    of {pagination_info['total_jobs']} jobs
+                </p>
+                <p style="margin: 5px 0 0 0; color: #007bff; font-size: 0.9em;">
+                    <strong>Navigation:</strong>
+            """
+            
+            if pagination_info['current_page'] > 1:
+                table_html += f" RayJob.List(page={pagination_info['current_page'] - 1}) [Previous]"
+            if pagination_info['current_page'] < pagination_info['total_pages']:
+                if pagination_info['current_page'] > 1:
+                    table_html += " |"
+                table_html += f" RayJob.List(page={pagination_info['current_page'] + 1}) [Next]"
+            
+            table_html += """
+                </p>
+            </div>
+            """
+        
+        table_html += "</div>"
+        
+        # Display the widget
+        jobs_widget = widgets.HTML(value=table_html)
+        display(jobs_widget)
+
 
     def _map_to_codeflare_status(
         self, deployment_status: RayJobDeploymentStatus
