@@ -1320,10 +1320,10 @@ def test_build_submitter_pod_template_uses_default_image(auto_mock_setup, mocker
     )
 
     files = {"test.py": "print('hello')"}
-    configmap_name = "test-files"
+    secret_name = "test-files"
 
     # Call _build_submitter_pod_template
-    submitter_template = rayjob._build_submitter_pod_template(files, configmap_name)
+    submitter_template = rayjob._build_submitter_pod_template(files, secret_name)
 
     # Verify get_ray_image_for_python_version was called
     mock_get_image.assert_called_once()
@@ -1357,10 +1357,10 @@ def test_build_submitter_pod_template_uses_cluster_config_image(
     )
 
     files = {"test.py": "print('hello')"}
-    configmap_name = "test-files"
+    secret_name = "test-files"
 
     # Call _build_submitter_pod_template
-    submitter_template = rayjob._build_submitter_pod_template(files, configmap_name)
+    submitter_template = rayjob._build_submitter_pod_template(files, secret_name)
 
     # Verify get_ray_image_for_python_version was called
     mock_get_image.assert_called_once()
@@ -1374,7 +1374,7 @@ def test_build_submitter_pod_template_uses_cluster_config_image(
 
 def test_build_submitter_pod_template_with_files(auto_mock_setup):
     """
-    Test that _build_submitter_pod_template() correctly builds ConfigMap items for files.
+    Test that _build_submitter_pod_template() correctly builds Secret items for files.
     """
     rayjob = RayJob(
         job_name="test-job",
@@ -1384,22 +1384,22 @@ def test_build_submitter_pod_template_with_files(auto_mock_setup):
     )
 
     files = {"main.py": "print('main')", "helper.py": "print('helper')"}
-    configmap_name = "test-files"
+    secret_name = "test-files"
 
     # Call _build_submitter_pod_template
-    submitter_template = rayjob._build_submitter_pod_template(files, configmap_name)
+    submitter_template = rayjob._build_submitter_pod_template(files, secret_name)
 
-    # Verify ConfigMap items are created for each file
-    config_map_items = submitter_template["spec"]["volumes"][0]["configMap"]["items"]
-    assert len(config_map_items) == 2
+    # Verify Secret items are created for each file
+    secret_items = submitter_template["spec"]["volumes"][0]["secret"]["items"]
+    assert len(secret_items) == 2
 
-    # Verify each file has a ConfigMap item
-    file_names = [item["key"] for item in config_map_items]
+    # Verify each file has a Secret item
+    file_names = [item["key"] for item in secret_items]
     assert "main.py" in file_names
     assert "helper.py" in file_names
 
     # Verify paths match keys
-    for item in config_map_items:
+    for item in secret_items:
         assert item["key"] == item["path"]
 
 

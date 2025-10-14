@@ -115,8 +115,8 @@ jobs:
           kubectl create clusterrolebinding sdk-user-service-reader --clusterrole=service-reader --user=sdk-user
           kubectl create clusterrole port-forward-pods --verb=create --resource=pods/portforward
           kubectl create clusterrolebinding sdk-user-port-forward-pods-binding --clusterrole=port-forward-pods --user=sdk-user
-          kubectl create clusterrole configmap-manager --verb=get,list,create,delete,update,patch --resource=configmaps
-          kubectl create clusterrolebinding sdk-user-configmap-manager --clusterrole=configmap-manager --user=sdk-user
+          kubectl create clusterrole secret-manager --verb=get,list,create,delete,update,patch --resource=secrets
+          kubectl create clusterrolebinding sdk-user-secret-manager --clusterrole=secret-manager --user=sdk-user
           kubectl create clusterrole workload-reader --verb=get,list,watch --resource=workloads
           kubectl create clusterrolebinding sdk-user-workload-reader --clusterrole=workload-reader --user=sdk-user
           kubectl config use-context sdk-user

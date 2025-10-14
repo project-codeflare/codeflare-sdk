@@ -31,7 +31,7 @@ from python_client.kuberay_job_api import RayjobApi
 from python_client.kuberay_cluster_api import RayClusterApi
 from codeflare_sdk.ray.rayjobs.config import ManagedClusterConfig
 from codeflare_sdk.ray.rayjobs.runtime_env import (
-    create_file_configmap,
+    create_file_secret,
     extract_all_local_files,
     process_runtime_env,
 )
@@ -169,10 +169,10 @@ class RayJob:
         # Extract files from entrypoint and runtime_env working_dir
         files = extract_all_local_files(self)
 
-        # Create ConfigMap for files (will be mounted to submitter pod)
-        configmap_name = None
+        # Create Secret for files (will be mounted to submitter pod)
+        secret_name = None
         if files:
-            configmap_name = f"{self.name}-files"
+            secret_name = f"{self.name}-files"
 
         rayjob_cr = self._build_rayjob_cr()
 
@@ -182,9 +182,9 @@ class RayJob:
         if result:
             logger.info(f"Successfully submitted RayJob {self.name}")
 
-            # Create ConfigMap with owner reference after RayJob exists
+            # Create Secret with owner reference after RayJob exists
             if files:
-                create_file_configmap(self, files, result)
+                create_file_secret(self, files, result)
 
             return self.name
         else:
@@ -285,10 +285,10 @@ class RayJob:
 
         # Add submitterPodTemplate if we have files to mount
         if files:
-            configmap_name = f"{self.name}-files"
+            secret_name = f"{self.name}-files"
             rayjob_cr["spec"][
                 "submitterPodTemplate"
-            ] = self._build_submitter_pod_template(files, configmap_name)
+            ] = self._build_submitter_pod_template(files, secret_name)
 
         # Configure cluster: either use existing or create new
         if self._cluster_config is not None:
@@ -311,17 +311,17 @@ class RayJob:
         return rayjob_cr
 
     def _build_submitter_pod_template(
-        self, files: Dict[str, str], configmap_name: str
+        self, files: Dict[str, str], secret_name: str
     ) -> Dict[str, Any]:
         """
-        Build submitterPodTemplate with ConfigMap volume mount for local files.
+        Build submitterPodTemplate with Secret volume mount for local files.
 
         If files contain working_dir.zip, an init container will unzip it before
         the main submitter container runs.
 
         Args:
             files: Dict of file_name -> file_content
-            configmap_name: Name of the ConfigMap containing the files
+            secret_name: Name of the Secret containing the files
 
         Returns:
             submitterPodTemplate specification
@@ -337,8 +337,8 @@ class RayJob:
         ):
             image = self._cluster_config.image
 
-        # Build ConfigMap items for each file
-        config_map_items = []
+        # Build Secret items for each file
+        secret_items = []
         entrypoint_path = files.get(
             "__entrypoint_path__"
         )  # Metadata for single file case
@@ -349,9 +349,9 @@ class RayJob:
 
             # For single file case, use the preserved path structure
             if entrypoint_path:
-                config_map_items.append({"key": file_name, "path": entrypoint_path})
+                secret_items.append({"key": file_name, "path": entrypoint_path})
             else:
-                config_map_items.append({"key": file_name, "path": file_name})
+                secret_items.append({"key": file_name, "path": file_name})
 
         # Check if we need to unzip working_dir
         has_working_dir_zip = "working_dir.zip" in files
@@ -378,9 +378,9 @@ class RayJob:
                 "volumes": [
                     {
                         "name": "ray-job-files",
-                        "configMap": {
-                            "name": configmap_name,
-                            "items": config_map_items,
+                        "secret": {
+                            "secretName": secret_name,
+                            "items": secret_items,
                         },
                     }
                 ],

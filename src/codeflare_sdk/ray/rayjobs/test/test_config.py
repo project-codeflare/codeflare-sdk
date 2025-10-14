@@ -5,7 +5,7 @@ Tests for the simplified ManagedClusterConfig accelerator_configs behavior.
 import pytest
 from codeflare_sdk.ray.rayjobs.config import ManagedClusterConfig, DEFAULT_ACCELERATORS
 from kubernetes.client import V1VolumeMount
-from kubernetes.client import V1Volume, V1ConfigMapVolumeSource
+from kubernetes.client import V1Volume, V1SecretVolumeSource
 
 
 def test_accelerator_configs_defaults_to_default_accelerators():
@@ -177,12 +177,12 @@ def test_add_file_volumes_existing_volume_early_return():
     # Pre-add a volume with same name
     existing_volume = V1Volume(
         name="ray-job-files",
-        config_map=V1ConfigMapVolumeSource(name="existing-files"),
+        secret=V1SecretVolumeSource(secret_name="existing-files"),
     )
     config.volumes.append(existing_volume)
 
     # Should return early and not add duplicate
-    config.add_file_volumes(configmap_name="new-files")
+    config.add_file_volumes(secret_name="new-files")
 
     # Should still have only one volume, no mount added
     assert len(config.volumes) == 1
@@ -199,34 +199,35 @@ def test_add_file_volumes_existing_mount_early_return():
     config.volume_mounts.append(existing_mount)
 
     # Should return early and not add duplicate
-    config.add_file_volumes(configmap_name="new-files")
+    config.add_file_volumes(secret_name="new-files")
 
     # Should still have only one mount, no volume added
     assert len(config.volumes) == 0
     assert len(config.volume_mounts) == 1
 
 
-def test_build_file_configmap_spec_labels():
-    """Test that build_file_configmap_spec creates ConfigMap with correct labels."""
+def test_build_file_secret_spec_labels():
+    """Test that build_file_secret_spec creates Secret with correct labels."""
     config = ManagedClusterConfig()
 
     job_name = "test-job"
     namespace = "test-namespace"
     files = {"test.py": "print('hello')", "helper.py": "# helper code"}
 
-    configmap_spec = config.build_file_configmap_spec(job_name, namespace, files)
+    secret_spec = config.build_file_secret_spec(job_name, namespace, files)
 
-    assert configmap_spec["apiVersion"] == "v1"
-    assert configmap_spec["kind"] == "ConfigMap"
-    assert configmap_spec["metadata"]["name"] == f"{job_name}-files"
-    assert configmap_spec["metadata"]["namespace"] == namespace
+    assert secret_spec["apiVersion"] == "v1"
+    assert secret_spec["kind"] == "Secret"
+    assert secret_spec["type"] == "Opaque"
+    assert secret_spec["metadata"]["name"] == f"{job_name}-files"
+    assert secret_spec["metadata"]["namespace"] == namespace
 
-    labels = configmap_spec["metadata"]["labels"]
+    labels = secret_spec["metadata"]["labels"]
     assert labels["ray.io/job-name"] == job_name
     assert labels["app.kubernetes.io/managed-by"] == "codeflare-sdk"
     assert labels["app.kubernetes.io/component"] == "rayjob-files"
 
-    assert configmap_spec["data"] == files
+    assert secret_spec["data"] == files
 
 
 def test_managed_cluster_config_uses_update_image_for_head(mocker):
