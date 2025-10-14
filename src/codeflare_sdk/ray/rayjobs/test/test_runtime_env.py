@@ -15,6 +15,7 @@
 
 import pytest
 import os
+import io
 from unittest.mock import MagicMock, patch
 from codeflare_sdk.common.utils.constants import MOUNT_PATH, RAY_VERSION
 from ray.runtime_env import RuntimeEnv
@@ -25,13 +26,11 @@ from codeflare_sdk.ray.rayjobs.config import ManagedClusterConfig
 from kubernetes.client import (
     V1Volume,
     V1VolumeMount,
-    V1Toleration,
-    V1ConfigMapVolumeSource,
     ApiException,
 )
 
 from codeflare_sdk.ray.rayjobs.runtime_env import (
-    create_configmap_from_spec,
+    create_secret_from_spec,
     extract_all_local_files,
 )
 
@@ -81,19 +80,20 @@ def test_rayjob_with_remote_working_dir(auto_mock_setup):
     assert rayjob_cr["spec"]["entrypoint"] == "python test.py"
 
 
-def test_build_file_configmap_spec():
+def test_build_file_secret_spec():
     """
-    Test building ConfigMap specification for files.
+    Test building Secret specification for files.
     """
     config = ManagedClusterConfig()
     files = {"main.py": "print('main')", "helper.py": "print('helper')"}
 
-    spec = config.build_file_configmap_spec(
+    spec = config.build_file_secret_spec(
         job_name="test-job", namespace="test-namespace", files=files
     )
 
     assert spec["apiVersion"] == "v1"
-    assert spec["kind"] == "ConfigMap"
+    assert spec["kind"] == "Secret"
+    assert spec["type"] == "Opaque"
     assert spec["metadata"]["name"] == "test-job-files"
     assert spec["metadata"]["namespace"] == "test-namespace"
     assert spec["data"] == files
@@ -106,11 +106,11 @@ def test_build_file_volume_specs():
     config = ManagedClusterConfig()
 
     volume_spec, mount_spec = config.build_file_volume_specs(
-        configmap_name="test-files", mount_path="/custom/path"
+        secret_name="test-files", mount_path="/custom/path"
     )
 
     assert volume_spec["name"] == "ray-job-files"
-    assert volume_spec["configMap"]["name"] == "test-files"
+    assert volume_spec["secret"]["secretName"] == "test-files"
 
     assert mount_spec["name"] == "ray-job-files"
     assert mount_spec["mountPath"] == "/custom/path"
@@ -126,7 +126,7 @@ def test_add_file_volumes():
     assert len(config.volumes) == 0
     assert len(config.volume_mounts) == 0
 
-    config.add_file_volumes(configmap_name="test-files")
+    config.add_file_volumes(secret_name="test-files")
 
     assert len(config.volumes) == 1
     assert len(config.volume_mounts) == 1
@@ -135,7 +135,7 @@ def test_add_file_volumes():
     mount = config.volume_mounts[0]
 
     assert volume.name == "ray-job-files"
-    assert volume.config_map.name == "test-files"
+    assert volume.secret.secret_name == "test-files"
 
     assert mount.name == "ray-job-files"
     assert mount.mount_path == MOUNT_PATH
@@ -148,16 +148,16 @@ def test_add_file_volumes_duplicate_prevention():
     config = ManagedClusterConfig()
 
     # Add volumes twice
-    config.add_file_volumes(configmap_name="test-files")
-    config.add_file_volumes(configmap_name="test-files")
+    config.add_file_volumes(secret_name="test-files")
+    config.add_file_volumes(secret_name="test-files")
 
     assert len(config.volumes) == 1
     assert len(config.volume_mounts) == 1
 
 
-def test_create_configmap_from_spec(auto_mock_setup):
+def test_create_secret_from_spec(auto_mock_setup):
     """
-    Test creating ConfigMap via Kubernetes API.
+    Test creating Secret via Kubernetes API.
     """
     mock_api_instance = auto_mock_setup["k8s_api"]
 
@@ -168,28 +168,27 @@ def test_create_configmap_from_spec(auto_mock_setup):
         namespace="test-namespace",
     )
 
-    configmap_spec = {
+    secret_spec = {
         "apiVersion": "v1",
-        "kind": "ConfigMap",
+        "kind": "Secret",
+        "type": "Opaque",
         "metadata": {"name": "test-files", "namespace": "test-namespace"},
         "data": {"test.py": "print('test')"},
     }
 
-    result = create_configmap_from_spec(rayjob, configmap_spec)
+    result = create_secret_from_spec(rayjob, secret_spec)
 
     assert result == "test-files"
-    mock_api_instance.create_namespaced_config_map.assert_called_once()
+    mock_api_instance.create_namespaced_secret.assert_called_once()
 
 
-def test_create_configmap_already_exists(auto_mock_setup):
+def test_create_secret_already_exists(auto_mock_setup):
     """
-    Test creating ConfigMap when it already exists (409 conflict).
+    Test creating Secret when it already exists (409 conflict).
     """
     mock_api_instance = auto_mock_setup["k8s_api"]
 
-    mock_api_instance.create_namespaced_config_map.side_effect = ApiException(
-        status=409
-    )
+    mock_api_instance.create_namespaced_secret.side_effect = ApiException(status=409)
 
     rayjob = RayJob(
         job_name="test-job",
@@ -198,27 +197,28 @@ def test_create_configmap_already_exists(auto_mock_setup):
         namespace="test-namespace",
     )
 
-    configmap_spec = {
+    secret_spec = {
         "apiVersion": "v1",
-        "kind": "ConfigMap",
+        "kind": "Secret",
+        "type": "Opaque",
         "metadata": {"name": "test-files", "namespace": "test-namespace"},
         "data": {"test.py": "print('test')"},
     }
 
-    result = create_configmap_from_spec(rayjob, configmap_spec)
+    result = create_secret_from_spec(rayjob, secret_spec)
 
     assert result == "test-files"
-    mock_api_instance.create_namespaced_config_map.assert_called_once()
-    mock_api_instance.replace_namespaced_config_map.assert_called_once()
+    mock_api_instance.create_namespaced_secret.assert_called_once()
+    mock_api_instance.replace_namespaced_secret.assert_called_once()
 
 
-def test_create_configmap_with_owner_reference_basic(mocker, auto_mock_setup, caplog):
+def test_create_secret_with_owner_reference_basic(mocker, auto_mock_setup, caplog):
     """
-    Test creating ConfigMap with owner reference from valid RayJob result.
+    Test creating Secret with owner reference from valid RayJob result.
     """
     mock_api_instance = auto_mock_setup["k8s_api"]
 
-    # Mock client.V1ObjectMeta and V1ConfigMap
+    # Mock client.V1ObjectMeta and V1Secret
     mock_v1_metadata = mocker.patch("kubernetes.client.V1ObjectMeta")
     mock_metadata_instance = MagicMock()
     mock_v1_metadata.return_value = mock_metadata_instance
@@ -230,9 +230,10 @@ def test_create_configmap_with_owner_reference_basic(mocker, auto_mock_setup, ca
         namespace="test-namespace",
     )
 
-    configmap_spec = {
+    secret_spec = {
         "apiVersion": "v1",
-        "kind": "ConfigMap",
+        "kind": "Secret",
+        "type": "Opaque",
         "metadata": {
             "name": "test-files",
             "namespace": "test-namespace",
@@ -255,26 +256,24 @@ def test_create_configmap_with_owner_reference_basic(mocker, auto_mock_setup, ca
     }
 
     with caplog.at_level("INFO"):
-        result = create_configmap_from_spec(rayjob, configmap_spec, rayjob_result)
+        result = create_secret_from_spec(rayjob, secret_spec, rayjob_result)
 
     assert result == "test-files"
 
     # Verify owner reference was set
     expected_owner_ref = mocker.ANY  # We'll check via the logs
     assert (
-        "Adding owner reference to ConfigMap 'test-files' with RayJob UID: a4dd4c5a-ab61-411d-b4d1-4abb5177422a"
+        "Adding owner reference to Secret 'test-files' with RayJob UID: a4dd4c5a-ab61-411d-b4d1-4abb5177422a"
         in caplog.text
     )
 
     assert mock_metadata_instance.owner_references is not None
-    mock_api_instance.create_namespaced_config_map.assert_called_once()
+    mock_api_instance.create_namespaced_secret.assert_called_once()
 
 
-def test_create_configmap_without_owner_reference_no_uid(
-    mocker, auto_mock_setup, caplog
-):
+def test_create_secret_without_owner_reference_no_uid(mocker, auto_mock_setup, caplog):
     """
-    Test creating ConfigMap without owner reference when RayJob has no UID.
+    Test creating Secret without owner reference when RayJob has no UID.
     """
     mock_api_instance = auto_mock_setup["k8s_api"]
 
@@ -289,9 +288,10 @@ def test_create_configmap_without_owner_reference_no_uid(
         namespace="test-namespace",
     )
 
-    configmap_spec = {
+    secret_spec = {
         "apiVersion": "v1",
-        "kind": "ConfigMap",
+        "kind": "Secret",
+        "type": "Opaque",
         "metadata": {"name": "test-files", "namespace": "test-namespace"},
         "data": {"test.py": "print('test')"},
     }
@@ -306,23 +306,23 @@ def test_create_configmap_without_owner_reference_no_uid(
     }
 
     with caplog.at_level("WARNING"):
-        result = create_configmap_from_spec(rayjob, configmap_spec, rayjob_result)
+        result = create_secret_from_spec(rayjob, secret_spec, rayjob_result)
 
     assert result == "test-files"
 
     # Verify warning was logged and no owner reference was set
     assert (
-        "No valid RayJob result with UID found, ConfigMap 'test-files' will not have owner reference"
+        "No valid RayJob result with UID found, Secret 'test-files' will not have owner reference"
         in caplog.text
     )
 
     # The important part is that the warning was logged, indicating no owner reference was set
-    mock_api_instance.create_namespaced_config_map.assert_called_once()
+    mock_api_instance.create_namespaced_secret.assert_called_once()
 
 
-def test_create_configmap_with_invalid_rayjob_result(auto_mock_setup, caplog):
+def test_create_secret_with_invalid_rayjob_result(auto_mock_setup, caplog):
     """
-    Test creating ConfigMap with None or invalid rayjob_result.
+    Test creating Secret with None or invalid rayjob_result.
     """
     mock_api_instance = auto_mock_setup["k8s_api"]
 
@@ -333,16 +333,17 @@ def test_create_configmap_with_invalid_rayjob_result(auto_mock_setup, caplog):
         namespace="test-namespace",
     )
 
-    configmap_spec = {
+    secret_spec = {
         "apiVersion": "v1",
-        "kind": "ConfigMap",
+        "kind": "Secret",
+        "type": "Opaque",
         "metadata": {"name": "test-files", "namespace": "test-namespace"},
         "data": {"test.py": "print('test')"},
     }
 
     # Test with None
     with caplog.at_level("WARNING"):
-        result = create_configmap_from_spec(rayjob, configmap_spec, None)
+        result = create_secret_from_spec(rayjob, secret_spec, None)
 
     assert result == "test-files"
     assert "No valid RayJob result with UID found" in caplog.text
@@ -350,7 +351,7 @@ def test_create_configmap_with_invalid_rayjob_result(auto_mock_setup, caplog):
     # Test with string instead of dict
     caplog.clear()
     with caplog.at_level("WARNING"):
-        result = create_configmap_from_spec(rayjob, configmap_spec, "not-a-dict")
+        result = create_secret_from_spec(rayjob, secret_spec, "not-a-dict")
 
     assert result == "test-files"
     assert "No valid RayJob result with UID found" in caplog.text
@@ -358,7 +359,7 @@ def test_create_configmap_with_invalid_rayjob_result(auto_mock_setup, caplog):
 
 def test_file_handling_kubernetes_best_practice_flow(mocker, tmp_path):
     """
-    Test the Kubernetes best practice flow: pre-declare volume, submit, create ConfigMap.
+    Test the Kubernetes best practice flow: pre-declare volume, submit, create Secret.
     """
     mocker.patch("kubernetes.config.load_kube_config")
 
@@ -375,9 +376,9 @@ def test_file_handling_kubernetes_best_practice_flow(mocker, tmp_path):
     }
     mock_api_instance.submit_job.return_value = submit_result
 
-    # Mock create_file_configmap where it's used (imported into rayjob module)
-    mock_create_cm = mocker.patch(
-        "codeflare_sdk.ray.rayjobs.rayjob.create_file_configmap"
+    # Mock create_file_secret where it's used (imported into rayjob module)
+    mock_create_secret = mocker.patch(
+        "codeflare_sdk.ray.rayjobs.rayjob.create_file_secret"
     )
     mock_add_volumes = mocker.patch.object(ManagedClusterConfig, "add_file_volumes")
 
@@ -390,22 +391,22 @@ def test_file_handling_kubernetes_best_practice_flow(mocker, tmp_path):
 
     def track_add_volumes(*args, **kwargs):
         call_order.append("add_volumes")
-        # Should be called with ConfigMap name
+        # Should be called with Secret name
         assert args[0] == "test-job-files"
 
     def track_submit(*args, **kwargs):
         call_order.append("submit_job")
         return submit_result
 
-    def track_create_cm(*args, **kwargs):
-        call_order.append("create_configmap")
+    def track_create_secret(*args, **kwargs):
+        call_order.append("create_secret")
         # Args should be: (job, files, rayjob_result)
         assert len(args) >= 3, f"Expected 3 args, got {len(args)}: {args}"
         assert args[2] == submit_result  # rayjob_result should be third arg
 
     mock_add_volumes.side_effect = track_add_volumes
     mock_api_instance.submit_job.side_effect = track_submit
-    mock_create_cm.side_effect = track_create_cm
+    mock_create_secret.side_effect = track_create_secret
 
     original_cwd = os.getcwd()
     try:
@@ -424,15 +425,15 @@ def test_file_handling_kubernetes_best_practice_flow(mocker, tmp_path):
     finally:
         os.chdir(original_cwd)
 
-    # Verify the order: submit → create ConfigMap
-    assert call_order == ["submit_job", "create_configmap"]
+    # Verify the order: submit → create Secret
+    assert call_order == ["submit_job", "create_secret"]
 
     mock_api_instance.submit_job.assert_called_once()
-    mock_create_cm.assert_called_once()
+    mock_create_secret.assert_called_once()
 
-    # Verify create_file_configmap was called with: (job, files, rayjob_result)
+    # Verify create_file_secret was called with: (job, files, rayjob_result)
     # Files dict includes metadata key __entrypoint_path__ for single file case
-    call_args = mock_create_cm.call_args[0]
+    call_args = mock_create_secret.call_args[0]
     assert call_args[0] == rayjob
     assert call_args[2] == submit_result
     # Check that the actual file content is present
@@ -471,7 +472,7 @@ def test_rayjob_submit_with_files_new_cluster(auto_mock_setup, tmp_path):
 
         assert result == "test-job"
 
-        mock_k8s_instance.create_namespaced_config_map.assert_called_once()
+        mock_k8s_instance.create_namespaced_secret.assert_called_once()
 
         assert len(cluster_config.volumes) == 0
         assert len(cluster_config.volume_mounts) == 0
@@ -482,16 +483,14 @@ def test_rayjob_submit_with_files_new_cluster(auto_mock_setup, tmp_path):
         os.chdir(original_cwd)
 
 
-def test_create_configmap_api_error_non_409(auto_mock_setup):
+def test_create_secret_api_error_non_409(auto_mock_setup):
     """
-    Test _create_configmap_from_spec handles non-409 API errors.
+    Test create_secret_from_spec handles non-409 API errors.
     """
     mock_api_instance = auto_mock_setup["k8s_api"]
 
     # Configure to raise 500 error
-    mock_api_instance.create_namespaced_config_map.side_effect = ApiException(
-        status=500
-    )
+    mock_api_instance.create_namespaced_secret.side_effect = ApiException(status=500)
 
     rayjob = RayJob(
         job_name="test-job",
@@ -500,31 +499,34 @@ def test_create_configmap_api_error_non_409(auto_mock_setup):
         namespace="test-namespace",
     )
 
-    configmap_spec = {
+    secret_spec = {
         "apiVersion": "v1",
-        "kind": "ConfigMap",
+        "kind": "Secret",
+        "type": "Opaque",
         "metadata": {"name": "test-files", "namespace": "test-namespace"},
         "data": {"test.py": "print('test')"},
     }
 
-    with pytest.raises(RuntimeError, match="Failed to create ConfigMap"):
-        create_configmap_from_spec(rayjob, configmap_spec)
+    with pytest.raises(RuntimeError, match="Failed to create Secret"):
+        create_secret_from_spec(rayjob, secret_spec)
 
 
 def test_add_file_volumes_existing_volume_skip():
     """
     Test add_file_volumes skips when volume already exists (missing coverage).
     """
+    from kubernetes.client import V1SecretVolumeSource
+
     config = ManagedClusterConfig()
 
     # Pre-add a volume with same name
     existing_volume = V1Volume(
         name="ray-job-files",
-        config_map=V1ConfigMapVolumeSource(name="existing-files"),
+        secret=V1SecretVolumeSource(secret_name="existing-files"),
     )
     config.volumes.append(existing_volume)
 
-    config.add_file_volumes(configmap_name="new-files")
+    config.add_file_volumes(secret_name="new-files")
     assert len(config.volumes) == 1
     assert len(config.volume_mounts) == 0  # Mount not added due to volume skip
 
@@ -539,7 +541,7 @@ def test_add_file_volumes_existing_mount_skip():
     existing_mount = V1VolumeMount(name="ray-job-files", mount_path="/existing/path")
     config.volume_mounts.append(existing_mount)
 
-    config.add_file_volumes(configmap_name="new-files")
+    config.add_file_volumes(secret_name="new-files")
     assert len(config.volumes) == 0  # Volume not added due to mount skip
     assert len(config.volume_mounts) == 1
 
@@ -569,6 +571,102 @@ def test_zip_directory_functionality(tmp_path):
     assert zip_data is not None
     assert len(zip_data) > 0
     assert isinstance(zip_data, bytes)
+
+
+def test_zip_directory_excludes_jupyter_notebooks(tmp_path, caplog):
+    """
+    Test that Jupyter notebook files (.ipynb) are excluded from zip.
+    """
+    from codeflare_sdk.ray.rayjobs.runtime_env import _zip_directory
+    import zipfile
+
+    # Create test directory with mixed file types
+    test_dir = tmp_path / "working_dir"
+    test_dir.mkdir()
+
+    # Create Python files (should be included)
+    (test_dir / "main.py").write_text("print('main script')")
+    (test_dir / "utils.py").write_text("def helper(): pass")
+
+    # Create Jupyter notebook files (should be excluded)
+    (test_dir / "analysis.ipynb").write_text('{"cells": [], "metadata": {}}')
+    (test_dir / "experiment.IPYNB").write_text(
+        '{"cells": [], "metadata": {}}'
+    )  # Test case insensitive
+
+    # Create subdirectory with mixed files
+    sub_dir = test_dir / "notebooks"
+    sub_dir.mkdir()
+    (sub_dir / "data_exploration.ipynb").write_text('{"cells": [], "metadata": {}}')
+    (sub_dir / "helper.py").write_text("print('nested file')")
+
+    # Test zipping
+    with caplog.at_level("INFO"):
+        zip_data = _zip_directory(str(test_dir))
+
+    assert zip_data is not None
+    assert len(zip_data) > 0
+
+    # Verify log message includes exclusion count
+    assert "Excluded 3 Jupyter notebook files" in caplog.text
+
+    # Verify excluded files are not in the zip
+    zip_buffer = io.BytesIO(zip_data)
+    with zipfile.ZipFile(zip_buffer, "r") as zipf:
+        zip_contents = zipf.namelist()
+
+        # Python files should be present
+        assert "main.py" in zip_contents
+        assert "utils.py" in zip_contents
+        assert "notebooks/helper.py" in zip_contents
+
+        # Jupyter notebooks should be excluded
+        assert "analysis.ipynb" not in zip_contents
+        assert "experiment.IPYNB" not in zip_contents
+        assert "notebooks/data_exploration.ipynb" not in zip_contents
+
+
+def test_zip_directory_no_exclusions_when_no_notebooks(tmp_path, caplog):
+    """
+    Test that no exclusion message is logged when no notebook files exist.
+    """
+    from codeflare_sdk.ray.rayjobs.runtime_env import _zip_directory
+
+    # Create test directory with only Python files
+    test_dir = tmp_path / "working_dir"
+    test_dir.mkdir()
+    (test_dir / "main.py").write_text("print('main script')")
+    (test_dir / "utils.py").write_text("def helper(): pass")
+
+    # Test zipping
+    with caplog.at_level("INFO"):
+        zip_data = _zip_directory(str(test_dir))
+
+    assert zip_data is not None
+
+    # Verify log message does NOT mention exclusions
+    assert "Excluded" not in caplog.text
+    assert "Jupyter notebook files" not in caplog.text
+
+
+def test_should_exclude_file_function():
+    """
+    Test the _should_exclude_file helper function directly.
+    """
+    from codeflare_sdk.ray.rayjobs.runtime_env import _should_exclude_file
+
+    # Should exclude .ipynb files (case insensitive)
+    assert _should_exclude_file("notebook.ipynb") is True
+    assert _should_exclude_file("analysis.IPYNB") is True
+    assert _should_exclude_file("data/exploration.ipynb") is True
+    assert _should_exclude_file("subdir/nested.Ipynb") is True
+
+    # Should NOT exclude other files
+    assert _should_exclude_file("script.py") is False
+    assert _should_exclude_file("data.json") is False
+    assert _should_exclude_file("requirements.txt") is False
+    assert _should_exclude_file("README.md") is False
+    assert _should_exclude_file("model.pkl") is False
 
 
 def test_zip_directory_error_handling():
@@ -616,6 +714,63 @@ def test_extract_all_local_files_with_working_dir(tmp_path):
         assert len(decoded) > 0
     except Exception:
         pytest.fail("Invalid base64 encoding")
+
+
+def test_extract_all_local_files_excludes_notebooks(tmp_path, caplog):
+    """
+    Test that extract_all_local_files excludes Jupyter notebooks when zipping working directory.
+    """
+    import zipfile
+    import base64
+
+    # Create test working directory with mixed files
+    working_dir = tmp_path / "working_dir"
+    working_dir.mkdir()
+
+    # Python files that should be included
+    (working_dir / "main.py").write_text("print('main script')")
+    (working_dir / "helper.py").write_text("def helper_function(): pass")
+
+    # Jupyter notebooks that should be excluded
+    (working_dir / "analysis.ipynb").write_text(
+        '{"cells": [{"cell_type": "code", "source": ["print(\'hello\')"]}]}'
+    )
+    (working_dir / "data.ipynb").write_text('{"cells": [], "metadata": {}}')
+
+    runtime_env = RuntimeEnv(working_dir=str(working_dir))
+
+    rayjob = RayJob(
+        job_name="test-job",
+        entrypoint="python main.py",
+        runtime_env=runtime_env,
+        namespace="test-namespace",
+        cluster_name="test-cluster",
+    )
+
+    # This should zip the directory and exclude notebooks
+    with caplog.at_level("INFO"):
+        files = extract_all_local_files(rayjob)
+
+    assert files is not None
+    assert "working_dir.zip" in files
+
+    # Verify exclusion was logged
+    assert "Excluded 2 Jupyter notebook files" in caplog.text
+
+    # Decode and verify zip contents
+    zip_data = base64.b64decode(files["working_dir.zip"])
+    zip_buffer = io.BytesIO(zip_data)
+
+    with zipfile.ZipFile(zip_buffer, "r") as zipf:
+        zip_contents = zipf.namelist()
+
+        # Python files should be present
+        assert "main.py" in zip_contents
+        assert "helper.py" in zip_contents
+
+        # Jupyter notebooks should be excluded
+        assert "analysis.ipynb" not in zip_contents
+        assert "data.ipynb" not in zip_contents
 
 
 def test_extract_single_entrypoint_file_error_handling(tmp_path):
@@ -894,11 +1049,11 @@ def test_extract_single_entrypoint_file_no_entrypoint():
     assert result is None
 
 
-def test_create_file_configmap_filters_metadata_keys(auto_mock_setup, tmp_path):
+def test_create_file_secret_filters_metadata_keys(auto_mock_setup, tmp_path):
     """
-    Test create_file_configmap filters out metadata keys from files dict.
+    Test create_file_secret filters out metadata keys from files dict.
     """
-    from codeflare_sdk.ray.rayjobs.runtime_env import create_file_configmap
+    from codeflare_sdk.ray.rayjobs.runtime_env import create_file_secret
 
     rayjob = RayJob(
         job_name="test-job",
@@ -922,14 +1077,14 @@ def test_create_file_configmap_filters_metadata_keys(auto_mock_setup, tmp_path):
     }
 
     # This should not raise an error and should filter out metadata keys
-    create_file_configmap(rayjob, files, rayjob_result)
+    create_file_secret(rayjob, files, rayjob_result)
 
-    # Verify the ConfigMap was created (mocked)
+    # Verify the Secret was created (mocked)
     mock_api_instance = auto_mock_setup["k8s_api"]
-    mock_api_instance.create_namespaced_config_map.assert_called_once()
+    mock_api_instance.create_namespaced_secret.assert_called_once()
 
     # The call should have filtered data (only test.py, not __entrypoint_path__)
-    call_args = mock_api_instance.create_namespaced_config_map.call_args
-    configmap_data = call_args[1]["body"].data
-    assert "test.py" in configmap_data
-    assert "__entrypoint_path__" not in configmap_data
+    call_args = mock_api_instance.create_namespaced_secret.call_args
+    secret_data = call_args[1]["body"].string_data  # Changed from data to string_data
+    assert "test.py" in secret_data
+    assert "__entrypoint_path__" not in secret_data

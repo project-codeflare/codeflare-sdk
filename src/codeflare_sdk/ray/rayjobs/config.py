@@ -24,6 +24,8 @@ from typing import Dict, List, Optional, Union, get_args, get_origin, Any, Tuple
 from kubernetes.client import (
     V1ConfigMapVolumeSource,
     V1KeyToPath,
+    V1LocalObjectReference,
+    V1SecretVolumeSource,
     V1Toleration,
     V1Volume,
     V1VolumeMount,
@@ -415,8 +417,6 @@ class ManagedClusterConfig:
 
         # Add image pull secrets if specified
         if hasattr(self, "image_pull_secrets") and self.image_pull_secrets:
-            from kubernetes.client import V1LocalObjectReference
-
             pod_spec.image_pull_secrets = [
                 V1LocalObjectReference(name=secret)
                 for secret in self.image_pull_secrets
@@ -448,12 +448,12 @@ class ManagedClusterConfig:
         """Build environment variables list."""
         return [V1EnvVar(name=key, value=value) for key, value in self.envs.items()]
 
-    def add_file_volumes(self, configmap_name: str, mount_path: str = MOUNT_PATH):
+    def add_file_volumes(self, secret_name: str, mount_path: str = MOUNT_PATH):
         """
         Add file volume and mount references to cluster configuration.
 
         Args:
-            configmap_name: Name of the ConfigMap containing files
+            secret_name: Name of the Secret containing files
             mount_path: Where to mount files in containers (default: /home/ray/scripts)
         """
         # Check if file volume already exists
@@ -478,7 +478,7 @@ class ManagedClusterConfig:
 
         # Add file volume to cluster configuration
         file_volume = V1Volume(
-            name=volume_name, config_map=V1ConfigMapVolumeSource(name=configmap_name)
+            name=volume_name, secret=V1SecretVolumeSource(secret_name=secret_name)
         )
         self.volumes.append(file_volume)
 
@@ -487,36 +487,37 @@ class ManagedClusterConfig:
         self.volume_mounts.append(file_mount)
 
         logger.info(
-            f"Added file volume '{configmap_name}' to cluster config: mount_path={mount_path}"
+            f"Added file volume '{secret_name}' to cluster config: mount_path={mount_path}"
         )
 
-    def validate_configmap_size(self, files: Dict[str, str]) -> None:
+    def validate_secret_size(self, files: Dict[str, str]) -> None:
         total_size = sum(len(content.encode("utf-8")) for content in files.values())
         if total_size > 1024 * 1024:  # 1MB
             raise ValueError(
-                f"ConfigMap size exceeds 1MB limit. Total size: {total_size} bytes"
+                f"Secret size exceeds 1MB limit. Total size: {total_size} bytes"
             )
 
-    def build_file_configmap_spec(
+    def build_file_secret_spec(
         self, job_name: str, namespace: str, files: Dict[str, str]
     ) -> Dict[str, Any]:
         """
-        Build ConfigMap specification for files
+        Build Secret specification for files
 
         Args:
-            job_name: Name of the RayJob (used for ConfigMap naming)
+            job_name: Name of the RayJob (used for Secret naming)
             namespace: Kubernetes namespace
             files: Dictionary of file_name -> file_content
 
         Returns:
-            Dict: ConfigMap specification ready for Kubernetes API
+            Dict: Secret specification ready for Kubernetes API
         """
-        configmap_name = f"{job_name}-files"
+        secret_name = f"{job_name}-files"
         return {
             "apiVersion": "v1",
-            "kind": "ConfigMap",
+            "kind": "Secret",
+            "type": "Opaque",
             "metadata": {
-                "name": configmap_name,
+                "name": secret_name,
                 "namespace": namespace,
                 "labels": {
                     "ray.io/job-name": job_name,
@@ -528,19 +529,19 @@ class ManagedClusterConfig:
         }
 
     def build_file_volume_specs(
-        self, configmap_name: str, mount_path: str = MOUNT_PATH
+        self, secret_name: str, mount_path: str = MOUNT_PATH
     ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
         """
         Build volume and mount specifications for files
 
         Args:
-            configmap_name: Name of the ConfigMap containing files
+            secret_name: Name of the Secret containing files
             mount_path: Where to mount files in containers
 
         Returns:
             Tuple of (volume_spec, mount_spec) as dictionaries
         """
-        volume_spec = {"name": "ray-job-files", "configMap": {"name": configmap_name}}
+        volume_spec = {"name": "ray-job-files", "secret": {"secretName": secret_name}}
 
         mount_spec = {"name": "ray-job-files", "mountPath": mount_path}
 
