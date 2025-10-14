@@ -25,7 +25,7 @@ class TestRayJobLifecycledCluster:
         delete_kueue_resources(self)
 
     def test_lifecycled_kueue_managed(self):
-        """Test RayJob with Kueue-managed lifecycled cluster with ConfigMap validation."""
+        """Test RayJob with Kueue-managed lifecycled cluster with Secret validation."""
         self.setup_method()
         create_namespace(self)
         create_kueue_resources(self)
@@ -49,7 +49,7 @@ class TestRayJobLifecycledCluster:
             worker_memory_limits=resources["worker_memory_limits"],
         )
 
-        # Create a temporary script file to test ConfigMap functionality
+        # Create a temporary script file to test Secret functionality
         with tempfile.NamedTemporaryFile(
             mode="w", suffix=".py", delete=False, dir=os.getcwd()
         ) as script_file:
@@ -57,7 +57,7 @@ class TestRayJobLifecycledCluster:
                 """
                 import ray
                 ray.init()
-                print('Kueue job with ConfigMap done')
+                print('Kueue job with Secret done')
                 ray.shutdown()
                 """
             )
@@ -76,8 +76,8 @@ class TestRayJobLifecycledCluster:
 
             assert rayjob.submit() == job_name
 
-            # Verify ConfigMap was created with owner reference
-            self.verify_configmap_with_owner_reference(rayjob)
+            # Verify Secret was created with owner reference
+            self.verify_secret_with_owner_reference(rayjob)
 
             assert self.job_api.wait_until_job_running(
                 name=rayjob.name, k8s_namespace=rayjob.namespace, timeout=600
@@ -190,33 +190,33 @@ class TestRayJobLifecycledCluster:
                     except:
                         pass
 
-    def verify_configmap_with_owner_reference(self, rayjob: RayJob):
-        """Verify that the ConfigMap was created with proper owner reference to the RayJob."""
+    def verify_secret_with_owner_reference(self, rayjob: RayJob):
+        """Verify that the Secret was created with proper owner reference to the RayJob."""
         v1 = client.CoreV1Api()
-        configmap_name = f"{rayjob.name}-files"
+        secret_name = f"{rayjob.name}-files"
 
         try:
-            # Get the ConfigMap
-            configmap = v1.read_namespaced_config_map(
-                name=configmap_name, namespace=rayjob.namespace
+            # Get the Secret
+            secret = v1.read_namespaced_secret(
+                name=secret_name, namespace=rayjob.namespace
             )
 
-            # Verify ConfigMap exists
-            assert configmap is not None, f"ConfigMap {configmap_name} not found"
+            # Verify Secret exists
+            assert secret is not None, f"Secret {secret_name} not found"
 
             # Verify it contains the script
-            assert configmap.data is not None, "ConfigMap has no data"
-            assert len(configmap.data) > 0, "ConfigMap data is empty"
+            assert secret.data is not None, "Secret has no data"
+            assert len(secret.data) > 0, "Secret data is empty"
 
             # Verify owner reference
             assert (
-                configmap.metadata.owner_references is not None
-            ), "ConfigMap has no owner references"
+                secret.metadata.owner_references is not None
+            ), "Secret has no owner references"
             assert (
-                len(configmap.metadata.owner_references) > 0
-            ), "ConfigMap owner references list is empty"
+                len(secret.metadata.owner_references) > 0
+            ), "Secret owner references list is empty"
 
-            owner_ref = configmap.metadata.owner_references[0]
+            owner_ref = secret.metadata.owner_references[0]
             assert (
                 owner_ref.api_version == "ray.io/v1"
             ), f"Wrong API version: {owner_ref.api_version}"
@@ -230,20 +230,20 @@ class TestRayJobLifecycledCluster:
             ), "Owner reference blockOwnerDeletion not set to true"
 
             # Verify labels
-            assert configmap.metadata.labels.get("ray.io/job-name") == rayjob.name
+            assert secret.metadata.labels.get("ray.io/job-name") == rayjob.name
             assert (
-                configmap.metadata.labels.get("app.kubernetes.io/managed-by")
+                secret.metadata.labels.get("app.kubernetes.io/managed-by")
                 == "codeflare-sdk"
             )
             assert (
-                configmap.metadata.labels.get("app.kubernetes.io/component")
+                secret.metadata.labels.get("app.kubernetes.io/component")
                 == "rayjob-files"
             )
 
-            print(f"✓ ConfigMap {configmap_name} verified with proper owner reference")
+            print(f"✓ Secret {secret_name} verified with proper owner reference")
 
         except client.rest.ApiException as e:
             if e.status == 404:
-                raise AssertionError(f"ConfigMap {configmap_name} not found")
+                raise AssertionError(f"Secret {secret_name} not found")
             else:
                 raise e

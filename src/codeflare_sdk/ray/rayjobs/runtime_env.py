@@ -28,6 +28,24 @@ PYTHON_FILE_PATTERN = r"(?:python\s+)?([./\w/-]+\.py)"
 # Path where working_dir will be unzipped on submitter pod
 UNZIP_PATH = "/tmp/rayjob-working-dir"
 
+# File pattern to exclude from working directory zips
+# Jupyter notebooks can contain sensitive outputs, tokens, and large data
+JUPYTER_NOTEBOOK_PATTERN = r"\.ipynb$"
+
+
+def _should_exclude_file(file_path: str) -> bool:
+    """
+    Check if file should be excluded from working directory zip.
+    Currently excludes Jupyter notebook files (.ipynb).
+
+    Args:
+        file_path: Relative file path within the working directory
+
+    Returns:
+        True if file should be excluded, False otherwise
+    """
+    return bool(re.search(JUPYTER_NOTEBOOK_PATTERN, file_path, re.IGNORECASE))
+
 
 def _normalize_runtime_env(
     runtime_env: Optional[RuntimeEnv],
@@ -39,7 +57,7 @@ def _normalize_runtime_env(
 
 def extract_all_local_files(job: RayJob) -> Optional[Dict[str, str]]:
     """
-    Prepare local files for ConfigMap upload.
+    Prepare local files for Secret upload.
 
     - If runtime_env has local working_dir: zip entire directory into single file
     - If single entrypoint file (no working_dir): extract that file
@@ -76,7 +94,7 @@ def extract_all_local_files(job: RayJob) -> Optional[Dict[str, str]]:
         logger.info(f"Zipping local working_dir: {working_dir}")
         zip_data = _zip_directory(working_dir)
         if zip_data:
-            # Encode zip as base64 for ConfigMap storage
+            # Encode zip as base64 for Secret storage
             zip_base64 = base64.b64encode(zip_data).decode("utf-8")
             return {"working_dir.zip": zip_base64}
 
@@ -90,7 +108,7 @@ def extract_all_local_files(job: RayJob) -> Optional[Dict[str, str]]:
 
 def _zip_directory(directory_path: str) -> Optional[bytes]:
     """
-    Zip entire directory preserving structure.
+    Zip entire directory preserving structure, excluding Jupyter notebook files.
 
     Args:
         directory_path: Path to directory to zip
@@ -101,6 +119,7 @@ def _zip_directory(directory_path: str) -> Optional[bytes]:
     try:
         # Create in-memory zip file
         zip_buffer = io.BytesIO()
+        excluded_count = 0
 
         with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zipf:
             # Walk through directory and add all files
@@ -109,13 +128,26 @@ def _zip_directory(directory_path: str) -> Optional[bytes]:
                     file_path = os.path.join(root, file)
                     # Calculate relative path from directory_path
                     arcname = os.path.relpath(file_path, directory_path)
+
+                    # Check if file should be excluded
+                    if _should_exclude_file(arcname):
+                        excluded_count += 1
+                        logger.debug(f"Excluded from zip: {arcname}")
+                        continue
+
                     zipf.write(file_path, arcname)
                     logger.debug(f"Added to zip: {arcname}")
 
         zip_data = zip_buffer.getvalue()
-        logger.info(
+
+        # Log summary with exclusion count
+        log_message = (
             f"Successfully zipped directory: {directory_path} ({len(zip_data)} bytes)"
         )
+        if excluded_count > 0:
+            log_message += f" - Excluded {excluded_count} Jupyter notebook files"
+        logger.info(log_message)
+
         return zip_data
 
     except (IOError, OSError) as e:
@@ -128,7 +160,7 @@ def _extract_single_entrypoint_file(job: RayJob) -> Optional[Dict[str, str]]:
     Extract single Python file from entrypoint if no working_dir specified.
 
     Returns a dict with metadata about the file path structure so we can
-    preserve it when mounting via ConfigMap.
+    preserve it when mounting via Secret.
 
     Args:
         job: RayJob instance
@@ -150,8 +182,8 @@ def _extract_single_entrypoint_file(job: RayJob) -> Optional[Dict[str, str]]:
                 with open(file_path, "r") as f:
                     content = f.read()
 
-                # Use basename as key (ConfigMap keys can't have slashes)
-                # But store the full path for later use in ConfigMap item.path
+                # Use basename as key (Secret keys can't have slashes)
+                # But store the full path for later use in Secret item.path
                 filename = os.path.basename(file_path)
                 relative_path = file_path.lstrip("./")
 
@@ -283,23 +315,23 @@ def parse_requirements_file(requirements_path: str) -> Optional[List[str]]:
         return None
 
 
-def create_configmap_from_spec(
-    job: RayJob, configmap_spec: Dict[str, Any], rayjob_result: Dict[str, Any] = None
+def create_secret_from_spec(
+    job: RayJob, secret_spec: Dict[str, Any], rayjob_result: Dict[str, Any] = None
 ) -> str:
     """
-    Create ConfigMap from specification via Kubernetes API.
+    Create Secret from specification via Kubernetes API.
 
     Args:
-        configmap_spec: ConfigMap specification dictionary
+        secret_spec: Secret specification dictionary
         rayjob_result: The result from RayJob creation containing UID
 
     Returns:
-        str: Name of the created ConfigMap
+        str: Name of the created Secret
     """
 
-    configmap_name = configmap_spec["metadata"]["name"]
+    secret_name = secret_spec["metadata"]["name"]
 
-    metadata = client.V1ObjectMeta(**configmap_spec["metadata"])
+    metadata = client.V1ObjectMeta(**secret_spec["metadata"])
 
     # Add owner reference if we have the RayJob result
     if (
@@ -308,7 +340,7 @@ def create_configmap_from_spec(
         and rayjob_result.get("metadata", {}).get("uid")
     ):
         logger.info(
-            f"Adding owner reference to ConfigMap '{configmap_name}' with RayJob UID: {rayjob_result['metadata']['uid']}"
+            f"Adding owner reference to Secret '{secret_name}' with RayJob UID: {rayjob_result['metadata']['uid']}"
         )
         metadata.owner_references = [
             client.V1OwnerReference(
@@ -322,52 +354,55 @@ def create_configmap_from_spec(
         ]
     else:
         logger.warning(
-            f"No valid RayJob result with UID found, ConfigMap '{configmap_name}' will not have owner reference. Result: {rayjob_result}"
+            f"No valid RayJob result with UID found, Secret '{secret_name}' will not have owner reference. Result: {rayjob_result}"
         )
 
-    # Convert dict spec to V1ConfigMap
-    configmap = client.V1ConfigMap(
+    # Convert dict spec to V1Secret
+    # Use stringData instead of data to avoid double base64 encoding
+    # Our zip files are already base64-encoded, so stringData will handle the final encoding
+    secret = client.V1Secret(
         metadata=metadata,
-        data=configmap_spec["data"],
+        type=secret_spec.get("type", "Opaque"),
+        string_data=secret_spec["data"],
     )
 
-    # Create ConfigMap via Kubernetes API
+    # Create Secret via Kubernetes API
     k8s_api = client.CoreV1Api(get_api_client())
     try:
-        k8s_api.create_namespaced_config_map(namespace=job.namespace, body=configmap)
+        k8s_api.create_namespaced_secret(namespace=job.namespace, body=secret)
         logger.info(
-            f"Created ConfigMap '{configmap_name}' with {len(configmap_spec['data'])} files"
+            f"Created Secret '{secret_name}' with {len(secret_spec['data'])} files"
         )
     except client.ApiException as e:
         if e.status == 409:  # Already exists
-            logger.info(f"ConfigMap '{configmap_name}' already exists, updating...")
-            k8s_api.replace_namespaced_config_map(
-                name=configmap_name, namespace=job.namespace, body=configmap
+            logger.info(f"Secret '{secret_name}' already exists, updating...")
+            k8s_api.replace_namespaced_secret(
+                name=secret_name, namespace=job.namespace, body=secret
             )
         else:
-            raise RuntimeError(f"Failed to create ConfigMap '{configmap_name}': {e}")
+            raise RuntimeError(f"Failed to create Secret '{secret_name}': {e}")
 
-    return configmap_name
+    return secret_name
 
 
-def create_file_configmap(
+def create_file_secret(
     job: RayJob, files: Dict[str, str], rayjob_result: Dict[str, Any]
 ):
     """
-    Create ConfigMap with owner reference for local files.
+    Create Secret with owner reference for local files.
     """
-    # Use a basic config builder for ConfigMap creation
+    # Use a basic config builder for Secret creation
     config_builder = ManagedClusterConfig()
 
-    # Filter out metadata keys (like __entrypoint_path__) from ConfigMap data
-    configmap_files = {k: v for k, v in files.items() if not k.startswith("__")}
+    # Filter out metadata keys (like __entrypoint_path__) from Secret data
+    secret_files = {k: v for k, v in files.items() if not k.startswith("__")}
 
-    # Validate and build ConfigMap spec
-    config_builder.validate_configmap_size(configmap_files)
-    configmap_spec = config_builder.build_file_configmap_spec(
-        job_name=job.name, namespace=job.namespace, files=configmap_files
+    # Validate and build Secret spec
+    config_builder.validate_secret_size(secret_files)
+    secret_spec = config_builder.build_file_secret_spec(
+        job_name=job.name, namespace=job.namespace, files=secret_files
     )
 
-    # Create ConfigMap with owner reference
+    # Create Secret with owner reference
     # TODO Error handling
-    create_configmap_from_spec(job, configmap_spec, rayjob_result)
+    create_secret_from_spec(job, secret_spec, rayjob_result)
