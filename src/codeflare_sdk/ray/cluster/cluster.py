@@ -495,8 +495,19 @@ class Cluster:
     def cluster_dashboard_uri(self) -> str:
         """
         Returns a string containing the cluster's dashboard URI.
+        Tries HTTPRoute first (RHOAI v3.0+), then falls back to OpenShift Routes or Ingresses.
         """
         config_check()
+
+        # Try HTTPRoute first (RHOAI v3.0+)
+        # This will return None if HTTPRoute is not found (SDK v0.31.1 and below or Kind clusters)
+        httproute_url = _get_dashboard_url_from_httproute(
+            self.config.name, self.config.namespace
+        )
+        if httproute_url:
+            return httproute_url
+
+        # Fall back to OpenShift Routes (pre-v3.0) or Ingresses (Kind)
         if _is_openshift_cluster():
             try:
                 api_instance = client.CustomObjectsApi(get_api_client())
@@ -1001,45 +1012,51 @@ def _map_to_ray_cluster(rc) -> Optional[RayCluster]:
         status = RayClusterStatus.UNKNOWN
     config_check()
     dashboard_url = None
-    if _is_openshift_cluster():
-        try:
-            api_instance = client.CustomObjectsApi(get_api_client())
-            routes = api_instance.list_namespaced_custom_object(
-                group="route.openshift.io",
-                version="v1",
-                namespace=rc["metadata"]["namespace"],
-                plural="routes",
-            )
-        except Exception as e:  # pragma: no cover
-            return _kube_api_error_handling(e)
 
-        for route in routes["items"]:
-            rc_name = rc["metadata"]["name"]
-            if route["metadata"]["name"] == f"ray-dashboard-{rc_name}" or route[
-                "metadata"
-            ]["name"].startswith(f"{rc_name}-ingress"):
-                protocol = "https" if route["spec"].get("tls") else "http"
-                dashboard_url = f"{protocol}://{route['spec']['host']}"
-    else:
-        try:
-            api_instance = client.NetworkingV1Api(get_api_client())
-            ingresses = api_instance.list_namespaced_ingress(
-                rc["metadata"]["namespace"]
-            )
-        except Exception as e:  # pragma no cover
-            return _kube_api_error_handling(e)
-        for ingress in ingresses.items:
-            annotations = ingress.metadata.annotations
-            protocol = "http"
-            if (
-                ingress.metadata.name == f"ray-dashboard-{rc['metadata']['name']}"
-                or ingress.metadata.name.startswith(f"{rc['metadata']['name']}-ingress")
-            ):
-                if annotations == None:
-                    protocol = "http"
-                elif "route.openshift.io/termination" in annotations:
-                    protocol = "https"
-            dashboard_url = f"{protocol}://{ingress.spec.rules[0].host}"
+    # Try HTTPRoute first (RHOAI v3.0+)
+    rc_name = rc["metadata"]["name"]
+    rc_namespace = rc["metadata"]["namespace"]
+    dashboard_url = _get_dashboard_url_from_httproute(rc_name, rc_namespace)
+
+    # Fall back to OpenShift Routes or Ingresses if HTTPRoute not found
+    if not dashboard_url:
+        if _is_openshift_cluster():
+            try:
+                api_instance = client.CustomObjectsApi(get_api_client())
+                routes = api_instance.list_namespaced_custom_object(
+                    group="route.openshift.io",
+                    version="v1",
+                    namespace=rc_namespace,
+                    plural="routes",
+                )
+            except Exception as e:  # pragma: no cover
+                return _kube_api_error_handling(e)
+
+            for route in routes["items"]:
+                if route["metadata"]["name"] == f"ray-dashboard-{rc_name}" or route[
+                    "metadata"
+                ]["name"].startswith(f"{rc_name}-ingress"):
+                    protocol = "https" if route["spec"].get("tls") else "http"
+                    dashboard_url = f"{protocol}://{route['spec']['host']}"
+                    break
+        else:
+            try:
+                api_instance = client.NetworkingV1Api(get_api_client())
+                ingresses = api_instance.list_namespaced_ingress(rc_namespace)
+            except Exception as e:  # pragma no cover
+                return _kube_api_error_handling(e)
+            for ingress in ingresses.items:
+                annotations = ingress.metadata.annotations
+                protocol = "http"
+                if (
+                    ingress.metadata.name == f"ray-dashboard-{rc_name}"
+                    or ingress.metadata.name.startswith(f"{rc_name}-ingress")
+                ):
+                    if annotations == None:
+                        protocol = "http"
+                    elif "route.openshift.io/termination" in annotations:
+                        protocol = "https"
+                dashboard_url = f"{protocol}://{ingress.spec.rules[0].host}"
 
     (
         head_extended_resources,
@@ -1129,3 +1146,80 @@ def _is_openshift_cluster():
             return False
     except Exception as e:  # pragma: no cover
         return _kube_api_error_handling(e)
+
+
+# Get dashboard URL from HTTPRoute (RHOAI v3.0+)
+def _get_dashboard_url_from_httproute(
+    cluster_name: str, namespace: str
+) -> Optional[str]:
+    """
+    Attempts to get the Ray dashboard URL from an HTTPRoute resource.
+    This is used for RHOAI v3.0+ clusters that use Gateway API.
+
+    Args:
+        cluster_name: Name of the Ray cluster
+        namespace: Namespace of the Ray cluster
+
+    Returns:
+        Dashboard URL if HTTPRoute is found, None otherwise
+    """
+    try:
+        config_check()
+        api_instance = client.CustomObjectsApi(get_api_client())
+
+        # Try to get HTTPRoute for this Ray cluster
+        try:
+            httproute = api_instance.get_namespaced_custom_object(
+                group="gateway.networking.k8s.io",
+                version="v1",
+                namespace=namespace,
+                plural="httproutes",
+                name=cluster_name,
+            )
+        except client.exceptions.ApiException as e:
+            if e.status == 404:
+                # HTTPRoute not found - this is expected for SDK v0.31.1 and below or Kind clusters
+                return None
+            raise
+
+        # Get the Gateway reference from HTTPRoute
+        parent_refs = httproute.get("spec", {}).get("parentRefs", [])
+        if not parent_refs:
+            return None
+
+        gateway_ref = parent_refs[0]
+        gateway_name = gateway_ref.get("name")
+        gateway_namespace = gateway_ref.get("namespace")
+
+        if not gateway_name or not gateway_namespace:
+            return None
+
+        # Get the Gateway to retrieve the hostname
+        gateway = api_instance.get_namespaced_custom_object(
+            group="gateway.networking.k8s.io",
+            version="v1",
+            namespace=gateway_namespace,
+            plural="gateways",
+            name=gateway_name,
+        )
+
+        # Extract hostname from Gateway listeners
+        listeners = gateway.get("spec", {}).get("listeners", [])
+        if not listeners:
+            return None
+
+        hostname = listeners[0].get("hostname")
+        if not hostname:
+            return None
+
+        # Construct the dashboard URL using RHOAI v3.0+ Gateway API pattern
+        # The HTTPRoute existence confirms v3.0+, so we use the standard path pattern
+        # Format: https://{hostname}/ray/{namespace}/{cluster-name}
+        protocol = "https"  # Gateway API uses HTTPS
+        dashboard_url = f"{protocol}://{hostname}/ray/{namespace}/{cluster_name}"
+
+        return dashboard_url
+
+    except Exception as e:  # pragma: no cover
+        # If any error occurs, return None to fall back to OpenShift Route
+        return None
