@@ -954,13 +954,359 @@ def test_cluster_namespace_type_error(mocker):
         Cluster(config)
 
 
+def test_get_dashboard_url_from_httproute(mocker):
+    """
+    Test the HTTPRoute dashboard URL generation for RHOAI v3.0+
+    """
+    from codeflare_sdk.ray.cluster.cluster import _get_dashboard_url_from_httproute
+
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+
+    # Test successful HTTPRoute and Gateway lookup
+    mock_httproute = {
+        "metadata": {"name": "test-cluster", "namespace": "test-ns"},
+        "spec": {
+            "parentRefs": [
+                {
+                    "group": "gateway.networking.k8s.io",
+                    "kind": "Gateway",
+                    "name": "data-science-gateway",
+                    "namespace": "openshift-ingress",
+                }
+            ]
+        },
+    }
+
+    mock_gateway = {
+        "metadata": {"name": "data-science-gateway", "namespace": "openshift-ingress"},
+        "spec": {
+            "listeners": [
+                {
+                    "name": "https",
+                    "hostname": "data-science-gateway.apps.example.com",
+                    "port": 443,
+                    "protocol": "HTTPS",
+                }
+            ]
+        },
+    }
+
+    # Mock the CustomObjectsApi to return HTTPRoute and Gateway
+    def mock_get_namespaced_custom_object(group, version, namespace, plural, name):
+        if plural == "httproutes":
+            return mock_httproute
+        elif plural == "gateways":
+            return mock_gateway
+        raise Exception("Unexpected plural")
+
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.get_namespaced_custom_object",
+        side_effect=mock_get_namespaced_custom_object,
+    )
+
+    # Test successful URL generation
+    result = _get_dashboard_url_from_httproute("test-cluster", "test-ns")
+    expected_url = (
+        "https://data-science-gateway.apps.example.com/ray/test-ns/test-cluster"
+    )
+    assert result == expected_url, f"Expected {expected_url}, got {result}"
+
+    # Test HTTPRoute not found (404) - should return None
+    def mock_404_error(group, version, namespace, plural, name):
+        error = client.exceptions.ApiException(status=404)
+        error.status = 404
+        raise error
+
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.get_namespaced_custom_object",
+        side_effect=mock_404_error,
+    )
+
+    result = _get_dashboard_url_from_httproute("nonexistent-cluster", "test-ns")
+    assert result is None, "Should return None when HTTPRoute not found"
+
+    # Test HTTPRoute with empty parentRefs - should return None
+    mock_httproute_no_parents = {
+        "metadata": {"name": "test-cluster", "namespace": "test-ns"},
+        "spec": {"parentRefs": []},  # Empty parentRefs
+    }
+
+    def mock_httproute_no_parents_fn(group, version, namespace, plural, name):
+        if plural == "httproutes":
+            return mock_httproute_no_parents
+        raise Exception("Unexpected plural")
+
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.get_namespaced_custom_object",
+        side_effect=mock_httproute_no_parents_fn,
+    )
+
+    result = _get_dashboard_url_from_httproute("test-cluster", "test-ns")
+    assert result is None, "Should return None when HTTPRoute has empty parentRefs"
+
+    # Test HTTPRoute with missing gateway name - should return None
+    mock_httproute_no_name = {
+        "metadata": {"name": "test-cluster", "namespace": "test-ns"},
+        "spec": {
+            "parentRefs": [
+                {
+                    "group": "gateway.networking.k8s.io",
+                    "kind": "Gateway",
+                    # Missing "name" field
+                    "namespace": "openshift-ingress",
+                }
+            ]
+        },
+    }
+
+    def mock_httproute_no_name_fn(group, version, namespace, plural, name):
+        if plural == "httproutes":
+            return mock_httproute_no_name
+        raise Exception("Unexpected plural")
+
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.get_namespaced_custom_object",
+        side_effect=mock_httproute_no_name_fn,
+    )
+
+    result = _get_dashboard_url_from_httproute("test-cluster", "test-ns")
+    assert result is None, "Should return None when gateway reference missing name"
+
+    # Test HTTPRoute with missing gateway namespace - should return None
+    mock_httproute_no_namespace = {
+        "metadata": {"name": "test-cluster", "namespace": "test-ns"},
+        "spec": {
+            "parentRefs": [
+                {
+                    "group": "gateway.networking.k8s.io",
+                    "kind": "Gateway",
+                    "name": "data-science-gateway",
+                    # Missing "namespace" field
+                }
+            ]
+        },
+    }
+
+    def mock_httproute_no_namespace_fn(group, version, namespace, plural, name):
+        if plural == "httproutes":
+            return mock_httproute_no_namespace
+        raise Exception("Unexpected plural")
+
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.get_namespaced_custom_object",
+        side_effect=mock_httproute_no_namespace_fn,
+    )
+
+    result = _get_dashboard_url_from_httproute("test-cluster", "test-ns")
+    assert result is None, "Should return None when gateway reference missing namespace"
+
+    # Test Gateway with empty listeners - should return None
+    mock_httproute_valid = {
+        "metadata": {"name": "test-cluster", "namespace": "test-ns"},
+        "spec": {
+            "parentRefs": [
+                {
+                    "group": "gateway.networking.k8s.io",
+                    "kind": "Gateway",
+                    "name": "data-science-gateway",
+                    "namespace": "openshift-ingress",
+                }
+            ]
+        },
+    }
+
+    mock_gateway_no_listeners = {
+        "metadata": {"name": "data-science-gateway", "namespace": "openshift-ingress"},
+        "spec": {"listeners": []},  # Empty listeners
+    }
+
+    def mock_gateway_no_listeners_fn(group, version, namespace, plural, name):
+        if plural == "httproutes":
+            return mock_httproute_valid
+        elif plural == "gateways":
+            return mock_gateway_no_listeners
+        raise Exception("Unexpected plural")
+
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.get_namespaced_custom_object",
+        side_effect=mock_gateway_no_listeners_fn,
+    )
+
+    result = _get_dashboard_url_from_httproute("test-cluster", "test-ns")
+    assert result is None, "Should return None when Gateway has empty listeners"
+
+    # Test Gateway listener with missing hostname - should return None
+    mock_gateway_no_hostname = {
+        "metadata": {"name": "data-science-gateway", "namespace": "openshift-ingress"},
+        "spec": {
+            "listeners": [
+                {
+                    "name": "https",
+                    # Missing "hostname" field
+                    "port": 443,
+                    "protocol": "HTTPS",
+                }
+            ]
+        },
+    }
+
+    def mock_gateway_no_hostname_fn(group, version, namespace, plural, name):
+        if plural == "httproutes":
+            return mock_httproute_valid
+        elif plural == "gateways":
+            return mock_gateway_no_hostname
+        raise Exception("Unexpected plural")
+
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.get_namespaced_custom_object",
+        side_effect=mock_gateway_no_hostname_fn,
+    )
+
+    result = _get_dashboard_url_from_httproute("test-cluster", "test-ns")
+    assert result is None, "Should return None when listener missing hostname"
+
+    # Test non-404 ApiException - should be re-raised then caught by outer handler
+    # The function is designed to return None for any unexpected errors via outer try-catch
+    def mock_403_error(group, version, namespace, plural, name):
+        error = client.exceptions.ApiException(status=403)
+        error.status = 403
+        raise error
+
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.get_namespaced_custom_object",
+        side_effect=mock_403_error,
+    )
+
+    # Should return None (the inner handler re-raises, outer handler catches and returns None)
+    result = _get_dashboard_url_from_httproute("test-cluster", "test-ns")
+    assert (
+        result is None
+    ), "Should return None when non-404 exception occurs (caught by outer handler)"
+
+
+def test_cluster_dashboard_uri_httproute_first(mocker):
+    """
+    Test that cluster_dashboard_uri() tries HTTPRoute first, then falls back to OpenShift Routes
+    """
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
+        return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
+    )
+
+    # Test 1: HTTPRoute exists - should return HTTPRoute URL
+    mocker.patch(
+        "codeflare_sdk.ray.cluster.cluster._is_openshift_cluster", return_value=True
+    )
+
+    httproute_url = (
+        "https://data-science-gateway.apps.example.com/ray/ns/unit-test-cluster"
+    )
+    mocker.patch(
+        "codeflare_sdk.ray.cluster.cluster._get_dashboard_url_from_httproute",
+        return_value=httproute_url,
+    )
+
+    cluster = create_cluster(mocker)
+    result = cluster.cluster_dashboard_uri()
+    assert result == httproute_url, "Should return HTTPRoute URL when available"
+
+    # Test 2: HTTPRoute not found - should fall back to OpenShift Route
+    mocker.patch(
+        "codeflare_sdk.ray.cluster.cluster._get_dashboard_url_from_httproute",
+        return_value=None,
+    )
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
+        return_value={
+            "items": [
+                {
+                    "metadata": {"name": "ray-dashboard-unit-test-cluster"},
+                    "spec": {
+                        "host": "ray-dashboard-unit-test-cluster-ns.apps.cluster.awsroute.org",
+                        "tls": {"termination": "passthrough"},
+                    },
+                }
+            ]
+        },
+    )
+
+    cluster = create_cluster(mocker)
+    result = cluster.cluster_dashboard_uri()
+    expected = "https://ray-dashboard-unit-test-cluster-ns.apps.cluster.awsroute.org"
+    assert (
+        result == expected
+    ), f"Should fall back to OpenShift Route. Expected {expected}, got {result}"
+
+
+def test_map_to_ray_cluster_httproute(mocker):
+    """
+    Test that _map_to_ray_cluster() uses HTTPRoute-first logic
+    """
+    from codeflare_sdk.ray.cluster.cluster import _map_to_ray_cluster
+
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+    mocker.patch(
+        "codeflare_sdk.ray.cluster.cluster._is_openshift_cluster", return_value=True
+    )
+
+    # Test with HTTPRoute available
+    httproute_url = (
+        "https://data-science-gateway.apps.example.com/ray/ns/test-cluster-a"
+    )
+    mocker.patch(
+        "codeflare_sdk.ray.cluster.cluster._get_dashboard_url_from_httproute",
+        return_value=httproute_url,
+    )
+
+    rc = get_ray_obj("ray.io", "v1", "ns", "rayclusters")["items"][0]
+    result = _map_to_ray_cluster(rc)
+
+    assert (
+        result.dashboard == httproute_url
+    ), f"Expected HTTPRoute URL, got {result.dashboard}"
+
+    # Test with HTTPRoute not available - should fall back to OpenShift Route
+    mocker.patch(
+        "codeflare_sdk.ray.cluster.cluster._get_dashboard_url_from_httproute",
+        return_value=None,
+    )
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
+        return_value={
+            "items": [
+                {
+                    "kind": "Route",
+                    "metadata": {
+                        "name": "ray-dashboard-test-cluster-a",
+                        "namespace": "ns",
+                    },
+                    "spec": {"host": "ray-dashboard-test-cluster-a.apps.example.com"},
+                }
+            ]
+        },
+    )
+
+    rc = get_ray_obj("ray.io", "v1", "ns", "rayclusters")["items"][0]
+    result = _map_to_ray_cluster(rc)
+
+    expected_fallback = "http://ray-dashboard-test-cluster-a.apps.example.com"
+    assert (
+        result.dashboard == expected_fallback
+    ), f"Expected OpenShift Route fallback URL, got {result.dashboard}"
+
+
 # Make sure to always keep this function last
 def test_cleanup():
-    # Remove files only if they exist
-    test_file = f"{aw_dir}test-all-params.yaml"
-    if os.path.exists(test_file):
-        os.remove(test_file)
+    # Clean up test files if they exist
+    # Using try-except to handle cases where files weren't created (e.g., when running full test suite)
+    try:
+        os.remove(f"{aw_dir}test-all-params.yaml")
+    except FileNotFoundError:
+        pass  # File doesn't exist, nothing to clean up
 
-    aw_file = f"{aw_dir}aw-all-params.yaml"
-    if os.path.exists(aw_file):
-        os.remove(aw_file)
+    try:
+        os.remove(f"{aw_dir}aw-all-params.yaml")
+    except FileNotFoundError:
+        pass  # File doesn't exist, nothing to clean up
