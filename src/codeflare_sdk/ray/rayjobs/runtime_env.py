@@ -28,15 +28,17 @@ PYTHON_FILE_PATTERN = r"(?:python\s+)?([./\w/-]+\.py)"
 # Path where working_dir will be unzipped on submitter pod
 UNZIP_PATH = "/tmp/rayjob-working-dir"
 
-# File pattern to exclude from working directory zips
-# Jupyter notebooks can contain sensitive outputs, tokens, and large data
+# Exclude Jupyter notebook and Markdown files from working directory zips
 JUPYTER_NOTEBOOK_PATTERN = r"\.ipynb$"
+MARKDOWN_FILE_PATTERN = r"\.md$"
 
 
 def _should_exclude_file(file_path: str) -> bool:
     """
     Check if file should be excluded from working directory zip.
-    Currently excludes Jupyter notebook files (.ipynb).
+    Currently excludes:
+    - Jupyter notebook files (.ipynb)
+    - Markdown files (.md)
 
     Args:
         file_path: Relative file path within the working directory
@@ -44,7 +46,10 @@ def _should_exclude_file(file_path: str) -> bool:
     Returns:
         True if file should be excluded, False otherwise
     """
-    return bool(re.search(JUPYTER_NOTEBOOK_PATTERN, file_path, re.IGNORECASE))
+    return bool(
+        re.search(JUPYTER_NOTEBOOK_PATTERN, file_path, re.IGNORECASE)
+        or re.search(MARKDOWN_FILE_PATTERN, file_path, re.IGNORECASE)
+    )
 
 
 def _normalize_runtime_env(
@@ -145,7 +150,7 @@ def _zip_directory(directory_path: str) -> Optional[bytes]:
             f"Successfully zipped directory: {directory_path} ({len(zip_data)} bytes)"
         )
         if excluded_count > 0:
-            log_message += f" - Excluded {excluded_count} Jupyter notebook files"
+            log_message += f" - Excluded {excluded_count} file(s) (.ipynb, .md)"
         logger.info(log_message)
 
         return zip_data

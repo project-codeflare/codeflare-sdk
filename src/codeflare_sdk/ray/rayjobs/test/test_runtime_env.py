@@ -575,7 +575,7 @@ def test_zip_directory_functionality(tmp_path):
 
 def test_zip_directory_excludes_jupyter_notebooks(tmp_path, caplog):
     """
-    Test that Jupyter notebook files (.ipynb) are excluded from zip.
+    Test that Jupyter notebook files (.ipynb) and markdown files (.md) are excluded from zip.
     """
     from codeflare_sdk.ray.rayjobs.runtime_env import _zip_directory
     import zipfile
@@ -594,11 +594,16 @@ def test_zip_directory_excludes_jupyter_notebooks(tmp_path, caplog):
         '{"cells": [], "metadata": {}}'
     )  # Test case insensitive
 
+    # Create markdown files (should be excluded)
+    (test_dir / "README.md").write_text("# Project Documentation\n")
+    (test_dir / "CHANGELOG.MD").write_text("# Changes\n")  # Test case insensitive
+
     # Create subdirectory with mixed files
     sub_dir = test_dir / "notebooks"
     sub_dir.mkdir()
     (sub_dir / "data_exploration.ipynb").write_text('{"cells": [], "metadata": {}}')
     (sub_dir / "helper.py").write_text("print('nested file')")
+    (sub_dir / "guide.md").write_text("# Guide\n")
 
     # Test zipping
     with caplog.at_level("INFO"):
@@ -607,8 +612,8 @@ def test_zip_directory_excludes_jupyter_notebooks(tmp_path, caplog):
     assert zip_data is not None
     assert len(zip_data) > 0
 
-    # Verify log message includes exclusion count
-    assert "Excluded 3 Jupyter notebook files" in caplog.text
+    # Verify log message includes exclusion count (3 ipynb + 3 md = 6 total)
+    assert "Excluded 6 file(s) (.ipynb, .md)" in caplog.text
 
     # Verify excluded files are not in the zip
     zip_buffer = io.BytesIO(zip_data)
@@ -625,10 +630,15 @@ def test_zip_directory_excludes_jupyter_notebooks(tmp_path, caplog):
         assert "experiment.IPYNB" not in zip_contents
         assert "notebooks/data_exploration.ipynb" not in zip_contents
 
+        # Markdown files should be excluded
+        assert "README.md" not in zip_contents
+        assert "CHANGELOG.MD" not in zip_contents
+        assert "notebooks/guide.md" not in zip_contents
+
 
 def test_zip_directory_no_exclusions_when_no_notebooks(tmp_path, caplog):
     """
-    Test that no exclusion message is logged when no notebook files exist.
+    Test that no exclusion message is logged when no notebook or markdown files exist.
     """
     from codeflare_sdk.ray.rayjobs.runtime_env import _zip_directory
 
@@ -646,7 +656,6 @@ def test_zip_directory_no_exclusions_when_no_notebooks(tmp_path, caplog):
 
     # Verify log message does NOT mention exclusions
     assert "Excluded" not in caplog.text
-    assert "Jupyter notebook files" not in caplog.text
 
 
 def test_should_exclude_file_function():
@@ -661,12 +670,19 @@ def test_should_exclude_file_function():
     assert _should_exclude_file("data/exploration.ipynb") is True
     assert _should_exclude_file("subdir/nested.Ipynb") is True
 
+    # Should exclude .md files (case insensitive)
+    assert _should_exclude_file("README.md") is True
+    assert _should_exclude_file("CHANGELOG.MD") is True
+    assert _should_exclude_file("docs/guide.md") is True
+    assert _should_exclude_file("subdir/notes.Md") is True
+
     # Should NOT exclude other files
     assert _should_exclude_file("script.py") is False
     assert _should_exclude_file("data.json") is False
     assert _should_exclude_file("requirements.txt") is False
-    assert _should_exclude_file("README.md") is False
     assert _should_exclude_file("model.pkl") is False
+    assert _should_exclude_file("markdown_parser.py") is False  # Not .md
+    assert _should_exclude_file("test.html") is False
 
 
 def test_zip_directory_error_handling():
@@ -718,7 +734,7 @@ def test_extract_all_local_files_with_working_dir(tmp_path):
 
 def test_extract_all_local_files_excludes_notebooks(tmp_path, caplog):
     """
-    Test that extract_all_local_files excludes Jupyter notebooks when zipping working directory.
+    Test that extract_all_local_files excludes Jupyter notebooks and markdown files when zipping working directory.
     """
     import zipfile
     import base64
@@ -737,6 +753,10 @@ def test_extract_all_local_files_excludes_notebooks(tmp_path, caplog):
     )
     (working_dir / "data.ipynb").write_text('{"cells": [], "metadata": {}}')
 
+    # Markdown files that should be excluded
+    (working_dir / "README.md").write_text("# Project Documentation\n")
+    (working_dir / "CHANGELOG.md").write_text("# Changes\n")
+
     runtime_env = RuntimeEnv(working_dir=str(working_dir))
 
     rayjob = RayJob(
@@ -747,15 +767,15 @@ def test_extract_all_local_files_excludes_notebooks(tmp_path, caplog):
         cluster_name="test-cluster",
     )
 
-    # This should zip the directory and exclude notebooks
+    # This should zip the directory and exclude notebooks and markdown files
     with caplog.at_level("INFO"):
         files = extract_all_local_files(rayjob)
 
     assert files is not None
     assert "working_dir.zip" in files
 
-    # Verify exclusion was logged
-    assert "Excluded 2 Jupyter notebook files" in caplog.text
+    # Verify exclusion was logged (2 ipynb + 2 md = 4 total)
+    assert "Excluded 4 file(s) (.ipynb, .md)" in caplog.text
 
     # Decode and verify zip contents
     zip_data = base64.b64decode(files["working_dir.zip"])
@@ -771,6 +791,10 @@ def test_extract_all_local_files_excludes_notebooks(tmp_path, caplog):
         # Jupyter notebooks should be excluded
         assert "analysis.ipynb" not in zip_contents
         assert "data.ipynb" not in zip_contents
+
+        # Markdown files should be excluded
+        assert "README.md" not in zip_contents
+        assert "CHANGELOG.md" not in zip_contents
 
 
 def test_extract_single_entrypoint_file_error_handling(tmp_path):
