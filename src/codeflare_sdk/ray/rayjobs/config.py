@@ -22,8 +22,6 @@ import pathlib
 from dataclasses import dataclass, field, fields
 from typing import Dict, List, Optional, Union, get_args, get_origin, Any, Tuple
 from kubernetes.client import (
-    V1ConfigMapVolumeSource,
-    V1KeyToPath,
     V1LocalObjectReference,
     V1SecretVolumeSource,
     V1Toleration,
@@ -61,50 +59,6 @@ DEFAULT_ACCELERATORS = {
     "huawei.com/Ascend910": "NPU",
     "huawei.com/Ascend310": "NPU",
 }
-
-# Default volume mounts for CA certificates
-DEFAULT_VOLUME_MOUNTS = [
-    V1VolumeMount(
-        mount_path="/etc/pki/tls/certs/odh-trusted-ca-bundle.crt",
-        name="odh-trusted-ca-cert",
-        sub_path="odh-trusted-ca-bundle.crt",
-    ),
-    V1VolumeMount(
-        mount_path="/etc/ssl/certs/odh-trusted-ca-bundle.crt",
-        name="odh-trusted-ca-cert",
-        sub_path="odh-trusted-ca-bundle.crt",
-    ),
-    V1VolumeMount(
-        mount_path="/etc/pki/tls/certs/odh-ca-bundle.crt",
-        name="odh-ca-cert",
-        sub_path="odh-ca-bundle.crt",
-    ),
-    V1VolumeMount(
-        mount_path="/etc/ssl/certs/odh-ca-bundle.crt",
-        name="odh-ca-cert",
-        sub_path="odh-ca-bundle.crt",
-    ),
-]
-
-# Default volumes for CA certificates
-DEFAULT_VOLUMES = [
-    V1Volume(
-        name="odh-trusted-ca-cert",
-        config_map=V1ConfigMapVolumeSource(
-            name="odh-trusted-ca-bundle",
-            items=[V1KeyToPath(key="ca-bundle.crt", path="odh-trusted-ca-bundle.crt")],
-            optional=True,
-        ),
-    ),
-    V1Volume(
-        name="odh-ca-cert",
-        config_map=V1ConfigMapVolumeSource(
-            name="odh-trusted-ca-bundle",
-            items=[V1KeyToPath(key="odh-ca-bundle.crt", path="odh-ca-bundle.crt")],
-            optional=True,
-        ),
-    ),
-]
 
 
 @dataclass
@@ -426,7 +380,7 @@ class ManagedClusterConfig:
 
     def _generate_volume_mounts(self) -> list:
         """Generate volume mounts for the container."""
-        volume_mounts = DEFAULT_VOLUME_MOUNTS.copy()
+        volume_mounts = []
 
         # Add custom volume mounts if specified
         if hasattr(self, "volume_mounts") and self.volume_mounts:
@@ -436,7 +390,7 @@ class ManagedClusterConfig:
 
     def _generate_volumes(self) -> list:
         """Generate volumes for the pod."""
-        volumes = DEFAULT_VOLUMES.copy()
+        volumes = []
 
         # Add custom volumes if specified
         if hasattr(self, "volumes") and self.volumes:

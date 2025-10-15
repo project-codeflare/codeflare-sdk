@@ -113,7 +113,7 @@ def extract_all_local_files(job: RayJob) -> Optional[Dict[str, str]]:
 
 def _zip_directory(directory_path: str) -> Optional[bytes]:
     """
-    Zip entire directory preserving structure, excluding Jupyter notebook files.
+    Zip entire directory preserving structure, excluding Jupyter notebook and markdown files.
 
     Args:
         directory_path: Path to directory to zip
@@ -338,29 +338,22 @@ def create_secret_from_spec(
 
     metadata = client.V1ObjectMeta(**secret_spec["metadata"])
 
-    # Add owner reference if we have the RayJob result
-    if (
-        rayjob_result
-        and isinstance(rayjob_result, dict)
-        and rayjob_result.get("metadata", {}).get("uid")
-    ):
-        logger.info(
-            f"Adding owner reference to Secret '{secret_name}' with RayJob UID: {rayjob_result['metadata']['uid']}"
+    # Add owner reference to ensure proper cleanup
+    # We can trust that rayjob_result contains UID since submit_job() only returns
+    # complete K8s resources or None, and we already validated result exists
+    logger.info(
+        f"Adding owner reference to Secret '{secret_name}' with RayJob UID: {rayjob_result['metadata']['uid']}"
+    )
+    metadata.owner_references = [
+        client.V1OwnerReference(
+            api_version="ray.io/v1",
+            kind="RayJob",
+            name=job.name,
+            uid=rayjob_result["metadata"]["uid"],
+            controller=True,
+            block_owner_deletion=True,
         )
-        metadata.owner_references = [
-            client.V1OwnerReference(
-                api_version="ray.io/v1",
-                kind="RayJob",
-                name=job.name,
-                uid=rayjob_result["metadata"]["uid"],
-                controller=True,
-                block_owner_deletion=True,
-            )
-        ]
-    else:
-        logger.warning(
-            f"No valid RayJob result with UID found, Secret '{secret_name}' will not have owner reference. Result: {rayjob_result}"
-        )
+    ]
 
     # Convert dict spec to V1Secret
     # Use stringData instead of data to avoid double base64 encoding
@@ -409,5 +402,4 @@ def create_file_secret(
     )
 
     # Create Secret with owner reference
-    # TODO Error handling
     create_secret_from_spec(job, secret_spec, rayjob_result)
