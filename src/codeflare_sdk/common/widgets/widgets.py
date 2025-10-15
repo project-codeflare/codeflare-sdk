@@ -353,8 +353,6 @@ def view_clusters(namespace: str = None):
         )
         return  # Exit function if not in Jupyter Notebook
 
-    from ...common.utils import get_current_namespace
-
     if not namespace:
         namespace = get_current_namespace()
 

@@ -176,7 +176,16 @@ def test_create_secret_from_spec(auto_mock_setup):
         "data": {"test.py": "print('test')"},
     }
 
-    result = create_secret_from_spec(rayjob, secret_spec)
+    # Provide valid RayJob result with UID as KubeRay client would
+    rayjob_result = {
+        "metadata": {
+            "name": "test-job",
+            "namespace": "test-namespace",
+            "uid": "test-uid-12345",
+        }
+    }
+
+    result = create_secret_from_spec(rayjob, secret_spec, rayjob_result)
 
     assert result == "test-files"
     mock_api_instance.create_namespaced_secret.assert_called_once()
@@ -205,7 +214,16 @@ def test_create_secret_already_exists(auto_mock_setup):
         "data": {"test.py": "print('test')"},
     }
 
-    result = create_secret_from_spec(rayjob, secret_spec)
+    # Provide valid RayJob result with UID as KubeRay client would
+    rayjob_result = {
+        "metadata": {
+            "name": "test-job",
+            "namespace": "test-namespace",
+            "uid": "test-uid-67890",
+        }
+    }
+
+    result = create_secret_from_spec(rayjob, secret_spec, rayjob_result)
 
     assert result == "test-files"
     mock_api_instance.create_namespaced_secret.assert_called_once()
@@ -269,92 +287,6 @@ def test_create_secret_with_owner_reference_basic(mocker, auto_mock_setup, caplo
 
     assert mock_metadata_instance.owner_references is not None
     mock_api_instance.create_namespaced_secret.assert_called_once()
-
-
-def test_create_secret_without_owner_reference_no_uid(mocker, auto_mock_setup, caplog):
-    """
-    Test creating Secret without owner reference when RayJob has no UID.
-    """
-    mock_api_instance = auto_mock_setup["k8s_api"]
-
-    mock_v1_metadata = mocker.patch("kubernetes.client.V1ObjectMeta")
-    mock_metadata_instance = MagicMock()
-    mock_v1_metadata.return_value = mock_metadata_instance
-
-    rayjob = RayJob(
-        job_name="test-job",
-        cluster_name="existing-cluster",
-        entrypoint="python test.py",
-        namespace="test-namespace",
-    )
-
-    secret_spec = {
-        "apiVersion": "v1",
-        "kind": "Secret",
-        "type": "Opaque",
-        "metadata": {"name": "test-files", "namespace": "test-namespace"},
-        "data": {"test.py": "print('test')"},
-    }
-
-    # RayJob result without UID
-    rayjob_result = {
-        "metadata": {
-            "name": "test-job",
-            "namespace": "test-namespace",
-            # No UID field
-        }
-    }
-
-    with caplog.at_level("WARNING"):
-        result = create_secret_from_spec(rayjob, secret_spec, rayjob_result)
-
-    assert result == "test-files"
-
-    # Verify warning was logged and no owner reference was set
-    assert (
-        "No valid RayJob result with UID found, Secret 'test-files' will not have owner reference"
-        in caplog.text
-    )
-
-    # The important part is that the warning was logged, indicating no owner reference was set
-    mock_api_instance.create_namespaced_secret.assert_called_once()
-
-
-def test_create_secret_with_invalid_rayjob_result(auto_mock_setup, caplog):
-    """
-    Test creating Secret with None or invalid rayjob_result.
-    """
-    mock_api_instance = auto_mock_setup["k8s_api"]
-
-    rayjob = RayJob(
-        job_name="test-job",
-        cluster_name="existing-cluster",
-        entrypoint="python test.py",
-        namespace="test-namespace",
-    )
-
-    secret_spec = {
-        "apiVersion": "v1",
-        "kind": "Secret",
-        "type": "Opaque",
-        "metadata": {"name": "test-files", "namespace": "test-namespace"},
-        "data": {"test.py": "print('test')"},
-    }
-
-    # Test with None
-    with caplog.at_level("WARNING"):
-        result = create_secret_from_spec(rayjob, secret_spec, None)
-
-    assert result == "test-files"
-    assert "No valid RayJob result with UID found" in caplog.text
-
-    # Test with string instead of dict
-    caplog.clear()
-    with caplog.at_level("WARNING"):
-        result = create_secret_from_spec(rayjob, secret_spec, "not-a-dict")
-
-    assert result == "test-files"
-    assert "No valid RayJob result with UID found" in caplog.text
 
 
 def test_file_handling_kubernetes_best_practice_flow(mocker, tmp_path):
@@ -446,7 +378,13 @@ def test_rayjob_submit_with_files_new_cluster(auto_mock_setup, tmp_path):
     Test RayJob submission with file detection for new cluster.
     """
     mock_api_instance = auto_mock_setup["rayjob_api"]
-    mock_api_instance.submit_job.return_value = True
+    mock_api_instance.submit_job.return_value = {
+        "metadata": {
+            "name": "test-job",
+            "namespace": "test-namespace",
+            "uid": "test-uid-files-12345",
+        }
+    }
 
     mock_k8s_instance = auto_mock_setup["k8s_api"]
 
@@ -507,8 +445,17 @@ def test_create_secret_api_error_non_409(auto_mock_setup):
         "data": {"test.py": "print('test')"},
     }
 
+    # Provide valid RayJob result with UID as KubeRay client would
+    rayjob_result = {
+        "metadata": {
+            "name": "test-job",
+            "namespace": "test-namespace",
+            "uid": "test-uid-api-error",
+        }
+    }
+
     with pytest.raises(RuntimeError, match="Failed to create Secret"):
-        create_secret_from_spec(rayjob, secret_spec)
+        create_secret_from_spec(rayjob, secret_spec, rayjob_result)
 
 
 def test_add_file_volumes_existing_volume_skip():

@@ -520,7 +520,7 @@ class Cluster:
                     protocol = "https" if route["spec"].get("tls") else "http"
                     return f"{protocol}://{route['spec']['host']}"
             # No route found for this cluster
-            return "Dashboard not available yet, have you run cluster.up()?"
+            return "Dashboard not available yet, have you run cluster.apply()?"
         else:
             try:
                 api_instance = client.NetworkingV1Api(get_api_client())

@@ -169,11 +169,6 @@ class RayJob:
         # Extract files from entrypoint and runtime_env working_dir
         files = extract_all_local_files(self)
 
-        # Create Secret for files (will be mounted to submitter pod)
-        secret_name = None
-        if files:
-            secret_name = f"{self.name}-files"
-
         rayjob_cr = self._build_rayjob_cr()
 
         logger.info(f"Submitting RayJob {self.name} to Kuberay operator")
