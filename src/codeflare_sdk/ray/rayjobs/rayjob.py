@@ -27,8 +27,8 @@ from codeflare_sdk.common.kueue.kueue import get_default_kueue_name
 from codeflare_sdk.common.utils.constants import MOUNT_PATH
 
 from codeflare_sdk.common.utils.utils import get_ray_image_for_python_version
-from python_client.kuberay_job_api import RayjobApi
-from python_client.kuberay_cluster_api import RayClusterApi
+from codeflare_sdk.vendored.python_client.kuberay_job_api import RayjobApi
+from codeflare_sdk.vendored.python_client.kuberay_cluster_api import RayClusterApi
 from codeflare_sdk.ray.rayjobs.config import ManagedClusterConfig
 from codeflare_sdk.ray.rayjobs.runtime_env import (
     create_file_secret,

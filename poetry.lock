@@ -3417,26 +3417,6 @@ files = [
 pytest = ">=7.0.0"
 
 [[package]]
-name = "python-client"
-version = "0.0.0-dev"
-description = "Python Client for Kuberay"
-optional = false
-python-versions = "^3.11"
-groups = ["main"]
-files = []
-develop = false
-
-[package.dependencies]
-kubernetes = ">=25.0.0"
-
-[package.source]
-type = "git"
-url = "https://github.com/ray-project/kuberay.git"
-reference = "b2fd91b58c2bbe22f9b4f730c5a8f3180c05e570"
-resolved_reference = "b2fd91b58c2bbe22f9b4f730c5a8f3180c05e570"
-subdirectory = "clients/python-client"
-
-[[package]]
 name = "python-dateutil"
 version = "3.9.0"
 description = "Extensions to the standard Python datetime module"
@@ -4823,4 +4803,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.11"
-content-hash = "9a052e3a816450844fa2cf3427e4660715977aca3b14561d1e9991899624b7c2"
+content-hash = "1a3968dbde8f4356b4d93b17f5bcf75f2bc38587553273742de05d9f0f6ee87c"

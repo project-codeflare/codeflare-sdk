@@ -10,8 +10,8 @@ from support import *
 from codeflare_sdk import RayJob, ManagedClusterConfig
 
 from kubernetes import client
-from python_client.kuberay_job_api import RayjobApi
-from python_client.kuberay_cluster_api import RayClusterApi
+from codeflare_sdk.vendored.python_client.kuberay_job_api import RayjobApi
+from codeflare_sdk.vendored.python_client.kuberay_cluster_api import RayClusterApi
 
 
 class TestRayJobLifecycledCluster:

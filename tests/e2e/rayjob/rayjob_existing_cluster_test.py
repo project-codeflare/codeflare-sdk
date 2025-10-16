@@ -12,7 +12,7 @@ from codeflare_sdk import (
 )
 from codeflare_sdk import RayJob, TokenAuthentication
 from codeflare_sdk.ray.rayjobs.status import CodeflareRayJobStatus
-from python_client.kuberay_job_api import RayjobApi
+from codeflare_sdk.vendored.python_client.kuberay_job_api import RayjobApi
 
 
 class TestRayJobExistingCluster:
