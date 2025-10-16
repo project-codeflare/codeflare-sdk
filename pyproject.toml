@@ -9,6 +9,15 @@ description = "Python SDK for codeflare client"
 
 license = "Apache-2.0"
 
+# Exclude vendored tests, examples, and build files from the package
+exclude = [
+    "src/codeflare_sdk/vendored/python_client_test",
+    "src/codeflare_sdk/vendored/examples",
+    "src/codeflare_sdk/vendored/pyproject.toml",
+    "src/codeflare_sdk/vendored/poetry.lock",
+    "src/codeflare_sdk/vendored/README.md"
+]
+
 authors = [
     "Michael Clifford <mcliffor@redhat.com>",
     "Mustafa Eyceoz <meyceoz@redhat.com>",
@@ -33,7 +42,6 @@ cryptography = "43.0.3"
 executing = "1.2.0"
 pydantic = ">= 2.10.6"
 ipywidgets = "8.1.2"
-python-client = { git = "https://github.com/ray-project/kuberay.git", subdirectory = "clients/python-client", rev = "b2fd91b58c2bbe22f9b4f730c5a8f3180c05e570" }
 
 [[tool.poetry.source]]
 name = "pypi"
@@ -73,7 +81,7 @@ markers = [
     "openshift",
     "nvidia_gpu"
 ]
-addopts = "--timeout=900"
+addopts = "--timeout=900 --ignore=src/codeflare_sdk/vendored"
 testpaths = ["src/codeflare_sdk"]
 collect_ignore = ["src/codeflare_sdk/common/utils/unit_test_support.py"]
 
