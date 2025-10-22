@@ -50,15 +50,17 @@ class CodeflareRayJobStatus(Enum):
 @dataclass
 class KueueWorkloadInfo:
     """
-    For storing information about a Kueue workload associated with a RayJob.
+    For storing information about a Kueue workload associated with a RayJob or RayCluster.
     """
     
     name: str
-    queue_name: str
-    status: str  # e.g., "Pending", "Admitted", "Finished"
+    queue_name: str = ""  # LocalQueue name (optional for RayClusters)
+    status: str = "Unknown"  # e.g., "Pending", "Admitted", "Finished"
     priority: Optional[int] = None
     creation_time: Optional[str] = None
     admission_time: Optional[str] = None
+    error_message: Optional[str] = None
+    error_reason: Optional[str] = None
 
 
 @dataclass

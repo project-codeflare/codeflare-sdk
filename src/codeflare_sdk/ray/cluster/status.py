@@ -21,7 +21,10 @@ dataclasses to store information for Ray clusters.
 from dataclasses import dataclass, field
 from enum import Enum
 import typing
-from typing import Union
+from typing import Union, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ..rayjobs.status import KueueWorkloadInfo
 
 
 class RayClusterStatus(Enum):
@@ -55,6 +58,26 @@ class CodeFlareClusterStatus(Enum):
 class RayCluster:
     """
     For storing information about a Ray cluster.
+    
+    Attributes:
+        name: Name of the RayCluster
+        status: Current status of the cluster
+        head_cpu_requests: CPU requests for head node
+        head_cpu_limits: CPU limits for head node
+        head_mem_requests: Memory requests for head node
+        head_mem_limits: Memory limits for head node
+        num_workers: Number of worker nodes
+        worker_mem_requests: Memory requests per worker
+        worker_mem_limits: Memory limits per worker
+        worker_cpu_requests: CPU requests per worker
+        worker_cpu_limits: CPU limits per worker
+        namespace: Kubernetes namespace
+        dashboard: Dashboard URL
+        worker_extended_resources: Extended resources for workers (e.g., GPUs)
+        head_extended_resources: Extended resources for head node
+        local_queue: Kueue LocalQueue name (if managed by Kueue)
+        kueue_workload: Kueue workload information (if managed by Kueue)
+        is_appwrapper: Whether cluster is managed by AppWrapper
     """
 
     name: str
@@ -72,3 +95,6 @@ class RayCluster:
     dashboard: str
     worker_extended_resources: typing.Dict[str, int] = field(default_factory=dict)
     head_extended_resources: typing.Dict[str, int] = field(default_factory=dict)
+    local_queue: Optional[str] = None
+    kueue_workload: Optional["KueueWorkloadInfo"] = None
+    is_appwrapper: bool = False

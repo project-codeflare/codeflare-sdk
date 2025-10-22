@@ -19,7 +19,7 @@ cluster setup queue, a list of all existing clusters, and the user's working nam
 """
 
 from time import sleep
-from typing import List, Optional, Tuple, Dict
+from typing import List as ListType, Optional, Tuple, Dict, Any
 import copy
 
 from ray.job_submission import JobSubmissionClient, JobStatus
@@ -44,6 +44,7 @@ from .status import (
     RayCluster,
     RayClusterStatus,
 )
+from ..rayjobs.status import KueueWorkloadInfo
 from ..appwrapper import (
     AppWrapper,
     AppWrapperStatus,
@@ -62,7 +63,13 @@ from kubernetes.dynamic import DynamicClient
 from kubernetes import client as k8s_client
 from kubernetes.client.rest import ApiException
 
-from kubernetes.client.rest import ApiException
+# Flag to track if ipywidgets is available
+WIDGETS_AVAILABLE = True
+try:
+    import ipywidgets as widgets
+    from IPython.display import display
+except ImportError:
+    WIDGETS_AVAILABLE = False
 
 CF_SDK_FIELD_MANAGER = "codeflare-sdk"
 
@@ -74,6 +81,500 @@ class Cluster:
 
     Note that currently, the underlying implementation is a Ray cluster.
     """
+    
+    # Class variable for global widget preference
+    _default_use_widgets = False
+    
+    @classmethod
+    def set_widgets_default(cls, use_widgets: bool) -> None:
+        """Set the default widget display preference for all Cluster methods."""
+        cls._default_use_widgets = use_widgets
+    
+    @classmethod
+    def get_widgets_default(cls) -> bool:
+        """Get the current default widget display preference."""
+        return cls._default_use_widgets
+        
+    @staticmethod
+    def Status(cluster_name: str, namespace: str = "default", use_widgets: Optional[bool] = None, return_status: bool = False) -> Optional[Tuple[RayClusterStatus, bool]]:
+        """
+        Get the status of a RayCluster.
+        
+        Args:
+            cluster_name: Name of the RayCluster
+            namespace: Kubernetes namespace
+            use_widgets: Whether to use Jupyter widgets for display (overrides global setting)
+            return_status: Whether to return the status tuple instead of displaying
+            
+        Returns:
+            Optional[Tuple[RayClusterStatus, bool]]: Status and ready state if return_status=True
+        """
+        # Check if Kubernetes config is available
+        if not config_check():
+            return None if not return_status else (RayClusterStatus.UNKNOWN, False)
+            
+        # Determine widget usage
+        use_widgets = use_widgets if use_widgets is not None else Cluster._default_use_widgets
+        if use_widgets and not WIDGETS_AVAILABLE:
+            # Widgets not available, falling back to console output
+            pass
+            use_widgets = False
+            
+        try:
+            # Get RayCluster
+            api = client.CustomObjectsApi(get_api_client())
+            cluster = api.get_namespaced_custom_object(
+                group="ray.io",
+                version="v1",
+                namespace=namespace,
+                plural="rayclusters",
+                name=cluster_name
+            )
+            
+            if not cluster:
+                if use_widgets:
+                    Cluster._display_cluster_status_widget(None, cluster_name, namespace)
+                else:
+                    print_no_resources_found()
+                return None if not return_status else (RayClusterStatus.UNKNOWN, False)
+                
+            # Parse cluster info
+            cluster_info = _map_to_ray_cluster(cluster)
+            if not cluster_info:
+                if use_widgets:
+                    Cluster._display_cluster_status_widget(None, cluster_name, namespace)
+                else:
+                    print_no_resources_found()
+                return None if not return_status else (RayClusterStatus.UNKNOWN, False)
+                
+            # Check if cluster is managed by AppWrapper
+            if cluster["metadata"].get("ownerReferences"):
+                for owner in cluster["metadata"]["ownerReferences"]:
+                    if owner["kind"] == "AppWrapper":
+                        cluster_info.is_appwrapper = True
+                        break
+                        
+            # Get Kueue workload info if cluster is managed by AppWrapper
+            if cluster_info.is_appwrapper:
+                workload_info = Cluster._get_cluster_kueue_workload_info(cluster_name, namespace)
+                if workload_info:
+                    cluster_info.local_queue = workload_info.name
+                    cluster_info.kueue_workload = workload_info
+                    
+            # Get dashboard URL
+            cluster_info.dashboard = Cluster._get_cluster_dashboard_url(cluster_name, namespace)
+            
+            # Display status
+            if use_widgets:
+                Cluster._display_cluster_status_widget(cluster_info)
+            else:
+                print_cluster_status(cluster_info)
+                
+            # Return status tuple if requested
+            if return_status:
+                ready = cluster_info.status == RayClusterStatus.READY
+                return cluster_info.status, ready
+                
+            return None
+            
+        except Exception as e:
+            error_msg = _kube_api_error_handling(e)
+            if return_status:
+                return RayClusterStatus.UNKNOWN, False
+            return None
+            
+    @staticmethod
+    def List(namespace: str = "default", page: int = 1, page_size: int = 10, use_widgets: Optional[bool] = None, return_list: bool = False) -> Optional[ListType[RayCluster]]:
+        """
+        List all RayClusters in the specified namespace with pagination.
+        
+        Args:
+            namespace: Kubernetes namespace
+            page: Page number (1-based)
+            page_size: Number of items per page
+            use_widgets: Whether to use Jupyter widgets for display (overrides global setting)
+            return_list: Whether to return the list instead of displaying
+            
+        Returns:
+            Optional[List[RayCluster]]: List of RayCluster objects if return_list=True
+        """
+        # Check if Kubernetes config is available
+        if not config_check():
+            return None if not return_list else []
+            
+        # Determine widget usage
+        use_widgets = use_widgets if use_widgets is not None else Cluster._default_use_widgets
+        if use_widgets and not WIDGETS_AVAILABLE:
+            # Widgets not available, falling back to console output
+            pass
+            use_widgets = False
+            
+        try:
+            # Get all RayClusters
+            api = client.CustomObjectsApi(get_api_client())
+            clusters = api.list_namespaced_custom_object(
+                group="ray.io",
+                version="v1",
+                namespace=namespace,
+                plural="rayclusters"
+            )
+            
+            if not clusters or not clusters.get("items"):
+                if return_list:
+                    return []
+                if use_widgets:
+                    Cluster._display_clusters_list_widget([], page, page_size)
+                else:
+                    print_no_resources_found()
+                return None
+                
+            # Parse cluster info for each cluster
+            cluster_infos = []
+            for cluster in clusters["items"]:
+                cluster_info = _map_to_ray_cluster(cluster)
+                if not cluster_info:
+                    continue
+                    
+                # Check if cluster is managed by AppWrapper
+                if cluster["metadata"].get("ownerReferences"):
+                    for owner in cluster["metadata"]["ownerReferences"]:
+                        if owner["kind"] == "AppWrapper":
+                            cluster_info.is_appwrapper = True
+                            break
+                            
+                # Get Kueue workload info if cluster is managed by AppWrapper
+                if cluster_info.is_appwrapper:
+                    workload_info = Cluster._get_cluster_kueue_workload_info(cluster["metadata"]["name"], namespace)
+                    if workload_info:
+                        cluster_info.local_queue = workload_info.name
+                        cluster_info.kueue_workload = workload_info
+                        
+                # Get dashboard URL
+                cluster_info.dashboard = Cluster._get_cluster_dashboard_url(cluster["metadata"]["name"], namespace)
+                
+                cluster_infos.append(cluster_info)
+                
+            # Sort clusters by name
+            cluster_infos.sort(key=lambda x: x.name)
+            
+            # Calculate pagination
+            start_idx = (page - 1) * page_size
+            end_idx = start_idx + page_size
+            total_pages = (len(cluster_infos) + page_size - 1) // page_size
+            
+            # Get clusters for current page
+            current_clusters = cluster_infos[start_idx:end_idx]
+            
+            # Display clusters
+            if use_widgets:
+                Cluster._display_clusters_list_widget(current_clusters, page, page_size, total_pages)
+            else:
+                print_clusters(current_clusters)
+                
+            # Return full list if requested
+            return cluster_infos if return_list else None
+            
+        except Exception as e:
+            error_msg = _kube_api_error_handling(e)
+            if return_list:
+                return []
+            return None
+            
+    @staticmethod
+    def _get_cluster_kueue_workload_info(cluster_name: str, namespace: str) -> Optional[KueueWorkloadInfo]:
+        """Get Kueue workload information for a RayCluster."""
+        try:
+            api = client.CustomObjectsApi(get_api_client())
+            workloads = api.list_namespaced_custom_object(
+                group="kueue.x-k8s.io",
+                version="v1beta1",
+                namespace=namespace,
+                plural="workloads"
+            )
+            
+            for workload in workloads.get("items", []):
+                if workload["metadata"]["ownerReferences"][0]["name"] == cluster_name:
+                    status = workload.get("status", {})
+                    admission = status.get("admission", {})
+                    
+                    # Get error information if cluster failed
+                    error_msg, error_reason = Cluster._get_workload_error_info(workload)
+                    
+                    return KueueWorkloadInfo(
+                        name=workload["metadata"]["name"],
+                        status=status.get("conditions", [{}])[0].get("type", "Unknown"),
+                        priority=workload["spec"].get("priority", 0),
+                        admission_time=Cluster._get_admission_time(admission),
+                        error_message=error_msg,
+                        error_reason=error_reason
+                    )
+            
+            return None
+            
+        except Exception as e:
+            # Silently fail - Kueue may not be installed or workload info unavailable
+            pass
+            return None
+            
+    @staticmethod
+    def _get_admission_time(admission: Dict[str, Any]) -> Optional[str]:
+        """Extract admission time from Kueue workload admission data."""
+        if not admission:
+            return None
+        return admission.get("podSetAssignments", [{}])[0].get("admissionTime")
+        
+    @staticmethod
+    def _get_workload_error_info(workload: Dict[str, Any]) -> Tuple[Optional[str], Optional[str]]:
+        """Extract error information from a failed Kueue workload."""
+        status = workload.get("status", {})
+        conditions = status.get("conditions", [])
+        
+        for condition in conditions:
+            if condition.get("type") == "Failed":
+                return condition.get("message"), condition.get("reason")
+                
+        return None, None
+        
+    @staticmethod
+    def _get_cluster_dashboard_url(cluster_name: str, namespace: str) -> str:
+        """Get the dashboard URL for a RayCluster."""
+        # Try HTTPRoute first (RHOAI v3.0+)
+        dashboard_url = _get_dashboard_url_from_httproute(cluster_name, namespace)
+        if dashboard_url:
+            return dashboard_url
+            
+        # Fall back to OpenShift Routes or Ingresses
+        if _is_openshift_cluster():
+            try:
+                api = client.CustomObjectsApi(get_api_client())
+                routes = api.list_namespaced_custom_object(
+                    group="route.openshift.io",
+                    version="v1",
+                    namespace=namespace,
+                    plural="routes"
+                )
+                
+                for route in routes["items"]:
+                    if route["metadata"]["name"] == f"ray-dashboard-{cluster_name}" or route["metadata"]["name"].startswith(f"{cluster_name}-ingress"):
+                        protocol = "https" if route["spec"].get("tls") else "http"
+                        return f"{protocol}://{route['spec']['host']}"
+                        
+            except Exception as e:
+                # Silently fail - routes may not be available
+                pass
+                
+        else:
+            try:
+                api = client.NetworkingV1Api(get_api_client())
+                ingresses = api.list_namespaced_ingress(namespace)
+                
+                for ingress in ingresses.items:
+                    if ingress.metadata.name == f"ray-dashboard-{cluster_name}" or ingress.metadata.name.startswith(f"{cluster_name}-ingress"):
+                        protocol = "https" if ingress.metadata.annotations and "route.openshift.io/termination" in ingress.metadata.annotations else "http"
+                        return f"{protocol}://{ingress.spec.rules[0].host}"
+                        
+            except Exception as e:
+                # Silently fail - ingresses may not be available
+                pass
+                
+        return "Dashboard not available yet"
+        
+    @staticmethod
+    def _display_cluster_status_widget(cluster_info: Optional[RayCluster], cluster_name: str = None, namespace: str = None) -> None:
+        """Display cluster status using ipywidgets."""
+        if not cluster_info:
+            # Cluster not found
+            output = widgets.HTML(
+                f'<div style="padding: 10px; border: 1px solid #ff6b6b; border-radius: 4px; background-color: #fff5f5;">'
+                f'<span style="color: #ff6b6b;">⚠️ No RayCluster found with name "{cluster_name}" in namespace "{namespace}"</span>'
+                '</div>'
+            )
+            display(output)
+            return
+            
+        # Create status badge
+        status_colors = {
+            RayClusterStatus.READY: ("#2ecc71", "white"),     # Green
+            RayClusterStatus.STARTING: ("#3498db", "white"),  # Blue
+            RayClusterStatus.FAILED: ("#e74c3c", "white"),    # Red
+            RayClusterStatus.STOPPED: ("#f1c40f", "black")    # Yellow
+        }
+        status_color = status_colors.get(cluster_info.status, ("#95a5a6", "white"))  # Gray for unknown
+        
+        # Build HTML table
+        html = f'''
+        <div style="padding: 15px; border: 1px solid #ddd; border-radius: 4px; background-color: #f8f9fa;">
+            <table style="width: 100%; border-collapse: separate; border-spacing: 0 8px;">
+                <tr>
+                    <td style="padding: 5px;"><strong>Name:</strong></td>
+                    <td style="padding: 5px;">{cluster_info.name}</td>
+                    <td style="padding: 5px;"><strong>Status:</strong></td>
+                    <td style="padding: 5px;">
+                        <span style="background-color: {status_color[0]}; color: {status_color[1]}; padding: 3px 8px; border-radius: 3px;">
+                            {cluster_info.status.value}
+                        </span>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="padding: 5px;"><strong>Namespace:</strong></td>
+                    <td style="padding: 5px;">{cluster_info.namespace}</td>
+                    <td style="padding: 5px;"><strong>Workers:</strong></td>
+                    <td style="padding: 5px;">{cluster_info.num_workers}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 5px;"><strong>Head CPU:</strong></td>
+                    <td style="padding: 5px;">{cluster_info.head_cpu_requests}/{cluster_info.head_cpu_limits}</td>
+                    <td style="padding: 5px;"><strong>Head Memory:</strong></td>
+                    <td style="padding: 5px;">{cluster_info.head_mem_requests}/{cluster_info.head_mem_limits}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 5px;"><strong>Worker CPU:</strong></td>
+                    <td style="padding: 5px;">{cluster_info.worker_cpu_requests}/{cluster_info.worker_cpu_limits}</td>
+                    <td style="padding: 5px;"><strong>Worker Memory:</strong></td>
+                    <td style="padding: 5px;">{cluster_info.worker_mem_requests}/{cluster_info.worker_mem_limits}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 5px;"><strong>Dashboard:</strong></td>
+                    <td colspan="3" style="padding: 5px;">
+                        <a href="{cluster_info.dashboard}" target="_blank" style="color: #007bff; text-decoration: none;">
+                            {cluster_info.dashboard}
+                        </a>
+                    </td>
+                </tr>
+        '''
+        
+        # Add extended resources if any
+        if cluster_info.head_extended_resources:
+            html += '<tr><td style="padding: 5px;"><strong>Head Resources:</strong></td><td colspan="3" style="padding: 5px;">'
+            for resource, count in cluster_info.head_extended_resources.items():
+                html += f'{resource}: {count}, '
+            html = html.rstrip(', ') + '</td></tr>'
+            
+        if cluster_info.worker_extended_resources:
+            html += '<tr><td style="padding: 5px;"><strong>Worker Resources:</strong></td><td colspan="3" style="padding: 5px;">'
+            for resource, count in cluster_info.worker_extended_resources.items():
+                html += f'{resource}: {count}, '
+            html = html.rstrip(', ') + '</td></tr>'
+            
+        # Add Kueue information if available
+        if cluster_info.kueue_workload:
+            html += f'''
+                <tr>
+                    <td style="padding: 5px;"><strong>Queue:</strong></td>
+                    <td style="padding: 5px;">{cluster_info.local_queue or 'N/A'}</td>
+                    <td style="padding: 5px;"><strong>Priority:</strong></td>
+                    <td style="padding: 5px;">{cluster_info.kueue_workload.priority}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 5px;"><strong>Queue Status:</strong></td>
+                    <td style="padding: 5px;">{cluster_info.kueue_workload.status}</td>
+                    <td style="padding: 5px;"><strong>Admission:</strong></td>
+                    <td style="padding: 5px;">{cluster_info.kueue_workload.admission_time or 'N/A'}</td>
+                </tr>
+            '''
+            
+            # Add error information for failed clusters
+            if cluster_info.status == RayClusterStatus.FAILED and cluster_info.kueue_workload.error_message:
+                html += f'''
+                    <tr>
+                        <td style="padding: 5px;"><strong>Error:</strong></td>
+                        <td colspan="3" style="padding: 5px; color: #e74c3c;">
+                            {cluster_info.kueue_workload.error_reason}: {cluster_info.kueue_workload.error_message}
+                        </td>
+                    </tr>
+                '''
+                
+        html += '''
+            </table>
+        </div>
+        '''
+        
+        # Display the widget
+        output = widgets.HTML(html)
+        display(output)
+        
+    @staticmethod
+    def _display_clusters_list_widget(clusters: ListType[RayCluster], page: int, page_size: int, total_pages: int = 1) -> None:
+        """Display clusters list using ipywidgets."""
+        if not clusters:
+            output = widgets.HTML(
+                '<div style="padding: 10px; border: 1px solid #ff6b6b; border-radius: 4px; background-color: #fff5f5;">'
+                '<span style="color: #ff6b6b;">⚠️ No RayClusters found</span>'
+                '</div>'
+            )
+            display(output)
+            return
+            
+        # Create HTML table
+        html = '''
+        <div style="padding: 15px; border: 1px solid #ddd; border-radius: 4px; background-color: #f8f9fa;">
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="background-color: #e9ecef;">
+                        <th style="padding: 8px; text-align: left; border-bottom: 2px solid #dee2e6;">Name</th>
+                        <th style="padding: 8px; text-align: center; border-bottom: 2px solid #dee2e6;">Status</th>
+                        <th style="padding: 8px; text-align: center; border-bottom: 2px solid #dee2e6;">Workers</th>
+                        <th style="padding: 8px; text-align: center; border-bottom: 2px solid #dee2e6;">Queue</th>
+                        <th style="padding: 8px; text-align: center; border-bottom: 2px solid #dee2e6;">Queue Status</th>
+                        <th style="padding: 8px; text-align: left; border-bottom: 2px solid #dee2e6;">Dashboard</th>
+                    </tr>
+                </thead>
+                <tbody>
+        '''
+        
+        # Status colors
+        status_colors = {
+            RayClusterStatus.READY: ("#2ecc71", "white"),     # Green
+            RayClusterStatus.STARTING: ("#3498db", "white"),  # Blue
+            RayClusterStatus.FAILED: ("#e74c3c", "white"),    # Red
+            RayClusterStatus.STOPPED: ("#f1c40f", "black")    # Yellow
+        }
+        
+        # Add rows
+        for cluster in clusters:
+            status_color = status_colors.get(cluster.status, ("#95a5a6", "white"))  # Gray for unknown
+            
+            html += f'''
+                <tr style="border-bottom: 1px solid #dee2e6;">
+                    <td style="padding: 8px;">{cluster.name}</td>
+                    <td style="padding: 8px; text-align: center;">
+                        <span style="background-color: {status_color[0]}; color: {status_color[1]}; padding: 3px 8px; border-radius: 3px;">
+                            {cluster.status.value}
+                        </span>
+                    </td>
+                    <td style="padding: 8px; text-align: center;">{cluster.num_workers}</td>
+                    <td style="padding: 8px; text-align: center;">{cluster.local_queue or 'N/A'}</td>
+                    <td style="padding: 8px; text-align: center;">{cluster.kueue_workload.status if cluster.kueue_workload else 'N/A'}</td>
+                    <td style="padding: 8px;">
+                        <a href="{cluster.dashboard}" target="_blank" style="color: #007bff; text-decoration: none;">
+                            {cluster.dashboard}
+                        </a>
+                    </td>
+                </tr>
+            '''
+            
+        html += '''
+                </tbody>
+            </table>
+        '''
+        
+        # Add pagination info
+        if total_pages > 1:
+            html += f'''
+            <div style="margin-top: 10px; text-align: center; color: #6c757d;">
+                Page {page} of {total_pages}
+            '''
+            if page > 1:
+                html += f' <span style="color: #007bff;">(use page={page - 1} for previous)</span>'
+            if page < total_pages:
+                html += f' <span style="color: #007bff;">(page={page + 1} for next)</span>'
+            html += '</div>'
+            
+        html += '</div>'
+        
+        # Display the widget
+        output = widgets.HTML(html)
+        display(output)
 
     def __init__(self, config: ClusterConfiguration):
         """
@@ -951,8 +1452,8 @@ def _ray_cluster_status(name, namespace="default") -> Optional[RayCluster]:
 
 
 def _get_ray_clusters(
-    namespace="default", filter: Optional[List[RayClusterStatus]] = None
-) -> List[RayCluster]:
+    namespace="default", filter: Optional[ListType[RayClusterStatus]] = None
+) -> ListType[RayCluster]:
     list_of_clusters = []
     try:
         config_check()
@@ -971,16 +1472,133 @@ def _get_ray_clusters(
         for rc in rcs["items"]:
             ray_cluster = _map_to_ray_cluster(rc)
             if filter and ray_cluster.status in filter:
+                # Check for AppWrapper ownership
+                metadata = rc.get("metadata", {})
+                owner_refs = metadata.get("ownerReferences", [])
+                for owner in owner_refs:
+                    if owner.get("kind") == "AppWrapper":
+                        ray_cluster.is_appwrapper = True
+                        break
+                
+                # Fetch Kueue workload info for all clusters
+                workload_info = _get_cluster_kueue_workload_info_func(
+                    metadata.get("name"), namespace
+                )
+                if workload_info:
+                    ray_cluster.local_queue = workload_info.queue_name
+                    ray_cluster.kueue_workload = workload_info
+                
                 list_of_clusters.append(ray_cluster)
     else:
         for rc in rcs["items"]:
-            list_of_clusters.append(_map_to_ray_cluster(rc))
+            ray_cluster = _map_to_ray_cluster(rc)
+            # Check for AppWrapper ownership
+            metadata = rc.get("metadata", {})
+            owner_refs = metadata.get("ownerReferences", [])
+            for owner in owner_refs:
+                if owner.get("kind") == "AppWrapper":
+                    ray_cluster.is_appwrapper = True
+                    break
+            
+            # Fetch Kueue workload info for all clusters
+            workload_info = _get_cluster_kueue_workload_info_func(
+                metadata.get("name"), namespace
+            )
+            if workload_info:
+                ray_cluster.local_queue = workload_info.queue_name
+                ray_cluster.kueue_workload = workload_info
+            
+            list_of_clusters.append(ray_cluster)
     return list_of_clusters
 
 
+def _get_cluster_kueue_workload_info_func(
+    cluster_name: str, namespace: str
+) -> Optional[KueueWorkloadInfo]:
+    """
+    Get Kueue workload information for a RayCluster.
+    
+    This function looks for Kueue workloads that have a RayCluster owner reference
+    matching the given cluster name. Works for all RayClusters, whether they're
+    AppWrapper-managed or directly managed by Kueue.
+    
+    Args:
+        cluster_name: Name of the RayCluster
+        namespace: Kubernetes namespace
+        
+    Returns:
+        KueueWorkloadInfo if found, None otherwise
+    """
+    try:
+        api = client.CustomObjectsApi(get_api_client())
+        workloads = api.list_namespaced_custom_object(
+            group="kueue.x-k8s.io",
+            version="v1beta1",
+            namespace=namespace,
+            plural="workloads",
+        )
+
+        for workload in workloads.get("items", []):
+            owner_refs = workload.get("metadata", {}).get("ownerReferences", [])
+            for owner_ref in owner_refs:
+                if (
+                    owner_ref.get("kind") == "RayCluster"
+                    and owner_ref.get("name") == cluster_name
+                ):
+                    # Found the workload for this RayCluster
+                    metadata = workload.get("metadata", {})
+                    status = workload.get("status", {})
+                    spec = workload.get("spec", {})
+                    admission = status.get("admission", {})
+
+                    # Get queue name from workload spec
+                    queue_name = spec.get("queueName", "")
+
+                    # Get status from conditions
+                    conditions = status.get("conditions", [])
+                    workload_status = "Unknown"
+                    for condition in conditions:
+                        if condition.get("status") == "True":
+                            workload_status = condition.get("type", "Unknown")
+                            break
+
+                    # Get admission time
+                    admission_time = None
+                    if admission:
+                        admission_time = admission.get("clusterQueue")
+
+                    # Get error information if available
+                    error_msg = None
+                    error_reason = None
+                    for condition in conditions:
+                        if condition.get("type") == "Finished" and condition.get(
+                            "status"
+                        ) == "True":
+                            if condition.get("reason") == "Failed":
+                                error_reason = condition.get("reason")
+                                error_msg = condition.get("message")
+
+                    return KueueWorkloadInfo(
+                        name=metadata.get("name", "unknown"),
+                        queue_name=queue_name,
+                        status=workload_status,
+                        priority=spec.get("priority"),
+                        creation_time=metadata.get("creationTimestamp"),
+                        admission_time=admission_time,
+                        error_message=error_msg,
+                        error_reason=error_reason,
+                    )
+
+        return None
+
+    except Exception as e:
+        # Silently fail if Kueue is not installed or workload info unavailable
+        return None
+
+
 def _get_app_wrappers(
-    namespace="default", filter=List[AppWrapperStatus]
-) -> List[AppWrapper]:
+    namespace="default", filter=ListType[AppWrapperStatus]
+) -> ListType[AppWrapper]:
     list_of_app_wrappers = []
 
     try:

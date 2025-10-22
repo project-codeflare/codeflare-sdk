@@ -157,6 +157,23 @@ def print_clusters(clusters: List[RayCluster]):
         )  # format that is used to generate the name of the service
         table0.add_row()
         table0.add_row(f"[link={dashboard} blue underline]Dashboard:link:[/link]")
+        
+        # Add Kueue information if available (for any cluster, not just AppWrapper-managed)
+        if cluster.kueue_workload:
+            table0.add_row()
+            table0.add_row("[bold blue]🎯 Kueue Integration[/bold blue]")
+            table0.add_row(f"[bold]Local Queue:[/bold] {cluster.local_queue or 'N/A'}")
+            table0.add_row(f"[bold]Workload Status:[/bold] [bold green]{cluster.kueue_workload.status}[/bold green]")
+            table0.add_row(f"[bold]Workload Name:[/bold] {cluster.kueue_workload.name}")
+            if cluster.kueue_workload.priority is not None:
+                table0.add_row(f"[bold]Priority:[/bold] {cluster.kueue_workload.priority}")
+            if cluster.kueue_workload.admission_time:
+                table0.add_row(f"[bold]Admitted:[/bold] {cluster.kueue_workload.admission_time}")
+            if cluster.kueue_workload.error_message:
+                table0.add_row(f"[bold red]Error:[/bold red] {cluster.kueue_workload.error_reason}: {cluster.kueue_workload.error_message}")
+            if cluster.is_appwrapper:
+                table0.add_row(f"[bold]AppWrapper Managed:[/bold] [green]Yes[/green]")
+        
         table0.add_row("")  # empty row for spacing
 
         #'table1' to display the worker counts
