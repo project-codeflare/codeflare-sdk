@@ -280,6 +280,11 @@ def create_namespace_with_name(self, namespace_name):
         )
         self.api_instance.create_namespace(namespace_body)
     except Exception as e:
+        # Check if it's an AlreadyExists error (409 Conflict) and ignore it
+        if hasattr(e, 'status') and e.status == 409:
+            # Namespace already exists, which is fine - just continue
+            print(f"Warning: Namespace '{namespace_name}' already exists, continuing...")
+            return
         return _kube_api_error_handling(e)
 
 
