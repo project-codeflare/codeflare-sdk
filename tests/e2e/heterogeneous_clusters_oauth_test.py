@@ -1,5 +1,3 @@
-from time import sleep
-import time
 from codeflare_sdk import (
     Cluster,
     ClusterConfiguration,
@@ -55,11 +53,13 @@ class TestHeterogeneousClustersOauth:
                     namespace=self.namespace,
                     name=cluster_name,
                     num_workers=1,
-                    head_cpu_requests=1,
-                    head_cpu_limits=1,
-                    worker_cpu_requests=1,
+                    head_cpu_requests="500m",
+                    head_cpu_limits="500m",
+                    head_memory_requests=2,
+                    head_memory_limits=4,
+                    worker_cpu_requests="500m",
                     worker_cpu_limits=1,
-                    worker_memory_requests=1,
+                    worker_memory_requests=2,
                     worker_memory_limits=4,
                     image=ray_image,
                     verify_tls=False,
@@ -67,10 +67,10 @@ class TestHeterogeneousClustersOauth:
                 )
             )
             cluster.apply()
-            sleep(5)
+            # Wait for the cluster to be scheduled and ready, we don't need the dashboard for this check
+            cluster.wait_ready(dashboard_check=False)
             node_name = get_pod_node(self, self.namespace, cluster_name)
             print(f"Cluster {cluster_name}-{flavor} is running on node: {node_name}")
-            sleep(5)
             assert (
                 node_name in expected_nodes
             ), f"Node {node_name} is not in the expected nodes for flavor {flavor}."
