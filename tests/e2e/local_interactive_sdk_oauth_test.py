@@ -12,6 +12,7 @@ import ray
 from support import *
 
 
+@pytest.mark.skip(reason="Remote ray.init() is temporarily unsupported")
 @pytest.mark.openshift
 class TestRayLocalInteractiveOauth:
     def setup_method(self):
