@@ -226,6 +226,8 @@ class ClusterConfiguration:
         """Validate the types of all fields in the ClusterConfiguration dataclass."""
         errors = []
         for field_info in fields(self):
+            if field_info.name == "appwrapper":
+                continue
             value = getattr(self, field_info.name)
             expected_type = field_info.type
             if not self._is_type(value, expected_type):
