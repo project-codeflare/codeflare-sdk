@@ -16,8 +16,10 @@ import base64
 import os
 from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.backends import default_backend
 from cryptography import x509
 from cryptography.x509.oid import NameOID
+import ipaddress
 import datetime
 from ..kubernetes_cluster.auth import (
     config_check,
@@ -163,8 +165,27 @@ def generate_tls_cert(cluster_name, namespace, days=30):
     ca_cert = secret.get("ca.crt")
     ca_key = secret.get("tls.key")
 
+    if not ca_cert:
+        raise ValueError(
+            f"CA certificate (ca.crt or tls.crt) not found in secret {secret_name}. "
+            f"Available keys: {list(secret.keys())}"
+        )
+    if not ca_key:
+        raise ValueError(
+            f"CA private key (tls.key) not found in secret {secret_name}. "
+            f"Available keys: {list(secret.keys())}"
+        )
+
+    # Decode and write CA certificate
+    ca_cert_pem = base64.b64decode(ca_cert).decode("utf-8")
     with open(os.path.join(tls_dir, "ca.crt"), "w") as f:
-        f.write(base64.b64decode(ca_cert).decode("utf-8"))
+        f.write(ca_cert_pem)
+
+    # Extract CA subject to use as issuer for client certificate
+    ca_cert_obj = x509.load_pem_x509_certificate(
+        ca_cert_pem.encode("utf-8"), default_backend()
+    )
+    ca_subject = ca_cert_obj.subject
 
     # Generate tls.key and signed tls.cert locally for ray client
     # Similar to running these commands:
@@ -191,16 +212,22 @@ def generate_tls_cert(cluster_name, namespace, days=30):
     with open(os.path.join(tls_dir, "tls.key"), "w") as f:
         f.write(tls_key.decode("utf-8"))
 
+    head_svc_name = f"{cluster_name}-head-svc"
+    service_dns = f"{head_svc_name}.{namespace}.svc"
+    service_dns_cluster_local = f"{head_svc_name}.{namespace}.svc.cluster.local"
+
+    san_list = [
+        x509.DNSName("localhost"),
+        x509.IPAddress(ipaddress.IPv4Address("127.0.0.1")),
+        x509.DNSName(head_svc_name),
+        x509.DNSName(service_dns),
+        x509.DNSName(service_dns_cluster_local),
+    ]
+
     one_day = datetime.timedelta(1, 0, 0)
     tls_cert = (
         x509.CertificateBuilder()
-        .issuer_name(
-            x509.Name(
-                [
-                    x509.NameAttribute(NameOID.COMMON_NAME, "root-ca"),
-                ]
-            )
-        )
+        .issuer_name(ca_subject)
         .subject_name(
             x509.Name(
                 [
@@ -213,9 +240,7 @@ def generate_tls_cert(cluster_name, namespace, days=30):
         .not_valid_after(datetime.datetime.today() + (one_day * days))
         .serial_number(x509.random_serial_number())
         .add_extension(
-            x509.SubjectAlternativeName(
-                [x509.DNSName("localhost"), x509.DNSName("127.0.0.1")]
-            ),
+            x509.SubjectAlternativeName(san_list),
             False,
         )
         .sign(
