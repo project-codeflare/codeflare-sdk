@@ -53,7 +53,7 @@ def test_generate_ca_cert():
 
 def secret_ca_retreival(secret_name, namespace):
     ca_private_key_bytes, ca_cert = generate_ca_cert()
-    data = {"ca.crt": ca_cert, "ca.key": ca_private_key_bytes}
+    data = {"ca.crt": ca_cert, "tls.key": ca_private_key_bytes}
     assert secret_name == "ca-secret-cluster"
     assert namespace == "namespace"
     return client.models.V1Secret(data=data)
