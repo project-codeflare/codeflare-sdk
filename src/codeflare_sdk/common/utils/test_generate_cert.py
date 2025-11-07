@@ -87,6 +87,50 @@ def test_generate_tls_cert(mocker):
     assert tls_cert.verify_directly_issued_by(root_cert) == None
 
 
+def secret_ca_retreival_with_ca_key(secret_name, namespace):
+    """Mock secret retrieval with ca.key instead of tls.key (KubeRay format)"""
+    ca_private_key_bytes, ca_cert = generate_ca_cert()
+    data = {"ca.crt": ca_cert, "ca.key": ca_private_key_bytes}
+    assert secret_name == "ca-secret-cluster2"
+    assert namespace == "namespace2"
+    return client.models.V1Secret(data=data)
+
+
+def test_generate_tls_cert_with_ca_key_fallback(mocker):
+    """
+    Test that generate_tls_cert works when secret contains ca.key instead of tls.key
+    This tests the fallback logic for KubeRay-created secrets
+    """
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+    mocker.patch(
+        "codeflare_sdk.common.utils.generate_cert.get_secret_name",
+        return_value="ca-secret-cluster2",
+    )
+    mocker.patch(
+        "kubernetes.client.CoreV1Api.read_namespaced_secret",
+        side_effect=secret_ca_retreival_with_ca_key,
+    )
+
+    generate_tls_cert("cluster2", "namespace2")
+    assert os.path.exists("tls-cluster2-namespace2")
+    assert os.path.exists(os.path.join("tls-cluster2-namespace2", "ca.crt"))
+    assert os.path.exists(os.path.join("tls-cluster2-namespace2", "tls.crt"))
+    assert os.path.exists(os.path.join("tls-cluster2-namespace2", "tls.key"))
+
+    # verify the that the signed tls.crt is issued by the ca_cert (root cert)
+    with open(os.path.join("tls-cluster2-namespace2", "tls.crt"), "r") as f:
+        tls_cert = load_pem_x509_certificate(f.read().encode("utf-8"))
+    with open(os.path.join("tls-cluster2-namespace2", "ca.crt"), "r") as f:
+        root_cert = load_pem_x509_certificate(f.read().encode("utf-8"))
+    assert tls_cert.verify_directly_issued_by(root_cert) == None
+
+    # Cleanup for this test
+    os.remove("tls-cluster2-namespace2/ca.crt")
+    os.remove("tls-cluster2-namespace2/tls.crt")
+    os.remove("tls-cluster2-namespace2/tls.key")
+    os.rmdir("tls-cluster2-namespace2")
+
+
 def test_export_env():
     """
     test the function codeflare_sdk.common.utils.generate_ca_cert.export_ev generates the correct outputs

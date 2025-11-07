@@ -162,8 +162,8 @@ def generate_tls_cert(cluster_name, namespace, days=30):
     secret_name = get_secret_name(cluster_name, namespace, v1)
     secret = v1.read_namespaced_secret(secret_name, namespace).data
 
-    ca_cert = secret.get("ca.crt")
-    ca_key = secret.get("tls.key")
+    ca_cert = secret.get("ca.crt") or secret.get("tls.crt")
+    ca_key = secret.get("tls.key") or secret.get("ca.key")
 
     if not ca_cert:
         raise ValueError(
@@ -172,7 +172,7 @@ def generate_tls_cert(cluster_name, namespace, days=30):
         )
     if not ca_key:
         raise ValueError(
-            f"CA private key (tls.key) not found in secret {secret_name}. "
+            f"CA private key (tls.key or ca.key) not found in secret {secret_name}. "
             f"Available keys: {list(secret.keys())}"
         )
 
