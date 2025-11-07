@@ -151,7 +151,7 @@ def generate_tls_cert(cluster_name, namespace, days=30):
         os.makedirs(tls_dir)
 
     # Similar to:
-    # oc get secret ca-secret-<cluster-name> -o template='{{index .data "ca.key"}}'
+    # oc get secret ca-secret-<cluster-name> -o template='{{index .data "tls.key"}}'
     # oc get secret ca-secret-<cluster-name> -o template='{{index .data "ca.crt"}}'|base64 -d > ${TLSDIR}/ca.crt
     config_check()
     v1 = client.CoreV1Api(get_api_client())
@@ -161,7 +161,7 @@ def generate_tls_cert(cluster_name, namespace, days=30):
     secret = v1.read_namespaced_secret(secret_name, namespace).data
 
     ca_cert = secret.get("ca.crt")
-    ca_key = secret.get("ca.key")
+    ca_key = secret.get("tls.key")
 
     with open(os.path.join(tls_dir, "ca.crt"), "w") as f:
         f.write(base64.b64decode(ca_cert).decode("utf-8"))
