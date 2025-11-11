@@ -991,14 +991,22 @@ def test_get_dashboard_url_from_httproute(mocker):
         },
     }
 
-    # Mock the CustomObjectsApi to return HTTPRoute and Gateway
-    def mock_get_namespaced_custom_object(group, version, namespace, plural, name):
+    # Mock list_cluster_custom_object to return HTTPRoute (cluster-wide search)
+    def mock_list_cluster_custom_object(group, version, plural, label_selector):
         if plural == "httproutes":
-            return mock_httproute
-        elif plural == "gateways":
+            return {"items": [mock_httproute]}
+        raise Exception("Unexpected plural")
+
+    # Mock get_namespaced_custom_object to return Gateway
+    def mock_get_namespaced_custom_object(group, version, namespace, plural, name):
+        if plural == "gateways":
             return mock_gateway
         raise Exception("Unexpected plural")
 
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_cluster_custom_object",
+        side_effect=mock_list_cluster_custom_object,
+    )
     mocker.patch(
         "kubernetes.client.CustomObjectsApi.get_namespaced_custom_object",
         side_effect=mock_get_namespaced_custom_object,
@@ -1011,15 +1019,24 @@ def test_get_dashboard_url_from_httproute(mocker):
     )
     assert result == expected_url, f"Expected {expected_url}, got {result}"
 
-    # Test HTTPRoute not found (404) - should return None
-    def mock_404_error(group, version, namespace, plural, name):
-        error = client.exceptions.ApiException(status=404)
-        error.status = 404
-        raise error
+    # Test HTTPRoute not found - should return None
+    def mock_list_cluster_empty(group, version, plural, label_selector):
+        if plural == "httproutes":
+            return {"items": []}
+        raise Exception("Unexpected plural")
+
+    def mock_list_namespaced_empty(group, version, namespace, plural, label_selector):
+        if plural == "httproutes":
+            return {"items": []}
+        raise Exception("Unexpected plural")
 
     mocker.patch(
-        "kubernetes.client.CustomObjectsApi.get_namespaced_custom_object",
-        side_effect=mock_404_error,
+        "kubernetes.client.CustomObjectsApi.list_cluster_custom_object",
+        side_effect=mock_list_cluster_empty,
+    )
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
+        side_effect=mock_list_namespaced_empty,
     )
 
     result = _get_dashboard_url_from_httproute("nonexistent-cluster", "test-ns")
@@ -1031,14 +1048,14 @@ def test_get_dashboard_url_from_httproute(mocker):
         "spec": {"parentRefs": []},  # Empty parentRefs
     }
 
-    def mock_httproute_no_parents_fn(group, version, namespace, plural, name):
+    def mock_list_cluster_no_parents(group, version, plural, label_selector):
         if plural == "httproutes":
-            return mock_httproute_no_parents
+            return {"items": [mock_httproute_no_parents]}
         raise Exception("Unexpected plural")
 
     mocker.patch(
-        "kubernetes.client.CustomObjectsApi.get_namespaced_custom_object",
-        side_effect=mock_httproute_no_parents_fn,
+        "kubernetes.client.CustomObjectsApi.list_cluster_custom_object",
+        side_effect=mock_list_cluster_no_parents,
     )
 
     result = _get_dashboard_url_from_httproute("test-cluster", "test-ns")
@@ -1059,14 +1076,14 @@ def test_get_dashboard_url_from_httproute(mocker):
         },
     }
 
-    def mock_httproute_no_name_fn(group, version, namespace, plural, name):
+    def mock_list_cluster_no_name(group, version, plural, label_selector):
         if plural == "httproutes":
-            return mock_httproute_no_name
+            return {"items": [mock_httproute_no_name]}
         raise Exception("Unexpected plural")
 
     mocker.patch(
-        "kubernetes.client.CustomObjectsApi.get_namespaced_custom_object",
-        side_effect=mock_httproute_no_name_fn,
+        "kubernetes.client.CustomObjectsApi.list_cluster_custom_object",
+        side_effect=mock_list_cluster_no_name,
     )
 
     result = _get_dashboard_url_from_httproute("test-cluster", "test-ns")
@@ -1087,14 +1104,14 @@ def test_get_dashboard_url_from_httproute(mocker):
         },
     }
 
-    def mock_httproute_no_namespace_fn(group, version, namespace, plural, name):
+    def mock_list_cluster_no_namespace(group, version, plural, label_selector):
         if plural == "httproutes":
-            return mock_httproute_no_namespace
+            return {"items": [mock_httproute_no_namespace]}
         raise Exception("Unexpected plural")
 
     mocker.patch(
-        "kubernetes.client.CustomObjectsApi.get_namespaced_custom_object",
-        side_effect=mock_httproute_no_namespace_fn,
+        "kubernetes.client.CustomObjectsApi.list_cluster_custom_object",
+        side_effect=mock_list_cluster_no_namespace,
     )
 
     result = _get_dashboard_url_from_httproute("test-cluster", "test-ns")
@@ -1182,6 +1199,75 @@ def test_get_dashboard_url_from_httproute(mocker):
     assert (
         result is None
     ), "Should return None when non-404 exception occurs (caught by outer handler)"
+
+    # Real-world scenario: Cluster-wide permissions denied, falls back to namespace search
+    # This simulates a regular data scientist without cluster-admin permissions
+    call_count = {"cluster_wide": 0, "namespaced": 0}
+
+    def mock_list_cluster_permission_denied(group, version, plural, label_selector):
+        call_count["cluster_wide"] += 1
+        # Simulate permission denied for cluster-wide search
+        error = client.exceptions.ApiException(status=403)
+        error.status = 403
+        raise error
+
+    def mock_list_namespaced_success(group, version, namespace, plural, label_selector):
+        call_count["namespaced"] += 1
+        # First namespace fails, second succeeds (simulates opendatahub deployment)
+        if namespace == "redhat-ods-applications":
+            return {"items": []}
+        elif namespace == "opendatahub":
+            return {"items": [mock_httproute]}
+        return {"items": []}
+
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_cluster_custom_object",
+        side_effect=mock_list_cluster_permission_denied,
+    )
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
+        side_effect=mock_list_namespaced_success,
+    )
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.get_namespaced_custom_object",
+        side_effect=mock_get_namespaced_custom_object,
+    )
+
+    result = _get_dashboard_url_from_httproute("test-cluster", "test-ns")
+    expected_url = (
+        "https://data-science-gateway.apps.example.com/ray/test-ns/test-cluster"
+    )
+    assert result == expected_url, f"Expected {expected_url}, got {result}"
+    assert call_count["cluster_wide"] == 1, "Should try cluster-wide search first"
+    assert (
+        call_count["namespaced"] >= 2
+    ), "Should fall back to namespace search and try multiple namespaces"
+
+    # Real-world scenario: Gateway not found (404) - should return None
+    # This can happen if Gateway was deleted but HTTPRoute still exists
+    def mock_list_cluster_with_httproute(group, version, plural, label_selector):
+        if plural == "httproutes":
+            return {"items": [mock_httproute]}
+        raise Exception("Unexpected plural")
+
+    def mock_get_gateway_404(group, version, namespace, plural, name):
+        if plural == "gateways":
+            error = client.exceptions.ApiException(status=404)
+            error.status = 404
+            raise error
+        raise Exception("Unexpected plural")
+
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_cluster_custom_object",
+        side_effect=mock_list_cluster_with_httproute,
+    )
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.get_namespaced_custom_object",
+        side_effect=mock_get_gateway_404,
+    )
+
+    result = _get_dashboard_url_from_httproute("test-cluster", "test-ns")
+    assert result is None, "Should return None when Gateway not found (404)"
 
 
 def test_cluster_dashboard_uri_httproute_first(mocker):

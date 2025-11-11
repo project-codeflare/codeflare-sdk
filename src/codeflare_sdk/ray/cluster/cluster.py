@@ -387,6 +387,8 @@ class Cluster:
 
         This method attempts to send a GET request to the cluster dashboard URI.
         If the request is successful (HTTP status code 200), it returns True.
+        For OAuth-protected dashboards, a 302 redirect to the OAuth login page
+        also indicates the dashboard is ready (the OAuth proxy is working).
         If an SSL error occurs, it returns False, indicating the dashboard is not ready.
 
         Returns:
@@ -399,11 +401,14 @@ class Cluster:
             return False
 
         try:
+            # Don't follow redirects - we want to see the redirect response
+            # A 302 redirect from OAuth proxy indicates the dashboard is ready
             response = requests.get(
                 dashboard_uri,
                 headers=self._client_headers,
                 timeout=5,
                 verify=self._client_verify_tls,
+                allow_redirects=False,
             )
         except requests.exceptions.SSLError:  # pragma no cover
             # SSL exception occurs when oauth ingress has been created but cluster is not up
@@ -412,7 +417,11 @@ class Cluster:
             # Any other exception (connection errors, timeouts, etc.)
             return False
 
-        if response.status_code == 200:
+        # Dashboard is ready if:
+        # - 200: Dashboard is accessible (no auth required or already authenticated)
+        # - 302: OAuth redirect - dashboard and OAuth proxy are ready, just needs authentication
+        # - 401/403: OAuth is working and blocking unauthenticated requests - dashboard is ready
+        if response.status_code in (200, 302, 401, 403):
             return True
         else:
             return False
@@ -1153,36 +1162,68 @@ def _get_dashboard_url_from_httproute(
     cluster_name: str, namespace: str
 ) -> Optional[str]:
     """
-    Attempts to get the Ray dashboard URL from an HTTPRoute resource.
-    This is used for RHOAI v3.0+ clusters that use Gateway API.
-
+    Get the Ray dashboard URL from an HTTPRoute (RHOAI v3.0+ Gateway API).
+    Searches for HTTPRoute labeled with ray.io/cluster-name and ray.io/cluster-namespace.
+    Returns the dashboard URL if found, or None to allow fallback to Routes/Ingress.
     Args:
-        cluster_name: Name of the Ray cluster
-        namespace: Namespace of the Ray cluster
-
+        cluster_name: Ray cluster name
+        namespace: Ray cluster namespace
     Returns:
-        Dashboard URL if HTTPRoute is found, None otherwise
+        Dashboard URL if found, else None
     """
     try:
         config_check()
         api_instance = client.CustomObjectsApi(get_api_client())
 
-        # Try to get HTTPRoute for this Ray cluster
+        label_selector = (
+            f"ray.io/cluster-name={cluster_name},ray.io/cluster-namespace={namespace}"
+        )
+
+        # Try cluster-wide search first (if permissions allow)
         try:
-            httproute = api_instance.get_namespaced_custom_object(
+            httproutes = api_instance.list_cluster_custom_object(
                 group="gateway.networking.k8s.io",
                 version="v1",
-                namespace=namespace,
                 plural="httproutes",
-                name=cluster_name,
+                label_selector=label_selector,
             )
-        except client.exceptions.ApiException as e:
-            if e.status == 404:
-                # HTTPRoute not found - this is expected for SDK v0.31.1 and below or Kind clusters
+            items = httproutes.get("items", [])
+            if items:
+                httproute = items[0]
+            else:
+                # No HTTPRoute found
                 return None
-            raise
+        except Exception:
+            # No cluster-wide permissions, try namespace-specific search
+            search_namespaces = [
+                "redhat-ods-applications",
+                "opendatahub",
+                "default",
+                "ray-system",
+            ]
 
-        # Get the Gateway reference from HTTPRoute
+            httproute = None
+            for ns in search_namespaces:
+                try:
+                    httproutes = api_instance.list_namespaced_custom_object(
+                        group="gateway.networking.k8s.io",
+                        version="v1",
+                        namespace=ns,
+                        plural="httproutes",
+                        label_selector=label_selector,
+                    )
+                    items = httproutes.get("items", [])
+                    if items:
+                        httproute = items[0]
+                        break
+                except client.ApiException:
+                    continue
+
+            if not httproute:
+                # No HTTPRoute found
+                return None
+
+        # Extract Gateway reference and construct dashboard URL
         parent_refs = httproute.get("spec", {}).get("parentRefs", [])
         if not parent_refs:
             return None
@@ -1203,7 +1244,6 @@ def _get_dashboard_url_from_httproute(
             name=gateway_name,
         )
 
-        # Extract hostname from Gateway listeners
         listeners = gateway.get("spec", {}).get("listeners", [])
         if not listeners:
             return None
@@ -1212,14 +1252,9 @@ def _get_dashboard_url_from_httproute(
         if not hostname:
             return None
 
-        # Construct the dashboard URL using RHOAI v3.0+ Gateway API pattern
-        # The HTTPRoute existence confirms v3.0+, so we use the standard path pattern
-        # Format: https://{hostname}/ray/{namespace}/{cluster-name}
-        protocol = "https"  # Gateway API uses HTTPS
-        dashboard_url = f"{protocol}://{hostname}/ray/{namespace}/{cluster_name}"
+        # Construct dashboard URL: https://{hostname}/ray/{namespace}/{cluster-name}
+        return f"https://{hostname}/ray/{namespace}/{cluster_name}"
 
-        return dashboard_url
-
-    except Exception as e:  # pragma: no cover
-        # If any error occurs, return None to fall back to OpenShift Route
+    except Exception:  # pragma: no cover
+        # Any error means no HTTPRoute - fall back to Routes/Ingress
         return None
