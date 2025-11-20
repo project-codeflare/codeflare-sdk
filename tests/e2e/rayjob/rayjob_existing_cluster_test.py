@@ -15,6 +15,7 @@ from codeflare_sdk.ray.rayjobs.status import CodeflareRayJobStatus
 from codeflare_sdk.vendored.python_client.kuberay_job_api import RayjobApi
 
 
+@pytest.mark.tier1
 class TestRayJobExistingCluster:
     """Test RayJob against existing Kueue-managed clusters."""
 

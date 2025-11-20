@@ -12,6 +12,7 @@ from codeflare_sdk import (
 )
 
 
+@pytest.mark.smoke
 class TestRayJobRayVersionValidationOauth:
     def setup_method(self):
         initialize_kubernetes_client(self)

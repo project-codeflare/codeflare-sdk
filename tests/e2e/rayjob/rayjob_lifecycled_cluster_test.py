@@ -14,6 +14,7 @@ from codeflare_sdk.vendored.python_client.kuberay_job_api import RayjobApi
 from codeflare_sdk.vendored.python_client.kuberay_cluster_api import RayClusterApi
 
 
+@pytest.mark.tier1
 class TestRayJobLifecycledCluster:
     """Test RayJob with auto-created cluster lifecycle management."""
 
