@@ -79,7 +79,11 @@ filterwarnings = [
 markers = [
     "kind",
     "openshift",
-    "nvidia_gpu"
+    "nvidia_gpu",
+    "smoke: Smoke tests - quick validation tests",
+    "tier1: Tier1 tests - standard test suite",
+    "pre_upgrade: Tests to run before upgrade",
+    "post_upgrade: Tests to run after upgrade"
 ]
 addopts = "--timeout=900 --ignore=src/codeflare_sdk/vendored"
 testpaths = ["src/codeflare_sdk"]

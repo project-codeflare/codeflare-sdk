@@ -12,6 +12,7 @@ from support import *
 
 
 @pytest.mark.openshift
+@pytest.mark.tier1
 class TestHeterogeneousClustersOauth:
     def setup_method(self):
         initialize_kubernetes_client(self)

@@ -14,6 +14,7 @@ from support import *
 
 @pytest.mark.skip(reason="Remote ray.init() is temporarily unsupported")
 @pytest.mark.openshift
+@pytest.mark.tier1
 class TestRayLocalInteractiveOauth:
     def setup_method(self):
         initialize_kubernetes_client(self)

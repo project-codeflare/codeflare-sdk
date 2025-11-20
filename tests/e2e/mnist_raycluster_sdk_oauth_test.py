@@ -17,6 +17,7 @@ from support import *
 
 
 @pytest.mark.openshift
+@pytest.mark.tier1
 class TestRayClusterSDKOauth:
     def setup_method(self):
         initialize_kubernetes_client(self)

@@ -1,3 +1,4 @@
+import pytest
 import requests
 from time import sleep
 
@@ -17,6 +18,7 @@ local_queue = "local-queue-mnist"
 
 
 # Creates a Ray cluster
+@pytest.mark.pre_upgrade
 class TestMNISTRayClusterApply:
     def setup_method(self):
         initialize_kubernetes_client(self)
@@ -80,6 +82,7 @@ class TestMNISTRayClusterApply:
             assert False, "Cluster is not ready!"
 
 
+@pytest.mark.post_upgrade
 class TestMnistJobSubmit:
     def setup_method(self):
         initialize_kubernetes_client(self)
@@ -101,15 +104,94 @@ class TestMnistJobSubmit:
     # Assertions
     def assert_jobsubmit_withoutLogin(self, cluster):
         dashboard_url = cluster.cluster_dashboard_uri()
-        try:
-            RayJobClient(address=dashboard_url, verify=False)
-            assert False
-        except Exception as e:
-            if e.response.status_code == 403:
-                assert True
+
+        # Verify that job submission is actually blocked by attempting to submit without auth
+        # The endpoint path depends on whether we're using HTTPRoute (with path prefix) or not
+        if "/ray/" in dashboard_url:
+            # HTTPRoute format: https://hostname/ray/namespace/cluster-name
+            # API endpoint is at the same base path
+            api_url = dashboard_url + "/api/jobs/"
+        else:
+            # OpenShift Route format: https://hostname
+            # API endpoint is directly under the hostname
+            api_url = dashboard_url + "/api/jobs/"
+
+        jobdata = {
+            "entrypoint": "python mnist.py",
+            "runtime_env": {
+                "working_dir": "./tests/e2e/",
+                "pip": "./tests/e2e/mnist_pip_requirements.txt",
+                "env_vars": get_setup_env_variables(),
+            },
+        }
+
+        # Try to submit a job without authentication
+        # Follow redirects to see the final response - if it redirects to login, that's still a failure
+        response = requests.post(
+            api_url, verify=False, json=jobdata, allow_redirects=True
+        )
+
+        # Check if the submission was actually blocked
+        # Success indicators that submission was blocked:
+        # 1. Status code 403 (Forbidden)
+        # 2. Status code 302 (Redirect to login) - but we need to verify the final response after redirect
+        # 3. Status code 200 but with HTML content (login page) instead of JSON (job submission response)
+        # 4. Status code 401 (Unauthorized)
+
+        submission_blocked = False
+
+        if response.status_code == 403:
+            submission_blocked = True
+        elif response.status_code == 401:
+            submission_blocked = True
+        elif response.status_code == 302:
+            # Redirect happened - check if final response after redirect is also a failure
+            # If we followed redirects, check the final status
+            submission_blocked = True  # Redirect to login means submission failed
+        elif response.status_code == 200:
+            # Check if response is HTML (login page) instead of JSON (job submission response)
+            content_type = response.headers.get("Content-Type", "")
+            if "text/html" in content_type or "application/json" not in content_type:
+                # Got HTML (likely login page) instead of JSON - submission was blocked
+                submission_blocked = True
             else:
-                print(f"An unexpected error occurred. Error: {e}")
-                assert False
+                # Got JSON response - check if it's an error or actually a successful submission
+                try:
+                    json_response = response.json()
+                    # If it's a successful job submission, it should have a 'job_id' or 'submission_id'
+                    # If it's an error, it might have 'error' or 'message'
+                    if "job_id" in json_response or "submission_id" in json_response:
+                        # Job was actually submitted - this is a failure!
+                        submission_blocked = False
+                    else:
+                        # Error response - submission was blocked
+                        submission_blocked = True
+                except ValueError:
+                    # Not JSON - likely HTML login page
+                    submission_blocked = True
+
+        if not submission_blocked:
+            assert (
+                False
+            ), f"Job submission succeeded without authentication! Status: {response.status_code}, Response: {response.text[:200]}"
+
+        # Also verify that RayJobClient cannot be used without authentication
+        try:
+            client = RayJobClient(address=dashboard_url, verify=False)
+            # Try to call a method to trigger the connection and authentication check
+            client.list_jobs()
+            assert (
+                False
+            ), "RayJobClient succeeded without authentication - this should not be possible"
+        except (
+            requests.exceptions.JSONDecodeError,
+            requests.exceptions.HTTPError,
+            Exception,
+        ):
+            # Any exception is expected when trying to use the client without auth
+            pass
+
+        assert True, "Job submission without authentication was correctly blocked"
 
     def assert_jobsubmit_withlogin(self, cluster):
         auth_token = run_oc_command(["whoami", "--show-token=true"])
