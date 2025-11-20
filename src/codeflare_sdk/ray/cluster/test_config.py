@@ -85,7 +85,7 @@ def test_config_creation_all_parameters(mocker):
     assert cluster.config.num_workers == 10
     assert cluster.config.worker_memory_requests == "12G"
     assert cluster.config.worker_memory_limits == "16G"
-    assert cluster.config.appwrapper == False
+    assert cluster.config.appwrapper is False
     assert cluster.config.envs == {
         "key1": "value1",
         "key2": "value2",
@@ -93,14 +93,14 @@ def test_config_creation_all_parameters(mocker):
     }
     assert cluster.config.image == "example/ray:tag"
     assert cluster.config.image_pull_secrets == ["secret1", "secret2"]
-    assert cluster.config.write_to_file == True
-    assert cluster.config.verify_tls == True
+    assert cluster.config.write_to_file is True
+    assert cluster.config.verify_tls is True
     assert cluster.config.labels == {"key1": "value1", "key2": "value2"}
     assert cluster.config.worker_extended_resource_requests == {"nvidia.com/gpu": 1}
     assert (
         cluster.config.extended_resource_mapping == expected_extended_resource_mapping
     )
-    assert cluster.config.overwrite_default_resource_mapping == True
+    assert cluster.config.overwrite_default_resource_mapping is True
     assert cluster.config.local_queue == "local-queue-default"
     assert cluster.config.annotations == {
         "app.kubernetes.io/managed-by": "test-prefix",

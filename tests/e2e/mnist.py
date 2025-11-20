@@ -141,11 +141,7 @@ class LitMNIST(LightningModule):
         # download
         print("Downloading MNIST dataset...")
 
-        if (
-            STORAGE_BUCKET_EXISTS
-            and os.environ.get("AWS_DEFAULT_ENDPOINT") != ""
-            and os.environ.get("AWS_DEFAULT_ENDPOINT") != None
-        ):
+        if STORAGE_BUCKET_EXISTS and os.environ.get("AWS_DEFAULT_ENDPOINT", "") != "":
             print("Using storage bucket to download datasets...")
 
             dataset_dir = os.path.join(self.data_dir, "MNIST/raw")
