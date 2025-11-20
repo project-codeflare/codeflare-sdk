@@ -9,7 +9,7 @@ cleanup_on_exit() {
     # Use TEST_EXIT_CODE if set, otherwise use the current exit code
     local exit_code=${TEST_EXIT_CODE:-$?}
     local cleanup_ran=0
-    
+
     # Only run cleanup if we've started the process (TEMP_KUBECONFIG exists)
     if [ -n "${TEMP_KUBECONFIG:-}" ] && [ -f "${TEMP_KUBECONFIG}" ]; then
         cleanup_ran=1
@@ -17,10 +17,10 @@ cleanup_on_exit() {
         echo "============================================================================"
         echo "Running cleanup (test exit code: $exit_code)"
         echo "============================================================================"
-        
+
         # Ensure KUBECONFIG is set to temp file
         export KUBECONFIG="${TEMP_KUBECONFIG}"
-        
+
         # Try to login as admin for cleanup
         if [ -n "${OCP_ADMIN_USER_USERNAME:-}" ] && [ -n "${OCP_ADMIN_USER_PASSWORD:-}" ] && [ -n "${OCP_API_URL:-}" ]; then
             echo "Logging in to OpenShift with OCP_ADMIN_USER for cleanup..."
@@ -29,17 +29,17 @@ cleanup_on_exit() {
                 --password="$OCP_ADMIN_USER_PASSWORD" \
                 --insecure-skip-tls-verify=true 2>/dev/null; then
                 echo "Successfully logged in with OCP_ADMIN_USER for cleanup"
-                
+
                 # Cleanup RBAC Policies
                 if [ -n "${TEST_USER_USERNAME:-}" ]; then
                     echo "Cleaning up RBAC policies..."
                     RBAC_FILE="/codeflare-sdk/images/tests/rbac-test-user-permissions.yaml"
                     RBAC_TEMP_FILE="/tmp/rbac-test-user-permissions-cleanup-$$.yaml"
-                    
+
                     if [ -f "$RBAC_FILE" ]; then
                         ESCAPED_USERNAME=$(printf '%s\n' "$TEST_USER_USERNAME" | sed 's/[[\.*^$()+?{|]/\\&/g')
                         sed "s/TEST_USER_USERNAME_PLACEHOLDER/$ESCAPED_USERNAME/g" "$RBAC_FILE" > "$RBAC_TEMP_FILE" 2>/dev/null
-                        
+
                         if [ -f "$RBAC_TEMP_FILE" ]; then
                             echo "Deleting RBAC resources..."
                             oc delete -f "$RBAC_TEMP_FILE" 2>/dev/null || {
@@ -54,11 +54,11 @@ cleanup_on_exit() {
                 else
                     echo "WARNING: TEST_USER_USERNAME not found, cannot cleanup RBAC"
                 fi
-                
+
                 # Set Kueue Component to Removed State
                 echo "Setting Kueue component to Removed state..."
                 DSC_NAME=$(get_dsc_name 2>/dev/null || echo "")
-                
+
                 if [ -n "$DSC_NAME" ] && [[ ! "$DSC_NAME" =~ ^ERROR ]]; then
                     set_kueue_management_state "Removed" "$DSC_NAME" 2>/dev/null || {
                         echo "WARNING: Failed to set Kueue to Removed state"
@@ -75,14 +75,14 @@ cleanup_on_exit() {
         else
             echo "WARNING: Admin credentials not available for cleanup"
         fi
-        
+
         # Cleanup temporary kubeconfig
         rm -f "${TEMP_KUBECONFIG}" 2>/dev/null || true
-        
+
         echo "============================================================================"
         echo ""
     fi
-    
+
     # Only exit if we actually ran cleanup (to avoid double exit)
     if [ $cleanup_ran -eq 1 ]; then
         exit $exit_code
@@ -94,7 +94,7 @@ trap cleanup_on_exit EXIT
 
 # ============================================================================
 # Environment Variables Setup
-# 
+#
 # Required environment variables (should be set by Jenkins or --env-file):
 #   TEST_USER_USERNAME=<username>
 #   TEST_USER_PASSWORD=<password>
@@ -165,23 +165,23 @@ wait_for_dsc_ready() {
     local timeout=${1:-600}
     local interval=10
     local elapsed=0
-    
+
     echo "Waiting for DataScienceCluster to be in Ready state (timeout: ${timeout}s)..."
-    
+
     while [ $elapsed -lt "$timeout" ]; do
         local phase
         phase=$(oc get DataScienceCluster --no-headers -o custom-columns=":status.phase" 2>/dev/null | head -n1)
-        
+
         if [ "$phase" = "Ready" ]; then
             echo "DataScienceCluster is in Ready state"
             return 0
         fi
-        
+
         echo "DataScienceCluster phase: ${phase:-Unknown} (elapsed: ${elapsed}s)"
         sleep $interval
         elapsed=$((elapsed + interval))
     done
-    
+
     echo "ERROR: Timeout waiting for DataScienceCluster to be Ready (waited ${timeout}s)"
     return 1
 }
@@ -191,18 +191,18 @@ wait_for_dsc_ready() {
 set_kueue_management_state() {
     local state=$1
     local cluster_name=$2
-    
+
     if [ -z "$state" ] || [ -z "$cluster_name" ]; then
         echo "ERROR: Invalid arguments for set_kueue_management_state"
         return 1
     fi
-    
+
     echo "Setting Kueue component management state to: $state"
     oc patch DataScienceCluster "$cluster_name" --type 'json' -p "[{\"op\" : \"replace\" ,\"path\" : \"/spec/components/kueue/managementState\" ,\"value\" : \"$state\"}]" || {
         echo "ERROR: Failed to set Kueue management state to $state"
         return 1
     }
-    
+
     echo "Successfully set Kueue management state to: $state"
     return 0
 }
@@ -453,4 +453,3 @@ echo ""
 
 # Exit - the trap will handle cleanup automatically
 exit $TEST_EXIT_CODE
-

@@ -14,4 +14,3 @@ build-test-image:
 push-test-image:
 	@echo "Pushing test image: $(E2E_TEST_IMAGE)"
 	podman push $(E2E_TEST_IMAGE)
-
