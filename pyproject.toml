@@ -66,6 +66,8 @@ coverage = "7.6.4"
 pytest-mock = "3.11.1"
 pytest-timeout = "2.3.1"
 jupyterlab = "4.3.1"
+selenium = "4.27.1"
+webdriver-manager = "4.0.2"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -83,7 +85,8 @@ markers = [
     "smoke: Smoke tests - quick validation tests",
     "tier1: Tier1 tests - standard test suite",
     "pre_upgrade: Tests to run before upgrade",
-    "post_upgrade: Tests to run after upgrade"
+    "post_upgrade: Tests to run after upgrade",
+    "ui: UI tests requiring browser automation"
 ]
 addopts = "--timeout=900 --ignore=src/codeflare_sdk/vendored"
 testpaths = ["src/codeflare_sdk"]

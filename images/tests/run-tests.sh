@@ -388,6 +388,20 @@ cp "${TEMP_KUBECONFIG}" ~/.kube/config || {
 echo "Successfully logged in with TEST_USER"
 
 # ============================================================================
+# Get RHOAI Dashboard URL for UI Tests
+# ============================================================================
+echo "Retrieving RHOAI Dashboard URL..."
+ODH_DASHBOARD_URL=$(oc get consolelink rhodslink -o jsonpath='{.spec.href}' 2>/dev/null)
+
+if [ -z "$ODH_DASHBOARD_URL" ]; then
+    echo "WARNING: Failed to retrieve Dashboard URL from consolelink rhodslink"
+    echo "         UI tests will be skipped or may fail"
+else
+    echo "Dashboard URL: $ODH_DASHBOARD_URL"
+    export ODH_DASHBOARD_URL
+fi
+
+# ============================================================================
 # Run Tests
 # ============================================================================
 echo "Running tests..."
