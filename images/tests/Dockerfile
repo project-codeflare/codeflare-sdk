@@ -35,12 +35,20 @@ RUN poetry install --no-root --with test && rm -rf $POETRY_CACHE_DIR
 # Runtime stage
 FROM python:3.12-slim
 
-# Install system dependencies for runtime
+# Install system dependencies for runtime including Chrome for Selenium tests
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     curl \
     ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
+    wget \
+    gnupg \
+    && wget -q -O /tmp/google-chrome-key.pub https://dl-ssl.google.com/linux/linux_signing_key.pub \
+    && gpg --dearmor -o /usr/share/keyrings/google-chrome-keyring.gpg /tmp/google-chrome-key.pub \
+    && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome-keyring.gpg] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends \
+    google-chrome-stable \
+    && rm -rf /var/lib/apt/lists/* /tmp/google-chrome-key.pub
 
 # Install OpenShift CLI (oc)
 RUN curl -L https://mirror.openshift.com/pub/openshift-v4/clients/oc/latest/linux/oc.tar.gz | \
