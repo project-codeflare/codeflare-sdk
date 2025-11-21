@@ -42,6 +42,11 @@ print("MASTER_PORT: is ", os.getenv("MASTER_PORT"))
 print("ACCELERATOR: is ", os.getenv("ACCELERATOR"))
 ACCELERATOR = os.getenv("ACCELERATOR")
 
+# If GPU is requested but CUDA is not available, fall back to CPU
+if ACCELERATOR == "gpu" and not torch.cuda.is_available():
+    print("Warning: GPU requested but CUDA is not available. Falling back to CPU.")
+    ACCELERATOR = "cpu"
+
 STORAGE_BUCKET_EXISTS = "AWS_DEFAULT_ENDPOINT" in os.environ
 print("STORAGE_BUCKET_EXISTS: ", STORAGE_BUCKET_EXISTS)
 

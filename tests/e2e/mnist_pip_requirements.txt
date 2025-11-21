@@ -1,4 +1,6 @@
+--extra-index-url https://download.pytorch.org/whl/cu118
+torch==2.5.1
+torchvision==0.20.1
 pytorch_lightning==1.9.5
 torchmetrics==0.9.1
-torchvision==0.20.1
 minio
