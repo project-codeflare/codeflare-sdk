@@ -13,12 +13,15 @@
 # limitations under the License.
 
 from typing import Optional, List
+import logging
 from codeflare_sdk.common import _kube_api_error_handling
 from codeflare_sdk.common.kubernetes_cluster.auth import config_check, get_api_client
 from kubernetes import client
 from kubernetes.client.exceptions import ApiException
 
 from ...common.utils import get_current_namespace
+
+logger = logging.getLogger(__name__)
 
 
 def get_default_kueue_name(namespace: str) -> Optional[str]:
@@ -142,6 +145,50 @@ def local_queue_exists(namespace: str, local_queue_name: str) -> bool:
         if lq["metadata"]["name"] == local_queue_name:
             return True
     return False
+
+
+def priority_class_exists(priority_class_name: str) -> Optional[bool]:
+    """
+    Checks if a WorkloadPriorityClass with the provided name exists in the cluster.
+
+    WorkloadPriorityClass is a cluster-scoped resource.
+
+    Args:
+        priority_class_name (str):
+            The name of the WorkloadPriorityClass to check for existence.
+
+    Returns:
+        Optional[bool]:
+            True if the WorkloadPriorityClass exists, False if it doesn't exist,
+            None if we cannot verify (e.g., permission denied).
+    """
+    try:
+        config_check()
+        api_instance = client.CustomObjectsApi(get_api_client())
+        # Try to get the specific WorkloadPriorityClass by name
+        api_instance.get_cluster_custom_object(
+            group="kueue.x-k8s.io",
+            version="v1beta1",
+            plural="workloadpriorityclasses",
+            name=priority_class_name,
+        )
+        return True
+    except client.ApiException as e:
+        if e.status == 404:
+            return False
+
+        logger.warning(
+            f"Error checking WorkloadPriorityClass '{priority_class_name}': {e.reason}. "
+            f"Cannot verify if it exists."
+        )
+        return None
+
+    except Exception as e:
+        logger.warning(
+            f"Unexpected error checking WorkloadPriorityClass '{priority_class_name}': {str(e)}. "
+            f"Cannot verify if it exists."
+        )
+        return None
 
 
 def add_queue_label(item: dict, namespace: str, local_queue: Optional[str]):

@@ -119,6 +119,8 @@ jobs:
           kubectl create clusterrolebinding sdk-user-secret-manager --clusterrole=secret-manager --user=sdk-user
           kubectl create clusterrole workload-reader --verb=get,list,watch --resource=workloads
           kubectl create clusterrolebinding sdk-user-workload-reader --clusterrole=workload-reader --user=sdk-user
+          kubectl create clusterrole workloadpriorityclass-reader --verb=get,list --resource=workloadpriorityclasses
+          kubectl create clusterrolebinding sdk-user-workloadpriorityclass-reader --clusterrole=workloadpriorityclass-reader --user=sdk-user
           kubectl config use-context sdk-user
 
       - name: Run RayJob E2E tests
