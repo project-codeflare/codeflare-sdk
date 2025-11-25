@@ -71,17 +71,18 @@ class TestRayJobExistingCluster:
         cluster.wait_ready(timeout=600)
         print(f"✓ Cluster '{cluster_name}' is ready")
 
-        # RayJob with explicit local_queue
+        # RayJob with explicit local_queue (will be ignored for existing clusters)
+        # Kueue does not manage RayJobs targeting existing clusters
         rayjob_explicit = RayJob(
             job_name="job-explicit-queue",
             cluster_name=cluster_name,
             namespace=self.namespace,
             entrypoint="python -c \"import ray; ray.init(); print('Job with explicit queue')\"",
             runtime_env={"env_vars": get_setup_env_variables(ACCELERATOR="cpu")},
-            local_queue=self.local_queues[0],
+            local_queue=self.local_queues[0],  # Ignored for existing clusters
         )
 
-        # RayJob using default queue
+        # RayJob without queue (no Kueue labels for existing clusters)
         rayjob_default = RayJob(
             job_name="job-default-queue",
             cluster_name=cluster_name,

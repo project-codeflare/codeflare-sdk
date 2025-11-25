@@ -1153,16 +1153,243 @@ def test_rayjob_kueue_explicit_local_queue(auto_mock_setup):
         submitted_job["metadata"]["labels"]["kueue.x-k8s.io/queue-name"]
         == "custom-queue"
     )
+    # Verify suspend is True for new clusters with Kueue
+    assert submitted_job["spec"]["suspend"] is True
 
 
-def test_rayjob_no_kueue_label_for_existing_cluster(auto_mock_setup):
+def test_rayjob_queue_label_explicit_vs_default(auto_mock_setup, mocker):
     """
-    Test RayJob doesn't add Kueue label for existing clusters.
+    Test queue label behavior: explicit queue vs default queue auto-detection.
+    """
+    # Mock default queue detection
+    mock_get_default = mocker.patch(
+        "codeflare_sdk.ray.rayjobs.rayjob.get_default_kueue_name",
+        return_value="default-queue",
+    )
+
+    config = ManagedClusterConfig(num_workers=1)
+
+    # Test 1: Explicit queue should be used (no default queue lookup)
+    mock_api_instance1 = auto_mock_setup["rayjob_api"]
+    mock_api_instance1.submit_job.return_value = {"metadata": {"name": "test-job-1"}}
+    rayjob1 = RayJob(
+        job_name="test-job-1",
+        entrypoint="python -c 'print()'",
+        cluster_config=config,
+        local_queue="explicit-queue",
+    )
+    rayjob1.submit()
+    call_args1 = mock_api_instance1.submit_job.call_args
+    submitted_job1 = call_args1.kwargs["job"]
+    assert (
+        submitted_job1["metadata"]["labels"]["kueue.x-k8s.io/queue-name"]
+        == "explicit-queue"
+    )
+    # New clusters with Kueue should be suspended
+    assert submitted_job1["spec"]["suspend"] is True
+    # Should not call get_default_kueue_name when explicit queue is provided
+    mock_get_default.assert_not_called()
+
+    # Reset mock for next test
+    mock_get_default.reset_mock()
+    mock_get_default.return_value = "default-queue"
+
+    # Test 2: Default queue should be auto-detected for new clusters
+    mock_api_instance2 = auto_mock_setup["rayjob_api"]
+    mock_api_instance2.submit_job.return_value = {"metadata": {"name": "test-job-2"}}
+    rayjob2 = RayJob(
+        job_name="test-job-2",
+        entrypoint="python -c 'print()'",
+        cluster_config=config,
+        # No local_queue specified
+    )
+    rayjob2.submit()
+    call_args2 = mock_api_instance2.submit_job.call_args
+    submitted_job2 = call_args2.kwargs["job"]
+    assert (
+        submitted_job2["metadata"]["labels"]["kueue.x-k8s.io/queue-name"]
+        == "default-queue"
+    )
+    # New clusters with Kueue should be suspended
+    assert submitted_job2["spec"]["suspend"] is True
+    # Should call get_default_kueue_name when no explicit queue
+    mock_get_default.assert_called_once()
+
+    mock_api_instance3 = auto_mock_setup["rayjob_api"]
+    mock_api_instance3.submit_job.return_value = {"metadata": {"name": "test-job-3"}}
+    mock_get_default.reset_mock()
+    rayjob3 = RayJob(
+        job_name="test-job-3",
+        cluster_name="existing-cluster",
+        entrypoint="python -c 'print()'",
+        local_queue="explicit-queue",
+    )
+    rayjob3.submit()
+    call_args3 = mock_api_instance3.submit_job.call_args
+    submitted_job3 = call_args3.kwargs["job"]
+    # Should not have Kueue labels for existing clusters
+    assert "kueue.x-k8s.io/queue-name" not in submitted_job3["metadata"].get(
+        "labels", {}
+    )
+    # Should not call get_default_kueue_name for existing clusters
+    mock_get_default.assert_not_called()
+
+
+def test_rayjob_priority_class(auto_mock_setup, mocker):
+    """
+    Test RayJob adds priority class label when specified.
+    """
+    # Mock priority_class_exists to return True (priority class exists)
+    mocker.patch(
+        "codeflare_sdk.ray.rayjobs.rayjob.priority_class_exists",
+        return_value=True,
+    )
+
+    mock_api_instance = auto_mock_setup["rayjob_api"]
+    mock_api_instance.submit_job.return_value = {"metadata": {"name": "test-job"}}
+
+    config = ManagedClusterConfig(num_workers=1)
+    rayjob = RayJob(
+        job_name="test-job",
+        entrypoint="python -c 'print()'",
+        cluster_config=config,
+        priority_class="high-priority",
+    )
+
+    rayjob.submit()
+
+    call_args = mock_api_instance.submit_job.call_args
+    submitted_job = call_args.kwargs["job"]
+    assert (
+        submitted_job["metadata"]["labels"]["kueue.x-k8s.io/priority-class"]
+        == "high-priority"
+    )
+
+
+def test_rayjob_priority_class_not_added_when_none(auto_mock_setup):
+    """
+    Test RayJob doesn't add priority class label when not specified.
     """
     mock_api_instance = auto_mock_setup["rayjob_api"]
     mock_api_instance.submit_job.return_value = {"metadata": {"name": "test-job"}}
 
-    # Using existing cluster (no cluster_config)
+    config = ManagedClusterConfig(num_workers=1)
+    rayjob = RayJob(
+        job_name="test-job",
+        entrypoint="python -c 'print()'",
+        cluster_config=config,
+    )
+
+    rayjob.submit()
+
+    call_args = mock_api_instance.submit_job.call_args
+    submitted_job = call_args.kwargs["job"]
+    # Priority class label should not be present
+    assert "kueue.x-k8s.io/priority-class" not in submitted_job["metadata"].get(
+        "labels", {}
+    )
+
+
+def test_rayjob_priority_class_validation_invalid(auto_mock_setup, mocker):
+    """
+    Test RayJob validates priority class exists before submission.
+    """
+    # Mock priority_class_exists to return False (priority class doesn't exist)
+    mocker.patch(
+        "codeflare_sdk.ray.rayjobs.rayjob.priority_class_exists",
+        return_value=False,
+    )
+
+    config = ManagedClusterConfig(num_workers=1)
+    rayjob = RayJob(
+        job_name="test-job",
+        entrypoint="python -c 'print()'",
+        cluster_config=config,
+        priority_class="invalid-priority",
+    )
+
+    # Should raise ValueError before submission
+    with pytest.raises(
+        ValueError, match="Priority class 'invalid-priority' does not exist"
+    ):
+        rayjob.submit()
+
+
+def test_rayjob_priority_class_validation_cannot_verify(auto_mock_setup, mocker):
+    """
+    Test RayJob allows submission when priority class cannot be verified (best effort).
+    """
+    # Mock priority_class_exists to return None (cannot verify, e.g., permission denied)
+    mocker.patch(
+        "codeflare_sdk.ray.rayjobs.rayjob.priority_class_exists",
+        return_value=None,
+    )
+
+    mock_api_instance = auto_mock_setup["rayjob_api"]
+    mock_api_instance.submit_job.return_value = {"metadata": {"name": "test-job"}}
+
+    config = ManagedClusterConfig(num_workers=1)
+    rayjob = RayJob(
+        job_name="test-job",
+        entrypoint="python -c 'print()'",
+        cluster_config=config,
+        priority_class="unknown-priority",
+    )
+
+    # Should submit successfully when we can't verify (best effort)
+    rayjob.submit()
+
+    call_args = mock_api_instance.submit_job.call_args
+    submitted_job = call_args.kwargs["job"]
+    # Priority class label should still be added
+    assert (
+        submitted_job["metadata"]["labels"]["kueue.x-k8s.io/priority-class"]
+        == "unknown-priority"
+    )
+
+
+def test_rayjob_no_kueue_labels_with_existing_cluster(auto_mock_setup, mocker, caplog):
+    """
+    Test RayJob does NOT add Kueue labels when using existing cluster.
+    Kueue should not manage RayJobs targeting existing clusters.
+    """
+    mock_api_instance = auto_mock_setup["rayjob_api"]
+    mock_api_instance.submit_job.return_value = {"metadata": {"name": "test-job"}}
+
+    rayjob = RayJob(
+        job_name="test-job",
+        cluster_name="existing-cluster",
+        entrypoint="python -c 'print()'",
+        local_queue="my-queue",  # Should be ignored
+        priority_class="medium-priority",  # Should be ignored
+    )
+
+    with caplog.at_level("WARNING"):
+        rayjob.submit()
+
+    call_args = mock_api_instance.submit_job.call_args
+    submitted_job = call_args.kwargs["job"]
+
+    # Verify NO Kueue labels are present for existing clusters
+    labels = submitted_job["metadata"].get("labels", {})
+    assert "kueue.x-k8s.io/queue-name" not in labels
+    assert "kueue.x-k8s.io/priority-class" not in labels
+
+    # Verify suspend is NOT set for existing clusters
+    assert "suspend" not in submitted_job["spec"]
+
+    # Verify warning was logged about ignored Kueue parameters
+    assert "Kueue labels (local_queue, priority_class) are ignored" in caplog.text
+
+
+def test_rayjob_no_kueue_label_for_existing_cluster_without_queue(auto_mock_setup):
+    """
+    Test RayJob doesn't add Kueue label for existing clusters when no queue specified.
+    """
+    mock_api_instance = auto_mock_setup["rayjob_api"]
+    mock_api_instance.submit_job.return_value = {"metadata": {"name": "test-job"}}
+
+    # Using existing cluster (no cluster_config) and no explicit queue
     rayjob = RayJob(
         job_name="test-job",
         cluster_name="existing-cluster",
@@ -1171,10 +1398,12 @@ def test_rayjob_no_kueue_label_for_existing_cluster(auto_mock_setup):
 
     rayjob.submit()
 
-    # Verify no Kueue label was added
+    # Verify no Kueue label was added (no auto-detection for existing clusters)
     call_args = mock_api_instance.submit_job.call_args
     submitted_job = call_args.kwargs["job"]
-    assert "kueue.x-k8s.io/queue-name" not in submitted_job["metadata"]["labels"]
+    assert "kueue.x-k8s.io/queue-name" not in submitted_job["metadata"].get(
+        "labels", {}
+    )
 
 
 def test_rayjob_with_ttl_and_deadline(auto_mock_setup):

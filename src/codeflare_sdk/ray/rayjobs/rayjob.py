@@ -23,7 +23,10 @@ import warnings
 from typing import Dict, Any, Optional, Tuple, Union
 
 from ray.runtime_env import RuntimeEnv
-from codeflare_sdk.common.kueue.kueue import get_default_kueue_name
+from codeflare_sdk.common.kueue.kueue import (
+    get_default_kueue_name,
+    priority_class_exists,
+)
 from codeflare_sdk.common.utils.constants import MOUNT_PATH
 
 from codeflare_sdk.common.utils.utils import get_ray_image_for_python_version
@@ -69,6 +72,7 @@ class RayJob:
         ttl_seconds_after_finished: int = 0,
         active_deadline_seconds: Optional[int] = None,
         local_queue: Optional[str] = None,
+        priority_class: Optional[str] = None,
     ):
         """
         Initialize a RayJob instance.
@@ -86,11 +90,13 @@ class RayJob:
             ttl_seconds_after_finished: Seconds to wait before cleanup after job finishes (default: 0)
             active_deadline_seconds: Maximum time the job can run before being terminated (optional)
             local_queue: The Kueue LocalQueue to submit the job to (optional)
+            priority_class: The Kueue WorkloadPriorityClass name for preemption control (optional).
 
         Note:
             - True if cluster_config is provided (new cluster will be cleaned up)
             - False if cluster_name is provided (existing cluster will not be shut down)
             - User can explicitly set this value to override auto-detection
+            - Kueue labels (queue and priority) can be applied to both new and existing clusters
         """
         if cluster_name is None and cluster_config is None:
             raise ValueError(
@@ -124,6 +130,7 @@ class RayJob:
         self.ttl_seconds_after_finished = ttl_seconds_after_finished
         self.active_deadline_seconds = active_deadline_seconds
         self.local_queue = local_queue
+        self.priority_class = priority_class
 
         if namespace is None:
             detected_namespace = get_current_namespace()
@@ -165,6 +172,7 @@ class RayJob:
         # Validate configuration before submitting
         self._validate_ray_version_compatibility()
         self._validate_working_dir_entrypoint()
+        self._validate_priority_class()
 
         # Extract files from entrypoint and runtime_env working_dir
         files = extract_all_local_files(self)
@@ -243,12 +251,14 @@ class RayJob:
         # Extract files once and use for both runtime_env and submitter pod
         files = extract_all_local_files(self)
 
+        # Build Kueue labels - only for new clusters (lifecycled)
         labels = {}
-        # If cluster_config is provided, use the local_queue from the cluster_config
+
         if self._cluster_config is not None:
             if self.local_queue:
                 labels["kueue.x-k8s.io/queue-name"] = self.local_queue
             else:
+                # Auto-detect default queue for new clusters
                 default_queue = get_default_kueue_name(self.namespace)
                 if default_queue:
                     labels["kueue.x-k8s.io/queue-name"] = default_queue
@@ -262,12 +272,23 @@ class RayJob:
                         f"To fix this, please explicitly specify the 'local_queue' parameter."
                     )
 
-        rayjob_cr["metadata"]["labels"] = labels
+            if self.priority_class:
+                labels["kueue.x-k8s.io/priority-class"] = self.priority_class
 
-        # When using Kueue (queue label present), start with suspend=true
-        # Kueue will unsuspend the job once the workload is admitted
-        if labels.get("kueue.x-k8s.io/queue-name"):
-            rayjob_cr["spec"]["suspend"] = True
+            # Apply labels to metadata
+            if labels:
+                rayjob_cr["metadata"]["labels"] = labels
+
+            # When using Kueue with lifecycled clusters, start with suspend=true
+            # Kueue will unsuspend the job once the workload is admitted
+            if labels.get("kueue.x-k8s.io/queue-name"):
+                rayjob_cr["spec"]["suspend"] = True
+        else:
+            if self.local_queue or self.priority_class:
+                logger.warning(
+                    f"Kueue labels (local_queue, priority_class) are ignored for RayJobs "
+                    f"targeting existing clusters. Kueue only manages RayJobs that create new clusters."
+                )
 
         # Add active deadline if specified
         if self.active_deadline_seconds:
@@ -449,6 +470,32 @@ class RayJob:
             raise ValueError(f"Cluster config image: {message}")
         elif is_warning:
             warnings.warn(f"Cluster config image: {message}")
+
+    def _validate_priority_class(self):
+        """
+        Validate that the priority class exists in the cluster (best effort).
+
+        Raises ValueError if the priority class is definitively known not to exist.
+        If we cannot verify (e.g., permission denied), logs a warning and allows submission.
+        """
+        if self.priority_class:
+            logger.debug(f"Validating priority class '{self.priority_class}'...")
+            exists = priority_class_exists(self.priority_class)
+
+            if exists is False:
+                # Definitively doesn't exist - fail validation
+                raise ValueError(
+                    f"Priority class '{self.priority_class}' does not exist"
+                )
+            elif exists is None:
+                # Cannot verify - log warning and allow submission
+                logger.warning(
+                    f"Could not verify if priority class '{self.priority_class}' exists. "
+                    f"Proceeding with submission - Kueue will validate on admission."
+                )
+            else:
+                # exists is True - validation passed
+                logger.debug(f"Priority class '{self.priority_class}' verified.")
 
     def _validate_working_dir_entrypoint(self):
         """

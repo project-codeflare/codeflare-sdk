@@ -23,7 +23,12 @@ import yaml
 import os
 import filecmp
 from pathlib import Path
-from .kueue import list_local_queues, local_queue_exists, add_queue_label
+from .kueue import (
+    list_local_queues,
+    local_queue_exists,
+    add_queue_label,
+    priority_class_exists,
+)
 
 parent = Path(__file__).resolve().parents[4]  # project directory
 aw_dir = os.path.expanduser("~/.codeflare/resources/")
@@ -290,6 +295,52 @@ def test_add_queue_label_with_invalid_local_queue(mocker):
         match="local_queue provided does not exist or is not in this namespace",
     ):
         add_queue_label(item, namespace, local_queue)
+
+
+def test_priority_class_exists_found(mocker):
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+    mock_api = mocker.patch("kubernetes.client.CustomObjectsApi")
+    mock_api.return_value.get_cluster_custom_object.return_value = {
+        "metadata": {"name": "high-priority"}
+    }
+
+    assert priority_class_exists("high-priority") is True
+
+
+def test_priority_class_exists_not_found(mocker):
+    from kubernetes.client import ApiException
+
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+    mock_api = mocker.patch("kubernetes.client.CustomObjectsApi")
+    mock_api.return_value.get_cluster_custom_object.side_effect = ApiException(
+        status=404
+    )
+
+    assert priority_class_exists("missing-priority") is False
+
+
+def test_priority_class_exists_permission_denied(mocker):
+    from kubernetes.client import ApiException
+
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+    mock_api = mocker.patch("kubernetes.client.CustomObjectsApi")
+    mock_api.return_value.get_cluster_custom_object.side_effect = ApiException(
+        status=403
+    )
+
+    assert priority_class_exists("some-priority") is None
+
+
+def test_priority_class_exists_other_error(mocker):
+    from kubernetes.client import ApiException
+
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+    mock_api = mocker.patch("kubernetes.client.CustomObjectsApi")
+    mock_api.return_value.get_cluster_custom_object.side_effect = ApiException(
+        status=500
+    )
+
+    assert priority_class_exists("some-priority") is None
 
 
 # Make sure to always keep this function last
