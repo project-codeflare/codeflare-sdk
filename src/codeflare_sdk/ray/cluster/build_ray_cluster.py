@@ -13,7 +13,7 @@
 # limitations under the License.
 
 """
-    This sub-module exists primarily to be used internally by the Cluster object
+This sub-module exists primarily to be used internally by the Cluster object
     (in the cluster sub-module) for RayCluster generation.
 """
 from typing import List, Union, Tuple, Dict
@@ -138,9 +138,11 @@ def build_ray_cluster(cluster: "codeflare_sdk.ray.cluster.Cluster"):
                     "resources": head_resources,
                 },
                 "template": V1PodTemplateSpec(
-                    metadata=V1ObjectMeta(cluster.config.annotations)
-                    if cluster.config.annotations
-                    else None,
+                    metadata=(
+                        V1ObjectMeta(cluster.config.annotations)
+                        if cluster.config.annotations
+                        else None
+                    ),
                     spec=get_pod_spec(
                         cluster,
                         [get_head_container_spec(cluster)],
@@ -160,9 +162,11 @@ def build_ray_cluster(cluster: "codeflare_sdk.ray.cluster.Cluster"):
                         "resources": worker_resources,
                     },
                     "template": V1PodTemplateSpec(
-                        metadata=V1ObjectMeta(cluster.config.annotations)
-                        if cluster.config.annotations
-                        else None,
+                        metadata=(
+                            V1ObjectMeta(cluster.config.annotations)
+                            if cluster.config.annotations
+                            else None
+                        ),
                         spec=get_pod_spec(
                             cluster,
                             [get_worker_container_spec(cluster)],

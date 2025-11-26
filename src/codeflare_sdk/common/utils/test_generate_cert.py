@@ -21,10 +21,12 @@ from cryptography.hazmat.primitives.serialization import (
 )
 from cryptography.x509 import load_pem_x509_certificate
 import os
+from pathlib import Path
 from codeflare_sdk.common.utils.generate_cert import (
     export_env,
     generate_ca_cert,
     generate_tls_cert,
+    _get_tls_base_dir,
 )
 from kubernetes import client
 
@@ -72,17 +74,23 @@ def test_generate_tls_cert(mocker):
         "kubernetes.client.CoreV1Api.read_namespaced_secret",
         side_effect=secret_ca_retreival,
     )
+    # Mock _get_tls_base_dir to return CWD for test isolation
+    mocker.patch(
+        "codeflare_sdk.common.utils.generate_cert._get_tls_base_dir",
+        return_value=Path(os.getcwd()),
+    )
 
     generate_tls_cert("cluster", "namespace")
-    assert os.path.exists("tls-cluster-namespace")
-    assert os.path.exists(os.path.join("tls-cluster-namespace", "ca.crt"))
-    assert os.path.exists(os.path.join("tls-cluster-namespace", "tls.crt"))
-    assert os.path.exists(os.path.join("tls-cluster-namespace", "tls.key"))
+    tls_dir = os.path.join(os.getcwd(), "cluster-namespace")
+    assert os.path.exists(tls_dir)
+    assert os.path.exists(os.path.join(tls_dir, "ca.crt"))
+    assert os.path.exists(os.path.join(tls_dir, "tls.crt"))
+    assert os.path.exists(os.path.join(tls_dir, "tls.key"))
 
     # verify the that the signed tls.crt is issued by the ca_cert (root cert)
-    with open(os.path.join("tls-cluster-namespace", "tls.crt"), "r") as f:
+    with open(os.path.join(tls_dir, "tls.crt"), "r") as f:
         tls_cert = load_pem_x509_certificate(f.read().encode("utf-8"))
-    with open(os.path.join("tls-cluster-namespace", "ca.crt"), "r") as f:
+    with open(os.path.join(tls_dir, "ca.crt"), "r") as f:
         root_cert = load_pem_x509_certificate(f.read().encode("utf-8"))
     assert tls_cert.verify_directly_issued_by(root_cert) == None
 
@@ -110,49 +118,163 @@ def test_generate_tls_cert_with_ca_key_fallback(mocker):
         "kubernetes.client.CoreV1Api.read_namespaced_secret",
         side_effect=secret_ca_retreival_with_ca_key,
     )
+    # Mock _get_tls_base_dir to return CWD for test isolation
+    mocker.patch(
+        "codeflare_sdk.common.utils.generate_cert._get_tls_base_dir",
+        return_value=Path(os.getcwd()),
+    )
 
     generate_tls_cert("cluster2", "namespace2")
-    assert os.path.exists("tls-cluster2-namespace2")
-    assert os.path.exists(os.path.join("tls-cluster2-namespace2", "ca.crt"))
-    assert os.path.exists(os.path.join("tls-cluster2-namespace2", "tls.crt"))
-    assert os.path.exists(os.path.join("tls-cluster2-namespace2", "tls.key"))
+    tls_dir = os.path.join(os.getcwd(), "cluster2-namespace2")
+    assert os.path.exists(tls_dir)
+    assert os.path.exists(os.path.join(tls_dir, "ca.crt"))
+    assert os.path.exists(os.path.join(tls_dir, "tls.crt"))
+    assert os.path.exists(os.path.join(tls_dir, "tls.key"))
 
     # verify the that the signed tls.crt is issued by the ca_cert (root cert)
-    with open(os.path.join("tls-cluster2-namespace2", "tls.crt"), "r") as f:
+    with open(os.path.join(tls_dir, "tls.crt"), "r") as f:
         tls_cert = load_pem_x509_certificate(f.read().encode("utf-8"))
-    with open(os.path.join("tls-cluster2-namespace2", "ca.crt"), "r") as f:
+    with open(os.path.join(tls_dir, "ca.crt"), "r") as f:
         root_cert = load_pem_x509_certificate(f.read().encode("utf-8"))
     assert tls_cert.verify_directly_issued_by(root_cert) == None
 
     # Cleanup for this test
-    os.remove("tls-cluster2-namespace2/ca.crt")
-    os.remove("tls-cluster2-namespace2/tls.crt")
-    os.remove("tls-cluster2-namespace2/tls.key")
-    os.rmdir("tls-cluster2-namespace2")
+    os.remove(os.path.join(tls_dir, "ca.crt"))
+    os.remove(os.path.join(tls_dir, "tls.crt"))
+    os.remove(os.path.join(tls_dir, "tls.key"))
+    os.rmdir(tls_dir)
 
 
-def test_export_env():
+def test_export_env(mocker):
     """
     test the function codeflare_sdk.common.utils.generate_ca_cert.export_ev generates the correct outputs
     """
-    tls_dir = "cluster"
+    # Mock _get_tls_base_dir to return CWD for test isolation
+    mocker.patch(
+        "codeflare_sdk.common.utils.generate_cert._get_tls_base_dir",
+        return_value=Path(os.getcwd()),
+    )
+
+    cluster_name = "cluster"
     ns = "namespace"
-    export_env(tls_dir, ns)
+    export_env(cluster_name, ns)
+
+    tls_dir = os.path.join(os.getcwd(), f"{cluster_name}-{ns}")
+
     assert os.environ["RAY_USE_TLS"] == "1"
-    assert os.environ["RAY_TLS_SERVER_CERT"] == os.path.join(
-        os.getcwd(), f"tls-{tls_dir}-{ns}", "tls.crt"
+    assert os.environ["RAY_TLS_SERVER_CERT"] == os.path.join(tls_dir, "tls.crt")
+    assert os.environ["RAY_TLS_SERVER_KEY"] == os.path.join(tls_dir, "tls.key")
+    assert os.environ["RAY_TLS_CA_CERT"] == os.path.join(tls_dir, "ca.crt")
+
+
+def secret_ca_retreival_generic(secret_name, namespace):
+    """Generic mock that works with any cluster/namespace"""
+    ca_private_key_bytes, ca_cert = generate_ca_cert()
+    data = {"ca.crt": ca_cert, "tls.key": ca_private_key_bytes}
+    return client.models.V1Secret(data=data)
+
+
+def test_force_regenerate(mocker):
+    """
+    Test that force_regenerate parameter works correctly
+    """
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+    mocker.patch(
+        "codeflare_sdk.common.utils.generate_cert.get_secret_name",
+        return_value="ca-secret-test-regen",
     )
-    assert os.environ["RAY_TLS_SERVER_KEY"] == os.path.join(
-        os.getcwd(), f"tls-{tls_dir}-{ns}", "tls.key"
+    mocker.patch(
+        "kubernetes.client.CoreV1Api.read_namespaced_secret",
+        side_effect=secret_ca_retreival_generic,
     )
-    assert os.environ["RAY_TLS_CA_CERT"] == os.path.join(
-        os.getcwd(), f"tls-{tls_dir}-{ns}", "ca.crt"
+    mocker.patch(
+        "codeflare_sdk.common.utils.generate_cert._get_tls_base_dir",
+        return_value=Path(os.getcwd()),
     )
+
+    # Generate certificates first time
+    generate_tls_cert("test-regen", "default")
+    tls_dir = Path(os.getcwd()) / "test-regen-default"
+    assert tls_dir.exists()
+
+    # Get modification time of tls.crt
+    import time
+
+    tls_crt = tls_dir / "tls.crt"
+    first_mtime = tls_crt.stat().st_mtime
+
+    # Wait a moment
+    time.sleep(0.1)
+
+    # Try to generate again without force_regenerate (should skip)
+    generate_tls_cert("test-regen", "default", force_regenerate=False)
+    second_mtime = tls_crt.stat().st_mtime
+    assert first_mtime == second_mtime, "Should not regenerate without force_regenerate"
+
+    # Wait a moment
+    time.sleep(0.1)
+
+    # Generate with force_regenerate (should regenerate)
+    generate_tls_cert("test-regen", "default", force_regenerate=True)
+    third_mtime = tls_crt.stat().st_mtime
+    assert third_mtime > second_mtime, "Should regenerate with force_regenerate=True"
+
+    # Cleanup
+    import shutil
+
+    shutil.rmtree(tls_dir)
+
+
+def test_refresh_tls_cert(mocker):
+    """
+    Test the refresh_tls_cert function
+    """
+    from codeflare_sdk.common.utils.generate_cert import refresh_tls_cert
+
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+    mocker.patch(
+        "codeflare_sdk.common.utils.generate_cert.get_secret_name",
+        return_value="ca-secret-refresh-test",
+    )
+    mocker.patch(
+        "kubernetes.client.CoreV1Api.read_namespaced_secret",
+        side_effect=secret_ca_retreival_generic,
+    )
+    mocker.patch(
+        "codeflare_sdk.common.utils.generate_cert._get_tls_base_dir",
+        return_value=Path(os.getcwd()),
+    )
+
+    # Generate initial certificates
+    generate_tls_cert("refresh-test", "default")
+    tls_dir = Path(os.getcwd()) / "refresh-test-default"
+    assert tls_dir.exists()
+
+    # Refresh should remove and regenerate
+    result = refresh_tls_cert("refresh-test", "default")
+    assert result == True
+    assert tls_dir.exists()  # Should exist again
+
+    # Cleanup
+    import shutil
+
+    shutil.rmtree(tls_dir)
 
 
 # Make sure to always keep this function last
 def test_cleanup():
-    os.remove("tls-cluster-namespace/ca.crt")
-    os.remove("tls-cluster-namespace/tls.crt")
-    os.remove("tls-cluster-namespace/tls.key")
-    os.rmdir("tls-cluster-namespace")
+    """Clean up test certificate directories."""
+    import shutil
+
+    # Clean up any remaining test directories
+    test_dirs = [
+        "cluster-namespace",
+        "cluster2-namespace2",
+        "test-regen-default",
+        "refresh-test-default",
+    ]
+
+    for dir_name in test_dirs:
+        tls_dir = os.path.join(os.getcwd(), dir_name)
+        if os.path.exists(tls_dir):
+            shutil.rmtree(tls_dir)

@@ -92,6 +92,9 @@ class ClusterConfiguration:
             Kubernetes secret reference containing Redis password. ex: {"name": "secret-name", "key": "password-key"}
         external_storage_namespace:
             The storage namespace to use for GCS fault tolerance. By default, KubeRay sets it to the UID of RayCluster.
+        cleanup_tls_certs:
+            A boolean indicating whether to automatically clean up TLS certificates when the cluster is deleted.
+            Default is True for automatic cleanup. Can be set to False to retain certificates for debugging or audit purposes.
     """
 
     name: str
@@ -130,6 +133,7 @@ class ClusterConfiguration:
     redis_address: Optional[str] = None
     redis_password_secret: Optional[Dict[str, str]] = None
     external_storage_namespace: Optional[str] = None
+    cleanup_tls_certs: bool = True
 
     def __post_init__(self):
         if not self.verify_tls:
