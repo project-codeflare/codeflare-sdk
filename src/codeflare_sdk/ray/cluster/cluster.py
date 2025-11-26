@@ -22,9 +22,7 @@ from time import sleep
 from typing import List, Optional, Tuple, Dict
 import copy
 
-from ray.job_submission import JobSubmissionClient, JobStatus
-import time
-import uuid
+from ray.job_submission import JobSubmissionClient
 import warnings
 
 from ...common.utils import get_current_namespace
@@ -235,6 +233,9 @@ class Cluster:
         """
         Deletes the RayCluster, scaling-down and deleting all resources
         associated with the cluster.
+
+        If cleanup_tls_certs is True (default), also removes the TLS certificates
+        generated for this cluster to prevent accumulation of sensitive key material.
         """
         namespace = self.config.namespace
         resource_name = self.config.name
@@ -244,6 +245,13 @@ class Cluster:
             api_instance = client.CustomObjectsApi(get_api_client())
             _delete_resources(resource_name, namespace, api_instance)
             print(f"Ray Cluster: '{self.config.name}' has successfully been deleted")
+
+            # Automatically clean up TLS certificates if enabled
+            if self.config.cleanup_tls_certs:
+                from codeflare_sdk.common.utils import generate_cert
+
+            generate_cert.cleanup_tls_cert(resource_name, namespace)
+
         except Exception as e:  # pragma: no cover
             return _kube_api_error_handling(e)
 
@@ -342,6 +350,9 @@ class Cluster:
         ready or the timeout is reached. If dashboard_check is enabled, it will also
         check for the readiness of the dashboard.
 
+        TLS certificates are automatically generated and environment variables are set
+        when the cluster becomes ready. This is required for mTLS connections to the cluster.
+
         Args:
             timeout (Optional[int]):
                 The maximum time to wait for the cluster to be ready in seconds. If None, waits indefinitely.
@@ -370,6 +381,21 @@ class Cluster:
             sleep(5)
             time += 5
         print("Requested cluster is up and running!")
+
+
+        # Automatically generate TLS certificates (required for mTLS)
+        try:
+            from codeflare_sdk.common.utils import generate_cert
+
+            generate_cert.generate_tls_cert(self.config.name, self.config.namespace)
+            generate_cert.export_env(self.config.name, self.config.namespace)
+            print(f"TLS certificates generated for '{self.config.name}'")
+        except Exception as e:
+            # Don't fail cluster setup if certificate generation fails
+            print(f"Warning: Could not generate TLS certificates: {e}")
+            print(
+                "You can manually generate certificates using generate_cert.generate_tls_cert()"
+            )
 
         dashboard_wait_logged = False
         while dashboard_check:
@@ -418,6 +444,38 @@ class Cluster:
         Returns a string containing the cluster's URI.
         """
         return f"ray://{self.config.name}-head-svc.{self.config.namespace}.svc:10001"
+
+    def refresh_certificates(self):
+        """
+        Refreshes TLS certificates by removing old ones and generating new ones.
+
+        This is useful when:
+        - The server CA secret has been rotated
+        - Certificates have expired
+        - You encounter TLS handshake failures
+        - You need to regenerate certificates for any reason
+
+        The method will:
+        1. Remove existing client certificates
+        2. Fetch the latest CA from Kubernetes
+        3. Generate new client certificates
+        4. Update environment variables for Ray
+
+        Example:
+            >>> # If you get TLS errors after CA rotation
+            >>> cluster.refresh_certificates()
+            >>> # Now you can reconnect
+            >>> ray.init(address=cluster.cluster_uri())
+        """
+        from codeflare_sdk.common.utils import generate_cert
+
+        print(f"Refreshing TLS certificates for '{self.config.name}'...")
+
+        # Use the refresh function which handles cleanup and regeneration
+        generate_cert.refresh_tls_cert(self.config.name, self.config.namespace)
+        generate_cert.export_env(self.config.name, self.config.namespace)
+
+        print(f"✓ TLS certificates refreshed for '{self.config.name}'")
 
     def cluster_dashboard_uri(self) -> str:
         """
