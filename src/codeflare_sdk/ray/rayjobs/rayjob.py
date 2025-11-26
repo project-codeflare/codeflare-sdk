@@ -478,6 +478,9 @@ class RayJob:
         Raises ValueError if the priority class is definitively known not to exist.
         If we cannot verify (e.g., permission denied), logs a warning and allows submission.
         """
+        if self._cluster_config is None:
+            return
+
         if self.priority_class:
             logger.debug(f"Validating priority class '{self.priority_class}'...")
             exists = priority_class_exists(self.priority_class)

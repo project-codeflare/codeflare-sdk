@@ -61,8 +61,8 @@ spec:
                     cpu: 2
                     memory: 8G
                   requests:
-                    cpu: 2
-                    memory: 8G
+                    cpu: 1
+                    memory: 5G
                 volumeMounts:
                 - mountPath: /etc/pki/tls/certs/odh-trusted-ca-bundle.crt
                   name: odh-trusted-ca-cert

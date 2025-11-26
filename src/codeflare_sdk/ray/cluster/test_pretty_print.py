@@ -85,15 +85,15 @@ def test_ray_details(mocker, capsys):
         name="raytest1",
         status=RayClusterStatus.READY,
         num_workers=1,
-        worker_mem_requests="2G",
-        worker_mem_limits="2G",
+        worker_mem_requests="3G",
+        worker_mem_limits="6G",
         worker_cpu_requests=1,
         worker_cpu_limits=1,
         namespace="ns",
         dashboard="fake-uri",
-        head_cpu_requests=2,
+        head_cpu_requests=1,
         head_cpu_limits=2,
-        head_mem_requests=8,
+        head_mem_requests=5,
         head_mem_limits=8,
     )
     mocker.patch(
@@ -150,7 +150,7 @@ def test_ray_details(mocker, capsys):
         " │   ╭── Workers ──╮  ╭───────── Worker specs(each) ─────────╮   │ \n"
         " │   │  # Workers  │  │  Memory      CPU         GPU         │   │ \n"
         " │   │             │  │                                      │   │ \n"
-        " │   │  1          │  │  2G~2G       1~1         0           │   │ \n"
+        " │   │  1          │  │  3G~6G       1~1         0           │   │ \n"
         " │   │             │  │                                      │   │ \n"
         " │   ╰─────────────╯  ╰──────────────────────────────────────╯   │ \n"
         " ╰───────────────────────────────────────────────────────────────╯ \n"
@@ -168,7 +168,7 @@ def test_ray_details(mocker, capsys):
         " │   ╭── Workers ──╮  ╭───────── Worker specs(each) ─────────╮   │ \n"
         " │   │  # Workers  │  │  Memory      CPU         GPU         │   │ \n"
         " │   │             │  │                                      │   │ \n"
-        " │   │  1          │  │  2G~2G       1~1         0           │   │ \n"
+        " │   │  1          │  │  3G~6G       1~1         0           │   │ \n"
         " │   │             │  │                                      │   │ \n"
         " │   ╰─────────────╯  ╰──────────────────────────────────────╯   │ \n"
         " ╰───────────────────────────────────────────────────────────────╯ \n"
@@ -184,7 +184,7 @@ def test_ray_details(mocker, capsys):
         "│   ╭── Workers ──╮  ╭───────── Worker specs(each) ─────────╮   │\n"
         "│   │  # Workers  │  │  Memory      CPU         GPU         │   │\n"
         "│   │             │  │                                      │   │\n"
-        "│   │  1          │  │  2G~2G       1~1         0           │   │\n"
+        "│   │  1          │  │  3G~6G       1~1         0           │   │\n"
         "│   │             │  │                                      │   │\n"
         "│   ╰─────────────╯  ╰──────────────────────────────────────╯   │\n"
         "╰───────────────────────────────────────────────────────────────╯\n"
