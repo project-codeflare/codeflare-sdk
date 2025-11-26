@@ -98,9 +98,9 @@ class ClusterConfiguration:
 
     name: str
     namespace: Optional[str] = None
-    head_cpu_requests: Union[int, str] = 2
+    head_cpu_requests: Union[int, str] = 1
     head_cpu_limits: Union[int, str] = 2
-    head_memory_requests: Union[int, str] = 8
+    head_memory_requests: Union[int, str] = 5
     head_memory_limits: Union[int, str] = 8
     head_extended_resource_requests: Dict[str, Union[str, int]] = field(
         default_factory=dict
@@ -109,8 +109,8 @@ class ClusterConfiguration:
     worker_cpu_requests: Union[int, str] = 1
     worker_cpu_limits: Union[int, str] = 1
     num_workers: int = 1
-    worker_memory_requests: Union[int, str] = 2
-    worker_memory_limits: Union[int, str] = 2
+    worker_memory_requests: Union[int, str] = 3
+    worker_memory_limits: Union[int, str] = 6
     worker_tolerations: Optional[List[V1Toleration]] = None
     appwrapper: bool = False
     envs: Dict[str, str] = field(default_factory=dict)

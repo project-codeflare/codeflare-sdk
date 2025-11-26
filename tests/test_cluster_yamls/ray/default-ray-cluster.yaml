@@ -54,8 +54,8 @@ spec:
               cpu: 2
               memory: 8G
             requests:
-              cpu: 2
-              memory: 8G
+              cpu: 1
+              memory: 5G
           volumeMounts:
           - mountPath: /etc/pki/tls/certs/odh-trusted-ca-bundle.crt
             name: odh-trusted-ca-cert
@@ -110,10 +110,10 @@ spec:
           resources:
             limits:
               cpu: 1
-              memory: 2G
+              memory: 6G
             requests:
               cpu: 1
-              memory: 2G
+              memory: 3G
           env:
           - name: RAY_USAGE_STATS_ENABLED
             value: '0'
