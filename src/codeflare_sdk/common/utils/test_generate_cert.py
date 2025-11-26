@@ -191,7 +191,7 @@ def test_force_regenerate(mocker):
         "codeflare_sdk.common.utils.generate_cert._get_tls_base_dir",
         return_value=Path(os.getcwd()),
     )
-    
+
     # Generate certificates first time
     generate_tls_cert("test-regen", "default")
     tls_dir = Path(os.getcwd()) / "test-regen-default"
@@ -230,7 +230,7 @@ def test_refresh_tls_cert(mocker):
     Test the refresh_tls_cert function
     """
     from codeflare_sdk.common.utils.generate_cert import refresh_tls_cert
-    
+
     mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
     mocker.patch(
         "codeflare_sdk.common.utils.generate_cert.get_secret_name",
@@ -244,7 +244,7 @@ def test_refresh_tls_cert(mocker):
         "codeflare_sdk.common.utils.generate_cert._get_tls_base_dir",
         return_value=Path(os.getcwd()),
     )
-    
+
     # Generate initial certificates
     generate_tls_cert("refresh-test", "default")
     tls_dir = Path(os.getcwd()) / "refresh-test-default"

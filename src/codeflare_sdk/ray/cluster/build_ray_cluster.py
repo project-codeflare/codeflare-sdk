@@ -187,9 +187,9 @@ def build_ray_cluster(cluster: "codeflare_sdk.ray.cluster.Cluster"):
         gcs_ft_options = {"redisAddress": cluster.config.redis_address}
 
         if cluster.config.external_storage_namespace:
-            gcs_ft_options["externalStorageNamespace"] = (
-                cluster.config.external_storage_namespace
-            )
+            gcs_ft_options[
+                "externalStorageNamespace"
+            ] = cluster.config.external_storage_namespace
 
         if cluster.config.redis_password_secret:
             gcs_ft_options["redisPassword"] = {
@@ -441,18 +441,28 @@ def head_worker_extended_resources_from_cluster(
         resource_type = cluster.config.extended_resource_mapping[k]
         if resource_type in FORBIDDEN_CUSTOM_RESOURCE_TYPES:
             continue
-        head_worker_extended_resources[0][resource_type] = (
-            cluster.config.head_extended_resource_requests[k]
-            + head_worker_extended_resources[0].get(resource_type, 0)
+        head_worker_extended_resources[0][
+            resource_type
+        ] = cluster.config.head_extended_resource_requests[
+            k
+        ] + head_worker_extended_resources[
+            0
+        ].get(
+            resource_type, 0
         )
 
     for k in cluster.config.worker_extended_resource_requests.keys():
         resource_type = cluster.config.extended_resource_mapping[k]
         if resource_type in FORBIDDEN_CUSTOM_RESOURCE_TYPES:
             continue
-        head_worker_extended_resources[1][resource_type] = (
-            cluster.config.worker_extended_resource_requests[k]
-            + head_worker_extended_resources[1].get(resource_type, 0)
+        head_worker_extended_resources[1][
+            resource_type
+        ] = cluster.config.worker_extended_resource_requests[
+            k
+        ] + head_worker_extended_resources[
+            1
+        ].get(
+            resource_type, 0
         )
     return head_worker_extended_resources
 
