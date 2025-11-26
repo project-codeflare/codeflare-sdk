@@ -73,9 +73,17 @@ def test_cluster_apply_down(mocker):
         "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
         return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
     )
+    # Mock certificate cleanup (automatic in cluster.down())
+    mock_cleanup = mocker.patch(
+        "codeflare_sdk.common.utils.generate_cert.cleanup_tls_cert", return_value=True
+    )
+
     cluster = create_cluster(mocker)
     cluster.apply()
     cluster.down()
+
+    # Verify cleanup was called
+    mock_cleanup.assert_called_once_with("unit-test-cluster", "ns")
 
 
 def test_cluster_apply_scale_up_scale_down(mocker):
@@ -118,6 +126,11 @@ def test_cluster_apply_scale_up_scale_down(mocker):
     patch_cluster_with_dynamic_client(mocker, cluster, mock_dynamic_client)
     cluster.apply()
 
+    # Mock certificate cleanup (automatic in cluster.down())
+    mocker.patch(
+        "codeflare_sdk.common.utils.generate_cert.cleanup_tls_cert", return_value=True
+    )
+
     # Tear down
     cluster.down()
 
@@ -147,6 +160,11 @@ def test_cluster_apply_with_file(mocker):
         "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
         return_value=get_obj_none("ray.io", "v1", "ns", "rayclusters"),
     )
+    # Mock certificate cleanup (automatic in cluster.down())
+    mocker.patch(
+        "codeflare_sdk.common.utils.generate_cert.cleanup_tls_cert", return_value=True
+    )
+
     cluster.apply()
     # Tear down
     cluster.down()
@@ -283,6 +301,11 @@ def test_cluster_apply_down_no_mcad(mocker):
         "kubernetes.client.CustomObjectsApi.list_cluster_custom_object",
         return_value={"items": []},
     )
+    # Mock certificate cleanup (automatic in cluster.down())
+    mocker.patch(
+        "codeflare_sdk.common.utils.generate_cert.cleanup_tls_cert", return_value=True
+    )
+
     config = create_cluster_config()
     config.name = "unit-test-cluster-ray"
     config.appwrapper = False
@@ -525,6 +548,11 @@ def test_wait_ready(mocker, capsys):
     mock_response = mocker.Mock()
     mock_response.status_code = 200
     mocker.patch("requests.get", return_value=mock_response)
+
+    # Mock certificate generation (automatic in wait_ready)
+    mocker.patch("codeflare_sdk.common.utils.generate_cert.generate_tls_cert")
+    mocker.patch("codeflare_sdk.common.utils.generate_cert.export_env")
+
     cf = Cluster(
         ClusterConfiguration(
             name="test",
@@ -552,13 +580,13 @@ def test_wait_ready(mocker, capsys):
     captured = capsys.readouterr()
     assert (
         captured.out
-        == "Waiting for requested resources to be set up...\nRequested cluster is up and running!\nDashboard is ready!\n"
+        == "Waiting for requested resources to be set up...\nRequested cluster is up and running!\nTLS certificates generated for 'test'\nDashboard is ready!\n"
     )
     cf.wait_ready(dashboard_check=False)
     captured = capsys.readouterr()
     assert (
         captured.out
-        == "Waiting for requested resources to be set up...\nRequested cluster is up and running!\n"
+        == "Waiting for requested resources to be set up...\nRequested cluster is up and running!\nTLS certificates generated for 'test'\n"
     )
 
 

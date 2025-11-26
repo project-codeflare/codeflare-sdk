@@ -281,9 +281,9 @@ class RayJob:
         # Add submitterPodTemplate if we have files to mount
         if files:
             secret_name = f"{self.name}-files"
-            rayjob_cr["spec"][
-                "submitterPodTemplate"
-            ] = self._build_submitter_pod_template(files, secret_name)
+            rayjob_cr["spec"]["submitterPodTemplate"] = (
+                self._build_submitter_pod_template(files, secret_name)
+            )
 
         # Configure cluster: either use existing or create new
         if self._cluster_config is not None:

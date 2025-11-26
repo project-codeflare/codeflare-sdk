@@ -311,6 +311,7 @@ class Cluster:
             # Automatically clean up TLS certificates if enabled
             if self.config.cleanup_tls_certs:
                 from codeflare_sdk.common.utils import generate_cert
+
                 if generate_cert.cleanup_tls_cert(resource_name, namespace):
                     print(f"TLS certificates for '{resource_name}' have been removed")
 
@@ -477,13 +478,16 @@ class Cluster:
         # Automatically generate TLS certificates (required for mTLS)
         try:
             from codeflare_sdk.common.utils import generate_cert
+
             generate_cert.generate_tls_cert(self.config.name, self.config.namespace)
             generate_cert.export_env(self.config.name, self.config.namespace)
             print(f"TLS certificates generated for '{self.config.name}'")
         except Exception as e:
             # Don't fail cluster setup if certificate generation fails
             print(f"Warning: Could not generate TLS certificates: {e}")
-            print("You can manually generate certificates using generate_cert.generate_tls_cert()")
+            print(
+                "You can manually generate certificates using generate_cert.generate_tls_cert()"
+            )
 
         while dashboard_check:
             if timeout and time >= timeout:
@@ -522,23 +526,23 @@ class Cluster:
         Returns a string containing the cluster's URI.
         """
         return f"ray://{self.config.name}-head-svc.{self.config.namespace}.svc:10001"
-    
+
     def refresh_certificates(self):
         """
         Refreshes TLS certificates by removing old ones and generating new ones.
-        
+
         This is useful when:
         - The server CA secret has been rotated
         - Certificates have expired
         - You encounter TLS handshake failures
         - You need to regenerate certificates for any reason
-        
+
         The method will:
         1. Remove existing client certificates
         2. Fetch the latest CA from Kubernetes
         3. Generate new client certificates
         4. Update environment variables for Ray
-        
+
         Example:
             >>> # If you get TLS errors after CA rotation
             >>> cluster.refresh_certificates()
@@ -546,13 +550,13 @@ class Cluster:
             >>> ray.init(address=cluster.cluster_uri())
         """
         from codeflare_sdk.common.utils import generate_cert
-        
+
         print(f"Refreshing TLS certificates for '{self.config.name}'...")
-        
+
         # Use the refresh function which handles cleanup and regeneration
         generate_cert.refresh_tls_cert(self.config.name, self.config.namespace)
         generate_cert.export_env(self.config.name, self.config.namespace)
-        
+
         print(f"✓ TLS certificates refreshed for '{self.config.name}'")
 
     def cluster_dashboard_uri(self) -> str:
