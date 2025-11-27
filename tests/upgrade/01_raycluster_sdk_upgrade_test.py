@@ -32,6 +32,28 @@ class TestMNISTRayClusterApply:
             delete_kueue_resources(self)
             return _kube_api_error_handling(e)
 
+    @pytest.fixture(autouse=True)
+    def cleanup_on_failure(self, request):
+        """Fixture to cleanup namespace and resources if pre-upgrade test fails"""
+        # This runs after the test
+        yield
+
+        # Check if the test failed
+        test_failed = (
+            request.node.rep_call.failed if hasattr(request.node, "rep_call") else False
+        )
+
+        if test_failed:
+            print(
+                f"\n=== Pre-upgrade test failed, cleaning up namespace: {namespace} ==="
+            )
+            try:
+                delete_namespace(self)
+                delete_kueue_resources(self)
+                print(f"Successfully cleaned up namespace: {namespace}")
+            except Exception as e:
+                print(f"Warning: Failed to cleanup namespace {namespace}: {e}")
+
     def test_mnist_ray_cluster_sdk_auth(self):
         self.run_mnist_raycluster_sdk_oauth()
 

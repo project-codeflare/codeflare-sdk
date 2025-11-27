@@ -55,19 +55,23 @@ cleanup_on_exit() {
                     echo "WARNING: TEST_USER_USERNAME not found, cannot cleanup RBAC"
                 fi
 
-                # Set Kueue Component to Removed State
-                echo "Setting Kueue component to Removed state..."
-                DSC_NAME=$(get_dsc_name 2>/dev/null || echo "")
-
-                if [ -n "$DSC_NAME" ] && [[ ! "$DSC_NAME" =~ ^ERROR ]]; then
-                    set_kueue_management_state "Removed" "$DSC_NAME" 2>/dev/null || {
-                        echo "WARNING: Failed to set Kueue to Removed state"
-                    }
-                    wait_for_dsc_ready 600 2>/dev/null || {
-                        echo "WARNING: DataScienceCluster did not reach Ready state after setting Kueue to Removed"
-                    }
+                # Set Kueue Component to Removed State (only if we changed it)
+                if [ "${INITIAL_KUEUE_STATE:-}" = "Unmanaged" ]; then
+                    echo "Kueue was already Unmanaged at start, skipping state change in cleanup"
                 else
-                    echo "WARNING: Failed to get DataScienceCluster name, skipping Kueue cleanup"
+                    echo "Setting Kueue component to Removed state..."
+                    DSC_NAME=$(get_dsc_name 2>/dev/null || echo "")
+
+                    if [ -n "$DSC_NAME" ] && [[ ! "$DSC_NAME" =~ ^ERROR ]]; then
+                        set_kueue_management_state "Removed" "$DSC_NAME" 2>/dev/null || {
+                            echo "WARNING: Failed to set Kueue to Removed state"
+                        }
+                        wait_for_dsc_ready 600 2>/dev/null || {
+                            echo "WARNING: DataScienceCluster did not reach Ready state after setting Kueue to Removed"
+                        }
+                    else
+                        echo "WARNING: Failed to get DataScienceCluster name, skipping Kueue cleanup"
+                    fi
                 fi
             else
                 echo "WARNING: Failed to login with OCP_ADMIN_USER for cleanup"
@@ -186,6 +190,28 @@ wait_for_dsc_ready() {
     return 1
 }
 
+# Get Kueue component management state
+# Arguments: cluster_name
+get_kueue_management_state() {
+    local cluster_name=$1
+
+    if [ -z "$cluster_name" ]; then
+        echo "ERROR: Invalid arguments for get_kueue_management_state"
+        return 1
+    fi
+
+    local state
+    state=$(oc get DataScienceCluster "$cluster_name" -o jsonpath='{.spec.components.kueue.managementState}' 2>/dev/null)
+
+    if [ -z "$state" ]; then
+        echo "ERROR: Failed to get Kueue management state"
+        return 1
+    fi
+
+    echo "$state"
+    return 0
+}
+
 # Set Kueue component management state
 # Arguments: state (Unmanaged or Removed), cluster_name
 set_kueue_management_state() {
@@ -296,22 +322,38 @@ echo "Successfully logged in with OCP_ADMIN_USER (verified: $CURRENT_USER)"
 # ============================================================================
 # Set Kueue Component to Unmanaged State
 # ============================================================================
-echo "Setting Kueue component to Unmanaged state..."
+echo "Checking current Kueue component state..."
 DSC_NAME=$(get_dsc_name) || {
     echo "ERROR: Failed to get DataScienceCluster name"
     exit 1
 }
 
-set_kueue_management_state "Unmanaged" "$DSC_NAME" || {
-    echo "ERROR: Failed to set Kueue to Unmanaged state"
+# Get and store the initial Kueue management state
+INITIAL_KUEUE_STATE=$(get_kueue_management_state "$DSC_NAME") || {
+    echo "ERROR: Failed to get initial Kueue management state"
     exit 1
 }
+echo "Initial Kueue management state: $INITIAL_KUEUE_STATE"
 
-# Wait for DataScienceCluster to be Ready after setting Kueue to Unmanaged
-wait_for_dsc_ready 600 || {
-    echo "ERROR: DataScienceCluster did not reach Ready state after setting Kueue to Unmanaged"
-    exit 1
-}
+# Export it so cleanup function can access it
+export INITIAL_KUEUE_STATE
+
+# Only set to Unmanaged if it's not already Unmanaged
+if [ "$INITIAL_KUEUE_STATE" = "Unmanaged" ]; then
+    echo "Kueue is already in Unmanaged state, skipping state change"
+else
+    echo "Setting Kueue component to Unmanaged state..."
+    set_kueue_management_state "Unmanaged" "$DSC_NAME" || {
+        echo "ERROR: Failed to set Kueue to Unmanaged state"
+        exit 1
+    }
+
+    # Wait for DataScienceCluster to be Ready after setting Kueue to Unmanaged
+    wait_for_dsc_ready 600 || {
+        echo "ERROR: DataScienceCluster did not reach Ready state after setting Kueue to Unmanaged"
+        exit 1
+    }
+fi
 
 # ============================================================================
 # Apply RBAC Policies
@@ -386,6 +428,20 @@ cp "${TEMP_KUBECONFIG}" ~/.kube/config || {
 }
 
 echo "Successfully logged in with TEST_USER"
+
+# ============================================================================
+# Get RHOAI Dashboard URL for UI Tests
+# ============================================================================
+echo "Retrieving RHOAI Dashboard URL..."
+ODH_DASHBOARD_URL=$(oc get consolelink rhodslink -o jsonpath='{.spec.href}' 2>/dev/null)
+
+if [ -z "$ODH_DASHBOARD_URL" ]; then
+    echo "WARNING: Failed to retrieve Dashboard URL from consolelink rhodslink"
+    echo "         UI tests will be skipped or may fail"
+else
+    echo "Dashboard URL: $ODH_DASHBOARD_URL"
+    export ODH_DASHBOARD_URL
+fi
 
 # ============================================================================
 # Run Tests
