@@ -20,3 +20,4 @@ docs/sphinx/modules.rst
 .idea/
 .cursor/plans/
 .cursor/commands/
+/results
