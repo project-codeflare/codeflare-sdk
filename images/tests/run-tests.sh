@@ -456,7 +456,7 @@ cd /codeflare-sdk || {
 
 # Default pytest options
 DEFAULT_PYTEST_OPTS=(
-    "--junitxml=/codeflare-sdk/tests/results/results.xml"
+    "--junitxml=/codeflare-sdk/tests/results/results_xunit.xml"
     "-o"
     "junit_suite_name=codeflare-sdk"
     "-v"
