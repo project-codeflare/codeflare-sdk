@@ -30,20 +30,20 @@ def test_token_auth_creation():
     token_auth = TokenAuthentication(token="token", server="server")
     assert token_auth.token == "token"
     assert token_auth.server == "server"
-    assert token_auth.skip_tls == False
-    assert token_auth.ca_cert_path == None
+    assert token_auth.skip_tls is False
+    assert token_auth.ca_cert_path is None
 
     token_auth = TokenAuthentication(token="token", server="server", skip_tls=True)
     assert token_auth.token == "token"
     assert token_auth.server == "server"
-    assert token_auth.skip_tls == True
-    assert token_auth.ca_cert_path == None
+    assert token_auth.skip_tls is True
+    assert token_auth.ca_cert_path is None
 
     os.environ["CF_SDK_CA_CERT_PATH"] = "/etc/pki/tls/custom-certs/ca-bundle.crt"
     token_auth = TokenAuthentication(token="token", server="server", skip_tls=False)
     assert token_auth.token == "token"
     assert token_auth.server == "server"
-    assert token_auth.skip_tls == False
+    assert token_auth.skip_tls is False
     assert token_auth.ca_cert_path == "/etc/pki/tls/custom-certs/ca-bundle.crt"
     os.environ.pop("CF_SDK_CA_CERT_PATH")
 
@@ -55,7 +55,7 @@ def test_token_auth_creation():
     )
     assert token_auth.token == "token"
     assert token_auth.server == "server"
-    assert token_auth.skip_tls == False
+    assert token_auth.skip_tls is False
     assert token_auth.ca_cert_path == f"{parent}/tests/auth-test.crt"
 
 
@@ -116,7 +116,7 @@ def test_config_check_with_incluster_config(mocker):
     mocker.patch("codeflare_sdk.common.kubernetes_cluster.auth.api_client", None)
 
     result = config_check()
-    assert result == None
+    assert result is None
 
 
 def test_config_check_with_existing_config_file(mocker):
@@ -127,7 +127,7 @@ def test_config_check_with_existing_config_file(mocker):
     mocker.patch("codeflare_sdk.common.kubernetes_cluster.auth.api_client", None)
 
     result = config_check()
-    assert result == None
+    assert result is None
 
 
 def test_config_check_with_config_path_and_no_api_client(mocker):
