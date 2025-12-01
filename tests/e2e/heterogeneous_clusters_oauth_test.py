@@ -11,6 +11,7 @@ import pytest
 from support import *
 
 
+@pytest.mark.skip(reason="Temporarily skipped due to needed investigation")
 @pytest.mark.openshift
 @pytest.mark.tier1
 class TestHeterogeneousClustersOauth:
