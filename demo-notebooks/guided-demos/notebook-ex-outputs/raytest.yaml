@@ -70,7 +70,7 @@ spec:
                     value: /home/ray/workspace/tls/server.key
                   - name: RAY_TLS_CA_CERT
                     value: /home/ray/workspace/tls/ca.crt
-                  image: quay.io/modh/ray:2.47.1-py311-cu121
+                  image: quay.io/modh/ray:2.52.1-py311-cu121
                   imagePullPolicy: Always
                   lifecycle:
                     preStop:
@@ -97,7 +97,7 @@ spec:
                       memory: 8G
                       nvidia.com/gpu: 0
                 imagePullSecrets: []
-          rayVersion: 2.47.1
+          rayVersion: 2.52.1
           workerGroupSpecs:
           - groupName: small-group-raytest
             maxReplicas: 2
@@ -127,7 +127,7 @@ spec:
                     value: /home/ray/workspace/tls/server.key
                   - name: RAY_TLS_CA_CERT
                     value: /home/ray/workspace/tls/ca.crt
-                  image: quay.io/modh/ray:2.47.1-py311-cu121
+                  image: quay.io/modh/ray:2.52.1-py311-cu121
                   lifecycle:
                     preStop:
                       exec:
