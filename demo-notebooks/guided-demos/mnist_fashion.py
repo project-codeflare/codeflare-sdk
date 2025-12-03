@@ -8,15 +8,6 @@ from ray.train.torch import TorchTrainer
 from ray.train import ScalingConfig
 
 
-def get_dataset():
-    return datasets.FashionMNIST(
-        root="/tmp/data",
-        train=True,
-        download=True,
-        transform=ToTensor(),
-    )
-
-
 class NeuralNetwork(nn.Module):
     def __init__(self):
         super().__init__()
@@ -83,9 +74,6 @@ trainer = TorchTrainer(
         use_gpu=use_gpu,
         resources_per_worker={
             "CPU": 1,
-        },
-        trainer_resources={
-            "CPU": 0,
         },
     ),
 )
