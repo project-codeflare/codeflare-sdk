@@ -91,7 +91,7 @@ spec:
                   name: odh-trusted-ca-bundle
                   optional: true
                 name: odh-ca-cert
-        rayVersion: 2.47.1
+        rayVersion: 2.52.1
         workerGroupSpecs:
         - groupName: small-group-default-appwrapper
           maxReplicas: 1
