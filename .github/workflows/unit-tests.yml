@@ -2,9 +2,9 @@ name: Python Tests
 
 on:
   pull_request:
-    branches: [ main, ray-jobs-feature ]
+    branches: [ main, ray-jobs-feature, v0.31 ]
   push:
-    branches: [ main, ray-jobs-feature ]
+    branches: [ main, ray-jobs-feature, v0.31 ]
 
 jobs:
   unit-tests:
