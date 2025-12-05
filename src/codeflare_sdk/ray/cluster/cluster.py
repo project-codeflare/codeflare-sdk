@@ -19,13 +19,14 @@ cluster setup queue, a list of all existing clusters, and the user's working nam
 """
 
 from time import sleep
-from typing import List, Optional, Tuple, Dict
+from typing import List, Optional, Tuple, Dict, Union
 import copy
 
 from ray.job_submission import JobSubmissionClient, JobStatus
 import time
 import uuid
 import warnings
+from typing_extensions import deprecated
 
 from ...common.utils import get_current_namespace
 
@@ -38,10 +39,10 @@ from .build_ray_cluster import build_ray_cluster, head_worker_gpu_count_from_clu
 from .build_ray_cluster import write_to_file as write_cluster_to_file
 from ...common import _kube_api_error_handling
 
-from .config import ClusterConfiguration
+from .config import RayClusterConfig, ClusterConfiguration
 from .status import (
     CodeFlareClusterStatus,
-    RayCluster,
+    RayClusterInfo,
     RayClusterStatus,
 )
 from ..appwrapper import (
@@ -67,20 +68,38 @@ from kubernetes.client.rest import ApiException
 CF_SDK_FIELD_MANAGER = "codeflare-sdk"
 
 
+@deprecated(
+    "Use RayCluster instead. See: https://github.com/project-codeflare/codeflare-sdk"
+)
 class Cluster:
     """
+    [DEPRECATED] Use RayCluster instead.
+
     An object for requesting, bringing up, and taking down resources.
     Can also be used for seeing the resource cluster status and details.
 
     Note that currently, the underlying implementation is a Ray cluster.
+
+    Example (deprecated):
+        cluster = Cluster(ClusterConfiguration(name='my-cluster', ...))
+
+    Use instead:
+        from codeflare_sdk import RayCluster
+        cluster = RayCluster(name='my-cluster', ...)
     """
 
     def __init__(self, config: ClusterConfiguration):
         """
-        Create the resource cluster object by passing in a ClusterConfiguration
-        (defined in the config sub-module). An AppWrapper will then be generated
-        based off of the configured resources to represent the desired cluster
-        request.
+        Create the resource cluster object by passing in a configuration object.
+
+        Args:
+            config: A ClusterConfiguration (deprecated) object.
+                    An AppWrapper will then be generated based off of the configured
+                    resources to represent the desired cluster request.
+
+        Note:
+            This class is deprecated. Use RayCluster directly instead:
+            cluster = RayCluster(name='my-cluster', num_workers=2, ...)
         """
         self.config = config
         self._job_submission_client = None
@@ -474,7 +493,7 @@ class Cluster:
             sleep(5)
             time += 5
 
-    def details(self, print_to_console: bool = True) -> RayCluster:
+    def details(self, print_to_console: bool = True) -> RayClusterInfo:
         """
         Retrieves details about the Ray Cluster.
 
@@ -487,7 +506,7 @@ class Cluster:
                 printed to the console. Defaults to True.
 
         Returns:
-            RayCluster:
+            RayClusterInfo:
                 A copy of the Ray Cluster details.
         """
         cluster = _copy_to_ray(self)
@@ -738,11 +757,11 @@ def get_cluster(
             return _kube_api_error_handling(e)
 
     (
-        head_extended_resources,
-        worker_extended_resources,
+        head_accelerators,
+        worker_accelerators,
     ) = Cluster._head_worker_extended_resources_from_rc_dict(resource_extraction)
-    # Create a Cluster Configuration with just the necessary provided parameters
-    cluster_config = ClusterConfiguration(
+    # Create a RayClusterConfig with the retrieved parameters
+    cluster_config = RayClusterConfig(
         name=cluster_name,
         namespace=namespace,
         verify_tls=verify_tls,
@@ -773,8 +792,8 @@ def get_cluster(
         worker_memory_requests=resource_extraction["spec"]["workerGroupSpecs"][0][
             "template"
         ]["spec"]["containers"][0]["resources"]["limits"]["memory"],
-        head_extended_resource_requests=head_extended_resources,
-        worker_extended_resource_requests=worker_extended_resources,
+        head_accelerators=head_accelerators,
+        worker_accelerators=worker_accelerators,
     )
 
     # Ignore the warning here for the lack of a ClusterConfiguration
@@ -940,7 +959,7 @@ def _app_wrapper_status(name, namespace="default") -> Optional[AppWrapper]:
     return None
 
 
-def _ray_cluster_status(name, namespace="default") -> Optional[RayCluster]:
+def _ray_cluster_status(name, namespace="default") -> Optional[RayClusterInfo]:
     try:
         config_check()
         api_instance = client.CustomObjectsApi(get_api_client())
@@ -961,7 +980,7 @@ def _ray_cluster_status(name, namespace="default") -> Optional[RayCluster]:
 
 def _get_ray_clusters(
     namespace="default", filter: Optional[List[RayClusterStatus]] = None
-) -> List[RayCluster]:
+) -> List[RayClusterInfo]:
     list_of_clusters = []
     try:
         config_check()
@@ -1014,7 +1033,7 @@ def _get_app_wrappers(
     return list_of_app_wrappers
 
 
-def _map_to_ray_cluster(rc) -> Optional[RayCluster]:
+def _map_to_ray_cluster(rc) -> Optional[RayClusterInfo]:
     if "status" in rc and "state" in rc["status"]:
         status = RayClusterStatus(rc["status"]["state"].lower())
     else:
@@ -1072,7 +1091,7 @@ def _map_to_ray_cluster(rc) -> Optional[RayCluster]:
         worker_extended_resources,
     ) = Cluster._head_worker_extended_resources_from_rc_dict(rc)
 
-    return RayCluster(
+    return RayClusterInfo(
         name=rc["metadata"]["name"],
         status=status,
         # for now we are not using autoscaling so same replicas is fine
@@ -1120,8 +1139,8 @@ def _map_to_app_wrapper(aw) -> AppWrapper:
     )
 
 
-def _copy_to_ray(cluster: Cluster) -> RayCluster:
-    ray = RayCluster(
+def _copy_to_ray(cluster: Cluster) -> RayClusterInfo:
+    ray = RayClusterInfo(
         name=cluster.config.name,
         status=cluster.status(print_to_console=False)[0],
         num_workers=cluster.config.num_workers,
@@ -1129,14 +1148,14 @@ def _copy_to_ray(cluster: Cluster) -> RayCluster:
         worker_mem_limits=cluster.config.worker_memory_limits,
         worker_cpu_requests=cluster.config.worker_cpu_requests,
         worker_cpu_limits=cluster.config.worker_cpu_limits,
-        worker_extended_resources=cluster.config.worker_extended_resource_requests,
+        worker_extended_resources=cluster.config.worker_accelerators,
         namespace=cluster.config.namespace,
         dashboard=cluster.cluster_dashboard_uri(),
         head_mem_requests=cluster.config.head_memory_requests,
         head_mem_limits=cluster.config.head_memory_limits,
         head_cpu_requests=cluster.config.head_cpu_requests,
         head_cpu_limits=cluster.config.head_cpu_limits,
-        head_extended_resources=cluster.config.head_extended_resource_requests,
+        head_extended_resources=cluster.config.head_accelerators,
     )
     if ray.status == CodeFlareClusterStatus.READY:
         ray.status = RayClusterStatus.READY
