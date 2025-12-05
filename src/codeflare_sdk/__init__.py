@@ -1,9 +1,10 @@
 from .ray import (
-    Cluster,
-    ClusterConfiguration,
+    Cluster,  # Deprecated, use RayCluster instead
+    ClusterConfiguration,  # Deprecated, use RayCluster instead
+    RayCluster,  # New unified class (recommended) - combines config + operations
+    RayClusterInfo,  # Status info dataclass
     RayClusterStatus,
     CodeFlareClusterStatus,
-    RayCluster,
     get_cluster,
     list_all_queued,
     list_all_clusters,
@@ -11,7 +12,7 @@ from .ray import (
     AppWrapperStatus,
     RayJobClient,
     RayJob,
-    ManagedClusterConfig,
+    ManagedClusterConfig,  # Deprecated, use RayCluster instead
 )
 
 from .common.widgets import view_clusters
