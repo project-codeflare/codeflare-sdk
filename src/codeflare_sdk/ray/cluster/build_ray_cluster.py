@@ -174,6 +174,12 @@ def build_ray_cluster(cluster: "codeflare_sdk.ray.cluster.Cluster"):
         },
     }
 
+    # Enable Ray token authentication by default for defense-in-depth security.
+    # KubeRay v1.5.1+ creates a Secret with a randomly generated token and injects
+    # RAY_AUTH_TOKEN and RAY_AUTH_MODE environment variables into all Ray containers.
+    if cluster.config.enable_ray_token_auth:
+        resource["spec"]["authOptions"] = {"mode": "token"}
+
     if cluster.config.enable_gcs_ft:
         if not cluster.config.redis_address:
             raise ValueError(

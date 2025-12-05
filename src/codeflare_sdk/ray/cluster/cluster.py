@@ -56,6 +56,8 @@ from kubernetes import client
 import yaml
 import os
 import requests
+import base64
+import ray
 
 from kubernetes import config
 from kubernetes.dynamic import DynamicClient
@@ -114,21 +116,82 @@ class Cluster:
     def _client_verify_tls(self):
         return _is_openshift_cluster and self.config.verify_tls
 
+    def get_ray_auth_token(self) -> Optional[str]:
+        """
+        Retrieve the Ray auth token from the cluster's Secret.
+
+        When Ray token authentication is enabled (authOptions.mode: "token"),
+        KubeRay creates a Secret with the same name as the cluster containing
+        a randomly generated token. This method retrieves that token for use
+        with JobSubmissionClient and ray.init().
+
+        Returns:
+            The Ray auth token string, or None if the Secret doesn't exist
+            (cluster not ready or auth disabled).
+
+        Note:
+            Requires read access to Secrets in the cluster's namespace.
+        """
+        if not self.config.enable_ray_token_auth:
+            return None
+
+        secret_name = self.config.name  # KubeRay uses cluster name as Secret name
+        namespace = self.config.namespace
+
+        try:
+            config_check()
+            core_v1 = client.CoreV1Api(get_api_client())
+            secret = core_v1.read_namespaced_secret(secret_name, namespace)
+            # KubeRay stores the token under the "auth_token" key
+            token_bytes = secret.data.get("auth_token")
+            if token_bytes:
+                return base64.b64decode(token_bytes).decode("utf-8")
+            return None
+        except ApiException as e:
+            if e.status == 404:
+                # Secret not created yet (cluster not ready) or auth disabled
+                return None
+            raise
+
+    def _setup_ray_auth_env(self):
+        """
+        Automatically set up Ray token authentication environment variables.
+
+        This method retrieves the Ray auth token from the KubeRay-created Secret
+        and sets RAY_AUTH_TOKEN and RAY_AUTH_MODE environment variables. This
+        allows users to use standard ray.init() without manual token setup.
+
+        Called automatically when users access cluster_uri() or job_client.
+        """
+        if self.config.enable_ray_token_auth:
+            ray_token = self.get_ray_auth_token()
+            if ray_token:
+                os.environ["RAY_AUTH_TOKEN"] = ray_token
+                os.environ["RAY_AUTH_MODE"] = "token"
+
     @property
     def job_client(self):
-        k8client = get_api_client()
         if self._job_submission_client:
             return self._job_submission_client
+
+        # Automatically set up Ray auth environment variables
+        self._setup_ray_auth_env()
+
+        # Start with K8s auth headers (for OAuth proxy on OpenShift)
+        headers = {}
         if _is_openshift_cluster():
-            self._job_submission_client = JobSubmissionClient(
-                self.cluster_dashboard_uri(),
-                headers=self._client_headers,
-                verify=self._client_verify_tls,
-            )
-        else:
-            self._job_submission_client = JobSubmissionClient(
-                self.cluster_dashboard_uri()
-            )
+            headers = self._client_headers.copy()
+
+        # Add Ray token auth if available (defense-in-depth)
+        ray_token = self.get_ray_auth_token()
+        if ray_token:
+            headers["Authorization"] = f"Bearer {ray_token}"
+
+        self._job_submission_client = JobSubmissionClient(
+            self.cluster_dashboard_uri(),
+            headers=headers if headers else None,
+            verify=self._client_verify_tls if _is_openshift_cluster() else True,
+        )
         return self._job_submission_client
 
     def create_resource(self):
@@ -498,7 +561,13 @@ class Cluster:
     def cluster_uri(self) -> str:
         """
         Returns a string containing the cluster's URI.
+
+        Automatically sets up Ray token authentication environment variables
+        (RAY_AUTH_TOKEN and RAY_AUTH_MODE) if token auth is enabled, allowing
+        users to use standard ray.init() without manual setup.
         """
+        # Automatically set up Ray auth environment variables
+        self._setup_ray_auth_env()
         return f"ray://{self.config.name}-head-svc.{self.config.namespace}.svc:10001"
 
     def cluster_dashboard_uri(self) -> str:

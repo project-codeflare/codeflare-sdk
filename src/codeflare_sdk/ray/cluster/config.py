@@ -94,6 +94,12 @@ class ClusterConfiguration:
             Kubernetes secret reference containing Redis password. ex: {"name": "secret-name", "key": "password-key"}
         external_storage_namespace:
             The storage namespace to use for GCS fault tolerance. By default, KubeRay sets it to the UID of RayCluster.
+        enable_ray_token_auth:
+            A boolean indicating whether to enable Ray token authentication.
+            When enabled (default), KubeRay creates a Secret with a randomly generated token
+            and sets RAY_AUTH_TOKEN and RAY_AUTH_MODE environment variables on all Ray containers.
+            Requires Ray 2.52.0+ and KubeRay v1.5.1+. Provides defense-in-depth security
+            alongside OpenShift OAuth/OIDC authentication.
     """
 
     name: str
@@ -133,6 +139,7 @@ class ClusterConfiguration:
     redis_address: Optional[str] = None
     redis_password_secret: Optional[Dict[str, str]] = None
     external_storage_namespace: Optional[str] = None
+    enable_ray_token_auth: bool = True  # Enabled by default for defense-in-depth
 
     def __post_init__(self):
         if not self.verify_tls:
