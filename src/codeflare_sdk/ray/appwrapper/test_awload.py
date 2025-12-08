@@ -42,11 +42,11 @@ def test_AWManager_creation(mocker):
     testaw = AWManager(f"{aw_dir}test.yaml")
     assert testaw.name == "test"
     assert testaw.namespace == "ns"
-    assert testaw.submitted == False
+    assert testaw.submitted is False
     try:
         testaw = AWManager("fake")
     except Exception as e:
-        assert type(e) == FileNotFoundError
+        assert isinstance(e, FileNotFoundError)
         assert str(e) == "[Errno 2] No such file or directory: 'fake'"
     try:
         testaw = apply_template(
@@ -56,7 +56,7 @@ def test_AWManager_creation(mocker):
             get_template_variables(),
         )
     except Exception as e:
-        assert type(e) == ValueError
+        assert isinstance(e, ValueError)
         assert (
             str(e)
             == f"{parent}/tests/test_cluster_yamls/appwrapper/test-case-bad.yaml is not a correctly formatted AppWrapper yaml"
@@ -72,7 +72,7 @@ def test_AWManager_submit_remove(mocker, capsys):
         captured.out
         == "AppWrapper not submitted by this manager yet, nothing to remove\n"
     )
-    assert testaw.submitted == False
+    assert testaw.submitted is False
     mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
     mocker.patch(
         "kubernetes.client.CustomObjectsApi.create_namespaced_custom_object",
@@ -83,9 +83,9 @@ def test_AWManager_submit_remove(mocker, capsys):
         side_effect=arg_check_aw_del_effect,
     )
     testaw.submit()
-    assert testaw.submitted == True
+    assert testaw.submitted is True
     testaw.remove()
-    assert testaw.submitted == False
+    assert testaw.submitted is False
 
 
 # Make sure to always keep this function last
