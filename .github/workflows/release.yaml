@@ -26,9 +26,11 @@ on:
             codeflare-repository-organization:
               type: string
               default: "project-codeflare"
-
-env:
-  PR_BRANCH_NAME: snyk-tag-monitoring-${{ github.run_id }}
+            release-branch:
+              type: string
+              description: 'Branch to release from (default: main)'
+              required: false
+              default: 'main'
 
 jobs:
     release:
@@ -42,6 +44,7 @@ jobs:
             - name: Checkout the repository
               uses: actions/checkout@v4
               with:
+                  ref: ${{ github.event.inputs.release-branch }}
                   token: ${{ secrets.GH_CLI_TOKEN }}
             - name: Install Python
               uses: actions/setup-python@v5
@@ -59,7 +62,7 @@ jobs:
               run: |
                 gh workflow run publish-documentation.yaml \
                   --repo ${{ github.event.inputs.codeflare-repository-organization }}/codeflare-sdk \
-                  --ref ${{ github.ref }} \
+                  --ref ${{ github.event.inputs.release-branch }} \
                   --field codeflare_sdk_release_version=${{ github.event.inputs.release-version }}
               env:
                 GITHUB_TOKEN: ${{ secrets.CODEFLARE_MACHINE_ACCOUNT_TOKEN }}
@@ -81,7 +84,7 @@ jobs:
               run: |
                 gh workflow run odh-notebooks-sync.yml \
                   --repo ${{ github.event.inputs.codeflare-repository-organization }}/codeflare-sdk \
-                  --ref ${{ github.ref }} \
+                  --ref ${{ github.event.inputs.release-branch }} \
                   --field upstream-repository-organization=opendatahub-io \
                   --field codeflare-repository-organization=${{ github.event.inputs.codeflare-repository-organization }} \
                   --field codeflare_sdk_release_version=${{ github.event.inputs.release-version }}

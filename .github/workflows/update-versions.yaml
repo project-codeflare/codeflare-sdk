@@ -33,6 +33,11 @@ on:
         required: false
         type: string
         default: ''
+      target-branch:
+        type: string
+        description: 'Target branch to update and create PR against (default: main)'
+        required: false
+        default: 'main'
 
 env:
   PR_BRANCH_NAME: ray-version-update-${{ github.run_id }}
@@ -60,8 +65,8 @@ jobs:
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git checkout main
-          git pull origin main
+          git checkout ${{ github.event.inputs.target-branch }}
+          git pull origin ${{ github.event.inputs.target-branch }}
           git checkout -b ${{ env.PR_BRANCH_NAME }}
 
       - name: Update constants.py
@@ -323,7 +328,7 @@ jobs:
           gh pr create \
             --title "$PR_TITLE" \
             --body "$PR_BODY" \
-            --base main \
+            --base ${{ github.event.inputs.target-branch }} \
             --head ${{ env.PR_BRANCH_NAME }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
