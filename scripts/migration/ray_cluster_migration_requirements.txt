@@ -1,0 +1,6 @@
+# Requirements for ray_cluster_migration.py standalone script
+#
+# Install with: pip install -r ray_cluster_migration_requirements.txt
+
+kubernetes>=28.1.0
+PyYAML>=6.0
