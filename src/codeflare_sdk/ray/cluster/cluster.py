@@ -400,6 +400,10 @@ class Cluster:
         if dashboard_uri is None:
             return False
 
+        # Check if dashboard_uri is an error message rather than a valid URL
+        if not dashboard_uri.startswith(("http://", "https://")):
+            return False
+
         try:
             # Don't follow redirects - we want to see the redirect response
             # A 302 redirect from OAuth proxy indicates the dashboard is ready
@@ -463,6 +467,7 @@ class Cluster:
             time += 5
         print("Requested cluster is up and running!")
 
+        dashboard_wait_logged = False
         while dashboard_check:
             if timeout and time >= timeout:
                 raise TimeoutError(
@@ -471,6 +476,15 @@ class Cluster:
             if self.is_dashboard_ready():
                 print("Dashboard is ready!")
                 break
+            if not dashboard_wait_logged:
+                dashboard_uri = self.cluster_dashboard_uri()
+                if not dashboard_uri.startswith(("http://", "https://")):
+                    print(f"Waiting for dashboard route/HTTPRoute to be created...")
+                else:
+                    print(
+                        f"Waiting for dashboard to become accessible: {dashboard_uri}"
+                    )
+                dashboard_wait_logged = True
             sleep(5)
             time += 5
 
@@ -1191,11 +1205,12 @@ def _get_dashboard_url_from_httproute(
             if items:
                 httproute = items[0]
             else:
-                # No HTTPRoute found
                 return None
         except Exception:
             # No cluster-wide permissions, try namespace-specific search
+            # Include the cluster's namespace first, then platform namespaces
             search_namespaces = [
+                namespace,  # The cluster's own namespace
                 "redhat-ods-applications",
                 "opendatahub",
                 "default",
@@ -1220,7 +1235,6 @@ def _get_dashboard_url_from_httproute(
                     continue
 
             if not httproute:
-                # No HTTPRoute found
                 return None
 
         # Extract Gateway reference and construct dashboard URL
@@ -1244,11 +1258,43 @@ def _get_dashboard_url_from_httproute(
             name=gateway_name,
         )
 
-        listeners = gateway.get("spec", {}).get("listeners", [])
-        if not listeners:
-            return None
+        # Try to get hostname from multiple locations:
+        # 1. spec.listeners[].hostname (standard Gateway API)
+        # 2. OpenShift Route that exposes the Gateway (external access)
+        # 3. status.addresses[].value (internal service address - fallback)
+        hostname = None
 
-        hostname = listeners[0].get("hostname")
+        # First try spec.listeners[].hostname
+        listeners = gateway.get("spec", {}).get("listeners", [])
+        if listeners:
+            hostname = listeners[0].get("hostname")
+
+        # If no hostname in listeners, try to find OpenShift Route exposing the Gateway
+        if not hostname:
+            try:
+                routes = api_instance.list_namespaced_custom_object(
+                    group="route.openshift.io",
+                    version="v1",
+                    namespace=gateway_namespace,
+                    plural="routes",
+                )
+                for route in routes.get("items", []):
+                    # Look for a route that matches the gateway name
+                    if route["metadata"]["name"] == gateway_name:
+                        hostname = route.get("spec", {}).get("host")
+                        break
+            except Exception:
+                pass  # Continue to next fallback
+
+        # If still no hostname, try status.addresses (internal address - may only work in-cluster)
+        if not hostname:
+            addresses = gateway.get("status", {}).get("addresses", [])
+            if addresses:
+                addr_value = addresses[0].get("value")
+                # Skip internal cluster DNS names for external access
+                if addr_value and not addr_value.endswith(".svc.cluster.local"):
+                    hostname = addr_value
+
         if not hostname:
             return None
 
