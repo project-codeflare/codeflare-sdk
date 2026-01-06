@@ -21,6 +21,7 @@ Cluster object.
 import pathlib
 from dataclasses import dataclass, field, fields
 from typing import Dict, List, Optional, Union, get_args, get_origin, Any, Tuple
+from typing_extensions import deprecated
 from kubernetes.client import (
     V1LocalObjectReference,
     V1SecretVolumeSource,
@@ -61,9 +62,12 @@ DEFAULT_ACCELERATORS = {
 }
 
 
+@deprecated("Use RayCluster instead")
 @dataclass
 class ManagedClusterConfig:
     """
+    [DEPRECATED] Use RayCluster instead.
+
     This dataclass is used to specify resource requirements and other details for RayJobs.
     The cluster name and namespace are automatically derived from the RayJob configuration.
 

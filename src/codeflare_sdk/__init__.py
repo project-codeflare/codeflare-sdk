@@ -1,9 +1,10 @@
 from .ray import (
     Cluster,
     ClusterConfiguration,
+    RayCluster,
+    RayClusterInfo,
     RayClusterStatus,
     CodeFlareClusterStatus,
-    RayCluster,
     get_cluster,
     list_all_queued,
     list_all_clusters,

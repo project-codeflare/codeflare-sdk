@@ -20,11 +20,8 @@ cluster setup queue, a list of all existing clusters, and the user's working nam
 
 from time import sleep
 from typing import List, Optional, Tuple, Dict
-import copy
 
-from ray.job_submission import JobSubmissionClient, JobStatus
-import time
-import uuid
+from ray.job_submission import JobSubmissionClient
 import warnings
 
 from ...common.utils import get_current_namespace
@@ -41,7 +38,7 @@ from ...common import _kube_api_error_handling
 from .config import ClusterConfiguration
 from .status import (
     CodeFlareClusterStatus,
-    RayCluster,
+    RayClusterInfo,
     RayClusterStatus,
 )
 from ..appwrapper import (
@@ -54,12 +51,9 @@ from ...common.widgets.widgets import (
 )
 from kubernetes import client
 import yaml
-import os
 import requests
 
-from kubernetes import config
 from kubernetes.dynamic import DynamicClient
-from kubernetes import client as k8s_client
 from kubernetes.client.rest import ApiException
 
 from kubernetes.client.rest import ApiException
@@ -488,7 +482,7 @@ class Cluster:
             sleep(5)
             time += 5
 
-    def details(self, print_to_console: bool = True) -> RayCluster:
+    def details(self, print_to_console: bool = True) -> RayClusterInfo:
         """
         Retrieves details about the Ray Cluster.
 
@@ -954,7 +948,7 @@ def _app_wrapper_status(name, namespace="default") -> Optional[AppWrapper]:
     return None
 
 
-def _ray_cluster_status(name, namespace="default") -> Optional[RayCluster]:
+def _ray_cluster_status(name, namespace="default") -> Optional[RayClusterInfo]:
     try:
         config_check()
         api_instance = client.CustomObjectsApi(get_api_client())
@@ -975,7 +969,7 @@ def _ray_cluster_status(name, namespace="default") -> Optional[RayCluster]:
 
 def _get_ray_clusters(
     namespace="default", filter: Optional[List[RayClusterStatus]] = None
-) -> List[RayCluster]:
+) -> List[RayClusterInfo]:
     list_of_clusters = []
     try:
         config_check()
@@ -1028,7 +1022,7 @@ def _get_app_wrappers(
     return list_of_app_wrappers
 
 
-def _map_to_ray_cluster(rc) -> Optional[RayCluster]:
+def _map_to_ray_cluster(rc) -> Optional[RayClusterInfo]:
     if "status" in rc and "state" in rc["status"]:
         status = RayClusterStatus(rc["status"]["state"].lower())
     else:
@@ -1086,7 +1080,7 @@ def _map_to_ray_cluster(rc) -> Optional[RayCluster]:
         worker_extended_resources,
     ) = Cluster._head_worker_extended_resources_from_rc_dict(rc)
 
-    return RayCluster(
+    return RayClusterInfo(
         name=rc["metadata"]["name"],
         status=status,
         # for now we are not using autoscaling so same replicas is fine
@@ -1134,8 +1128,8 @@ def _map_to_app_wrapper(aw) -> AppWrapper:
     )
 
 
-def _copy_to_ray(cluster: Cluster) -> RayCluster:
-    ray = RayCluster(
+def _copy_to_ray(cluster: Cluster) -> RayClusterInfo:
+    ray = RayClusterInfo(
         name=cluster.config.name,
         status=cluster.status(print_to_console=False)[0],
         num_workers=cluster.config.num_workers,

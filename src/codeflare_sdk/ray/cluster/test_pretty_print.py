@@ -20,7 +20,7 @@ from codeflare_sdk.ray.cluster.pretty_print import (
 )
 from codeflare_sdk.ray.appwrapper.status import AppWrapperStatus, AppWrapper
 from codeflare_sdk.ray.cluster.status import (
-    RayCluster,
+    RayClusterInfo,
     RayClusterStatus,
     CodeFlareClusterStatus,
 )
@@ -81,7 +81,7 @@ def test_print_appwrappers(capsys):
 
 def test_ray_details(mocker, capsys):
     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
-    ray1 = RayCluster(
+    ray1 = RayClusterInfo(
         name="raytest1",
         status=RayClusterStatus.READY,
         num_workers=1,
