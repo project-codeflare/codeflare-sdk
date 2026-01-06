@@ -282,12 +282,10 @@ def test_cluster_uris(mocker):
         "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
         return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
     )
-<<<<<<< HEAD
-=======
+
     # Mock the TLS cert check to avoid warnings in test output
     mocker.patch("codeflare_sdk.ray.cluster.cluster.Cluster._check_tls_certs_exist")
 
->>>>>>> 94b6f8b35 (fix)
     cluster = create_cluster(mocker)
     mocker.patch(
         "kubernetes.client.NetworkingV1Api.list_namespaced_ingress",

@@ -110,6 +110,15 @@ class Cluster:
 
     @property
     def job_client(self):
+        """
+        Get the Ray Job Submission Client for this cluster.
+
+        Note: If connecting to a cluster with mTLS enabled, ensure you have called
+        cluster.wait_ready() first to automatically generate TLS certificates.
+        """
+        # Check for certificates before creating client
+        self._check_tls_certs_exist()
+
         k8client = get_api_client()
         if self._job_submission_client:
             return self._job_submission_client
@@ -382,7 +391,6 @@ class Cluster:
             time += 5
         print("Requested cluster is up and running!")
 
-
         # Automatically generate TLS certificates (required for mTLS)
         try:
             from codeflare_sdk.common.utils import generate_cert
@@ -439,10 +447,54 @@ class Cluster:
             pretty_print.print_clusters([cluster])
         return cluster
 
+    def _check_tls_certs_exist(self):
+        """
+        Check if TLS certificates exist and print helpful warning if not.
+
+        This is called by connection methods (cluster_uri, local_client_url, job_client)
+        to help users debug mTLS connection issues.
+        """
+        from codeflare_sdk.common.utils.generate_cert import _get_tls_base_dir
+        from pathlib import Path
+
+        cert_dir = _get_tls_base_dir() / f"{self.config.name}-{self.config.namespace}"
+
+        if not cert_dir.exists() or not (cert_dir / "tls.crt").exists():
+            print("\n" + "=" * 70)
+            print("⚠️  WARNING: TLS Certificates Not Found!")
+            print("=" * 70)
+            print(f"Expected location: {cert_dir}")
+            print()
+            print("TLS certificates are required for mTLS connections to Ray clusters.")
+            print(
+                "Without certificates, your connection will likely fail with a timeout"
+            )
+            print("or TLS handshake error.")
+            print()
+            print("To fix this issue:")
+            print("  1. Call cluster.wait_ready() after cluster.apply()")
+            print(
+                "     → This automatically generates certificates when cluster is ready"
+            )
+            print()
+            print("  2. Or manually generate certificates:")
+            print("     from codeflare_sdk.common.utils import generate_cert")
+            print(
+                f"     generate_cert.generate_tls_cert('{self.config.name}', '{self.config.namespace}')"
+            )
+            print(
+                f"     generate_cert.export_env('{self.config.name}', '{self.config.namespace}')"
+            )
+            print("=" * 70 + "\n")
+
     def cluster_uri(self) -> str:
         """
         Returns a string containing the cluster's URI.
+
+        Note: If connecting to a cluster with mTLS enabled, ensure you have called
+        cluster.wait_ready() first to automatically generate TLS certificates.
         """
+        self._check_tls_certs_exist()
         return f"ray://{self.config.name}-head-svc.{self.config.namespace}.svc:10001"
 
     def refresh_certificates(self):
@@ -586,7 +638,13 @@ class Cluster:
         Returns:
             str:
                 The Ray client URL based on the ingress domain.
+
+        Note: If connecting to a cluster with mTLS enabled, ensure you have called
+        cluster.wait_ready() first to automatically generate TLS certificates.
         """
+        # Check if TLS certificates exist and provide helpful warning if not
+        self._check_tls_certs_exist()
+
         ingress_domain = _get_ingress_domain(self)
         return f"ray://{ingress_domain}"
 
