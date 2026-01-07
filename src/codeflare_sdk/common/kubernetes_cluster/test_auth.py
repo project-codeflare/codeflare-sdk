@@ -27,32 +27,36 @@ parent = Path(__file__).resolve().parents[4]  # project directory
 
 
 def test_token_auth_creation():
-    token_auth = TokenAuthentication(token="token", server="server")
+    with pytest.warns(DeprecationWarning):
+        token_auth = TokenAuthentication(token="token", server="server")
     assert token_auth.token == "token"
     assert token_auth.server == "server"
     assert token_auth.skip_tls == False
     assert token_auth.ca_cert_path == None
 
-    token_auth = TokenAuthentication(token="token", server="server", skip_tls=True)
+    with pytest.warns(DeprecationWarning):
+        token_auth = TokenAuthentication(token="token", server="server", skip_tls=True)
     assert token_auth.token == "token"
     assert token_auth.server == "server"
     assert token_auth.skip_tls == True
     assert token_auth.ca_cert_path == None
 
     os.environ["CF_SDK_CA_CERT_PATH"] = "/etc/pki/tls/custom-certs/ca-bundle.crt"
-    token_auth = TokenAuthentication(token="token", server="server", skip_tls=False)
+    with pytest.warns(DeprecationWarning):
+        token_auth = TokenAuthentication(token="token", server="server", skip_tls=False)
     assert token_auth.token == "token"
     assert token_auth.server == "server"
     assert token_auth.skip_tls == False
     assert token_auth.ca_cert_path == "/etc/pki/tls/custom-certs/ca-bundle.crt"
     os.environ.pop("CF_SDK_CA_CERT_PATH")
 
-    token_auth = TokenAuthentication(
-        token="token",
-        server="server",
-        skip_tls=False,
-        ca_cert_path=f"{parent}/tests/auth-test.crt",
-    )
+    with pytest.warns(DeprecationWarning):
+        token_auth = TokenAuthentication(
+            token="token",
+            server="server",
+            skip_tls=False,
+            ca_cert_path=f"{parent}/tests/auth-test.crt",
+        )
     assert token_auth.token == "token"
     assert token_auth.server == "server"
     assert token_auth.skip_tls == False
@@ -62,9 +66,10 @@ def test_token_auth_creation():
 def test_token_auth_login_logout(mocker):
     mocker.patch.object(client, "ApiClient")
 
-    token_auth = TokenAuthentication(
-        token="testtoken", server="testserver:6443", skip_tls=False, ca_cert_path=None
-    )
+    with pytest.warns(DeprecationWarning):
+        token_auth = TokenAuthentication(
+            token="testtoken", server="testserver:6443", skip_tls=False, ca_cert_path=None
+        )
     assert token_auth.login() == ("Logged into testserver:6443")
     assert token_auth.logout() == ("Successfully logged out of testserver:6443")
 
@@ -72,28 +77,34 @@ def test_token_auth_login_logout(mocker):
 def test_token_auth_login_tls(mocker):
     mocker.patch.object(client, "ApiClient")
 
-    token_auth = TokenAuthentication(
-        token="testtoken", server="testserver:6443", skip_tls=True, ca_cert_path=None
-    )
+    with pytest.warns(DeprecationWarning):
+        token_auth = TokenAuthentication(
+            token="testtoken", server="testserver:6443", skip_tls=True, ca_cert_path=None
+        )
     assert token_auth.login() == ("Logged into testserver:6443")
-    token_auth = TokenAuthentication(
-        token="testtoken", server="testserver:6443", skip_tls=False, ca_cert_path=None
-    )
+
+    with pytest.warns(DeprecationWarning):
+        token_auth = TokenAuthentication(
+            token="testtoken", server="testserver:6443", skip_tls=False, ca_cert_path=None
+        )
     assert token_auth.login() == ("Logged into testserver:6443")
-    token_auth = TokenAuthentication(
-        token="testtoken",
-        server="testserver:6443",
-        skip_tls=False,
-        ca_cert_path=f"{parent}/tests/auth-test.crt",
-    )
+
+    with pytest.warns(DeprecationWarning):
+        token_auth = TokenAuthentication(
+            token="testtoken",
+            server="testserver:6443",
+            skip_tls=False,
+            ca_cert_path=f"{parent}/tests/auth-test.crt",
+        )
     assert token_auth.login() == ("Logged into testserver:6443")
 
     os.environ["CF_SDK_CA_CERT_PATH"] = f"{parent}/tests/auth-test.crt"
-    token_auth = TokenAuthentication(
-        token="testtoken",
-        server="testserver:6443",
-        skip_tls=False,
-    )
+    with pytest.warns(DeprecationWarning):
+        token_auth = TokenAuthentication(
+            token="testtoken",
+            server="testserver:6443",
+            skip_tls=False,
+        )
     assert token_auth.login() == ("Logged into testserver:6443")
 
 
@@ -141,9 +152,11 @@ def test_config_check_with_config_path_and_no_api_client(mocker):
 
 def test_load_kube_config(mocker):
     mocker.patch.object(config, "load_kube_config")
-    kube_config_auth = KubeConfigFileAuthentication(
-        kube_config_path="/path/to/your/config"
-    )
+
+    with pytest.warns(DeprecationWarning):
+        kube_config_auth = KubeConfigFileAuthentication(
+            kube_config_path="/path/to/your/config"
+        )
     response = kube_config_auth.load_kube_config()
 
     assert (
@@ -151,7 +164,8 @@ def test_load_kube_config(mocker):
         == "Loaded user config file at path %s" % kube_config_auth.kube_config_path
     )
 
-    kube_config_auth = KubeConfigFileAuthentication(kube_config_path=None)
+    with pytest.warns(DeprecationWarning):
+        kube_config_auth = KubeConfigFileAuthentication(kube_config_path=None)
     response = kube_config_auth.load_kube_config()
     assert response == "Please specify a config file path"
 
@@ -160,3 +174,113 @@ def test_auth_coverage():
     abstract = Authentication()
     abstract.login()
     abstract.logout()
+
+
+def test_deprecation_warnings():
+    """Test that deprecation warnings are shown for legacy classes."""
+    with pytest.warns(DeprecationWarning, match="TokenAuthentication is deprecated"):
+        TokenAuthentication(token="test", server="https://test:6443")
+
+    with pytest.warns(DeprecationWarning, match="KubeConfigFileAuthentication is deprecated"):
+        KubeConfigFileAuthentication(kube_config_path="/path/to/config")
+
+
+def test_token_auth_with_kube_authkit(mocker):
+    """Test TokenAuthentication uses kube-authkit when available."""
+    # Mock kube-authkit to be available
+    mocker.patch(
+        "codeflare_sdk.common.kubernetes_cluster.auth.KUBE_AUTHKIT_AVAILABLE",
+        True
+    )
+    mock_get_k8s_client = mocker.patch(
+        "codeflare_sdk.common.kubernetes_cluster.auth.get_k8s_client"
+    )
+    mock_client = mocker.MagicMock()
+    mock_get_k8s_client.return_value = mock_client
+
+    # Mock AuthenticationApi to prevent actual API calls
+    mocker.patch.object(client, "AuthenticationApi")
+
+    # Suppress deprecation warnings in this test
+    with pytest.warns(DeprecationWarning):
+        auth = TokenAuthentication(token="test", server="https://test:6443")
+
+    result = auth.login()
+
+    # Verify kube-authkit was called
+    assert mock_get_k8s_client.called
+    assert result == "Logged into https://test:6443"
+
+
+def test_token_auth_fallback_to_legacy(mocker):
+    """Test TokenAuthentication falls back to legacy when kube-authkit fails."""
+    # Mock kube-authkit to be available but fail
+    mocker.patch(
+        "codeflare_sdk.common.kubernetes_cluster.auth.KUBE_AUTHKIT_AVAILABLE",
+        True
+    )
+    mocker.patch(
+        "codeflare_sdk.common.kubernetes_cluster.auth.get_k8s_client",
+        side_effect=Exception("kube-authkit error")
+    )
+    mocker.patch.object(client, "ApiClient")
+
+    # Suppress both deprecation and runtime warnings
+    with pytest.warns(DeprecationWarning):
+        auth = TokenAuthentication(token="test", server="https://test:6443")
+
+    with pytest.warns(RuntimeWarning, match="kube-authkit authentication failed"):
+        result = auth.login()
+
+    # Should still work via legacy method
+    assert result == "Logged into https://test:6443"
+
+
+def test_kubeconfig_auth_with_kube_authkit(mocker):
+    """Test KubeConfigFileAuthentication uses kube-authkit when available."""
+    # Mock kube-authkit to be available
+    mocker.patch(
+        "codeflare_sdk.common.kubernetes_cluster.auth.KUBE_AUTHKIT_AVAILABLE",
+        True
+    )
+    mock_get_k8s_client = mocker.patch(
+        "codeflare_sdk.common.kubernetes_cluster.auth.get_k8s_client"
+    )
+    mock_client = mocker.MagicMock()
+    mock_get_k8s_client.return_value = mock_client
+
+    # Suppress deprecation warnings
+    with pytest.warns(DeprecationWarning):
+        auth = KubeConfigFileAuthentication(kube_config_path="/path/to/config")
+
+    result = auth.load_kube_config()
+
+    # Verify kube-authkit was called
+    assert mock_get_k8s_client.called
+    assert result == "Loaded user config file at path /path/to/config"
+
+
+def test_config_check_with_kube_authkit(mocker):
+    """Test config_check uses kube-authkit auto-detection."""
+    # Mock kube-authkit to be available
+    mocker.patch(
+        "codeflare_sdk.common.kubernetes_cluster.auth.KUBE_AUTHKIT_AVAILABLE",
+        True
+    )
+    mock_get_k8s_client = mocker.patch(
+        "codeflare_sdk.common.kubernetes_cluster.auth.get_k8s_client"
+    )
+    mock_client = mocker.MagicMock()
+    mock_get_k8s_client.return_value = mock_client
+
+    # Mock AuthenticationApi to prevent actual API calls
+    mocker.patch.object(client, "AuthenticationApi")
+
+    # Reset global state
+    mocker.patch("codeflare_sdk.common.kubernetes_cluster.auth.api_client", None)
+    mocker.patch("codeflare_sdk.common.kubernetes_cluster.auth.config_path", None)
+
+    config_check()
+
+    # Should call kube-authkit
+    assert mock_get_k8s_client.called
