@@ -1,4 +1,4 @@
-# Copyright 2024 IBM, Red Hat
+# Copyright 2024-2026 IBM, Red Hat
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -27,7 +27,7 @@ parent = Path(__file__).resolve().parents[4]  # project directory
 
 
 @pytest.fixture(autouse=True)
-def reset_auth_globals():
+def reset_auth_globals(mocker):
     """Reset global auth state before and after each test to ensure test isolation."""
     import codeflare_sdk.common.kubernetes_cluster.auth as auth_module
 
@@ -38,6 +38,10 @@ def reset_auth_globals():
     # Reset before test
     auth_module.api_client = None
     auth_module.config_path = None
+
+    # Mock kubernetes client to prevent actual API calls in all tests
+    # Individual tests can override these mocks as needed
+    mocker.patch.object(client.ApiClient, "call_api", return_value=None)
 
     yield
 
