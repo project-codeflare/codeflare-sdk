@@ -19,6 +19,7 @@ This ensures proper mocking and isolation across all test modules.
 
 import pytest
 import os
+from pathlib import Path
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -34,6 +35,7 @@ def mock_kubernetes_config_for_ci(request):
     if is_ci:
         # Create a minimal kubeconfig file for CI
         import tempfile
+
         kubeconfig_content = """
 apiVersion: v1
 kind: Config
@@ -54,19 +56,21 @@ users:
     token: test-token
 """
         # Create temporary kubeconfig
-        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.kubeconfig') as f:
+        with tempfile.NamedTemporaryFile(
+            mode="w", delete=False, suffix=".kubeconfig"
+        ) as f:
             f.write(kubeconfig_content)
             temp_kubeconfig = f.name
 
         # Set KUBECONFIG environment variable
-        os.environ['KUBECONFIG'] = temp_kubeconfig
+        os.environ["KUBECONFIG"] = temp_kubeconfig
 
         yield
 
         # Cleanup
         os.unlink(temp_kubeconfig)
-        if 'KUBECONFIG' in os.environ:
-            del os.environ['KUBECONFIG']
+        if "KUBECONFIG" in os.environ:
+            del os.environ["KUBECONFIG"]
     else:
         yield
 
@@ -85,3 +89,72 @@ def ensure_test_directories():
         os.makedirs(directory, exist_ok=True)
 
     yield
+
+
+@pytest.fixture(autouse=True)
+def mock_kubernetes(monkeypatch, tmp_path):
+    # Prevent kube config loaders from attempting actual cluster auth
+    monkeypatch.setattr("kubernetes.config.load_kube_config", lambda *a, **k: None)
+    monkeypatch.setattr("kubernetes.config.load_incluster_config", lambda *a, **k: None)
+
+    # Mock AuthenticationApi (for api.get_api_group(), etc.)
+    class FakeAuthenticationApi:
+        def __init__(self, api_client=None):
+            pass
+
+        def get_api_group(self):
+            return {}
+
+    monkeypatch.setattr("kubernetes.client.AuthenticationApi", FakeAuthenticationApi)
+
+    # Optionally mock other k8s clients used in tests if needed
+    class FakeCoreV1Api:
+        def __init__(self, api_client=None):
+            pass
+
+        def list_namespace(self, *args, **kwargs):
+            return []
+
+    monkeypatch.setattr("kubernetes.client.CoreV1Api", FakeCoreV1Api)
+
+    class FakeCustomObjectsApi:
+        def __init__(self, api_client=None):
+            pass
+
+        def get_cluster_custom_object(self, *args, **kwargs):
+            return {}
+
+    monkeypatch.setattr("kubernetes.client.CustomObjectsApi", FakeCustomObjectsApi)
+
+    # Create all required test resource files in a fake HOME for the test session
+    fake_home = tmp_path / "home"
+    resources_dir = fake_home / ".codeflare" / "resources"
+    resources_dir.mkdir(parents=True, exist_ok=True)
+
+    # Resource files seen missing in your logs
+    resources = [
+        "test.yaml",
+        "unit-test-cluster-kueue.yaml",
+        "test-all-params.yaml",
+    ]
+    for fname in resources:
+        (resources_dir / fname).write_text("kind: Test\n")
+
+    # Create tls files under expected resource location
+    tls_dir = resources_dir / "tls-cluster-namespace"
+    tls_dir.mkdir(exist_ok=True)
+    (tls_dir / "ca.crt").write_text(
+        "-----BEGIN CERTIFICATE-----\nFAKE\n-----END CERTIFICATE-----\n"
+    )
+    (tls_dir / "ca.key").write_text("FAKEKEY\n")
+
+    # Some tests may look in CWD for tls files, so create those too
+    cwd_tls_dir = tmp_path / "tls-cluster-namespace"
+    cwd_tls_dir.mkdir(exist_ok=True)
+    (cwd_tls_dir / "ca.crt").write_text(
+        "-----BEGIN CERTIFICATE-----\nFAKE\n-----END CERTIFICATE-----\n"
+    )
+    (cwd_tls_dir / "ca.key").write_text("FAKEKEY\n")
+
+    # Point $HOME to ensure the tests use the mock resource directory
+    monkeypatch.setenv("HOME", str(fake_home))
