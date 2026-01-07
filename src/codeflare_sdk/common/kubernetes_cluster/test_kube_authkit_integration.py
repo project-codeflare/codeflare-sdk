@@ -47,14 +47,19 @@ class TestKubeAuthkitIntegration:
         """Test using AuthConfig directly with SDK."""
         # Mock the entire get_k8s_client function to avoid actual auth
         mock_client = mocker.MagicMock()
-        mock_get_k8s_client = mocker.patch("kube_authkit.get_k8s_client", return_value=mock_client)
+        mock_get_k8s_client = mocker.patch(
+            "kube_authkit.get_k8s_client", return_value=mock_client
+        )
 
         # Mock AuthConfig to avoid validation
         mock_auth_config = mocker.MagicMock()
         mocker.patch("kube_authkit.AuthConfig", return_value=mock_auth_config)
 
         # Use kube-authkit with mocked objects
-        from kube_authkit import AuthConfig as RealAuthConfig, get_k8s_client as real_get_k8s_client
+        from kube_authkit import (
+            AuthConfig as RealAuthConfig,
+            get_k8s_client as real_get_k8s_client,
+        )
 
         # Call the mocked version
         client = mock_get_k8s_client(config=mock_auth_config)
@@ -68,10 +73,13 @@ class TestKubeAuthkitIntegration:
         mock_client = mocker.MagicMock()
 
         # Mock the entire kube_authkit module functions
-        mock_get_k8s_client = mocker.patch("kube_authkit.get_k8s_client", return_value=mock_client)
+        mock_get_k8s_client = mocker.patch(
+            "kube_authkit.get_k8s_client", return_value=mock_client
+        )
 
         # Call the mocked function
         from kube_authkit import get_k8s_client
+
         client = mock_get_k8s_client()
 
         assert client is not None
@@ -81,7 +89,9 @@ class TestKubeAuthkitIntegration:
         """Test AuthConfig with OIDC authentication."""
         # Mock to avoid actual OIDC validation
         mock_client = mocker.MagicMock()
-        mock_get_k8s_client = mocker.patch("kube_authkit.get_k8s_client", return_value=mock_client)
+        mock_get_k8s_client = mocker.patch(
+            "kube_authkit.get_k8s_client", return_value=mock_client
+        )
 
         # Mock AuthConfig creation to avoid file system checks
         mock_auth_config = mocker.MagicMock()
@@ -89,6 +99,7 @@ class TestKubeAuthkitIntegration:
 
         # Test that the mocked function works
         from kube_authkit import get_k8s_client
+
         client = mock_get_k8s_client(config=mock_auth_config)
 
         assert client is not None

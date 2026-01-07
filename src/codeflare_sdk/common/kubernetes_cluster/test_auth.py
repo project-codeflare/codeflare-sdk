@@ -26,6 +26,26 @@ import pytest
 parent = Path(__file__).resolve().parents[4]  # project directory
 
 
+@pytest.fixture(autouse=True)
+def reset_auth_globals():
+    """Reset global auth state before and after each test to ensure test isolation."""
+    import codeflare_sdk.common.kubernetes_cluster.auth as auth_module
+
+    # Store original values
+    original_api_client = auth_module.api_client
+    original_config_path = auth_module.config_path
+
+    # Reset before test
+    auth_module.api_client = None
+    auth_module.config_path = None
+
+    yield
+
+    # Reset after test
+    auth_module.api_client = original_api_client
+    auth_module.config_path = original_config_path
+
+
 def test_token_auth_creation():
     with pytest.warns(DeprecationWarning):
         token_auth = TokenAuthentication(token="token", server="server")

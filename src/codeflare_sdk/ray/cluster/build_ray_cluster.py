@@ -590,6 +590,7 @@ def write_to_file(cluster: "codeflare_sdk.ray.cluster.Cluster", resource: dict):
     # used by Kubernetes client v33+
     try:
         import json
+
         resource_json = json.dumps(resource, default=str)
         sanitized_resource = json.loads(resource_json)
     except (TypeError, ValueError):
