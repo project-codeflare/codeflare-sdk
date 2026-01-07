@@ -37,12 +37,17 @@ from codeflare_sdk import Cluster, ClusterConfiguration
 # Option 1: Auto-detect authentication (recommended)
 api_client = get_k8s_client()
 
-# Option 2: Explicit token authentication
+# Option 2: OIDC authentication
 auth_config = AuthConfig(
-    server="https://api.cluster.example.com:6443",
-    token="your-token",
-    verify_ssl=True
+    method="oidc",
+    oidc_issuer="https://your-oidc-provider.com",
+    client_id="your-client-id",
+    use_device_flow=True
 )
+api_client = get_k8s_client(config=auth_config)
+
+# Option 3: OpenShift OAuth
+auth_config = AuthConfig(method="openshift")
 api_client = get_k8s_client(config=auth_config)
 
 # Use with CodeFlare SDK
@@ -51,6 +56,9 @@ cluster = Cluster(ClusterConfiguration(
     num_workers=2,
 ))
 cluster.apply()
+```
+
+**Note:** For direct token authentication, see the [Migration Guide](./docs/auth_migration_guide.md).
 ```
 
 ### Migration from Legacy Authentication
@@ -67,10 +75,19 @@ auth.login()
 
 **New recommended approach:**
 ```python
-# ✅ Recommended
+# ✅ Recommended - Auto-detection
+from kube_authkit import get_k8s_client
+api_client = get_k8s_client()
+
+# ✅ For OIDC or OpenShift OAuth
 from kube_authkit import AuthConfig, get_k8s_client
-auth_config = AuthConfig(server="...", token="...", verify_ssl=True)
+auth_config = AuthConfig(method="oidc", oidc_issuer="...", client_id="...")
 api_client = get_k8s_client(config=auth_config)
+
+# ⚠️ For token-based auth, continue using TokenAuthentication (deprecated)
+from codeflare_sdk import TokenAuthentication
+auth = TokenAuthentication(token="...", server="...")
+auth.login()
 ```
 
 ## Development

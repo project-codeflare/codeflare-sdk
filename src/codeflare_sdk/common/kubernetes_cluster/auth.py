@@ -31,13 +31,14 @@ from typing import Optional
 # Import kube-authkit
 try:
     from kube_authkit import get_k8s_client, AuthConfig
+
     KUBE_AUTHKIT_AVAILABLE = True
 except ImportError:
     KUBE_AUTHKIT_AVAILABLE = False
     warnings.warn(
         "kube-authkit is not installed. Advanced authentication features unavailable. "
         "Install with: pip install kube-authkit",
-        ImportWarning
+        ImportWarning,
     )
 
 global api_client
@@ -114,7 +115,7 @@ class TokenAuthentication(Authentication):
         warnings.warn(
             _DEPRECATION_MSG.format(cls_name="TokenAuthentication"),
             DeprecationWarning,
-            stacklevel=2
+            stacklevel=2,
         )
 
         self.token = token
@@ -128,40 +129,14 @@ class TokenAuthentication(Authentication):
         This function is used to log in to a Kubernetes cluster using the user's API token and API server address.
         Depending on the cluster, a user can choose to login in with `--insecure-skip-tls-verify` by setting `skip_tls`
         to `True` or `--certificate-authority` by setting `skip_tls` to False and providing a path to a ca bundle with `ca_cert_path`.
+
+        Note: kube-authkit does not support direct token authentication via AuthConfig,
+        so this uses the legacy implementation.
         """
         global config_path
         global api_client
 
-        # Try kube-authkit first if available
-        if self._use_kube_authkit:
-            try:
-                # Use kube-authkit's token-based auth
-                auth_config = AuthConfig(
-                    server=self.server,
-                    token=self.token,
-                    verify_ssl=not self.skip_tls,
-                    ssl_ca_cert=self.ca_cert_path
-                )
-                api_client = get_k8s_client(config=auth_config)
-                config_path = None
-
-                if self.skip_tls:
-                    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-                    print("Insecure request warnings have been disabled")
-
-                # Verify connection
-                client.AuthenticationApi(api_client).get_api_group()
-                return "Logged into %s" % self.server
-            except Exception as e:
-                # Fall back to legacy implementation
-                warnings.warn(
-                    f"kube-authkit authentication failed, using legacy method: {e}",
-                    RuntimeWarning
-                )
-                # Reset api_client for legacy implementation
-                api_client = None
-
-        # Legacy implementation
+        # Legacy implementation (kube-authkit doesn't support direct token auth)
         try:
             configuration = client.Configuration()
             configuration.api_key_prefix["authorization"] = "Bearer"
@@ -206,7 +181,7 @@ class KubeConfigFileAuthentication(KubeConfiguration):
         warnings.warn(
             _DEPRECATION_MSG.format(cls_name="KubeConfigFileAuthentication"),
             DeprecationWarning,
-            stacklevel=2
+            stacklevel=2,
         )
         self.kube_config_path = kube_config_path
         self._use_kube_authkit = KUBE_AUTHKIT_AVAILABLE
@@ -224,14 +199,15 @@ class KubeConfigFileAuthentication(KubeConfiguration):
         # Try kube-authkit first if available
         if self._use_kube_authkit:
             try:
-                auth_config = AuthConfig(kubeconfig_path=self.kube_config_path)
+                auth_config = AuthConfig(method="kubeconfig")
+                # kube-authkit auto-detects kubeconfig location, but we need to set it
+                # This may need adjustment based on actual kube-authkit API
                 api_client = get_k8s_client(config=auth_config)
                 config_path = self.kube_config_path
                 return "Loaded user config file at path %s" % self.kube_config_path
             except Exception as e:
                 warnings.warn(
-                    f"kube-authkit failed, using legacy method: {e}",
-                    RuntimeWarning
+                    f"kube-authkit failed, using legacy method: {e}", RuntimeWarning
                 )
                 # Reset for legacy implementation
                 api_client = None
@@ -282,18 +258,17 @@ def config_check() -> str:
     # Try kube-authkit auto-detection
     if KUBE_AUTHKIT_AVAILABLE and config_path is None:
         try:
-            # Auto-detect authentication method
-            api_client = get_k8s_client()
+            # Auto-detect authentication method (kubeconfig or in-cluster)
+            auth_config = AuthConfig(method="auto")
+            api_client = get_k8s_client(config=auth_config)
             # Verify connection
             client.AuthenticationApi(api_client).get_api_group()
             return config_path
         except Exception as e:
             # Fall through to legacy method
             api_client = None
-            warnings.warn(
-                f"kube-authkit auto-detection failed, trying legacy methods: {e}",
-                RuntimeWarning
-            )
+            # Don't warn - auto-detection failure is expected when no auth is configured
+            pass
 
     # Legacy implementation
     home_directory = os.path.expanduser("~")

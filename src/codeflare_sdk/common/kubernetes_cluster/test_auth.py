@@ -68,7 +68,10 @@ def test_token_auth_login_logout(mocker):
 
     with pytest.warns(DeprecationWarning):
         token_auth = TokenAuthentication(
-            token="testtoken", server="testserver:6443", skip_tls=False, ca_cert_path=None
+            token="testtoken",
+            server="testserver:6443",
+            skip_tls=False,
+            ca_cert_path=None,
         )
     assert token_auth.login() == ("Logged into testserver:6443")
     assert token_auth.logout() == ("Successfully logged out of testserver:6443")
@@ -79,13 +82,19 @@ def test_token_auth_login_tls(mocker):
 
     with pytest.warns(DeprecationWarning):
         token_auth = TokenAuthentication(
-            token="testtoken", server="testserver:6443", skip_tls=True, ca_cert_path=None
+            token="testtoken",
+            server="testserver:6443",
+            skip_tls=True,
+            ca_cert_path=None,
         )
     assert token_auth.login() == ("Logged into testserver:6443")
 
     with pytest.warns(DeprecationWarning):
         token_auth = TokenAuthentication(
-            token="testtoken", server="testserver:6443", skip_tls=False, ca_cert_path=None
+            token="testtoken",
+            server="testserver:6443",
+            skip_tls=False,
+            ca_cert_path=None,
         )
     assert token_auth.login() == ("Logged into testserver:6443")
 
@@ -181,25 +190,15 @@ def test_deprecation_warnings():
     with pytest.warns(DeprecationWarning, match="TokenAuthentication is deprecated"):
         TokenAuthentication(token="test", server="https://test:6443")
 
-    with pytest.warns(DeprecationWarning, match="KubeConfigFileAuthentication is deprecated"):
+    with pytest.warns(
+        DeprecationWarning, match="KubeConfigFileAuthentication is deprecated"
+    ):
         KubeConfigFileAuthentication(kube_config_path="/path/to/config")
 
 
-def test_token_auth_with_kube_authkit(mocker):
-    """Test TokenAuthentication uses kube-authkit when available."""
-    # Mock kube-authkit to be available
-    mocker.patch(
-        "codeflare_sdk.common.kubernetes_cluster.auth.KUBE_AUTHKIT_AVAILABLE",
-        True
-    )
-    mock_get_k8s_client = mocker.patch(
-        "codeflare_sdk.common.kubernetes_cluster.auth.get_k8s_client"
-    )
-    mock_client = mocker.MagicMock()
-    mock_get_k8s_client.return_value = mock_client
-
-    # Mock AuthenticationApi to prevent actual API calls
-    mocker.patch.object(client, "AuthenticationApi")
+def test_token_auth_uses_legacy_implementation(mocker):
+    """Test TokenAuthentication uses legacy implementation (kube-authkit doesn't support direct token auth)."""
+    mocker.patch.object(client, "ApiClient")
 
     # Suppress deprecation warnings in this test
     with pytest.warns(DeprecationWarning):
@@ -207,32 +206,7 @@ def test_token_auth_with_kube_authkit(mocker):
 
     result = auth.login()
 
-    # Verify kube-authkit was called
-    assert mock_get_k8s_client.called
-    assert result == "Logged into https://test:6443"
-
-
-def test_token_auth_fallback_to_legacy(mocker):
-    """Test TokenAuthentication falls back to legacy when kube-authkit fails."""
-    # Mock kube-authkit to be available but fail
-    mocker.patch(
-        "codeflare_sdk.common.kubernetes_cluster.auth.KUBE_AUTHKIT_AVAILABLE",
-        True
-    )
-    mocker.patch(
-        "codeflare_sdk.common.kubernetes_cluster.auth.get_k8s_client",
-        side_effect=Exception("kube-authkit error")
-    )
-    mocker.patch.object(client, "ApiClient")
-
-    # Suppress both deprecation and runtime warnings
-    with pytest.warns(DeprecationWarning):
-        auth = TokenAuthentication(token="test", server="https://test:6443")
-
-    with pytest.warns(RuntimeWarning, match="kube-authkit authentication failed"):
-        result = auth.login()
-
-    # Should still work via legacy method
+    # TokenAuthentication always uses legacy implementation
     assert result == "Logged into https://test:6443"
 
 
@@ -240,8 +214,7 @@ def test_kubeconfig_auth_with_kube_authkit(mocker):
     """Test KubeConfigFileAuthentication uses kube-authkit when available."""
     # Mock kube-authkit to be available
     mocker.patch(
-        "codeflare_sdk.common.kubernetes_cluster.auth.KUBE_AUTHKIT_AVAILABLE",
-        True
+        "codeflare_sdk.common.kubernetes_cluster.auth.KUBE_AUTHKIT_AVAILABLE", True
     )
     mock_get_k8s_client = mocker.patch(
         "codeflare_sdk.common.kubernetes_cluster.auth.get_k8s_client"
@@ -264,8 +237,10 @@ def test_config_check_with_kube_authkit(mocker):
     """Test config_check uses kube-authkit auto-detection."""
     # Mock kube-authkit to be available
     mocker.patch(
-        "codeflare_sdk.common.kubernetes_cluster.auth.KUBE_AUTHKIT_AVAILABLE",
-        True
+        "codeflare_sdk.common.kubernetes_cluster.auth.KUBE_AUTHKIT_AVAILABLE", True
+    )
+    mock_auth_config = mocker.patch(
+        "codeflare_sdk.common.kubernetes_cluster.auth.AuthConfig"
     )
     mock_get_k8s_client = mocker.patch(
         "codeflare_sdk.common.kubernetes_cluster.auth.get_k8s_client"
@@ -282,5 +257,7 @@ def test_config_check_with_kube_authkit(mocker):
 
     config_check()
 
-    # Should call kube-authkit
+    # Should call AuthConfig with method="auto"
+    mock_auth_config.assert_called_once_with(method="auto")
+    # Should call get_k8s_client
     assert mock_get_k8s_client.called

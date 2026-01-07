@@ -39,23 +39,51 @@ auth.login()
 auth.logout()
 ```
 
-### After (Recommended)
+### After (Option 1 - Auto-Detection, Recommended)
 
 ```python
-from kube_authkit import AuthConfig, get_k8s_client
+from kube_authkit import get_k8s_client
 
-# Explicit token authentication
-auth_config = AuthConfig(
-    server="https://api.example.com:6443",
-    token="my-token",
-    verify_ssl=True  # Replaces skip_tls=False
-)
-api_client = get_k8s_client(config=auth_config)
+# Auto-detect authentication (kubeconfig or in-cluster)
+api_client = get_k8s_client()
 
 # Your cluster operations - the SDK will automatically use the authenticated client
 # ...
 
 # No logout needed - authentication is managed automatically
+```
+
+### After (Option 2 - OIDC for Token-Based Auth)
+
+**Note:** kube-authkit does not support direct token authentication. For token-based auth on OpenShift, you can:
+
+1. **Continue using TokenAuthentication (deprecated but functional)**
+2. **Use OpenShift OAuth with kube-authkit:**
+
+```python
+from kube_authkit import AuthConfig, get_k8s_client
+
+# OpenShift OAuth authentication
+auth_config = AuthConfig(method="openshift")
+api_client = get_k8s_client(config=auth_config)
+
+# Your cluster operations
+# ...
+```
+
+3. **Use OIDC authentication:**
+
+```python
+from kube_authkit import AuthConfig, get_k8s_client
+
+# OIDC authentication
+auth_config = AuthConfig(
+    method="oidc",
+    oidc_issuer="https://your-oidc-provider.com",
+    client_id="your-client-id",
+    use_device_flow=True
+)
+api_client = get_k8s_client(config=auth_config)
 ```
 
 ## Migration Examples
@@ -83,28 +111,42 @@ cluster.apply()
 auth.logout()
 ```
 
-**New Pattern:**
+**New Pattern (Option 1 - Continue with TokenAuthentication):**
+```python
+from codeflare_sdk import TokenAuthentication, Cluster, ClusterConfiguration
+
+# TokenAuthentication still works (shows deprecation warning)
+auth = TokenAuthentication(
+    token="sha256~xxxxx",
+    server="https://api.cluster.example.com:6443",
+    skip_tls=False,
+    ca_cert_path="/path/to/ca.crt"
+)
+auth.login()
+
+cluster = Cluster(ClusterConfiguration(name='my-cluster', num_workers=2))
+cluster.apply()
+
+auth.logout()
+```
+
+**New Pattern (Option 2 - OpenShift OAuth):**
 ```python
 from kube_authkit import AuthConfig, get_k8s_client
 from codeflare_sdk import Cluster, ClusterConfiguration
 
-auth_config = AuthConfig(
-    server="https://api.cluster.example.com:6443",
-    token="sha256~xxxxx",
-    verify_ssl=True,  # Note: verify_ssl=True replaces skip_tls=False
-    ssl_ca_cert="/path/to/ca.crt"
-)
+# OpenShift OAuth (recommended for OpenShift clusters)
+auth_config = AuthConfig(method="openshift")
 api_client = get_k8s_client(config=auth_config)
 
 # SDK automatically uses the authenticated client
-cluster = Cluster(ClusterConfiguration(
-    name='my-cluster',
-    num_workers=2
-))
+cluster = Cluster(ClusterConfiguration(name='my-cluster', num_workers=2))
 cluster.apply()
 
 # No logout needed
 ```
+
+**Note:** kube-authkit does not support direct token authentication via `AuthConfig`. For token-based auth, either continue using the deprecated `TokenAuthentication` class or switch to OpenShift OAuth/OIDC authentication.
 
 ### Example 2: Kubeconfig File Authentication
 
@@ -200,21 +242,24 @@ api_client = get_k8s_client()
 
 ## Parameter Mapping
 
-| Old (TokenAuthentication) | New (AuthConfig) | Notes |
-|---------------------------|------------------|-------|
-| `token` | `token` | Same |
-| `server` | `server` | Same |
-| `skip_tls=True` | `verify_ssl=False` | **Inverted logic!** |
-| `skip_tls=False` | `verify_ssl=True` | **Inverted logic!** |
-| `ca_cert_path` | `ssl_ca_cert` | Different parameter name |
-| N/A | `auth_type` | New - specify auth method |
-| N/A | `oidc_issuer_url` | New - for OIDC |
-| N/A | `oidc_client_id` | New - for OIDC |
-| N/A | `oidc_client_secret` | New - for OIDC |
+### AuthConfig Parameters (kube-authkit)
 
-**⚠️ Important:** Note that `skip_tls` and `verify_ssl` have **inverted logic**:
-- `skip_tls=True` → `verify_ssl=False`
-- `skip_tls=False` → `verify_ssl=True`
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `method` | str | Authentication method: "auto", "kubeconfig", "incluster", "oidc", "openshift" |
+| `k8s_api_host` | str | Kubernetes API server URL (optional, auto-detected) |
+| `oidc_issuer` | str | OIDC issuer URL (for method="oidc") |
+| `client_id` | str | OIDC client ID (for method="oidc") |
+| `client_secret` | str | OIDC client secret (optional, for method="oidc") |
+| `use_device_flow` | bool | Use OIDC device code flow (default: False) |
+| `use_keyring` | bool | Store tokens in system keyring (default: False) |
+| `ca_cert` | str | Path to custom CA certificate |
+| `verify_ssl` | bool | SSL certificate verification (default: True) |
+
+**⚠️ Important:** kube-authkit does **not** support direct token authentication. For token-based auth:
+- Continue using `TokenAuthentication` (deprecated)
+- Use OpenShift OAuth (`method="openshift"`)
+- Use OIDC authentication (`method="oidc"`)
 
 ## Common Migration Issues
 

@@ -585,8 +585,19 @@ def write_to_file(cluster: "codeflare_sdk.ray.cluster.Cluster", resource: dict):
     if not os.path.exists(directory_path):
         os.makedirs(directory_path)
 
+    # Convert resource to JSON and back to sanitize Pydantic undefined values
+    # This is a workaround for PyYAML not being able to serialize Pydantic v2 models
+    # used by Kubernetes client v33+
+    try:
+        import json
+        resource_json = json.dumps(resource, default=str)
+        sanitized_resource = json.loads(resource_json)
+    except (TypeError, ValueError):
+        # If JSON serialization fails, use the resource as-is
+        sanitized_resource = resource
+
     with open(output_file_name, "w") as outfile:
-        yaml.dump(resource, outfile, default_flow_style=False)
+        yaml.dump(sanitized_resource, outfile, default_flow_style=False)
 
     print(f"Written to: {output_file_name}")
     return output_file_name

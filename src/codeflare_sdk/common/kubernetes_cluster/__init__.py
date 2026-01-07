@@ -10,6 +10,7 @@ from .auth import (
 # Re-export kube-authkit for convenience
 try:
     from kube_authkit import AuthConfig, get_k8s_client
+
     __all__ = [
         # Legacy
         "Authentication",
