@@ -834,3 +834,558 @@ def verify_rayjob_cluster_cleanup(
     raise TimeoutError(
         f"RayCluster for job '{rayjob_name}' was not cleaned up within {timeout} seconds"
     )
+
+
+# =============================================================================
+# Gateway API Resource Helper Functions
+# =============================================================================
+
+
+def get_reference_grant(
+    custom_api,
+    namespace: str,
+    name: str = "kuberay-gateway-access",
+):
+    """
+    Get a ReferenceGrant resource by name from a namespace.
+
+    Args:
+        custom_api: Kubernetes CustomObjectsApi instance
+        namespace: Namespace to search in
+        name: Name of the ReferenceGrant (default: "kuberay-gateway-access")
+
+    Returns:
+        ReferenceGrant resource dict if found, None otherwise
+    """
+    try:
+        return custom_api.get_namespaced_custom_object(
+            group="gateway.networking.k8s.io",
+            version="v1beta1",
+            namespace=namespace,
+            plural="referencegrants",
+            name=name,
+        )
+    except client.exceptions.ApiException as e:
+        if e.status == 404:
+            return None
+        raise
+
+
+def list_reference_grants(
+    custom_api,
+    namespace: str,
+):
+    """
+    List all ReferenceGrant resources in a namespace.
+
+    Args:
+        custom_api: Kubernetes CustomObjectsApi instance
+        namespace: Namespace to search in
+
+    Returns:
+        List of ReferenceGrant resources
+    """
+    try:
+        result = custom_api.list_namespaced_custom_object(
+            group="gateway.networking.k8s.io",
+            version="v1beta1",
+            namespace=namespace,
+            plural="referencegrants",
+        )
+        return result.get("items", [])
+    except client.exceptions.ApiException as e:
+        if e.status == 404:
+            return []
+        raise
+
+
+def get_httproutes_for_cluster(
+    custom_api,
+    cluster_name: str,
+    namespace: str,
+):
+    """
+    Get HTTPRoute resources for a specific RayCluster.
+
+    HTTPRoutes for RayClusters are typically labeled with:
+    - ray.io/cluster-name=<cluster_name>
+    - ray.io/cluster-namespace=<namespace>
+
+    Args:
+        custom_api: Kubernetes CustomObjectsApi instance
+        cluster_name: Name of the RayCluster
+        namespace: Namespace of the RayCluster
+
+    Returns:
+        List of matching HTTPRoute resources
+    """
+    label_selector = (
+        f"ray.io/cluster-name={cluster_name},ray.io/cluster-namespace={namespace}"
+    )
+
+    # Try cluster-wide search first (if permissions allow)
+    try:
+        result = custom_api.list_cluster_custom_object(
+            group="gateway.networking.k8s.io",
+            version="v1",
+            plural="httproutes",
+            label_selector=label_selector,
+        )
+        return result.get("items", [])
+    except client.exceptions.ApiException:
+        # Fall back to searching specific namespaces
+        search_namespaces = [
+            namespace,
+            "redhat-ods-applications",
+            "opendatahub",
+            "default",
+            "ray-system",
+        ]
+
+        httproutes = []
+        for ns in search_namespaces:
+            try:
+                result = custom_api.list_namespaced_custom_object(
+                    group="gateway.networking.k8s.io",
+                    version="v1",
+                    namespace=ns,
+                    plural="httproutes",
+                    label_selector=label_selector,
+                )
+                httproutes.extend(result.get("items", []))
+            except client.exceptions.ApiException:
+                continue
+
+        return httproutes
+
+
+def get_network_policies_for_cluster(
+    networking_api,
+    cluster_name: str,
+    namespace: str,
+):
+    """
+    Get NetworkPolicy resources related to a RayCluster.
+
+    NetworkPolicies for RayClusters typically have labels or name patterns
+    that match the cluster name.
+
+    Args:
+        networking_api: Kubernetes NetworkingV1Api instance
+        cluster_name: Name of the RayCluster
+        namespace: Namespace of the RayCluster
+
+    Returns:
+        List of matching NetworkPolicy resources
+    """
+    try:
+        # List all network policies in the namespace
+        all_policies = networking_api.list_namespaced_network_policy(namespace)
+
+        # Filter policies that are related to the cluster
+        # KubeRay typically creates policies with the cluster name in the name or labels
+        matching_policies = []
+        for policy in all_policies.items:
+            policy_name = policy.metadata.name
+            policy_labels = policy.metadata.labels or {}
+
+            # Check if policy name contains cluster name
+            if cluster_name in policy_name:
+                matching_policies.append(policy)
+                continue
+
+            # Check if policy has ray.io/cluster label
+            if policy_labels.get("ray.io/cluster") == cluster_name:
+                matching_policies.append(policy)
+                continue
+
+            # Check if policy has ray.io/cluster-name label
+            if policy_labels.get("ray.io/cluster-name") == cluster_name:
+                matching_policies.append(policy)
+                continue
+
+        return matching_policies
+    except client.exceptions.ApiException as e:
+        if e.status == 404:
+            return []
+        raise
+
+
+def wait_for_reference_grant(
+    custom_api,
+    namespace: str,
+    name: str = "kuberay-gateway-access",
+    timeout: int = 120,
+):
+    """
+    Wait for a ReferenceGrant to be created.
+
+    Args:
+        custom_api: Kubernetes CustomObjectsApi instance
+        namespace: Namespace to search in
+        name: Name of the ReferenceGrant
+        timeout: Maximum time to wait in seconds
+
+    Returns:
+        ReferenceGrant resource if found within timeout, None otherwise
+    """
+    elapsed = 0
+    interval = 5
+
+    while elapsed < timeout:
+        grant = get_reference_grant(custom_api, namespace, name)
+        if grant:
+            return grant
+
+        sleep(interval)
+        elapsed += interval
+
+    return None
+
+
+def wait_for_httproute(
+    custom_api,
+    cluster_name: str,
+    namespace: str,
+    timeout: int = 120,
+):
+    """
+    Wait for HTTPRoute(s) to be created for a RayCluster.
+
+    Args:
+        custom_api: Kubernetes CustomObjectsApi instance
+        cluster_name: Name of the RayCluster
+        namespace: Namespace of the RayCluster
+        timeout: Maximum time to wait in seconds
+
+    Returns:
+        List of HTTPRoute resources if found within timeout, empty list otherwise
+    """
+    elapsed = 0
+    interval = 5
+
+    while elapsed < timeout:
+        routes = get_httproutes_for_cluster(custom_api, cluster_name, namespace)
+        if routes:
+            return routes
+
+        sleep(interval)
+        elapsed += interval
+
+    return []
+
+
+def wait_for_network_policies(
+    networking_api,
+    cluster_name: str,
+    namespace: str,
+    timeout: int = 120,
+):
+    """
+    Wait for NetworkPolicy resources to be created for a RayCluster.
+
+    Args:
+        networking_api: Kubernetes NetworkingV1Api instance
+        cluster_name: Name of the RayCluster
+        namespace: Namespace of the RayCluster
+        timeout: Maximum time to wait in seconds
+
+    Returns:
+        List of NetworkPolicy resources if found within timeout, empty list otherwise
+    """
+    elapsed = 0
+    interval = 5
+
+    while elapsed < timeout:
+        policies = get_network_policies_for_cluster(
+            networking_api, cluster_name, namespace
+        )
+        if policies:
+            return policies
+
+        sleep(interval)
+        elapsed += interval
+
+    return []
+
+
+# =============================================================================
+# Resource Cleanup Verification Helper Functions
+# =============================================================================
+
+
+def wait_for_reference_grant_deletion(
+    custom_api,
+    namespace: str,
+    name: str = "kuberay-gateway-access",
+    timeout: int = 120,
+) -> bool:
+    """
+    Wait for a ReferenceGrant to be deleted.
+
+    Args:
+        custom_api: Kubernetes CustomObjectsApi instance
+        namespace: Namespace to check
+        name: Name of the ReferenceGrant
+        timeout: Maximum time to wait in seconds
+
+    Returns:
+        True if deleted within timeout, False otherwise
+    """
+    elapsed = 0
+    interval = 5
+
+    while elapsed < timeout:
+        grant = get_reference_grant(custom_api, namespace, name)
+        if grant is None:
+            return True
+
+        sleep(interval)
+        elapsed += interval
+
+    return False
+
+
+def wait_for_httproute_deletion(
+    custom_api,
+    cluster_name: str,
+    namespace: str,
+    timeout: int = 120,
+) -> bool:
+    """
+    Wait for HTTPRoute(s) to be deleted for a RayCluster.
+
+    Args:
+        custom_api: Kubernetes CustomObjectsApi instance
+        cluster_name: Name of the RayCluster
+        namespace: Namespace of the RayCluster
+        timeout: Maximum time to wait in seconds
+
+    Returns:
+        True if all HTTPRoutes deleted within timeout, False otherwise
+    """
+    elapsed = 0
+    interval = 5
+
+    while elapsed < timeout:
+        routes = get_httproutes_for_cluster(custom_api, cluster_name, namespace)
+        if not routes:
+            return True
+
+        sleep(interval)
+        elapsed += interval
+
+    return False
+
+
+def wait_for_network_policies_deletion(
+    networking_api,
+    cluster_name: str,
+    namespace: str,
+    timeout: int = 120,
+):
+    """
+    Wait for NetworkPolicy resources to be deleted for a RayCluster.
+
+    Args:
+        networking_api: Kubernetes NetworkingV1Api instance
+        cluster_name: Name of the RayCluster
+        namespace: Namespace of the RayCluster
+        timeout: Maximum time to wait in seconds
+
+    Returns:
+        Empty list if all deleted, otherwise list of remaining policies
+    """
+    elapsed = 0
+    interval = 5
+
+    while elapsed < timeout:
+        policies = get_network_policies_for_cluster(
+            networking_api, cluster_name, namespace
+        )
+        if not policies:
+            return []
+
+        sleep(interval)
+        elapsed += interval
+
+    # Return remaining policies that weren't deleted
+    return policies
+
+
+def verify_reference_grant_spec(
+    reference_grant,
+    expected_from_namespaces=None,
+) -> bool:
+    """
+    Verify the ReferenceGrant has correct spec configuration.
+
+    A valid ReferenceGrant for KubeRay Gateway access should have:
+    - 'from' entries specifying which namespaces/groups can reference services
+    - 'to' entries specifying what resources can be referenced
+
+    Args:
+        reference_grant: ReferenceGrant resource dict
+        expected_from_namespaces: Optional list of expected source namespaces
+
+    Returns:
+        True if spec is valid, False otherwise
+    """
+    spec = reference_grant.get("spec", {})
+
+    # Verify 'from' entries exist
+    from_entries = spec.get("from", [])
+    if not from_entries:
+        print("ReferenceGrant has no 'from' entries")
+        return False
+
+    # Verify 'to' entries exist
+    to_entries = spec.get("to", [])
+    if not to_entries:
+        print("ReferenceGrant has no 'to' entries")
+        return False
+
+    # Verify 'to' contains Service kind
+    has_service_to = any(
+        entry.get("kind") == "Service" or entry.get("group") == ""
+        for entry in to_entries
+    )
+    if not has_service_to:
+        print("ReferenceGrant does not allow Service references")
+        return False
+
+    # If expected namespaces specified, verify they are present
+    if expected_from_namespaces:
+        from_namespaces = set()
+        for entry in from_entries:
+            ns = entry.get("namespace")
+            if ns:
+                from_namespaces.add(ns)
+
+        for expected_ns in expected_from_namespaces:
+            if expected_ns not in from_namespaces:
+                print(
+                    f"Expected namespace '{expected_ns}' not in ReferenceGrant 'from'"
+                )
+                return False
+
+    return True
+
+
+def verify_httproute_spec(
+    httproute,
+    cluster_name: str,
+    namespace: str,
+) -> bool:
+    """
+    Verify the HTTPRoute has correct spec configuration for a RayCluster.
+
+    A valid HTTPRoute for Ray dashboard access should have:
+    - parentRefs pointing to a Gateway
+    - rules with backendRefs pointing to the cluster's service
+    - hostnames or path matching for routing
+
+    Args:
+        httproute: HTTPRoute resource dict
+        cluster_name: Expected cluster name
+        namespace: Expected namespace
+
+    Returns:
+        True if spec is valid, False otherwise
+    """
+    spec = httproute.get("spec", {})
+    metadata = httproute.get("metadata", {})
+    labels = metadata.get("labels", {})
+
+    # Verify labels match the cluster
+    if labels.get("ray.io/cluster-name") != cluster_name:
+        print(f"HTTPRoute cluster-name label mismatch: expected {cluster_name}")
+        return False
+
+    if labels.get("ray.io/cluster-namespace") != namespace:
+        print(f"HTTPRoute cluster-namespace label mismatch: expected {namespace}")
+        return False
+
+    # Verify parentRefs exist (points to Gateway)
+    parent_refs = spec.get("parentRefs", [])
+    if not parent_refs:
+        print("HTTPRoute has no parentRefs")
+        return False
+
+    # Verify rules exist
+    rules = spec.get("rules", [])
+    if not rules:
+        print("HTTPRoute has no rules")
+        return False
+
+    # Verify at least one rule has backendRefs
+    has_backend_refs = any(rule.get("backendRefs") for rule in rules)
+    if not has_backend_refs:
+        print("HTTPRoute rules have no backendRefs")
+        return False
+
+    return True
+
+
+def verify_network_policy_spec(
+    policy,
+    cluster_name: str,
+):
+    """
+    Verify a NetworkPolicy has appropriate selectors and ports.
+
+    Returns a dict with verification results:
+    - has_pod_selector: True if policy has a pod selector
+    - has_ingress_rules: True if policy has ingress rules
+    - has_egress_rules: True if policy has egress rules
+    - allowed_ports: List of allowed port numbers
+    - policy_types: List of policy types (Ingress/Egress)
+
+    Args:
+        policy: NetworkPolicy resource
+        cluster_name: Expected cluster name
+
+    Returns:
+        Dict with verification results
+    """
+    result = {
+        "name": policy.metadata.name,
+        "has_pod_selector": False,
+        "has_ingress_rules": False,
+        "has_egress_rules": False,
+        "allowed_ports": [],
+        "policy_types": [],
+        "pod_selector_labels": {},
+    }
+
+    spec = policy.spec
+
+    # Check pod selector
+    if spec.pod_selector:
+        match_labels = spec.pod_selector.match_labels or {}
+        result["has_pod_selector"] = bool(match_labels)
+        result["pod_selector_labels"] = match_labels
+
+    # Check policy types
+    if spec.policy_types:
+        result["policy_types"] = spec.policy_types
+
+    # Check ingress rules
+    if spec.ingress:
+        result["has_ingress_rules"] = True
+        for ingress_rule in spec.ingress:
+            if ingress_rule.ports:
+                for port in ingress_rule.ports:
+                    if port.port:
+                        result["allowed_ports"].append(port.port)
+
+    # Check egress rules
+    if spec.egress:
+        result["has_egress_rules"] = True
+        for egress_rule in spec.egress:
+            if egress_rule.ports:
+                for port in egress_rule.ports:
+                    if port.port:
+                        result["allowed_ports"].append(port.port)
+
+    return result
