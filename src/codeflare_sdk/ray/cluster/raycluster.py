@@ -163,17 +163,17 @@ class RayCluster:
         self,
         name: str,
         namespace: Optional[str] = None,
-        head_cpu_requests: Union[int, str] = 2,
+        head_cpu_requests: Union[int, str] = 1,
         head_cpu_limits: Union[int, str] = 2,
-        head_memory_requests: Union[int, str] = 8,
+        head_memory_requests: Union[int, str] = 5,
         head_memory_limits: Union[int, str] = 8,
         head_accelerators: Optional[Dict[str, Union[str, int]]] = None,
         head_tolerations: Optional[List[V1Toleration]] = None,
         worker_cpu_requests: Union[int, str] = 1,
         worker_cpu_limits: Union[int, str] = 1,
         num_workers: int = 1,
-        worker_memory_requests: Union[int, str] = 2,
-        worker_memory_limits: Union[int, str] = 2,
+        worker_memory_requests: Union[int, str] = 3,
+        worker_memory_limits: Union[int, str] = 6,
         worker_tolerations: Optional[List[V1Toleration]] = None,
         worker_accelerators: Optional[Dict[str, Union[str, int]]] = None,
         envs: Optional[Dict[str, str]] = None,
@@ -192,6 +192,7 @@ class RayCluster:
         redis_address: Optional[str] = None,
         redis_password_secret: Optional[Dict[str, str]] = None,
         external_storage_namespace: Optional[str] = None,
+        write_to_file: bool = False,
     ):
         # Store all configuration as instance attributes
         self.name = name
@@ -245,7 +246,7 @@ class RayCluster:
         # For backward compatibility - RayCluster doesn't support AppWrapper
         # Users needing AppWrapper should use deprecated ClusterConfiguration
         self.appwrapper = False
-        self.write_to_file = False
+        self.write_to_file = write_to_file
 
         # Run validation and initialization
         self._post_init()
@@ -259,6 +260,22 @@ class RayCluster:
 
     def _post_init(self):
         """Post-initialization validation and setup."""
+        # Type validation
+        errors = []
+        if not isinstance(self.num_workers, int) or isinstance(self.num_workers, bool):
+            errors.append(f"'num_workers' should be of type int.")
+        if not isinstance(self.worker_cpu_requests, (int, str)) or isinstance(
+            self.worker_cpu_requests, bool
+        ):
+            errors.append(f"'worker_cpu_requests' should be of type Union[int, str].")
+        if self.labels and not all(
+            isinstance(k, str) and isinstance(v, str) for k, v in self.labels.items()
+        ):
+            errors.append(f"'labels' should be of type Dict[str, str].")
+
+        if errors:
+            raise TypeError("Type validation failed:\n" + "\n".join(errors))
+
         if not self.verify_tls:
             print(
                 "Warning: TLS verification has been disabled - Endpoint checks will be bypassed"
@@ -358,6 +375,11 @@ class RayCluster:
     def extended_resource_mapping(self) -> Dict[str, str]:
         """Backward compatibility alias for accelerator_configs."""
         return self.accelerator_configs
+
+    @property
+    def overwrite_default_resource_mapping(self) -> bool:
+        """Backward compatibility alias for overwrite_default_accelerator_configs."""
+        return self.overwrite_default_accelerator_configs
 
     # Provide config property that returns self for compatibility with Cluster interface
     @property
@@ -597,6 +619,17 @@ class RayCluster:
             if self.is_dashboard_ready():
                 print("Dashboard is ready!")
                 break
+            # Check if dashboard URI is available (not an error message)
+            dashboard_uri = self.cluster_dashboard_uri()
+            if (
+                "not available" in dashboard_uri.lower()
+                or "not ready" in dashboard_uri.lower()
+            ):
+                print("Waiting for dashboard route/HTTPRoute to be created...")
+            elif dashboard_uri.startswith("http://") or dashboard_uri.startswith(
+                "https://"
+            ):
+                print(f"Waiting for dashboard to become accessible: {dashboard_uri}")
             sleep(5)
             time += 5
 

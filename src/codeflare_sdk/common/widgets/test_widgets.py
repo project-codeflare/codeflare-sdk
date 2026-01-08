@@ -16,7 +16,6 @@ import codeflare_sdk.common.widgets.widgets as cf_widgets
 import pandas as pd
 from unittest.mock import MagicMock, patch
 from ..utils.unit_test_support import get_local_queue, create_cluster_config
-from codeflare_sdk.ray.cluster.cluster import Cluster
 from codeflare_sdk.ray.cluster.status import (
     RayClusterInfo,
     RayClusterStatus,
@@ -38,7 +37,7 @@ def test_cluster_apply_down_buttons(mocker):
         "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
         return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
     )
-    cluster = Cluster(create_cluster_config())
+    cluster = create_cluster_config()
 
     with patch("ipywidgets.Button") as MockButton, patch(
         "ipywidgets.Checkbox"

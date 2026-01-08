@@ -12,11 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from codeflare_sdk.ray.cluster.cluster import (
-    Cluster,
-    ClusterConfiguration,
-    _ray_cluster_status,
-)
+from codeflare_sdk.ray.cluster.raycluster import RayCluster, _ray_cluster_status
 from codeflare_sdk.ray.cluster.status import (
     CodeFlareClusterStatus,
     RayClusterStatus,
@@ -53,24 +49,19 @@ def test_cluster_status(mocker):
         return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
     )
 
-    cf = Cluster(
-        ClusterConfiguration(
-            name="test",
-            namespace="ns",
-            write_to_file=True,
-            appwrapper=False,
-            local_queue="local-queue-default",
-        )
-    )
+    cf = RayCluster(name="test", namespace="ns", local_queue="local-queue-default")
+    cf.write_to_file = True
+    cf.resource_yaml = cf._create_resource()
     mocker.patch(
-        "codeflare_sdk.ray.cluster.cluster._ray_cluster_status", return_value=None
+        "codeflare_sdk.ray.cluster.raycluster._ray_cluster_status", return_value=None
     )
     status, ready = cf.status()
     assert status == CodeFlareClusterStatus.UNKNOWN
     assert ready == False
 
     mocker.patch(
-        "codeflare_sdk.ray.cluster.cluster._ray_cluster_status", return_value=fake_ray
+        "codeflare_sdk.ray.cluster.raycluster._ray_cluster_status",
+        return_value=fake_ray,
     )
 
     status, ready = cf.status()
