@@ -110,15 +110,7 @@ class Cluster:
 
     @property
     def job_client(self):
-        """
-        Get the Ray Job Submission Client for this cluster.
-
-        Note: If connecting to a cluster with mTLS enabled, ensure you have called
-        cluster.wait_ready() first to automatically generate TLS certificates.
-        """
-        # Check for certificates before creating client
         self._check_tls_certs_exist()
-
         k8client = get_api_client()
         if self._job_submission_client:
             return self._job_submission_client
@@ -179,10 +171,19 @@ class Cluster:
             return _kube_api_error_handling(e)
 
     # Applies a new cluster with the provided or default spec
-    def apply(self, force=False):
+    def apply(self, force=False, timeout: int = 300):
         """
         Applies the Cluster yaml using server-side apply.
-        If 'force' is set to True, conflicts will be forced.
+
+        After applying the cluster resources, this method waits for the CA secret
+        to be created by KubeRay and generates TLS certificates for mTLS connections.
+
+        Args:
+            force (bool):
+                If True, conflicts will be forced during server-side apply.
+            timeout (int):
+                Maximum time in seconds to wait for post-apply operations such as
+                TLS certificate generation. Default is 300 seconds (5 minutes).
         """
         # check if RayCluster CustomResourceDefinition exists if not throw RuntimeError
         self._throw_for_no_raycluster()
@@ -219,6 +220,90 @@ class Cluster:
                 )
             return _kube_api_error_handling(e)
 
+        # Generate TLS certificates for mTLS connections
+        tls_success = self._generate_tls_certs_with_wait(timeout=timeout)
+
+        # Final completion message
+        if tls_success:
+            print(
+                f"Cluster '{name}' is ready. Use cluster.details() to see the status."
+            )
+        else:
+            print(
+                f"Cluster '{name}' resources applied but TLS setup incomplete. "
+                "Run cluster.wait_ready() to complete setup."
+            )
+
+    def _generate_tls_certs_with_wait(self, timeout: int = 300) -> bool:
+        """
+        Waits for the CA secret to be created and generates TLS certificates.
+
+        This is called by apply() to generate client TLS certificates after the
+        cluster resources have been applied. The CA secret is created by KubeRay
+        when the head pod starts, so we need to poll until it's available.
+
+        Args:
+            timeout (int):
+                Maximum time in seconds to wait for the CA secret. Default is 300.
+
+        Returns:
+            bool: True if TLS certificates were generated successfully, False otherwise.
+        """
+        from codeflare_sdk.common.utils import generate_cert
+
+        print("Waiting for client TLS configuration to be available...")
+        elapsed = 0
+        poll_interval = 5
+
+        # First, poll until the CA secret exists (without triggering error messages)
+        while elapsed < timeout:
+            if self._ca_secret_exists():
+                break
+            sleep(poll_interval)
+            elapsed += poll_interval
+        else:
+            # Timeout reached
+            print(
+                f"Warning: Timed out after {timeout}s waiting for TLS configuration. "
+                "Client certificates were not generated. You can generate them later by calling "
+                "cluster.wait_ready() or generate_cert.generate_tls_cert()."
+            )
+            return False
+
+        # CA secret exists, now generate the certificates
+        try:
+            generate_cert.generate_tls_cert(self.config.name, self.config.namespace)
+            generate_cert.export_env(self.config.name, self.config.namespace)
+            print("Client TLS configuration ready")
+            return True
+        except Exception as e:
+            print(f"Warning: Could not generate TLS certificates: {e}")
+            print(
+                "You can manually generate certificates using generate_cert.generate_tls_cert() "
+                "or call cluster.wait_ready() later."
+            )
+            return False
+
+    def _ca_secret_exists(self) -> bool:
+        """
+        Checks if the CA secret for this cluster exists.
+
+        Returns:
+            bool: True if the CA secret exists, False otherwise.
+        """
+        try:
+            api_instance = client.CoreV1Api(get_api_client())
+            label_selector = f"ray.openshift.ai/cluster-name={self.config.name}"
+            secrets = api_instance.list_namespaced_secret(
+                self.config.namespace, label_selector=label_selector
+            )
+            for secret in secrets.items:
+                if f"{self.config.name}-ca-secret-" in secret.metadata.name:
+                    return True
+            return False
+        except Exception:
+            return False
+
     def _throw_for_no_raycluster(self):
         api_instance = client.CustomObjectsApi(get_api_client())
         try:
@@ -243,8 +328,8 @@ class Cluster:
         Deletes the RayCluster, scaling-down and deleting all resources
         associated with the cluster.
 
-        If cleanup_tls_certs is True (default), also removes the TLS certificates
-        generated for this cluster to prevent accumulation of sensitive key material.
+        Also removes the TLS certificates generated for this cluster to prevent
+        accumulation of sensitive key material.
         """
         namespace = self.config.namespace
         resource_name = self.config.name
@@ -255,9 +340,8 @@ class Cluster:
             _delete_resources(resource_name, namespace, api_instance)
             print(f"Ray Cluster: '{self.config.name}' has successfully been deleted")
 
-            # Automatically clean up TLS certificates if enabled
-            if self.config.cleanup_tls_certs:
-                from codeflare_sdk.common.utils import generate_cert
+            # Automatically clean up TLS certificates (silently)
+            from codeflare_sdk.common.utils import generate_cert
 
             generate_cert.cleanup_tls_cert(resource_name, namespace)
 
@@ -359,8 +443,9 @@ class Cluster:
         ready or the timeout is reached. If dashboard_check is enabled, it will also
         check for the readiness of the dashboard.
 
-        TLS certificates are automatically generated and environment variables are set
-        when the cluster becomes ready. This is required for mTLS connections to the cluster.
+        TLS certificates are ensured to exist for mTLS connections. If certificates
+        were already generated by apply(), this is a no-op. Otherwise, certificates
+        will be generated when the cluster becomes ready.
 
         Args:
             timeout (Optional[int]):
@@ -391,13 +476,13 @@ class Cluster:
             time += 5
         print("Requested cluster is up and running!")
 
-        # Automatically generate TLS certificates (required for mTLS)
+        # Ensure TLS certificates exist (required for mTLS)
+        # If apply() already generated them, this will be a no-op
         try:
             from codeflare_sdk.common.utils import generate_cert
 
             generate_cert.generate_tls_cert(self.config.name, self.config.namespace)
             generate_cert.export_env(self.config.name, self.config.namespace)
-            print(f"TLS certificates generated for '{self.config.name}'")
         except Exception as e:
             # Don't fail cluster setup if certificate generation fails
             print(f"Warning: Could not generate TLS certificates: {e}")
@@ -638,13 +723,8 @@ class Cluster:
         Returns:
             str:
                 The Ray client URL based on the ingress domain.
-
-        Note: If connecting to a cluster with mTLS enabled, ensure you have called
-        cluster.wait_ready() first to automatically generate TLS certificates.
         """
-        # Check if TLS certificates exist and provide helpful warning if not
         self._check_tls_certs_exist()
-
         ingress_domain = _get_ingress_domain(self)
         return f"ray://{ingress_domain}"
 

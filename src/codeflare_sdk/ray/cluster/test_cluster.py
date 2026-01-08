@@ -76,6 +76,10 @@ def test_cluster_apply_down(mocker):
     mock_cleanup = mocker.patch(
         "codeflare_sdk.common.utils.generate_cert.cleanup_tls_cert", return_value=True
     )
+    # Mock TLS cert generation for this test
+    mocker.patch(
+        "codeflare_sdk.ray.cluster.cluster.Cluster._generate_tls_certs_with_wait"
+    )
 
     cluster = create_cluster(mocker)
     cluster.apply()
@@ -112,6 +116,10 @@ def test_cluster_apply_scale_up_scale_down(mocker):
     mocker.patch(
         "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
         return_value=get_obj_none("ray.io", "v1", "ns", "rayclusters"),
+    )
+    # Mock TLS cert generation for this test
+    mocker.patch(
+        "codeflare_sdk.ray.cluster.cluster.Cluster._generate_tls_certs_with_wait"
     )
     cluster.apply()
 
@@ -163,6 +171,10 @@ def test_cluster_apply_with_file(mocker):
     mocker.patch(
         "codeflare_sdk.common.utils.generate_cert.cleanup_tls_cert", return_value=True
     )
+    # Mock TLS cert generation for this test
+    mocker.patch(
+        "codeflare_sdk.ray.cluster.cluster.Cluster._generate_tls_certs_with_wait"
+    )
 
     cluster.apply()
     # Tear down
@@ -192,6 +204,10 @@ def test_cluster_apply_write_to_file(mocker):
     mocker.patch(
         "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
         return_value=get_obj_none("ray.io", "v1", "ns", "rayclusters"),
+    )
+    # Mock TLS cert generation for this test
+    mocker.patch(
+        "codeflare_sdk.ray.cluster.cluster.Cluster._generate_tls_certs_with_wait"
     )
     # Call the apply method
     cluster.apply()
@@ -223,6 +239,10 @@ def test_cluster_apply_basic(mocker):
     mocker.patch(
         "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
         return_value=get_obj_none("ray.io", "v1", "ns", "rayclusters"),
+    )
+    # Mock TLS cert generation for this test
+    mocker.patch(
+        "codeflare_sdk.ray.cluster.cluster.Cluster._generate_tls_certs_with_wait"
     )
 
     # Call the apply method
@@ -262,6 +282,10 @@ def test_cluster_apply_down_no_mcad(mocker):
     # Mock certificate cleanup (automatic in cluster.down())
     mocker.patch(
         "codeflare_sdk.common.utils.generate_cert.cleanup_tls_cert", return_value=True
+    )
+    # Mock TLS cert generation for this test
+    mocker.patch(
+        "codeflare_sdk.ray.cluster.cluster.Cluster._generate_tls_certs_with_wait"
     )
 
     config = create_cluster_config()
@@ -372,6 +396,8 @@ def test_ray_job_wrapping(mocker):
         "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
         return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
     )
+    # Mock the TLS cert check to avoid warnings in test output
+    mocker.patch("codeflare_sdk.ray.cluster.cluster.Cluster._check_tls_certs_exist")
     cluster = create_cluster(mocker)
     mocker.patch(
         "ray.job_submission.JobSubmissionClient._check_connection_and_version_with_url",
@@ -417,6 +443,8 @@ def test_local_client_url(mocker):
         "codeflare_sdk.ray.cluster.cluster.Cluster.create_resource",
         return_value="unit-test-cluster-localinter.yaml",
     )
+    # Mock the TLS cert check to avoid warnings in test output
+    mocker.patch("codeflare_sdk.ray.cluster.cluster.Cluster._check_tls_certs_exist")
 
     cluster_config = ClusterConfiguration(
         name="unit-test-cluster-localinter",
@@ -510,15 +538,16 @@ def test_wait_ready(mocker, capsys):
     )
     cf.wait_ready()
     captured = capsys.readouterr()
+    # Note: "TLS certificates generated" message is not shown when generate_tls_cert is mocked
     assert (
         captured.out
-        == "Waiting for requested resources to be set up...\nRequested cluster is up and running!\nTLS certificates generated for 'test'\nDashboard is ready!\n"
+        == "Waiting for requested resources to be set up...\nRequested cluster is up and running!\nDashboard is ready!\n"
     )
     cf.wait_ready(dashboard_check=False)
     captured = capsys.readouterr()
     assert (
         captured.out
-        == "Waiting for requested resources to be set up...\nRequested cluster is up and running!\nTLS certificates generated for 'test'\n"
+        == "Waiting for requested resources to be set up...\nRequested cluster is up and running!\n"
     )
 
     # Test dashboard waiting message when dashboard_uri is not a valid URL (error message)
@@ -1612,6 +1641,478 @@ def test_map_to_ray_cluster_httproute(mocker):
     assert (
         result.dashboard == expected_fallback
     ), f"Expected OpenShift Route fallback URL, got {result.dashboard}"
+
+
+def test_check_tls_certs_exist_warning(mocker, capsys, tmp_path):
+    """Test that _check_tls_certs_exist prints warning when certificates don't exist"""
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
+        return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
+    )
+
+    # Mock _get_tls_base_dir to return a temp directory where certs don't exist
+    mocker.patch(
+        "codeflare_sdk.common.utils.generate_cert._get_tls_base_dir",
+        return_value=tmp_path,
+    )
+
+    cluster = create_cluster(mocker)
+    cluster._check_tls_certs_exist()
+
+    captured = capsys.readouterr()
+    assert "WARNING: TLS Certificates Not Found!" in captured.out
+    assert "TLS certificates are required for mTLS connections" in captured.out
+    assert "cluster.wait_ready()" in captured.out
+
+
+def test_check_tls_certs_exist_no_warning(mocker, capsys, tmp_path):
+    """Test that _check_tls_certs_exist does not print warning when certificates exist"""
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
+        return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
+    )
+
+    # Create the certificate directory and files
+    cert_dir = tmp_path / "unit-test-cluster-ns"
+    cert_dir.mkdir(parents=True)
+    (cert_dir / "tls.crt").write_text("fake cert")
+    (cert_dir / "tls.key").write_text("fake key")
+    (cert_dir / "ca.crt").write_text("fake ca")
+
+    # Mock _get_tls_base_dir to return our temp directory
+    mocker.patch(
+        "codeflare_sdk.common.utils.generate_cert._get_tls_base_dir",
+        return_value=tmp_path,
+    )
+
+    cluster = create_cluster(mocker)
+    cluster._check_tls_certs_exist()
+
+    captured = capsys.readouterr()
+    assert "WARNING: TLS Certificates Not Found!" not in captured.out
+
+
+def test_refresh_certificates(mocker, capsys):
+    """Test the refresh_certificates method"""
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
+        return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
+    )
+
+    # Mock the certificate functions
+    mock_refresh = mocker.patch(
+        "codeflare_sdk.common.utils.generate_cert.refresh_tls_cert"
+    )
+    mock_export = mocker.patch("codeflare_sdk.common.utils.generate_cert.export_env")
+
+    cluster = create_cluster(mocker)
+    cluster.refresh_certificates()
+
+    # Verify the refresh and export functions were called with correct args
+    mock_refresh.assert_called_once_with("unit-test-cluster", "ns")
+    mock_export.assert_called_once_with("unit-test-cluster", "ns")
+
+    captured = capsys.readouterr()
+    assert "Refreshing TLS certificates for 'unit-test-cluster'" in captured.out
+    assert "TLS certificates refreshed for 'unit-test-cluster'" in captured.out
+
+
+def test_ca_secret_exists_true(mocker):
+    """Test _ca_secret_exists returns True when CA secret is found"""
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
+        return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
+    )
+
+    # Mock list_namespaced_secret to return a matching CA secret
+    mock_secret = mocker.MagicMock()
+    mock_secret.metadata.name = "unit-test-cluster-ca-secret-abc123"
+    mock_secrets = mocker.MagicMock()
+    mock_secrets.items = [mock_secret]
+    mocker.patch(
+        "kubernetes.client.CoreV1Api.list_namespaced_secret",
+        return_value=mock_secrets,
+    )
+
+    cluster = create_cluster(mocker)
+    result = cluster._ca_secret_exists()
+    assert result is True
+
+
+def test_ca_secret_exists_false(mocker):
+    """Test _ca_secret_exists returns False when no CA secret is found"""
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
+        return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
+    )
+
+    # Mock list_namespaced_secret to return empty list
+    mock_secrets = mocker.MagicMock()
+    mock_secrets.items = []
+    mocker.patch(
+        "kubernetes.client.CoreV1Api.list_namespaced_secret",
+        return_value=mock_secrets,
+    )
+
+    cluster = create_cluster(mocker)
+    result = cluster._ca_secret_exists()
+    assert result is False
+
+
+def test_ca_secret_exists_exception(mocker):
+    """Test _ca_secret_exists returns False on exception"""
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
+        return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
+    )
+
+    # Mock list_namespaced_secret to raise exception
+    mocker.patch(
+        "kubernetes.client.CoreV1Api.list_namespaced_secret",
+        side_effect=Exception("API error"),
+    )
+
+    cluster = create_cluster(mocker)
+    result = cluster._ca_secret_exists()
+    assert result is False
+
+
+def test_up_method(mocker, capsys):
+    """Test the deprecated up() method"""
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+    mocker.patch("codeflare_sdk.ray.cluster.cluster.Cluster._throw_for_no_raycluster")
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
+        return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
+    )
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.create_namespaced_custom_object",
+        return_value={},
+    )
+
+    cluster = create_cluster(mocker)
+    cluster.up()
+
+    captured = capsys.readouterr()
+    assert "WARNING: The up() function is planned for deprecation" in captured.out
+    assert (
+        "Ray Cluster: 'unit-test-cluster' has successfully been created" in captured.out
+    )
+
+
+def test_apply_generates_tls_certs(mocker, capsys):
+    """Test that apply() generates TLS certificates after applying cluster resources"""
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+    mocker.patch("codeflare_sdk.ray.cluster.cluster.Cluster._throw_for_no_raycluster")
+    mocker.patch("codeflare_sdk.ray.cluster.cluster.Cluster.get_dynamic_client")
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
+        return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
+    )
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_cluster_custom_object",
+        return_value={"items": []},
+    )
+
+    # Mock _ca_secret_exists to return True (secret is ready)
+    mocker.patch(
+        "codeflare_sdk.ray.cluster.cluster.Cluster._ca_secret_exists",
+        return_value=True,
+    )
+
+    # Mock the certificate generation functions
+    mock_generate = mocker.patch(
+        "codeflare_sdk.common.utils.generate_cert.generate_tls_cert"
+    )
+    mock_export = mocker.patch("codeflare_sdk.common.utils.generate_cert.export_env")
+
+    cluster = create_cluster(mocker)
+    cluster.apply()  # TLS certs are always generated
+
+    # Verify certificate generation was called
+    mock_generate.assert_called_once_with("unit-test-cluster", "ns")
+    mock_export.assert_called_once_with("unit-test-cluster", "ns")
+
+    captured = capsys.readouterr()
+    assert "Waiting for client TLS configuration to be available" in captured.out
+    assert "Client TLS configuration ready" in captured.out
+    assert "Cluster 'unit-test-cluster' is ready" in captured.out
+
+
+def test_apply_timeout(mocker, capsys):
+    """Test that apply() handles timeout gracefully when CA secret is not ready"""
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+    mocker.patch("codeflare_sdk.ray.cluster.cluster.Cluster._throw_for_no_raycluster")
+    mocker.patch("codeflare_sdk.ray.cluster.cluster.Cluster.get_dynamic_client")
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
+        return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
+    )
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_cluster_custom_object",
+        return_value={"items": []},
+    )
+
+    # Mock _ca_secret_exists to always return False (CA secret never becomes ready)
+    mocker.patch(
+        "codeflare_sdk.ray.cluster.cluster.Cluster._ca_secret_exists",
+        return_value=False,
+    )
+
+    cluster = create_cluster(mocker)
+    # Use a very short timeout to trigger timeout quickly
+    cluster.apply(timeout=1)
+
+    captured = capsys.readouterr()
+    assert "Waiting for client TLS configuration to be available" in captured.out
+    assert "Timed out after 1s waiting for TLS configuration" in captured.out
+    assert "TLS setup incomplete" in captured.out
+
+
+def test_apply_tls_generation_failure(mocker, capsys):
+    """Test that apply() handles TLS generation errors gracefully"""
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+    mocker.patch("codeflare_sdk.ray.cluster.cluster.Cluster._throw_for_no_raycluster")
+    mocker.patch("codeflare_sdk.ray.cluster.cluster.Cluster.get_dynamic_client")
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
+        return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
+    )
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_cluster_custom_object",
+        return_value={"items": []},
+    )
+
+    # Mock _ca_secret_exists to return True (secret is ready)
+    mocker.patch(
+        "codeflare_sdk.ray.cluster.cluster.Cluster._ca_secret_exists",
+        return_value=True,
+    )
+
+    # Mock certificate generation to fail
+    mocker.patch(
+        "codeflare_sdk.common.utils.generate_cert.generate_tls_cert",
+        side_effect=Exception("Kubernetes connection failed"),
+    )
+
+    cluster = create_cluster(mocker)
+    cluster.apply()
+
+    captured = capsys.readouterr()
+    assert "Warning: Could not generate TLS certificates" in captured.out
+    assert "Kubernetes connection failed" in captured.out
+    assert "TLS setup incomplete" in captured.out
+
+
+def test_wait_ready_tls_cert_generation_failure(mocker, capsys):
+    """Test that wait_ready handles TLS certificate generation failures gracefully"""
+    from codeflare_sdk.ray.cluster.status import CodeFlareClusterStatus
+
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+    mocker.patch(
+        "codeflare_sdk.ray.cluster.cluster._ray_cluster_status", return_value=None
+    )
+    mocker.patch(
+        "codeflare_sdk.ray.cluster.cluster.Cluster.status",
+        return_value=(CodeFlareClusterStatus.READY, True),
+    )
+    mocker.patch(
+        "codeflare_sdk.ray.cluster.cluster.Cluster.is_dashboard_ready",
+        return_value=True,
+    )
+    # Mock Kubernetes API for cluster initialization (local queue lookup)
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
+        return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
+    )
+
+    # Mock certificate generation to raise an exception
+    mocker.patch(
+        "codeflare_sdk.common.utils.generate_cert.generate_tls_cert",
+        side_effect=Exception("Failed to connect to Kubernetes"),
+    )
+
+    cf = Cluster(
+        ClusterConfiguration(
+            name="test-tls-failure",
+            namespace="ns",
+            write_to_file=False,
+        )
+    )
+
+    # This should not raise - TLS failures are handled gracefully
+    cf.wait_ready(dashboard_check=False)
+
+    captured = capsys.readouterr()
+    assert "Requested cluster is up and running!" in captured.out
+    assert "Warning: Could not generate TLS certificates" in captured.out
+    assert "Failed to connect to Kubernetes" in captured.out
+    assert "manually generate certificates" in captured.out
+
+
+def test_local_client_url_calls_tls_check(mocker, capsys, tmp_path):
+    """Test that local_client_url calls _check_tls_certs_exist"""
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+    mocker.patch(
+        "codeflare_sdk.ray.cluster.cluster._get_ingress_domain",
+        return_value="rayclient-test.apps.example.com",
+    )
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
+        return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
+    )
+
+    # Mock _get_tls_base_dir to return a temp directory where certs don't exist
+    mocker.patch(
+        "codeflare_sdk.common.utils.generate_cert._get_tls_base_dir",
+        return_value=tmp_path,
+    )
+
+    cluster = create_cluster(mocker)
+    url = cluster.local_client_url()
+
+    # Verify the URL is correct
+    assert url == "ray://rayclient-test.apps.example.com"
+
+    # Verify the TLS warning was printed (since certs don't exist)
+    captured = capsys.readouterr()
+    assert "WARNING: TLS Certificates Not Found!" in captured.out
+
+
+def test_cluster_uri_calls_tls_check(mocker, capsys, tmp_path):
+    """Test that cluster_uri calls _check_tls_certs_exist"""
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
+        return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
+    )
+
+    # Mock _get_tls_base_dir to return a temp directory where certs don't exist
+    mocker.patch(
+        "codeflare_sdk.common.utils.generate_cert._get_tls_base_dir",
+        return_value=tmp_path,
+    )
+
+    cluster = create_cluster(mocker)
+    uri = cluster.cluster_uri()
+
+    # Verify the URI is correct
+    assert uri == "ray://unit-test-cluster-head-svc.ns.svc:10001"
+
+    # Verify the TLS warning was printed (since certs don't exist)
+    captured = capsys.readouterr()
+    assert "WARNING: TLS Certificates Not Found!" in captured.out
+
+
+def test_job_client_calls_tls_check(mocker, capsys, tmp_path):
+    """Test that job_client property calls _check_tls_certs_exist"""
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
+        return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
+    )
+    mocker.patch(
+        "kubernetes.client.NetworkingV1Api.list_namespaced_ingress",
+        return_value=ingress_retrieval(),
+    )
+    mocker.patch(
+        "ray.job_submission.JobSubmissionClient._check_connection_and_version_with_url",
+        return_value="None",
+    )
+
+    # Mock _get_tls_base_dir to return a temp directory where certs don't exist
+    mocker.patch(
+        "codeflare_sdk.common.utils.generate_cert._get_tls_base_dir",
+        return_value=tmp_path,
+    )
+
+    cluster = create_cluster(mocker)
+    # Access job_client property
+    _ = cluster.job_client
+
+    # Verify the TLS warning was printed (since certs don't exist)
+    captured = capsys.readouterr()
+    assert "WARNING: TLS Certificates Not Found!" in captured.out
+
+
+def test_list_jobs(mocker):
+    """Test list_jobs method"""
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
+        return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
+    )
+
+    mock_job_client = mocker.MagicMock()
+    mock_job_client.list_jobs.return_value = ["job1", "job2"]
+
+    cluster = create_cluster(mocker)
+    cluster._job_submission_client = mock_job_client
+
+    jobs = cluster.list_jobs()
+    assert jobs == ["job1", "job2"]
+    mock_job_client.list_jobs.assert_called_once()
+
+
+def test_job_status(mocker):
+    """Test job_status method"""
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
+        return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
+    )
+
+    mock_job_client = mocker.MagicMock()
+    mock_job_client.get_job_status.return_value = "RUNNING"
+
+    cluster = create_cluster(mocker)
+    cluster._job_submission_client = mock_job_client
+
+    status = cluster.job_status("job-123")
+    assert status == "RUNNING"
+    mock_job_client.get_job_status.assert_called_once_with("job-123")
+
+
+def test_job_logs(mocker):
+    """Test job_logs method"""
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
+        return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
+    )
+
+    mock_job_client = mocker.MagicMock()
+    mock_job_client.get_job_logs.return_value = "Job output logs here"
+
+    cluster = create_cluster(mocker)
+    cluster._job_submission_client = mock_job_client
+
+    logs = cluster.job_logs("job-123")
+    assert logs == "Job output logs here"
+    mock_job_client.get_job_logs.assert_called_once_with("job-123")
 
 
 # Make sure to always keep this function last
