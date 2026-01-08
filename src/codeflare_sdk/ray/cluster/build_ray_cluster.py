@@ -484,6 +484,9 @@ def local_queue_exists(cluster: "codeflare_sdk.ray.cluster.Cluster"):
     """
     The local_queue_exists() checks if the user inputted local_queue exists in the given namespace and returns a bool
     """
+    # Return False if namespace is None to avoid API errors
+    if cluster.config.namespace is None:
+        return False
     # get all local queues in the namespace
     try:
         config_check()
@@ -507,6 +510,9 @@ def get_default_local_queue(cluster: "codeflare_sdk.ray.cluster.Cluster", labels
     """
     The get_default_local_queue() function attempts to find a local queue with the default label == true, if that is the case the labels variable is updated with that local queue
     """
+    # Return early if namespace is None to avoid API errors
+    if cluster.config.namespace is None:
+        return
     try:
         # Try to get the default local queue if it exists and append the label list
         config_check()

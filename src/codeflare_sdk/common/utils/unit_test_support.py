@@ -20,6 +20,7 @@ from codeflare_sdk.ray.cluster.cluster import (
     Cluster,
     ClusterConfiguration,
 )
+from codeflare_sdk.ray.cluster.raycluster import RayCluster
 import os
 import yaml
 from pathlib import Path
@@ -31,23 +32,55 @@ parent = Path(__file__).resolve().parents[4]  # project directory
 aw_dir = os.path.expanduser("~/.codeflare/resources/")
 
 
-def create_cluster_config(num_workers=2, write_to_file=False):
-    config = ClusterConfiguration(
+def create_cluster_config(num_workers=2, write_to_file=False, appwrapper=False):
+    if appwrapper:
+        config = ClusterConfiguration(
+            name="unit-test-cluster",
+            namespace="ns",
+            num_workers=num_workers,
+            worker_cpu_requests=3,
+            worker_cpu_limits=4,
+            worker_memory_requests=5,
+            worker_memory_limits=6,
+            appwrapper=True,
+            write_to_file=write_to_file,
+        )
+        return config
+
+    cluster = RayCluster(
         name="unit-test-cluster",
         namespace="ns",
+        head_cpu_requests=1,
+        head_cpu_limits=2,
+        head_memory_requests=5,
+        head_memory_limits=8,
         num_workers=num_workers,
         worker_cpu_requests=3,
         worker_cpu_limits=4,
         worker_memory_requests=5,
         worker_memory_limits=6,
-        appwrapper=True,
-        write_to_file=write_to_file,
     )
-    return config
+    cluster.write_to_file = write_to_file
+    cluster.resource_yaml = cluster._create_resource()
+    return cluster
 
 
-def create_cluster(mocker, num_workers=2, write_to_file=False):
-    cluster = Cluster(create_cluster_config(num_workers, write_to_file))
+def create_cluster(mocker, num_workers=2, write_to_file=False, appwrapper=False):
+    if appwrapper:
+        cluster = Cluster(
+            create_cluster_config(
+                num_workers=num_workers,
+                write_to_file=write_to_file,
+                appwrapper=True,
+            )
+        )
+        return cluster
+
+    cluster = create_cluster_config(
+        num_workers=num_workers,
+        write_to_file=write_to_file,
+        appwrapper=False,
+    )
     return cluster
 
 
@@ -59,7 +92,7 @@ def patch_cluster_with_dynamic_client(mocker, cluster, dynamic_client=None):
 
 
 def create_cluster_wrong_type():
-    config = ClusterConfiguration(
+    RayCluster(
         name="unit-test-cluster",
         namespace="ns",
         num_workers=True,
@@ -67,14 +100,11 @@ def create_cluster_wrong_type():
         worker_cpu_limits=4,
         worker_memory_requests=5,
         worker_memory_limits=6,
-        worker_extended_resource_requests={"nvidia.com/gpu": 7},
-        appwrapper=True,
+        worker_accelerators={"nvidia.com/gpu": 7},
         image_pull_secrets=["unit-test-pull-secret"],
         image=constants.CUDA_PY312_RUNTIME_IMAGE,
-        write_to_file=True,
         labels={1: 1},
     )
-    return config
 
 
 def get_package_and_version(package_name, requirements_file_path):
@@ -275,11 +305,16 @@ def arg_check_del_effect(group, version, namespace, plural, name, *args):
     elif plural == "rayclusters":
         assert group == "ray.io"
         assert version == "v1"
-        assert name == "unit-test-cluster-ray"
+        # Accept either name format depending on test
+        assert name in ["unit-test-cluster", "unit-test-cluster-ray"]
     elif plural == "ingresses":
         assert group == "networking.k8s.io"
         assert version == "v1"
-        assert name == "ray-dashboard-unit-test-cluster-ray"
+        # Accept either name format depending on test
+        assert name in [
+            "ray-dashboard-unit-test-cluster",
+            "ray-dashboard-unit-test-cluster-ray",
+        ]
 
 
 def apply_template(yaml_file_path, variables):
@@ -476,21 +511,21 @@ def mock_server_side_apply(resource, body=None, name=None, namespace=None, **kwa
 
 
 @patch.dict("os.environ", {"NB_PREFIX": "test-prefix"})
-def create_cluster_all_config_params(mocker, cluster_name, is_appwrapper) -> Cluster:
+def create_cluster_all_config_params(mocker, cluster_name, is_appwrapper=False):
     mocker.patch(
         "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
         return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
     )
     volumes, volume_mounts = get_example_extended_storage_opts()
 
-    config = ClusterConfiguration(
+    cluster = RayCluster(
         name=cluster_name,
         namespace="ns",
         head_cpu_requests=4,
         head_cpu_limits=8,
-        head_memory_requests=12,
-        head_memory_limits=16,
-        head_extended_resource_requests={"nvidia.com/gpu": 1, "intel.com/gpu": 2},
+        head_memory_requests="12G",
+        head_memory_limits="16G",
+        head_accelerators={"nvidia.com/gpu": 1, "intel.com/gpu": 2},
         head_tolerations=[
             V1Toleration(
                 key="key1", operator="Equal", value="value1", effect="NoSchedule"
@@ -504,18 +539,16 @@ def create_cluster_all_config_params(mocker, cluster_name, is_appwrapper) -> Clu
             )
         ],
         num_workers=10,
-        worker_memory_requests=12,
-        worker_memory_limits=16,
-        appwrapper=is_appwrapper,
+        worker_memory_requests="12G",
+        worker_memory_limits="16G",
         envs={"key1": "value1", "key2": "value2"},
         image="example/ray:tag",
         image_pull_secrets=["secret1", "secret2"],
-        write_to_file=True,
         verify_tls=True,
         labels={"key1": "value1", "key2": "value2"},
-        worker_extended_resource_requests={"nvidia.com/gpu": 1},
-        extended_resource_mapping={"example.com/gpu": "GPU", "intel.com/gpu": "TPU"},
-        overwrite_default_resource_mapping=True,
+        worker_accelerators={"nvidia.com/gpu": 1},
+        accelerator_configs={"example.com/gpu": "GPU", "intel.com/gpu": "TPU"},
+        overwrite_default_accelerator_configs=True,
         local_queue="local-queue-default",
         annotations={
             "key1": "value1",
@@ -524,7 +557,9 @@ def create_cluster_all_config_params(mocker, cluster_name, is_appwrapper) -> Clu
         volumes=volumes,
         volume_mounts=volume_mounts,
     )
-    return Cluster(config)
+    cluster.write_to_file = True
+    cluster.resource_yaml = cluster._create_resource()
+    return cluster
 
 
 def get_example_extended_storage_opts():

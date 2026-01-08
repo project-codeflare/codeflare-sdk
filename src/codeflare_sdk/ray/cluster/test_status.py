@@ -12,15 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from codeflare_sdk.ray.cluster.cluster import (
-    Cluster,
-    ClusterConfiguration,
-    _ray_cluster_status,
-)
+from codeflare_sdk.ray.cluster.raycluster import RayCluster, _ray_cluster_status
 from codeflare_sdk.ray.cluster.status import (
     CodeFlareClusterStatus,
     RayClusterStatus,
-    RayCluster,
+    RayClusterInfo,
 )
 import os
 from ...common.utils.unit_test_support import get_local_queue
@@ -32,7 +28,7 @@ def test_cluster_status(mocker):
     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
 
-    fake_ray = RayCluster(
+    fake_ray = RayClusterInfo(
         name="test",
         status=RayClusterStatus.UNKNOWN,
         num_workers=1,
@@ -53,24 +49,19 @@ def test_cluster_status(mocker):
         return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
     )
 
-    cf = Cluster(
-        ClusterConfiguration(
-            name="test",
-            namespace="ns",
-            write_to_file=True,
-            appwrapper=False,
-            local_queue="local-queue-default",
-        )
-    )
+    cf = RayCluster(name="test", namespace="ns", local_queue="local-queue-default")
+    cf.write_to_file = True
+    cf.resource_yaml = cf._create_resource()
     mocker.patch(
-        "codeflare_sdk.ray.cluster.cluster._ray_cluster_status", return_value=None
+        "codeflare_sdk.ray.cluster.raycluster._ray_cluster_status", return_value=None
     )
     status, ready = cf.status()
     assert status == CodeFlareClusterStatus.UNKNOWN
     assert ready == False
 
     mocker.patch(
-        "codeflare_sdk.ray.cluster.cluster._ray_cluster_status", return_value=fake_ray
+        "codeflare_sdk.ray.cluster.raycluster._ray_cluster_status",
+        return_value=fake_ray,
     )
 
     status, ready = cf.status()

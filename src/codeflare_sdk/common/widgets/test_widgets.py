@@ -16,9 +16,8 @@ import codeflare_sdk.common.widgets.widgets as cf_widgets
 import pandas as pd
 from unittest.mock import MagicMock, patch
 from ..utils.unit_test_support import get_local_queue, create_cluster_config
-from codeflare_sdk.ray.cluster.cluster import Cluster
 from codeflare_sdk.ray.cluster.status import (
-    RayCluster,
+    RayClusterInfo,
     RayClusterStatus,
 )
 import pytest
@@ -38,7 +37,7 @@ def test_cluster_apply_down_buttons(mocker):
         "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
         return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
     )
-    cluster = Cluster(create_cluster_config())
+    cluster = create_cluster_config()
 
     with patch("ipywidgets.Button") as MockButton, patch(
         "ipywidgets.Checkbox"
@@ -388,7 +387,7 @@ def test_fetch_cluster_data(mocker):
     assert df.empty
 
     # Create mock RayCluster objects
-    mock_raycluster1 = MagicMock(spec=RayCluster)
+    mock_raycluster1 = MagicMock(spec=RayClusterInfo)
     mock_raycluster1.name = "test-cluster-1"
     mock_raycluster1.namespace = "default"
     mock_raycluster1.num_workers = 1
@@ -406,7 +405,7 @@ def test_fetch_cluster_data(mocker):
     mock_raycluster1.status.name = "READY"
     mock_raycluster1.status = RayClusterStatus.READY
 
-    mock_raycluster2 = MagicMock(spec=RayCluster)
+    mock_raycluster2 = MagicMock(spec=RayClusterInfo)
     mock_raycluster2.name = "test-cluster-2"
     mock_raycluster2.namespace = "default"
     mock_raycluster2.num_workers = 2

@@ -12,12 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from codeflare_sdk.ray.cluster.cluster import (
-    Cluster,
-    ClusterConfiguration,
-    get_cluster,
-    list_all_queued,
-)
+from codeflare_sdk.ray.cluster.cluster import list_all_queued
+from codeflare_sdk.ray.cluster.raycluster import RayCluster, _is_openshift_cluster
 from codeflare_sdk.common.utils.unit_test_support import (
     create_cluster,
     arg_check_del_effect,
@@ -28,11 +24,9 @@ from codeflare_sdk.common.utils.unit_test_support import (
     get_ray_obj,
     get_obj_none,
     get_ray_obj_with_status,
-    get_aw_obj_with_status,
     patch_cluster_with_dynamic_client,
     route_list_retrieval,
 )
-from codeflare_sdk.ray.cluster.cluster import _is_openshift_cluster
 from pathlib import Path
 from unittest.mock import MagicMock
 from kubernetes import client
@@ -51,8 +45,10 @@ aw_dir = os.path.expanduser("~/.codeflare/resources/")
 def test_cluster_apply_down(mocker):
     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
-    mocker.patch("codeflare_sdk.ray.cluster.cluster.Cluster._throw_for_no_raycluster")
-    mocker.patch("codeflare_sdk.ray.cluster.cluster.Cluster.get_dynamic_client")
+    mocker.patch(
+        "codeflare_sdk.ray.cluster.raycluster.RayCluster._throw_for_no_raycluster"
+    )
+    mocker.patch("codeflare_sdk.ray.cluster.raycluster.RayCluster.get_dynamic_client")
     mocker.patch(
         "kubernetes.client.CustomObjectsApi.get_cluster_custom_object",
         return_value={"spec": {"domain": ""}},
@@ -84,10 +80,6 @@ def test_cluster_apply_scale_up_scale_down(mocker):
     mock_dynamic_client = mocker.Mock()
     mocker.patch(
         "kubernetes.dynamic.DynamicClient.resources", new_callable=mocker.PropertyMock
-    )
-    mocker.patch(
-        "codeflare_sdk.ray.cluster.cluster.Cluster.create_resource",
-        return_value="./tests/test_cluster_yamls/ray/default-ray-cluster.yaml",
     )
     mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
     mocker.patch(
@@ -126,13 +118,11 @@ def test_cluster_apply_with_file(mocker):
     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
     mock_dynamic_client = mocker.Mock()
-    mocker.patch("codeflare_sdk.ray.cluster.cluster.Cluster._throw_for_no_raycluster")
     mocker.patch(
-        "kubernetes.dynamic.DynamicClient.resources", new_callable=mocker.PropertyMock
+        "codeflare_sdk.ray.cluster.raycluster.RayCluster._throw_for_no_raycluster"
     )
     mocker.patch(
-        "codeflare_sdk.ray.cluster.cluster.Cluster.create_resource",
-        return_value="./tests/test_cluster_yamls/ray/default-ray-cluster.yaml",
+        "kubernetes.dynamic.DynamicClient.resources", new_callable=mocker.PropertyMock
     )
     mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
     mocker.patch(
@@ -152,115 +142,13 @@ def test_cluster_apply_with_file(mocker):
     cluster.down()
 
 
-def test_cluster_apply_with_appwrapper(mocker):
-    # Mock Kubernetes client and dynamic client methods
-    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
-    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
-    mocker.patch(
-        "codeflare_sdk.ray.cluster.cluster._check_aw_exists",
-        return_value=True,
-    )
-    mock_dynamic_client = mocker.Mock()
-    mocker.patch("codeflare_sdk.ray.cluster.cluster.Cluster._throw_for_no_raycluster")
-    mocker.patch(
-        "kubernetes.dynamic.DynamicClient.resources", new_callable=mocker.PropertyMock
-    )
-    mocker.patch(
-        "codeflare_sdk.ray.cluster.cluster.Cluster.create_resource",
-        return_value="./tests/test_cluster_yamls/ray/default-ray-cluster.yaml",
-    )
-    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
-
-    # Create a cluster configuration with appwrapper set to False
-    cluster = create_cluster(mocker, 1, write_to_file=False)
-    patch_cluster_with_dynamic_client(mocker, cluster, mock_dynamic_client)
-
-    # Mock listing RayCluster to simulate it doesn't exist
-    mocker.patch(
-        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
-        return_value=get_obj_none("ray.io", "v1", "ns", "rayclusters"),
-    )
-    # Call the apply method
-    cluster.apply()
-
-    # Assertions
-    print("Cluster applied without AppWrapper.")
-
-
-def test_cluster_apply_without_appwrapper_write_to_file(mocker):
-    # Mock Kubernetes client and dynamic client methods
-    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
-    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
-    mocker.patch(
-        "codeflare_sdk.ray.cluster.cluster._check_aw_exists",
-        return_value=True,
-    )
-    mock_dynamic_client = mocker.Mock()
-    mocker.patch("codeflare_sdk.ray.cluster.cluster.Cluster._throw_for_no_raycluster")
-    mocker.patch(
-        "kubernetes.dynamic.DynamicClient.resources", new_callable=mocker.PropertyMock
-    )
-    mocker.patch(
-        "codeflare_sdk.ray.cluster.cluster.Cluster.create_resource",
-        return_value="./tests/test_cluster_yamls/ray/default-ray-cluster.yaml",
-    )
-    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
-
-    # Create a cluster configuration with appwrapper set to False
-    cluster = create_cluster(mocker, 1, write_to_file=True)
-    patch_cluster_with_dynamic_client(mocker, cluster, mock_dynamic_client)
-    cluster.config.appwrapper = False
-
-    # Mock listing RayCluster to simulate it doesn't exist
-    mocker.patch(
-        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
-        return_value=get_obj_none("ray.io", "v1", "ns", "rayclusters"),
-    )
-    # Call the apply method
-    cluster.apply()
-
-    # Assertions
-    print("Cluster applied without AppWrapper.")
-
-
-def test_cluster_apply_without_appwrapper(mocker):
-    # Mock Kubernetes client and dynamic client methods
-    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
-    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
-    mock_dynamic_client = mocker.Mock()
-    mocker.patch("codeflare_sdk.ray.cluster.cluster.Cluster._throw_for_no_raycluster")
-    mocker.patch(
-        "kubernetes.dynamic.DynamicClient.resources", new_callable=mocker.PropertyMock
-    )
-    mocker.patch(
-        "codeflare_sdk.ray.cluster.cluster.Cluster.create_resource",
-        return_value="./tests/test_cluster_yamls/ray/default-ray-cluster.yaml",
-    )
-    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
-
-    # Create a cluster configuration with appwrapper set to False
-    cluster = create_cluster(mocker, 1, write_to_file=False)
-    cluster.config.appwrapper = None
-    patch_cluster_with_dynamic_client(mocker, cluster, mock_dynamic_client)
-
-    # Mock listing RayCluster to simulate it doesn't exist
-    mocker.patch(
-        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
-        return_value=get_obj_none("ray.io", "v1", "ns", "rayclusters"),
-    )
-
-    # Call the apply method
-    cluster.apply()
-
-    # Assertions
-    print("Cluster applied without AppWrapper.")
-
-
 def test_cluster_apply_down_no_mcad(mocker):
-    mocker.patch("codeflare_sdk.ray.cluster.cluster.Cluster._throw_for_no_raycluster")
+    mocker.patch(
+        "codeflare_sdk.ray.cluster.raycluster.RayCluster._throw_for_no_raycluster"
+    )
     mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
-    mocker.patch("codeflare_sdk.ray.cluster.cluster.Cluster.get_dynamic_client")
+    mocker.patch("codeflare_sdk.ray.cluster.raycluster.RayCluster.get_dynamic_client")
     mocker.patch(
         "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
         return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
@@ -283,10 +171,9 @@ def test_cluster_apply_down_no_mcad(mocker):
         "kubernetes.client.CustomObjectsApi.list_cluster_custom_object",
         return_value={"items": []},
     )
-    config = create_cluster_config()
-    config.name = "unit-test-cluster-ray"
-    config.appwrapper = False
-    cluster = Cluster(config)
+    cluster = create_cluster_config()
+    cluster.name = "unit-test-cluster-ray"
+    cluster.resource_yaml = cluster._create_resource()
     cluster.apply()
     cluster.down()
 
@@ -295,14 +182,17 @@ def test_cluster_uris(mocker):
     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
     mocker.patch(
-        "codeflare_sdk.ray.cluster.cluster._get_ingress_domain",
-        return_value="apps.cluster.awsroute.org",
+        "codeflare_sdk.ray.cluster.raycluster._get_dashboard_url_from_httproute",
+        return_value=None,
     )
     mocker.patch(
         "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
         return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
     )
     cluster = create_cluster(mocker)
+    mocker.patch(
+        "codeflare_sdk.ray.cluster.raycluster._is_openshift_cluster", return_value=False
+    )
     mocker.patch(
         "kubernetes.client.NetworkingV1Api.list_namespaced_ingress",
         return_value=ingress_retrieval(
@@ -323,9 +213,12 @@ def test_cluster_uris(mocker):
         cluster.cluster_dashboard_uri()
         == "http://ray-dashboard-unit-test-cluster-ns.apps.cluster.awsroute.org"
     )
-    cluster.config.name = "fake"
+    cluster.name = "fake"
+    from kubernetes.client import V1IngressList
+
     mocker.patch(
         "kubernetes.client.NetworkingV1Api.list_namespaced_ingress",
+        return_value=V1IngressList(items=[]),  # Empty list so no ingress matches
     )
     assert (
         cluster.cluster_dashboard_uri()
@@ -333,7 +226,7 @@ def test_cluster_uris(mocker):
     )
 
     mocker.patch(
-        "codeflare_sdk.ray.cluster.cluster._is_openshift_cluster", return_value=True
+        "codeflare_sdk.ray.cluster.raycluster._is_openshift_cluster", return_value=True
     )
     mocker.patch(
         "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
@@ -426,73 +319,18 @@ def test_local_client_url(mocker):
         return_value={"spec": {"domain": ""}},
     )
     mocker.patch(
-        "codeflare_sdk.ray.cluster.cluster._get_ingress_domain",
+        "codeflare_sdk.ray.cluster.raycluster._get_ingress_domain",
         return_value="rayclient-unit-test-cluster-localinter-ns.apps.cluster.awsroute.org",
     )
     mocker.patch(
-        "codeflare_sdk.ray.cluster.cluster.Cluster.create_resource",
-        return_value="unit-test-cluster-localinter.yaml",
+        "codeflare_sdk.ray.cluster.raycluster.RayCluster._create_resource",
+        return_value={},
     )
-
-    cluster_config = ClusterConfiguration(
-        name="unit-test-cluster-localinter",
-        namespace="ns",
-    )
-    cluster = Cluster(cluster_config)
+    cluster = RayCluster(name="unit-test-cluster-localinter", namespace="ns")
     assert (
         cluster.local_client_url()
         == "ray://rayclient-unit-test-cluster-localinter-ns.apps.cluster.awsroute.org"
     )
-
-
-"""
-get_cluster tests
-"""
-
-
-def test_get_cluster_no_appwrapper(mocker):
-    """
-    This test uses the "test all params" unit test file as a comparison
-    """
-    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
-    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
-    mocker.patch(
-        "codeflare_sdk.ray.cluster.cluster._check_aw_exists",
-        return_value=False,
-    )
-
-    with open(f"{expected_clusters_dir}/ray/unit-test-all-params.yaml") as f:
-        expected_rc = yaml.load(f, Loader=yaml.FullLoader)
-        mocker.patch(
-            "kubernetes.client.CustomObjectsApi.get_namespaced_custom_object",
-            return_value=expected_rc,
-        )
-        get_cluster("test-all-params", "ns", write_to_file=True)
-
-        with open(f"{aw_dir}test-all-params.yaml") as f:
-            generated_rc = yaml.load(f, Loader=yaml.FullLoader)
-        assert generated_rc == expected_rc
-
-
-def test_get_cluster_with_appwrapper(mocker):
-    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
-    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
-    mocker.patch(
-        "codeflare_sdk.ray.cluster.cluster._check_aw_exists",
-        return_value=True,
-    )
-
-    with open(f"{expected_clusters_dir}/appwrapper/unit-test-all-params.yaml") as f:
-        expected_aw = yaml.load(f, Loader=yaml.FullLoader)
-        mocker.patch(
-            "kubernetes.client.CustomObjectsApi.get_namespaced_custom_object",
-            return_value=expected_aw,
-        )
-        get_cluster("aw-all-params", "ns", write_to_file=True)
-
-        with open(f"{aw_dir}aw-all-params.yaml") as f:
-            generated_aw = yaml.load(f, Loader=yaml.FullLoader)
-        assert generated_aw == expected_aw
 
 
 def test_wait_ready(mocker, capsys):
@@ -505,10 +343,7 @@ def test_wait_ready(mocker, capsys):
     )
     mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
     mocker.patch(
-        "codeflare_sdk.ray.cluster.cluster._app_wrapper_status", return_value=None
-    )
-    mocker.patch(
-        "codeflare_sdk.ray.cluster.cluster._ray_cluster_status", return_value=None
+        "codeflare_sdk.ray.cluster.raycluster._ray_cluster_status", return_value=None
     )
     mocker.patch.object(
         client.CustomObjectsApi,
@@ -525,14 +360,11 @@ def test_wait_ready(mocker, capsys):
     mock_response = mocker.Mock()
     mock_response.status_code = 200
     mocker.patch("requests.get", return_value=mock_response)
-    cf = Cluster(
-        ClusterConfiguration(
-            name="test",
-            namespace="ns",
-            write_to_file=False,
-            appwrapper=True,
-        )
+    mocker.patch(
+        "codeflare_sdk.ray.cluster.raycluster.RayCluster._create_resource",
+        return_value={},
     )
+    cf = RayCluster(name="test", namespace="ns")
     try:
         cf.wait_ready(timeout=5)
         assert 1 == 0
@@ -545,8 +377,8 @@ def test_wait_ready(mocker, capsys):
         in captured.out
     )
     mocker.patch(
-        "codeflare_sdk.ray.cluster.cluster.Cluster.status",
-        return_value=(True, CodeFlareClusterStatus.READY),
+        "codeflare_sdk.ray.cluster.raycluster.RayCluster.status",
+        return_value=(CodeFlareClusterStatus.READY, True),
     )
     cf.wait_ready()
     captured = capsys.readouterr()
@@ -664,49 +496,6 @@ def test_is_dashboard_ready_url_validation(mocker):
     assert (
         cluster.is_dashboard_ready() is False
     ), "Should return False when dashboard returns 500"
-
-
-def test_list_queue_appwrappers(mocker, capsys):
-    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
-    mocker.patch(
-        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
-        return_value=get_obj_none(
-            "workload.codeflare.dev", "v1beta2", "ns", "appwrappers"
-        ),
-    )
-    list_all_queued("ns", appwrapper=True)
-    captured = capsys.readouterr()
-    # The Rich library's console width detection varies between test contexts
-    # Accept either the two-line format (individual tests) or single-line format (full test suite)
-    # Check for key parts of the message instead of the full text
-    assert "No resources found" in captured.out
-    assert "cluster.apply()" in captured.out
-    assert "cluster.details()" in captured.out
-    assert "check if it's ready" in captured.out
-    assert "╭" in captured.out and "╮" in captured.out  # Check for box characters
-    assert "│" in captured.out  # Check for vertical lines
-    mocker.patch(
-        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
-        return_value=get_aw_obj_with_status(
-            "workload.codeflare.dev", "v1beta2", "ns", "appwrappers"
-        ),
-    )
-    list_all_queued("ns", appwrapper=True)
-    captured = capsys.readouterr()
-    print(captured.out)
-    assert captured.out == (
-        "╭────────────────────────────────╮\n"
-        "│   🚀 Cluster Queue Status 🚀   │\n"
-        "│ +----------------+-----------+ │\n"
-        "│ | Name           | Status    | │\n"
-        "│ +================+===========+ │\n"
-        "│ | test-cluster-a | running   | │\n"
-        "│ |                |           | │\n"
-        "│ | test-cluster-b | suspended | │\n"
-        "│ |                |           | │\n"
-        "│ +----------------+-----------+ │\n"
-        "╰────────────────────────────────╯\n"
-    )
 
 
 def test_list_queue_rayclusters(mocker, capsys):
@@ -918,7 +707,7 @@ def test_cluster_apply_attribute_error_handling(mocker):
         raise AttributeError("DynamicClient initialization failed")
 
     mocker.patch(
-        "codeflare_sdk.ray.cluster.cluster.Cluster.get_dynamic_client",
+        "codeflare_sdk.ray.cluster.raycluster.RayCluster.get_dynamic_client",
         side_effect=raise_attribute_error,
     )
 
@@ -938,20 +727,18 @@ def test_cluster_namespace_handling(mocker, capsys):
 
     # Test with None namespace that gets set
     mocker.patch(
-        "codeflare_sdk.ray.cluster.cluster.get_current_namespace", return_value=None
+        "codeflare_sdk.ray.cluster.raycluster.get_current_namespace", return_value=None
     )
 
-    config = ClusterConfiguration(
+    cluster = RayCluster(
         name="test-cluster-ns",
-        namespace=None,  # Will trigger namespace check
+        namespace=None,
         num_workers=1,
         worker_cpu_requests=1,
         worker_cpu_limits=1,
         worker_memory_requests=2,
         worker_memory_limits=2,
     )
-
-    cluster = Cluster(config)
     captured = capsys.readouterr()
     # Verify the warning message was printed
     assert "Please specify with namespace=<your_current_namespace>" in captured.out
@@ -959,18 +746,18 @@ def test_cluster_namespace_handling(mocker, capsys):
 
 
 def test_component_resources_with_write_to_file(mocker):
-    """Test _component_resources_up with write_to_file enabled"""
+    """Test _component_resources_apply with write_to_file enabled"""
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
     mocker.patch(
         "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
         return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
     )
 
-    # Mock the _create_resources function
-    mocker.patch("codeflare_sdk.ray.cluster.cluster._create_resources")
+    # Create cluster with write_to_file=True
+    from codeflare_sdk.ray.cluster.raycluster import RayCluster
 
-    # Create cluster with write_to_file=True (without appwrapper)
-    config = ClusterConfiguration(
+    cluster = RayCluster(
         name="test-cluster-component",
         namespace="ns",
         num_workers=1,
@@ -979,13 +766,9 @@ def test_component_resources_with_write_to_file(mocker):
         worker_memory_requests=2,
         worker_memory_limits=2,
         write_to_file=True,
-        appwrapper=False,
     )
 
-    cluster = Cluster(config)
-
-    # Mock file reading and test _component_resources_up
-
+    # Mock file reading and test _component_resources_apply
     with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
         f.write("apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: test")
         temp_file = f.name
@@ -993,7 +776,7 @@ def test_component_resources_with_write_to_file(mocker):
     try:
         mock_api = MagicMock()
         cluster.resource_yaml = temp_file
-        cluster._component_resources_up("ns", mock_api)
+        cluster._component_resources_apply("ns", mock_api)
         # If we got here without error, the write_to_file path was executed
         assert True
     finally:
@@ -1029,6 +812,7 @@ def test_get_cluster_status_functions(mocker):
 
 def test_cluster_namespace_type_error(mocker):
     """Test TypeError when namespace is not a string"""
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
     mocker.patch(
         "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
@@ -1037,25 +821,26 @@ def test_cluster_namespace_type_error(mocker):
 
     # Mock get_current_namespace to return a non-string value (e.g., int)
     mocker.patch(
-        "codeflare_sdk.ray.cluster.cluster.get_current_namespace", return_value=12345
+        "codeflare_sdk.ray.cluster.raycluster.get_current_namespace", return_value=12345
     )
 
-    config = ClusterConfiguration(
-        name="test-cluster-type-error",
-        namespace=None,  # Will trigger namespace check
-        num_workers=1,
-        worker_cpu_requests=1,
-        worker_cpu_limits=1,
-        worker_memory_requests=2,
-        worker_memory_limits=2,
-    )
+    from codeflare_sdk.ray.cluster.raycluster import RayCluster
 
     # This should raise TypeError because get_current_namespace returns int
+    # The error is raised during __init__ when _create_resource is called
     with pytest.raises(
         TypeError,
         match="Namespace 12345 is of type.*Check your Kubernetes Authentication",
     ):
-        Cluster(config)
+        cluster = RayCluster(
+            name="test-cluster-type-error",
+            namespace=None,  # Will trigger namespace check
+            num_workers=1,
+            worker_cpu_requests=1,
+            worker_cpu_limits=1,
+            worker_memory_requests=2,
+            worker_memory_limits=2,
+        )
 
 
 def test_get_dashboard_url_from_httproute(mocker):
@@ -1607,14 +1392,14 @@ def test_cluster_dashboard_uri_httproute_first(mocker):
 
     # Test 1: HTTPRoute exists - should return HTTPRoute URL
     mocker.patch(
-        "codeflare_sdk.ray.cluster.cluster._is_openshift_cluster", return_value=True
+        "codeflare_sdk.ray.cluster.raycluster._is_openshift_cluster", return_value=True
     )
 
     httproute_url = (
         "https://data-science-gateway.apps.example.com/ray/ns/unit-test-cluster"
     )
     mocker.patch(
-        "codeflare_sdk.ray.cluster.cluster._get_dashboard_url_from_httproute",
+        "codeflare_sdk.ray.cluster.raycluster._get_dashboard_url_from_httproute",
         return_value=httproute_url,
     )
 
@@ -1624,7 +1409,7 @@ def test_cluster_dashboard_uri_httproute_first(mocker):
 
     # Test 2: HTTPRoute not found - should fall back to OpenShift Route
     mocker.patch(
-        "codeflare_sdk.ray.cluster.cluster._get_dashboard_url_from_httproute",
+        "codeflare_sdk.ray.cluster.raycluster._get_dashboard_url_from_httproute",
         return_value=None,
     )
     mocker.patch(

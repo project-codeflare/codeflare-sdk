@@ -1,4 +1,4 @@
-# Copyright 2022 IBM, Red Hat
+# Copyright 2024 IBM, Red Hat
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,90 +13,14 @@
 # limitations under the License.
 
 """
-The awload sub-module contains the definition of the AWManager object, which handles
-submission and deletion of existing AppWrappers from a user's file system.
+Legacy AppWrapper manager.
+
+This is kept for backward compatibility with the deprecated AppWrapper workflow.
 """
 
-from os.path import isfile
-import errno
-import os
-import yaml
-
-from kubernetes import client
-from ...common import _kube_api_error_handling
-from ...common.kubernetes_cluster.auth import (
-    config_check,
-    get_api_client,
-)
+import warnings
 
 
 class AWManager:
-    """
-    An object for submitting and removing existing AppWrapper yamls
-    to be added to the Kueue localqueue.
-    """
-
-    def __init__(self, filename: str) -> None:
-        """
-        Create the AppWrapper Manager object by passing in an
-        AppWrapper yaml file
-        """
-        if not isfile(filename):
-            raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), filename)
-        self.filename = filename
-        try:
-            with open(self.filename) as f:
-                self.awyaml = yaml.load(f, Loader=yaml.FullLoader)
-            assert self.awyaml["kind"] == "AppWrapper"
-            self.name = self.awyaml["metadata"]["name"]
-            self.namespace = self.awyaml["metadata"]["namespace"]
-        except:
-            raise ValueError(
-                f"{filename } is not a correctly formatted AppWrapper yaml"
-            )
-        self.submitted = False
-
-    def submit(self) -> None:
-        """
-        Attempts to create the AppWrapper custom resource using the yaml file
-        """
-        try:
-            config_check()
-            api_instance = client.CustomObjectsApi(get_api_client())
-            api_instance.create_namespaced_custom_object(
-                group="workload.codeflare.dev",
-                version="v1beta2",
-                namespace=self.namespace,
-                plural="appwrappers",
-                body=self.awyaml,
-            )
-        except Exception as e:
-            return _kube_api_error_handling(e)
-
-        self.submitted = True
-        print(f"AppWrapper {self.filename} submitted!")
-
-    def remove(self) -> None:
-        """
-        Attempts to delete the AppWrapper custom resource matching the name in the yaml,
-        if submitted by this manager.
-        """
-        if not self.submitted:
-            print("AppWrapper not submitted by this manager yet, nothing to remove")
-            return
-
-        try:
-            config_check()
-            api_instance = client.CustomObjectsApi(get_api_client())
-            api_instance.delete_namespaced_custom_object(
-                group="workload.codeflare.dev",
-                version="v1beta2",
-                namespace=self.namespace,
-                plural="appwrappers",
-                name=self.name,
-            )
-        except Exception as e:
-            return _kube_api_error_handling(e)
-
-        self.submitted = False
-        print(f"AppWrapper {self.name} removed!")
+    def __init__(self, *args, **kwargs):
+        warnings.warn("AppWrapper is deprecated", DeprecationWarning, stacklevel=2)

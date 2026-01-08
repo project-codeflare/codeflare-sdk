@@ -13,22 +13,16 @@
 # limitations under the License.
 
 from codeflare_sdk.ray.cluster.pretty_print import (
-    print_app_wrappers_status,
     print_cluster_status,
     print_clusters,
     print_no_resources_found,
 )
-from codeflare_sdk.ray.appwrapper.status import AppWrapperStatus, AppWrapper
 from codeflare_sdk.ray.cluster.status import (
-    RayCluster,
+    RayClusterInfo,
     RayClusterStatus,
     CodeFlareClusterStatus,
 )
-from codeflare_sdk.ray.cluster.cluster import (
-    Cluster,
-    ClusterConfiguration,
-    _copy_to_ray,
-)
+from codeflare_sdk.ray.cluster.raycluster import RayCluster
 from codeflare_sdk.common.utils.unit_test_support import get_local_queue
 
 
@@ -49,39 +43,9 @@ def test_print_no_resources(capsys):
     assert "│" in captured.out  # Check for vertical lines
 
 
-def test_print_appwrappers(capsys):
-    aw1 = AppWrapper(
-        name="awtest1",
-        status=AppWrapperStatus.SUSPENDED,
-    )
-    aw2 = AppWrapper(
-        name="awtest2",
-        status=AppWrapperStatus.RUNNING,
-    )
-    try:
-        print_app_wrappers_status([aw1, aw2])
-    except Exception:
-        assert 1 == 0
-    captured = capsys.readouterr()
-    assert captured.out == (
-        "╭─────────────────────────╮\n"
-        "│     🚀 Cluster Queue    │\n"
-        "│        Status 🚀        │\n"
-        "│ +---------+-----------+ │\n"
-        "│ | Name    | Status    | │\n"
-        "│ +=========+===========+ │\n"
-        "│ | awtest1 | suspended | │\n"
-        "│ |         |           | │\n"
-        "│ | awtest2 | running   | │\n"
-        "│ |         |           | │\n"
-        "│ +---------+-----------+ │\n"
-        "╰─────────────────────────╯\n"
-    )
-
-
 def test_ray_details(mocker, capsys):
     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
-    ray1 = RayCluster(
+    ray1 = RayClusterInfo(
         name="raytest1",
         status=RayClusterStatus.READY,
         num_workers=1,
@@ -97,29 +61,33 @@ def test_ray_details(mocker, capsys):
         head_mem_limits=8,
     )
     mocker.patch(
-        "codeflare_sdk.ray.cluster.cluster.Cluster.status",
-        return_value=(False, CodeFlareClusterStatus.UNKNOWN),
+        "codeflare_sdk.ray.cluster.raycluster.RayCluster.status",
+        return_value=(CodeFlareClusterStatus.UNKNOWN, False),
     )
     mocker.patch(
-        "codeflare_sdk.ray.cluster.cluster.Cluster.cluster_dashboard_uri",
+        "codeflare_sdk.ray.cluster.raycluster.RayCluster.cluster_dashboard_uri",
         return_value="",
     )
     mocker.patch(
         "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
         return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
     )
-    cf = Cluster(
-        ClusterConfiguration(
-            name="raytest2",
-            namespace="ns",
-            appwrapper=True,
-            local_queue="local-queue-default",
-        )
+    cf = RayCluster(
+        name="raytest2",
+        namespace="ns",
+        head_cpu_requests=1,
+        head_cpu_limits=2,
+        head_memory_requests="5G",
+        head_memory_limits="8G",
+        worker_cpu_requests=1,
+        worker_cpu_limits=1,
+        worker_memory_requests="3G",
+        worker_memory_limits="6G",
+        num_workers=1,
+        local_queue="local-queue-default",
     )
     captured = capsys.readouterr()
-    ray2 = _copy_to_ray(cf)
-    details = cf.details()
-    assert details == ray2
+    ray2 = cf.details()
     assert ray2.name == "raytest2"
     assert ray1.namespace == ray2.namespace
     assert ray1.num_workers == ray2.num_workers

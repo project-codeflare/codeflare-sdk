@@ -19,6 +19,7 @@ Cluster object.
 """
 
 import pathlib
+from typing_extensions import deprecated
 import warnings
 from dataclasses import dataclass, field, fields
 from typing import Dict, List, Optional, Union, get_args, get_origin
@@ -39,9 +40,12 @@ DEFAULT_RESOURCE_MAPPING = {
 }
 
 
+@deprecated("Use RayCluster instead")
 @dataclass
 class ClusterConfiguration:
     """
+    [DEPRECATED] Use RayCluster instead.
+
     This dataclass is used to specify resource requirements and other details, and
     is passed in as an argument when creating a Cluster object.
 

@@ -19,7 +19,7 @@ from codeflare_sdk.common.utils.unit_test_support import (
     create_cluster_all_config_params,
     get_template_variables,
 )
-from codeflare_sdk.ray.cluster.cluster import ClusterConfiguration, Cluster
+from codeflare_sdk.ray.cluster.raycluster import RayCluster
 from pathlib import Path
 import filecmp
 import pytest
@@ -36,7 +36,7 @@ def test_default_cluster_creation(mocker):
     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch("kubernetes.client.CustomObjectsApi.list_namespaced_custom_object")
 
-    cluster = Cluster(ClusterConfiguration(name="default-cluster", namespace="ns"))
+    cluster = RayCluster(name="default-cluster", namespace="ns")
 
     expected_rc = apply_template(
         f"{expected_clusters_dir}/ray/default-ray-cluster.yaml",
@@ -44,21 +44,6 @@ def test_default_cluster_creation(mocker):
     )
 
     assert cluster.resource_yaml == expected_rc
-
-
-def test_default_appwrapper_creation(mocker):
-    # Create an AppWrapper using the default config variables
-    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
-    mocker.patch("kubernetes.client.CustomObjectsApi.list_namespaced_custom_object")
-
-    cluster = Cluster(
-        ClusterConfiguration(name="default-appwrapper", namespace="ns", appwrapper=True)
-    )
-
-    expected_aw = apply_template(
-        f"{expected_clusters_dir}/ray/default-appwrapper.yaml", get_template_variables()
-    )
-    assert cluster.resource_yaml == expected_aw
 
 
 @pytest.mark.filterwarnings("ignore::UserWarning")
@@ -85,7 +70,6 @@ def test_config_creation_all_parameters(mocker):
     assert cluster.config.num_workers == 10
     assert cluster.config.worker_memory_requests == "12G"
     assert cluster.config.worker_memory_limits == "16G"
-    assert cluster.config.appwrapper == False
     assert cluster.config.envs == {
         "key1": "value1",
         "key2": "value2",
@@ -117,17 +101,6 @@ def test_config_creation_all_parameters(mocker):
     )
 
 
-@pytest.mark.filterwarnings("ignore::UserWarning")
-def test_all_config_params_aw(mocker):
-    create_cluster_all_config_params(mocker, "aw-all-params", True)
-
-    assert filecmp.cmp(
-        f"{aw_dir}aw-all-params.yaml",
-        f"{expected_clusters_dir}/appwrapper/unit-test-all-params.yaml",
-        shallow=True,
-    )
-
-
 def test_config_creation_wrong_type():
     with pytest.raises(TypeError) as error_info:
         create_cluster_wrong_type()
@@ -136,7 +109,7 @@ def test_config_creation_wrong_type():
 
 
 def test_gcs_fault_tolerance_config_validation():
-    config = ClusterConfiguration(
+    config = RayCluster(
         name="test",
         namespace="ns",
         enable_gcs_ft=True,
@@ -154,12 +127,12 @@ def test_gcs_fault_tolerance_config_validation():
     assert config.external_storage_namespace == "new-ns"
 
     try:
-        ClusterConfiguration(name="test", namespace="ns", enable_gcs_ft=True)
+        RayCluster(name="test", namespace="ns", enable_gcs_ft=True)
     except ValueError as e:
         assert str(e) in "redis_address must be provided when enable_gcs_ft is True"
 
     try:
-        ClusterConfiguration(
+        RayCluster(
             name="test",
             namespace="ns",
             enable_gcs_ft=True,
@@ -173,7 +146,7 @@ def test_gcs_fault_tolerance_config_validation():
         )
 
     try:
-        ClusterConfiguration(
+        RayCluster(
             name="test",
             namespace="ns",
             enable_gcs_ft=True,
@@ -190,9 +163,7 @@ def test_ray_usage_stats_default(mocker):
     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch("kubernetes.client.CustomObjectsApi.list_namespaced_custom_object")
 
-    cluster = Cluster(
-        ClusterConfiguration(name="default-usage-stats-cluster", namespace="ns")
-    )
+    cluster = RayCluster(name="default-usage-stats-cluster", namespace="ns")
 
     # Verify that usage stats are disabled by default
     assert cluster.config.envs["RAY_USAGE_STATS_ENABLED"] == "0"
@@ -209,12 +180,10 @@ def test_ray_usage_stats_enabled(mocker):
     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch("kubernetes.client.CustomObjectsApi.list_namespaced_custom_object")
 
-    cluster = Cluster(
-        ClusterConfiguration(
-            name="usage-stats-enabled-cluster",
-            namespace="ns",
-            enable_usage_stats=True,
-        )
+    cluster = RayCluster(
+        name="usage-stats-enabled-cluster",
+        namespace="ns",
+        enable_usage_stats=True,
     )
 
     assert cluster.config.envs["RAY_USAGE_STATS_ENABLED"] == "1"
@@ -229,4 +198,3 @@ def test_ray_usage_stats_enabled(mocker):
 # Make sure to always keep this function last
 def test_cleanup():
     os.remove(f"{aw_dir}test-all-params.yaml")
-    os.remove(f"{aw_dir}aw-all-params.yaml")

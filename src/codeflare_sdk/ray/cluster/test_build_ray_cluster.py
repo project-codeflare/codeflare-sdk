@@ -15,7 +15,7 @@ from collections import namedtuple
 import sys
 from .build_ray_cluster import gen_names, update_image, build_ray_cluster
 import uuid
-from codeflare_sdk.ray.cluster.cluster import ClusterConfiguration, Cluster
+from codeflare_sdk.ray.cluster.raycluster import RayCluster
 
 
 def test_gen_names_with_name(mocker):
@@ -72,15 +72,13 @@ def test_build_ray_cluster_with_gcs_ft(mocker):
     mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
     mocker.patch("kubernetes.client.CustomObjectsApi.list_namespaced_custom_object")
 
-    cluster = Cluster(
-        ClusterConfiguration(
-            name="test",
-            namespace="ns",
-            enable_gcs_ft=True,
-            redis_address="redis:6379",
-            redis_password_secret={"name": "redis-password-secret", "key": "password"},
-            external_storage_namespace="new-ns",
-        )
+    cluster = RayCluster(
+        name="test",
+        namespace="ns",
+        enable_gcs_ft=True,
+        redis_address="redis:6379",
+        redis_password_secret={"name": "redis-password-secret", "key": "password"},
+        external_storage_namespace="new-ns",
     )
 
     mocker.patch("codeflare_sdk.ray.cluster.build_ray_cluster.config_check")

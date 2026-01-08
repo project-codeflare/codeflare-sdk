@@ -13,8 +13,11 @@
 # limitations under the License.
 
 """
-The status sub-module defines Enums containing information for
-AppWrapper states, as well as dataclasses to store information for AppWrappers.
+AppWrapper status types.
+
+This module exists to keep the legacy AppWrapper workflow functional for users who
+still rely on it, even though AppWrapper is no longer part of the new `RayCluster`
+API surface.
 """
 
 from dataclasses import dataclass
@@ -22,25 +25,16 @@ from enum import Enum
 
 
 class AppWrapperStatus(Enum):
-    """
-    Defines the possible reportable phases of an AppWrapper.
-    """
-
-    SUSPENDED = "suspended"
-    RESUMING = "resuming"
     RUNNING = "running"
-    RESETTING = "resetting"
+    SUSPENDED = "suspended"
     SUSPENDING = "suspending"
-    SUCCEEDED = "succeeded"
+    RESUMING = "resuming"
+    RESETTING = "resetting"
     FAILED = "failed"
-    TERMINATING = "terminating"
+    UNKNOWN = "unknown"
 
 
 @dataclass
 class AppWrapper:
-    """
-    For storing information about an AppWrapper.
-    """
-
     name: str
     status: AppWrapperStatus

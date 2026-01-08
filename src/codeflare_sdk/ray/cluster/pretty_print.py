@@ -17,14 +17,12 @@ This sub-module exists primarily to be used internally by the Cluster object
 (in the cluster sub-module) for pretty-printing cluster status and details.
 """
 
-from rich import print
 from rich.table import Table
 from rich.console import Console
-from rich.layout import Layout
 from rich.panel import Panel
 from rich import box
 from typing import List
-from .status import RayCluster, RayClusterStatus
+from .status import RayClusterInfo, RayClusterStatus
 from ..appwrapper.status import AppWrapper
 
 
@@ -85,7 +83,7 @@ def print_ray_clusters_status(app_wrappers: List[AppWrapper], starting: bool = F
     console.print(Panel.fit(table))
 
 
-def print_cluster_status(cluster: RayCluster):
+def print_cluster_status(cluster: RayClusterInfo):
     "Pretty prints the status of a passed-in cluster"
     if not cluster:
         print_no_resources_found()
@@ -124,7 +122,7 @@ def print_cluster_status(cluster: RayCluster):
     console.print(table5)
 
 
-def print_clusters(clusters: List[RayCluster]):
+def print_clusters(clusters: List[RayClusterInfo]):
     if not clusters:
         print_no_resources_found()
         return  # shortcircuit
