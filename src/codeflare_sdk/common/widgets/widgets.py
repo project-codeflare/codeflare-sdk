@@ -276,21 +276,16 @@ def cluster_apply_down_buttons(
 ) -> widgets.Button:
     """
     The cluster_apply_down_buttons function returns two button widgets for a create and delete button.
-    The function uses the appwrapper bool to distinguish between resource type for the tool tip.
     """
-    resource = "Ray Cluster"
-    if cluster.config.appwrapper:
-        resource = "AppWrapper"
-
     apply_button = widgets.Button(
         description="Cluster Apply",
-        tooltip=f"Create the {resource}",
+        tooltip="Create the Ray Cluster",
         icon="play",
     )
 
     delete_button = widgets.Button(
         description="Cluster Down",
-        tooltip=f"Delete the {resource}",
+        tooltip="Delete the Ray Cluster",
         icon="trash",
     )
 
@@ -380,43 +375,26 @@ def _delete_cluster(
     _delete_cluster function deletes the cluster with the given name and namespace.
     It optionally waits for the cluster to be deleted.
     """
-    from ...ray.cluster.cluster import _check_aw_exists
-
     try:
         config_check()
         api_instance = client.CustomObjectsApi(get_api_client())
 
-        if _check_aw_exists(cluster_name, namespace):
-            api_instance.delete_namespaced_custom_object(
-                group="workload.codeflare.dev",
-                version="v1beta2",
-                namespace=namespace,
-                plural="appwrappers",
-                name=cluster_name,
-            )
-            group = "workload.codeflare.dev"
-            version = "v1beta2"
-            plural = "appwrappers"
-        else:
-            api_instance.delete_namespaced_custom_object(
-                group="ray.io",
-                version="v1",
-                namespace=namespace,
-                plural="rayclusters",
-                name=cluster_name,
-            )
-            group = "ray.io"
-            version = "v1"
-            plural = "rayclusters"
+        api_instance.delete_namespaced_custom_object(
+            group="ray.io",
+            version="v1",
+            namespace=namespace,
+            plural="rayclusters",
+            name=cluster_name,
+        )
 
         # Wait for the resource to be deleted
         while timeout > 0:
             try:
                 api_instance.get_namespaced_custom_object(
-                    group=group,
-                    version=version,
+                    group="ray.io",
+                    version="v1",
                     namespace=namespace,
-                    plural=plural,
+                    plural="rayclusters",
                     name=cluster_name,
                 )
                 # Retry if resource still exists

@@ -22,7 +22,6 @@ cluster = Cluster(
         worker_memory_requests=1,
         worker_memory_limits=2,
         image=ray_image,
-        appwrapper=True,
     )
 )
 

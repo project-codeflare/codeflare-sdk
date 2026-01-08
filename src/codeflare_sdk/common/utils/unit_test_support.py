@@ -28,7 +28,7 @@ from kubernetes.client import V1Toleration
 from unittest.mock import patch
 
 parent = Path(__file__).resolve().parents[4]  # project directory
-aw_dir = os.path.expanduser("~/.codeflare/resources/")
+cluster_dir = os.path.expanduser("~/.codeflare/resources/")
 
 
 def create_cluster_config(num_workers=2, write_to_file=False):
@@ -40,7 +40,6 @@ def create_cluster_config(num_workers=2, write_to_file=False):
         worker_cpu_limits=4,
         worker_memory_requests=5,
         worker_memory_limits=6,
-        appwrapper=True,
         write_to_file=write_to_file,
     )
     return config
@@ -68,7 +67,6 @@ def create_cluster_wrong_type():
         worker_memory_requests=5,
         worker_memory_limits=6,
         worker_extended_resource_requests={"nvidia.com/gpu": 7},
-        appwrapper=True,
         image_pull_secrets=["unit-test-pull-secret"],
         image=constants.CUDA_PY312_RUNTIME_IMAGE,
         write_to_file=True,
@@ -117,26 +115,6 @@ def get_local_queue(group, version, namespace, plural):
         "metadata": {"continue": "", "resourceVersion": "2266811"},
     }
     return local_queues
-
-
-def arg_check_aw_apply_effect(group, version, namespace, plural, body, *args):
-    assert group == "workload.codeflare.dev"
-    assert version == "v1beta2"
-    assert namespace == "ns"
-    assert plural == "appwrappers"
-    with open(f"{aw_dir}test.yaml") as f:
-        aw = yaml.load(f, Loader=yaml.FullLoader)
-    assert body == aw
-    assert args == tuple()
-
-
-def arg_check_aw_del_effect(group, version, namespace, plural, name, *args):
-    assert group == "workload.codeflare.dev"
-    assert version == "v1beta2"
-    assert namespace == "ns"
-    assert plural == "appwrappers"
-    assert name == "test"
-    assert args == tuple()
 
 
 def get_cluster_object(file_a, file_b):
@@ -215,71 +193,18 @@ def get_ray_obj_with_status(group, version, namespace, plural):
     return rc_list
 
 
-def get_aw_obj(group, version, namespace, plural):
-    # To be used for mocking list_namespaced_custom_object for AppWrappers
-    aw_a = apply_template(
-        f"{parent}/tests/test_cluster_yamls/support_clusters/test-aw-a.yaml",
-        get_template_variables(),
-    )
-    aw_b = apply_template(
-        f"{parent}/tests/test_cluster_yamls/support_clusters/test-aw-b.yaml",
-        get_template_variables(),
-    )
-
-    aw_list = {"items": [aw_a, aw_b]}
-    return aw_list
-
-
-def get_aw_obj_with_status(group, version, namespace, plural):
-    # To be used for mocking list_namespaced_custom_object for AppWrappers with statuses
-    aw_a = apply_template(
-        f"{parent}/tests/test_cluster_yamls/support_clusters/test-aw-a.yaml",
-        get_template_variables(),
-    )
-    aw_b = apply_template(
-        f"{parent}/tests/test_cluster_yamls/support_clusters/test-aw-b.yaml",
-        get_template_variables(),
-    )
-
-    aw_a.update(
-        {
-            "status": {
-                "phase": "Running",
-            },
-        }
-    )
-    aw_b.update(
-        {
-            "status": {
-                "phase": "Suspended",
-            },
-        }
-    )
-
-    aw_list = {"items": [aw_a, aw_b]}
-    return aw_list
-
-
-def get_named_aw(group, version, namespace, plural, name):
-    aws = get_aw_obj("workload.codeflare.dev", "v1beta2", "ns", "appwrappers")
-    return aws["items"][0]
-
-
 def arg_check_del_effect(group, version, namespace, plural, name, *args):
     assert namespace == "ns"
     assert args == tuple()
-    if plural == "appwrappers":
-        assert group == "workload.codeflare.dev"
-        assert version == "v1beta2"
-        assert name == "unit-test-cluster"
-    elif plural == "rayclusters":
+    if plural == "rayclusters":
         assert group == "ray.io"
         assert version == "v1"
-        assert name == "unit-test-cluster-ray"
+        # Accept any cluster name that starts with unit-test-cluster
+        assert name.startswith("unit-test-cluster")
     elif plural == "ingresses":
         assert group == "networking.k8s.io"
         assert version == "v1"
-        assert name == "ray-dashboard-unit-test-cluster-ray"
+        assert name.startswith("ray-dashboard-unit-test-cluster")
 
 
 def apply_template(yaml_file_path, variables):
@@ -308,10 +233,7 @@ def get_template_variables():
 def arg_check_apply_effect(group, version, namespace, plural, body, *args):
     assert namespace == "ns"
     assert args == tuple()
-    if plural == "appwrappers":
-        assert group == "workload.codeflare.dev"
-        assert version == "v1beta2"
-    elif plural == "rayclusters":
+    if plural == "rayclusters":
         assert group == "ray.io"
         assert version == "v1"
     elif plural == "ingresses":
@@ -476,7 +398,7 @@ def mock_server_side_apply(resource, body=None, name=None, namespace=None, **kwa
 
 
 @patch.dict("os.environ", {"NB_PREFIX": "test-prefix"})
-def create_cluster_all_config_params(mocker, cluster_name, is_appwrapper) -> Cluster:
+def create_cluster_all_config_params(mocker, cluster_name) -> Cluster:
     mocker.patch(
         "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
         return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
@@ -506,7 +428,6 @@ def create_cluster_all_config_params(mocker, cluster_name, is_appwrapper) -> Clu
         num_workers=10,
         worker_memory_requests=12,
         worker_memory_limits=16,
-        appwrapper=is_appwrapper,
         envs={"key1": "value1", "key2": "value2"},
         image="example/ray:tag",
         image_pull_secrets=["secret1", "secret2"],

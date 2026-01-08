@@ -23,8 +23,7 @@ def test_gen_names_with_name(mocker):
         uuid, "uuid4", return_value=uuid.UUID("00000000-0000-0000-0000-000000000001")
     )
     name = "myname"
-    appwrapper_name, cluster_name = gen_names(name)
-    assert appwrapper_name == name
+    cluster_name = gen_names(name)
     assert cluster_name == name
 
 
@@ -32,8 +31,7 @@ def test_gen_names_without_name(mocker):
     mocker.patch.object(
         uuid, "uuid4", return_value=uuid.UUID("00000000-0000-0000-0000-000000000001")
     )
-    appwrapper_name, cluster_name = gen_names(None)
-    assert appwrapper_name.startswith("appwrapper-")
+    cluster_name = gen_names(None)
     assert cluster_name.startswith("cluster-")
 
 
