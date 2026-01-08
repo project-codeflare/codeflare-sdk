@@ -99,8 +99,6 @@ jobs:
           kubectl create clusterrolebinding sdk-user-rayjob-creator --clusterrole=rayjob-creator --user=sdk-user
           kubectl create clusterrole rayjob-status-reader --verb=get,list,patch,update --resource=rayjobs/status
           kubectl create clusterrolebinding sdk-user-rayjob-status-reader --clusterrole=rayjob-status-reader --user=sdk-user
-          kubectl create clusterrole appwrapper-creator --verb=get,list,create,delete,patch --resource=appwrappers
-          kubectl create clusterrolebinding sdk-user-appwrapper-creator --clusterrole=appwrapper-creator --user=sdk-user
           kubectl create clusterrole resourceflavor-creator --verb=get,list,create,delete --resource=resourceflavors
           kubectl create clusterrolebinding sdk-user-resourceflavor-creator --clusterrole=resourceflavor-creator --user=sdk-user
           kubectl create clusterrole clusterqueue-creator --verb=get,list,create,delete,patch --resource=clusterqueues

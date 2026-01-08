@@ -25,7 +25,7 @@ from codeflare_sdk.ray.cluster.status import (
 import os
 from ...common.utils.unit_test_support import get_local_queue
 
-aw_dir = os.path.expanduser("~/.codeflare/resources/")
+cluster_dir = os.path.expanduser("~/.codeflare/resources/")
 
 
 def test_cluster_status(mocker):
@@ -58,7 +58,6 @@ def test_cluster_status(mocker):
             name="test",
             namespace="ns",
             write_to_file=True,
-            appwrapper=False,
             local_queue="local-queue-default",
         )
     )
@@ -114,4 +113,4 @@ def test_rc_status(mocker):
 
 # Make sure to always keep this function last
 def test_cleanup():
-    os.remove(f"{aw_dir}test.yaml")
+    os.remove(f"{cluster_dir}test.yaml")

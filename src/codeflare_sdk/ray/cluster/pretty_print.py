@@ -17,15 +17,12 @@ This sub-module exists primarily to be used internally by the Cluster object
 (in the cluster sub-module) for pretty-printing cluster status and details.
 """
 
-from rich import print
 from rich.table import Table
 from rich.console import Console
-from rich.layout import Layout
 from rich.panel import Panel
 from rich import box
 from typing import List
 from .status import RayCluster, RayClusterStatus
-from ..appwrapper.status import AppWrapper
 
 
 def print_no_resources_found():
@@ -37,8 +34,8 @@ def print_no_resources_found():
     )
 
 
-def print_app_wrappers_status(app_wrappers: List[AppWrapper], starting: bool = False):
-    if not app_wrappers:
+def print_ray_clusters_status(clusters: List[RayCluster], starting: bool = False):
+    if not clusters:
         print_no_resources_found()
         return  # shortcircuit
 
@@ -50,33 +47,9 @@ def print_app_wrappers_status(app_wrappers: List[AppWrapper], starting: bool = F
     table.add_column("Name", style="cyan", no_wrap=True)
     table.add_column("Status", style="magenta")
 
-    for app_wrapper in app_wrappers:
-        name = app_wrapper.name
-        status = app_wrapper.status.value
-        if starting:
-            status += " (starting)"
-        table.add_row(name, status)
-        table.add_row("")  # empty row for spacing
-
-    console.print(Panel.fit(table))
-
-
-def print_ray_clusters_status(app_wrappers: List[AppWrapper], starting: bool = False):
-    if not app_wrappers:
-        print_no_resources_found()
-        return  # shortcircuit
-
-    console = Console()
-    table = Table(
-        box=box.ASCII_DOUBLE_HEAD,
-        title="[bold] :rocket: Cluster Queue Status :rocket:",
-    )
-    table.add_column("Name", style="cyan", no_wrap=True)
-    table.add_column("Status", style="magenta")
-
-    for app_wrapper in app_wrappers:
-        name = app_wrapper.name
-        status = app_wrapper.status.value
+    for cluster in clusters:
+        name = cluster.name
+        status = cluster.status.value
         if starting:
             status += " (starting)"
         table.add_row(name, status)

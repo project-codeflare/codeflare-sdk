@@ -44,10 +44,6 @@ from .status import (
     RayCluster,
     RayClusterStatus,
 )
-from ..appwrapper import (
-    AppWrapper,
-    AppWrapperStatus,
-)
 from ...common.widgets.widgets import (
     cluster_apply_down_buttons,
     is_notebook,
@@ -78,7 +74,7 @@ class Cluster:
     def __init__(self, config: ClusterConfiguration):
         """
         Create the resource cluster object by passing in a ClusterConfiguration
-        (defined in the config sub-module). An AppWrapper will then be generated
+        (defined in the config sub-module). A RayCluster will then be generated
         based off of the configured resources to represent the desired cluster
         request.
         """
@@ -133,7 +129,7 @@ class Cluster:
 
     def create_resource(self):
         """
-        Called upon cluster object creation, creates an AppWrapper yaml based on
+        Called upon cluster object creation, creates a RayCluster yaml based on
         the specifications of the ClusterConfiguration.
         """
         if self.config.namespace is None:
@@ -162,31 +158,8 @@ class Cluster:
         try:
             config_check()
             api_instance = client.CustomObjectsApi(get_api_client())
-            if self.config.appwrapper:
-                if self.config.write_to_file:
-                    with open(self.resource_yaml) as f:
-                        aw = yaml.load(f, Loader=yaml.FullLoader)
-                        api_instance.create_namespaced_custom_object(
-                            group="workload.codeflare.dev",
-                            version="v1beta2",
-                            namespace=namespace,
-                            plural="appwrappers",
-                            body=aw,
-                        )
-                else:
-                    api_instance.create_namespaced_custom_object(
-                        group="workload.codeflare.dev",
-                        version="v1beta2",
-                        namespace=namespace,
-                        plural="appwrappers",
-                        body=self.resource_yaml,
-                    )
-                print(f"AppWrapper: '{self.config.name}' has successfully been created")
-            else:
-                self._component_resources_up(namespace, api_instance)
-                print(
-                    f"Ray Cluster: '{self.config.name}' has successfully been created"
-                )
+            self._component_resources_up(namespace, api_instance)
+            print(f"Ray Cluster: '{self.config.name}' has successfully been created")
         except Exception as e:  # pragma: no cover
             if e.status == 422:
                 print(
@@ -216,37 +189,14 @@ class Cluster:
             self.config_check()
             api_instance = client.CustomObjectsApi(get_api_client())
             crds = self.get_dynamic_client().resources
-            if self.config.appwrapper:
-                api_version = "workload.codeflare.dev/v1beta2"
-                api_instance = crds.get(api_version=api_version, kind="AppWrapper")
-                # defaulting body to resource_yaml
-                body = self.resource_yaml
-                if self.config.write_to_file:
-                    # if write_to_file is True, load the file from AppWrapper yaml and update body
-                    with open(self.resource_yaml) as f:
-                        aw = yaml.load(f, Loader=yaml.FullLoader)
-                    body = aw
-                api_instance.server_side_apply(
-                    field_manager=CF_SDK_FIELD_MANAGER,
-                    group="workload.codeflare.dev",
-                    version="v1beta2",
-                    namespace=namespace,
-                    plural="appwrappers",
-                    body=body,
-                    force_conflicts=force,
-                )
-                print(
-                    f"AppWrapper: '{name}' configuration has successfully been applied. For optimal resource management, you should delete this Ray Cluster when no longer in use."
-                )
-            else:
-                api_version = "ray.io/v1"
-                api_instance = crds.get(api_version=api_version, kind="RayCluster")
-                self._component_resources_apply(
-                    namespace=namespace, api_instance=api_instance
-                )
-                print(
-                    f"Ray Cluster: '{name}' has successfully been applied. For optimal resource management, you should delete this Ray Cluster when no longer in use."
-                )
+            api_version = "ray.io/v1"
+            api_instance = crds.get(api_version=api_version, kind="RayCluster")
+            self._component_resources_apply(
+                namespace=namespace, api_instance=api_instance
+            )
+            print(
+                f"Ray Cluster: '{name}' has successfully been applied. For optimal resource management, you should delete this Ray Cluster when no longer in use."
+            )
         except AttributeError as e:
             raise RuntimeError(f"Failed to initialize DynamicClient: {e}")
         except Exception as e:  # pragma: no cover
@@ -283,7 +233,7 @@ class Cluster:
 
     def down(self):
         """
-        Deletes the AppWrapper yaml, scaling-down and deleting all resources
+        Deletes the RayCluster, scaling-down and deleting all resources
         associated with the cluster.
         """
         namespace = self.config.namespace
@@ -292,20 +242,8 @@ class Cluster:
         try:
             self.config_check()
             api_instance = client.CustomObjectsApi(get_api_client())
-            if self.config.appwrapper:
-                api_instance.delete_namespaced_custom_object(
-                    group="workload.codeflare.dev",
-                    version="v1beta2",
-                    namespace=namespace,
-                    plural="appwrappers",
-                    name=resource_name,
-                )
-                print(f"AppWrapper: '{resource_name}' has successfully been deleted")
-            else:
-                _delete_resources(resource_name, namespace, api_instance)
-                print(
-                    f"Ray Cluster: '{self.config.name}' has successfully been deleted"
-                )
+            _delete_resources(resource_name, namespace, api_instance)
+            print(f"Ray Cluster: '{self.config.name}' has successfully been deleted")
         except Exception as e:  # pragma: no cover
             return _kube_api_error_handling(e)
 
@@ -318,37 +256,6 @@ class Cluster:
         """
         ready = False
         status = CodeFlareClusterStatus.UNKNOWN
-        if self.config.appwrapper:
-            # check the app wrapper status
-            appwrapper = _app_wrapper_status(self.config.name, self.config.namespace)
-            if appwrapper:
-                if appwrapper.status in [
-                    AppWrapperStatus.RESUMING,
-                    AppWrapperStatus.RESETTING,
-                ]:
-                    ready = False
-                    status = CodeFlareClusterStatus.STARTING
-                elif appwrapper.status in [
-                    AppWrapperStatus.FAILED,
-                ]:
-                    ready = False
-                    status = CodeFlareClusterStatus.FAILED  # should deleted be separate
-                    return status, ready  # exit early, no need to check ray status
-                elif appwrapper.status in [
-                    AppWrapperStatus.SUSPENDED,
-                    AppWrapperStatus.SUSPENDING,
-                ]:
-                    ready = False
-                    if appwrapper.status == AppWrapperStatus.SUSPENDED:
-                        status = CodeFlareClusterStatus.QUEUED
-                    else:
-                        status = CodeFlareClusterStatus.QUEUEING
-                    if print_to_console:
-                        pretty_print.print_app_wrappers_status([appwrapper])
-                    return (
-                        status,
-                        ready,
-                    )  # no need to check the ray status since still in queue
 
         # check the ray cluster status
         cluster = _ray_cluster_status(self.config.name, self.config.namespace)
@@ -374,10 +281,7 @@ class Cluster:
                 _, cluster.worker_gpu = head_worker_gpu_count_from_cluster(self)
                 pretty_print.print_cluster_status(cluster)
         elif print_to_console:
-            if status == CodeFlareClusterStatus.UNKNOWN:
-                pretty_print.print_no_resources_found()
-            else:
-                pretty_print.print_app_wrappers_status([appwrapper], starting=True)
+            pretty_print.print_no_resources_found()
 
         return status, ready
 
@@ -671,23 +575,16 @@ def list_all_clusters(namespace: str, print_to_console: bool = True):
     return clusters
 
 
-def list_all_queued(
-    namespace: str, print_to_console: bool = True, appwrapper: bool = False
-):
+def list_all_queued(namespace: str, print_to_console: bool = True):
     """
     Returns (and prints by default) a list of all currently queued-up Ray Clusters
     in a given namespace.
     """
-    if appwrapper:
-        resources = _get_app_wrappers(namespace, filter=[AppWrapperStatus.SUSPENDED])
-        if print_to_console:
-            pretty_print.print_app_wrappers_status(resources)
-    else:
-        resources = _get_ray_clusters(
-            namespace, filter=[RayClusterStatus.READY, RayClusterStatus.SUSPENDED]
-        )
-        if print_to_console:
-            pretty_print.print_ray_clusters_status(resources)
+    resources = _get_ray_clusters(
+        namespace, filter=[RayClusterStatus.READY, RayClusterStatus.SUSPENDED]
+    )
+    if print_to_console:
+        pretty_print.print_ray_clusters_status(resources)
     return resources
 
 
@@ -698,16 +595,16 @@ def get_cluster(
     write_to_file: bool = False,
 ):
     """
-    Retrieves an existing Ray Cluster or AppWrapper as a Cluster object.
+    Retrieves an existing Ray Cluster as a Cluster object.
 
-    This function fetches an existing Ray Cluster or AppWrapper from the Kubernetes cluster and returns
+    This function fetches an existing Ray Cluster from the Kubernetes cluster and returns
     it as a `Cluster` object, including its YAML configuration under `Cluster.resource_yaml`.
 
     Args:
         cluster_name (str):
-            The name of the Ray Cluster or AppWrapper.
+            The name of the Ray Cluster.
         namespace (str, optional):
-            The Kubernetes namespace where the Ray Cluster or AppWrapper is located. Default is "default".
+            The Kubernetes namespace where the Ray Cluster is located. Default is "default".
         verify_tls (bool, optional):
             Whether to verify TLS when connecting to the cluster. Default is True.
         write_to_file (bool, optional):
@@ -715,78 +612,61 @@ def get_cluster(
 
     Returns:
         Cluster:
-            A Cluster object representing the retrieved Ray Cluster or AppWrapper.
+            A Cluster object representing the retrieved Ray Cluster.
 
     Raises:
         Exception:
-            If the Ray Cluster or AppWrapper cannot be found or does not exist.
+            If the Ray Cluster cannot be found or does not exist.
     """
     config_check()
     api_instance = client.CustomObjectsApi(get_api_client())
-    # Check/Get the AppWrapper if it exists
-    is_appwrapper = _check_aw_exists(cluster_name, namespace)
-    if is_appwrapper:
-        try:
-            resource = api_instance.get_namespaced_custom_object(
-                group="workload.codeflare.dev",
-                version="v1beta2",
-                namespace=namespace,
-                plural="appwrappers",
-                name=cluster_name,
-            )
-            resource_extraction = resource["spec"]["components"][0]["template"]
-        except Exception as e:
-            return _kube_api_error_handling(e)
-    else:
-        # Get the Ray Cluster
-        try:
-            resource = api_instance.get_namespaced_custom_object(
-                group="ray.io",
-                version="v1",
-                namespace=namespace,
-                plural="rayclusters",
-                name=cluster_name,
-            )
-            resource_extraction = resource
-        except Exception as e:
-            return _kube_api_error_handling(e)
+    # Get the Ray Cluster
+    try:
+        resource = api_instance.get_namespaced_custom_object(
+            group="ray.io",
+            version="v1",
+            namespace=namespace,
+            plural="rayclusters",
+            name=cluster_name,
+        )
+    except Exception as e:
+        return _kube_api_error_handling(e)
 
     (
         head_extended_resources,
         worker_extended_resources,
-    ) = Cluster._head_worker_extended_resources_from_rc_dict(resource_extraction)
+    ) = Cluster._head_worker_extended_resources_from_rc_dict(resource)
     # Create a Cluster Configuration with just the necessary provided parameters
     cluster_config = ClusterConfiguration(
         name=cluster_name,
         namespace=namespace,
         verify_tls=verify_tls,
         write_to_file=write_to_file,
-        appwrapper=is_appwrapper,
-        head_cpu_limits=resource_extraction["spec"]["headGroupSpec"]["template"][
-            "spec"
-        ]["containers"][0]["resources"]["requests"]["cpu"],
-        head_cpu_requests=resource_extraction["spec"]["headGroupSpec"]["template"][
-            "spec"
-        ]["containers"][0]["resources"]["limits"]["cpu"],
-        head_memory_limits=resource_extraction["spec"]["headGroupSpec"]["template"][
+        head_cpu_limits=resource["spec"]["headGroupSpec"]["template"]["spec"][
+            "containers"
+        ][0]["resources"]["requests"]["cpu"],
+        head_cpu_requests=resource["spec"]["headGroupSpec"]["template"]["spec"][
+            "containers"
+        ][0]["resources"]["limits"]["cpu"],
+        head_memory_limits=resource["spec"]["headGroupSpec"]["template"]["spec"][
+            "containers"
+        ][0]["resources"]["requests"]["memory"],
+        head_memory_requests=resource["spec"]["headGroupSpec"]["template"]["spec"][
+            "containers"
+        ][0]["resources"]["limits"]["memory"],
+        num_workers=resource["spec"]["workerGroupSpecs"][0]["minReplicas"],
+        worker_cpu_limits=resource["spec"]["workerGroupSpecs"][0]["template"]["spec"][
+            "containers"
+        ][0]["resources"]["limits"]["cpu"],
+        worker_cpu_requests=resource["spec"]["workerGroupSpecs"][0]["template"]["spec"][
+            "containers"
+        ][0]["resources"]["requests"]["cpu"],
+        worker_memory_limits=resource["spec"]["workerGroupSpecs"][0]["template"][
             "spec"
         ]["containers"][0]["resources"]["requests"]["memory"],
-        head_memory_requests=resource_extraction["spec"]["headGroupSpec"]["template"][
+        worker_memory_requests=resource["spec"]["workerGroupSpecs"][0]["template"][
             "spec"
         ]["containers"][0]["resources"]["limits"]["memory"],
-        num_workers=resource_extraction["spec"]["workerGroupSpecs"][0]["minReplicas"],
-        worker_cpu_limits=resource_extraction["spec"]["workerGroupSpecs"][0][
-            "template"
-        ]["spec"]["containers"][0]["resources"]["limits"]["cpu"],
-        worker_cpu_requests=resource_extraction["spec"]["workerGroupSpecs"][0][
-            "template"
-        ]["spec"]["containers"][0]["resources"]["requests"]["cpu"],
-        worker_memory_limits=resource_extraction["spec"]["workerGroupSpecs"][0][
-            "template"
-        ]["spec"]["containers"][0]["resources"]["requests"]["memory"],
-        worker_memory_requests=resource_extraction["spec"]["workerGroupSpecs"][0][
-            "template"
-        ]["spec"]["containers"][0]["resources"]["limits"]["memory"],
         head_extended_resource_requests=head_extended_resources,
         worker_extended_resource_requests=worker_extended_resources,
     )
@@ -806,7 +686,7 @@ def get_cluster(
         if write_to_file:
             cluster.resource_yaml = write_cluster_to_file(cluster, resource)
         else:
-            # Update the Cluster's resource_yaml to reflect the retrieved Ray Cluster/AppWrapper
+            # Update the Cluster's resource_yaml to reflect the retrieved Ray Cluster
             cluster.resource_yaml = resource
             print(f"Yaml resources loaded for {cluster.config.name}")
 
@@ -827,9 +707,6 @@ def remove_autogenerated_fields(resource):
                 "generation",
                 "status",
                 "suspend",
-                "workload.codeflare.dev/user",  # AppWrapper field
-                "workload.codeflare.dev/userid",  # AppWrapper field
-                "podSetInfos",  # AppWrapper field
             ]:
                 del resource[key]
             else:
@@ -875,24 +752,6 @@ def _apply_ray_cluster(
     )
 
 
-def _check_aw_exists(name: str, namespace: str) -> bool:
-    try:
-        config_check()
-        api_instance = client.CustomObjectsApi(get_api_client())
-        aws = api_instance.list_namespaced_custom_object(
-            group="workload.codeflare.dev",
-            version="v1beta2",
-            namespace=namespace,
-            plural="appwrappers",
-        )
-    except Exception as e:  # pragma: no cover
-        return _kube_api_error_handling(e, print_error=False)
-    for aw in aws["items"]:
-        if aw["metadata"]["name"] == name:
-            return True
-    return False
-
-
 # Cant test this until get_current_namespace is fixed and placed in this function over using `self`
 def _get_ingress_domain(self):  # pragma: no cover
     config_check()
@@ -933,25 +792,6 @@ def _get_ingress_domain(self):  # pragma: no cover
             if ingress.spec.rules[0].http.paths[0].backend.service.port.number == 10001:
                 domain = ingress.spec.rules[0].host
     return domain
-
-
-def _app_wrapper_status(name, namespace="default") -> Optional[AppWrapper]:
-    try:
-        config_check()
-        api_instance = client.CustomObjectsApi(get_api_client())
-        aws = api_instance.list_namespaced_custom_object(
-            group="workload.codeflare.dev",
-            version="v1beta2",
-            namespace=namespace,
-            plural="appwrappers",
-        )
-    except Exception as e:  # pragma: no cover
-        return _kube_api_error_handling(e)
-
-    for aw in aws["items"]:
-        if aw["metadata"]["name"] == name:
-            return _map_to_app_wrapper(aw)
-    return None
 
 
 def _ray_cluster_status(name, namespace="default") -> Optional[RayCluster]:
@@ -999,33 +839,6 @@ def _get_ray_clusters(
         for rc in rcs["items"]:
             list_of_clusters.append(_map_to_ray_cluster(rc))
     return list_of_clusters
-
-
-def _get_app_wrappers(
-    namespace="default", filter=List[AppWrapperStatus]
-) -> List[AppWrapper]:
-    list_of_app_wrappers = []
-
-    try:
-        config_check()
-        api_instance = client.CustomObjectsApi(get_api_client())
-        aws = api_instance.list_namespaced_custom_object(
-            group="workload.codeflare.dev",
-            version="v1beta2",
-            namespace=namespace,
-            plural="appwrappers",
-        )
-    except Exception as e:  # pragma: no cover
-        return _kube_api_error_handling(e)
-
-    for item in aws["items"]:
-        app_wrapper = _map_to_app_wrapper(item)
-        if filter and app_wrapper.status in filter:
-            list_of_app_wrappers.append(app_wrapper)
-        else:
-            # Unsure what the purpose of the filter is
-            list_of_app_wrappers.append(app_wrapper)
-    return list_of_app_wrappers
 
 
 def _map_to_ray_cluster(rc) -> Optional[RayCluster]:
@@ -1119,18 +932,6 @@ def _map_to_ray_cluster(rc) -> Optional[RayCluster]:
         ]["resources"]["limits"]["memory"],
         head_extended_resources=head_extended_resources,
         dashboard=dashboard_url,
-    )
-
-
-def _map_to_app_wrapper(aw) -> AppWrapper:
-    if "status" in aw:
-        return AppWrapper(
-            name=aw["metadata"]["name"],
-            status=AppWrapperStatus(aw["status"]["phase"].lower()),
-        )
-    return AppWrapper(
-        name=aw["metadata"]["name"],
-        status=AppWrapperStatus("suspended"),
     )
 
 

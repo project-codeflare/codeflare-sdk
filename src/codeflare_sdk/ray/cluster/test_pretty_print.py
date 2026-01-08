@@ -13,12 +13,10 @@
 # limitations under the License.
 
 from codeflare_sdk.ray.cluster.pretty_print import (
-    print_app_wrappers_status,
     print_cluster_status,
     print_clusters,
     print_no_resources_found,
 )
-from codeflare_sdk.ray.appwrapper.status import AppWrapperStatus, AppWrapper
 from codeflare_sdk.ray.cluster.status import (
     RayCluster,
     RayClusterStatus,
@@ -47,36 +45,6 @@ def test_print_no_resources(capsys):
     assert "check if it's ready" in captured.out
     assert "╭" in captured.out and "╮" in captured.out  # Check for box characters
     assert "│" in captured.out  # Check for vertical lines
-
-
-def test_print_appwrappers(capsys):
-    aw1 = AppWrapper(
-        name="awtest1",
-        status=AppWrapperStatus.SUSPENDED,
-    )
-    aw2 = AppWrapper(
-        name="awtest2",
-        status=AppWrapperStatus.RUNNING,
-    )
-    try:
-        print_app_wrappers_status([aw1, aw2])
-    except Exception:
-        assert 1 == 0
-    captured = capsys.readouterr()
-    assert captured.out == (
-        "╭─────────────────────────╮\n"
-        "│     🚀 Cluster Queue    │\n"
-        "│        Status 🚀        │\n"
-        "│ +---------+-----------+ │\n"
-        "│ | Name    | Status    | │\n"
-        "│ +=========+===========+ │\n"
-        "│ | awtest1 | suspended | │\n"
-        "│ |         |           | │\n"
-        "│ | awtest2 | running   | │\n"
-        "│ |         |           | │\n"
-        "│ +---------+-----------+ │\n"
-        "╰─────────────────────────╯\n"
-    )
 
 
 def test_ray_details(mocker, capsys):
@@ -112,7 +80,6 @@ def test_ray_details(mocker, capsys):
         ClusterConfiguration(
             name="raytest2",
             namespace="ns",
-            appwrapper=True,
             local_queue="local-queue-default",
         )
     )
