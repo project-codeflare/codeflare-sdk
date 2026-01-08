@@ -19,6 +19,7 @@ Cluster object.
 """
 
 import pathlib
+from typing_extensions import deprecated
 import warnings
 from dataclasses import dataclass, field, fields
 from typing import Dict, List, Optional, Union, get_args, get_origin
@@ -39,6 +40,9 @@ DEFAULT_RESOURCE_MAPPING = {
 }
 
 
+@deprecated(
+    "Cluster and ClusterConfiguration are deprecated. Use RayCluster() instead."
+)
 @dataclass
 class ClusterConfiguration:
     """
@@ -132,6 +136,16 @@ class ClusterConfiguration:
     external_storage_namespace: Optional[str] = None
 
     def __post_init__(self):
+        # Emit deprecation warning
+        warnings.warn(
+            "ClusterConfiguration and Cluster are deprecated and will be removed in a future version. "
+            "Use RayCluster instead for a unified cluster configuration that works with "
+            "both standalone clusters and RayJobs. "
+            "Example: cluster = RayCluster(name='my-cluster', num_workers=2); cluster.apply()",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+
         if not self.verify_tls:
             print(
                 "Warning: TLS verification has been disabled - Endpoint checks will be bypassed"

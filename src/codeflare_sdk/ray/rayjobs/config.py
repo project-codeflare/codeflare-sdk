@@ -19,6 +19,8 @@ Cluster object.
 """
 
 import pathlib
+from typing_extensions import deprecated
+import warnings
 from dataclasses import dataclass, field, fields
 from typing import Dict, List, Optional, Union, get_args, get_origin, Any, Tuple
 from kubernetes.client import (
@@ -61,6 +63,7 @@ DEFAULT_ACCELERATORS = {
 }
 
 
+@deprecated("ManagedClusterConfig is deprecated. Use RayCluster() instead.")
 @dataclass
 class ManagedClusterConfig:
     """
@@ -122,6 +125,17 @@ class ManagedClusterConfig:
     volume_mounts: list[V1VolumeMount] = field(default_factory=list)
 
     def __post_init__(self):
+        # Emit deprecation warning
+        warnings.warn(
+            "ManagedClusterConfig is deprecated and will be removed in a future version. "
+            "Use RayCluster instead for a unified cluster configuration that works with "
+            "both standalone clusters and RayJobs. "
+            "Example: cluster = RayCluster(num_workers=2); "
+            "job = RayJob(job_name='my-job', entrypoint='python train.py', cluster_config=cluster)",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+
         self.envs["RAY_USAGE_STATS_ENABLED"] = "0"
 
         self._validate_types()

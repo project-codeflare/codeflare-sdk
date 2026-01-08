@@ -18,8 +18,7 @@ from codeflare_sdk.common.utils.constants import RAY_VERSION
 from ray.runtime_env import RuntimeEnv
 
 from codeflare_sdk.ray.rayjobs.rayjob import RayJob
-from codeflare_sdk.ray.cluster.config import ClusterConfiguration
-from codeflare_sdk.ray.rayjobs.config import ManagedClusterConfig
+from codeflare_sdk.ray.raycluster import RayCluster
 from kubernetes.client import V1Volume, V1VolumeMount, V1Toleration
 
 
@@ -80,7 +79,7 @@ def test_rayjob_init_validation_both_provided(auto_mock_setup):
     """
     Test that providing both cluster_name and cluster_config raises error.
     """
-    cluster_config = ClusterConfiguration(name="test-cluster", namespace="test")
+    cluster_config = RayCluster(name="test-cluster", namespace="test")
 
     with pytest.raises(
         ValueError,
@@ -109,7 +108,7 @@ def test_rayjob_init_with_cluster_config(auto_mock_setup):
     """
     Test RayJob initialization with cluster configuration for auto-creation.
     """
-    cluster_config = ClusterConfiguration(
+    cluster_config = RayCluster(
         name="auto-cluster", namespace="test-namespace", num_workers=2
     )
 
@@ -130,7 +129,7 @@ def test_rayjob_cluster_name_generation(auto_mock_setup):
     """
     Test that cluster names are generated when config has empty name.
     """
-    cluster_config = ClusterConfiguration(
+    cluster_config = RayCluster(
         name="",  # Empty name should trigger generation
         namespace="test-namespace",
         num_workers=1,
@@ -150,7 +149,7 @@ def test_rayjob_cluster_config_namespace_none(auto_mock_setup):
     """
     Test that cluster config namespace is set when None.
     """
-    cluster_config = ClusterConfiguration(
+    cluster_config = RayCluster(
         name="test-cluster",
         namespace=None,  # This should be set to job namespace
         num_workers=1,
@@ -215,7 +214,7 @@ def test_build_ray_cluster_spec(mocker, auto_mock_setup):
             "workerGroupSpecs": [{"replicas": 2}],
         },
     }
-    cluster_config = ManagedClusterConfig(num_workers=2)
+    cluster_config = RayCluster(num_workers=2)
     mocker.patch.object(
         cluster_config, "build_ray_cluster_spec", return_value=mock_ray_cluster["spec"]
     )
@@ -276,7 +275,7 @@ def test_build_rayjob_cr_with_auto_cluster(mocker, auto_mock_setup):
             "workerGroupSpecs": [{"replicas": 2}],
         },
     }
-    cluster_config = ManagedClusterConfig(num_workers=2)
+    cluster_config = RayCluster(num_workers=2)
 
     mocker.patch.object(
         cluster_config, "build_ray_cluster_spec", return_value=mock_ray_cluster["spec"]
@@ -328,7 +327,7 @@ def test_submit_with_auto_cluster(mocker, auto_mock_setup):
     }
     mock_api_instance.submit_job.return_value = True
 
-    cluster_config = ManagedClusterConfig(num_workers=1)
+    cluster_config = RayCluster(num_workers=1)
     mocker.patch.object(
         cluster_config, "build_ray_cluster_spec", return_value=mock_ray_cluster["spec"]
     )
@@ -397,9 +396,9 @@ def test_namespace_explicit_override(auto_mock_setup):
 
 def test_rayjob_with_rayjob_cluster_config(auto_mock_setup):
     """
-    Test RayJob with the new ManagedClusterConfig.
+    Test RayJob with the new RayCluster.
     """
-    cluster_config = ManagedClusterConfig(
+    cluster_config = RayCluster(
         num_workers=2,
         head_cpu_requests="500m",
         head_memory_requests="512Mi",
@@ -418,9 +417,9 @@ def test_rayjob_with_rayjob_cluster_config(auto_mock_setup):
 
 def test_rayjob_cluster_config_validation(auto_mock_setup):
     """
-    Test validation of ManagedClusterConfig parameters.
+    Test validation of RayCluster parameters.
     """
-    cluster_config = ManagedClusterConfig()
+    cluster_config = RayCluster()
 
     rayjob = RayJob(
         job_name="test-job",
@@ -449,7 +448,7 @@ def test_build_ray_cluster_spec_integration(mocker, auto_mock_setup):
     """
     Test integration with the new build_ray_cluster_spec method.
     """
-    cluster_config = ManagedClusterConfig()
+    cluster_config = RayCluster()
     mock_spec = {"spec": "test-spec"}
     mocker.patch.object(
         cluster_config, "build_ray_cluster_spec", return_value=mock_spec
@@ -550,7 +549,7 @@ def test_rayjob_cluster_name_generation_with_config(auto_mock_setup):
     Test cluster name generation when using cluster_config.
     """
 
-    cluster_config = ManagedClusterConfig()
+    cluster_config = RayCluster()
 
     rayjob = RayJob(
         job_name="my-job",
@@ -568,7 +567,7 @@ def test_rayjob_namespace_propagation_to_cluster_config(auto_mock_setup):
     """
     auto_mock_setup["get_current_namespace"].return_value = "detected-ns"
 
-    cluster_config = ManagedClusterConfig()
+    cluster_config = RayCluster()
 
     rayjob = RayJob(
         job_name="test-job",
@@ -623,7 +622,7 @@ def test_build_ray_cluster_spec_function():
     """
     Test the build_ray_cluster_spec method directly.
     """
-    cluster_config = ManagedClusterConfig(
+    cluster_config = RayCluster(
         num_workers=2,
         head_cpu_requests="500m",
         head_memory_requests="512Mi",
@@ -656,7 +655,7 @@ def test_build_ray_cluster_spec_with_accelerators():
     """
     Test build_ray_cluster_spec with GPU accelerators.
     """
-    cluster_config = ManagedClusterConfig(
+    cluster_config = RayCluster(
         head_accelerators={"nvidia.com/gpu": 1},
         worker_accelerators={"nvidia.com/gpu": 2},
     )
@@ -680,7 +679,7 @@ def test_build_ray_cluster_spec_with_custom_volumes():
     """
     custom_volume = V1Volume(name="custom-data", empty_dir={})
     custom_volume_mount = V1VolumeMount(name="custom-data", mount_path="/data")
-    cluster_config = ManagedClusterConfig(
+    cluster_config = RayCluster(
         volumes=[custom_volume],
         volume_mounts=[custom_volume_mount],
     )
@@ -698,7 +697,7 @@ def test_build_ray_cluster_spec_with_environment_variables():
     """
     Test build_ray_cluster_spec with environment variables.
     """
-    cluster_config = ManagedClusterConfig(
+    cluster_config = RayCluster(
         envs={"CUDA_VISIBLE_DEVICES": "0", "RAY_DISABLE_IMPORT_WARNING": "1"},
     )
 
@@ -733,7 +732,7 @@ def test_build_ray_cluster_spec_with_tolerations():
         key="nvidia.com/gpu", operator="Exists", effect="NoSchedule"
     )
 
-    cluster_config = ManagedClusterConfig(
+    cluster_config = RayCluster(
         head_tolerations=[head_toleration],
         worker_tolerations=[worker_toleration],
     )
@@ -757,7 +756,7 @@ def test_build_ray_cluster_spec_with_image_pull_secrets():
     """
     Test build_ray_cluster_spec with image pull secrets.
     """
-    cluster_config = ManagedClusterConfig(
+    cluster_config = RayCluster(
         image_pull_secrets=["my-registry-secret", "another-secret"]
     )
 
@@ -790,7 +789,7 @@ def test_submit_with_cluster_config_compatible_image_passes(auto_mock_setup):
     mock_api_instance = auto_mock_setup["rayjob_api"]
     mock_api_instance.submit_job.return_value = True
 
-    cluster_config = ManagedClusterConfig(image=f"ray:{RAY_VERSION}")
+    cluster_config = RayCluster(image=f"ray:{RAY_VERSION}")
 
     rayjob = RayJob(
         job_name="test-job",
@@ -808,7 +807,7 @@ def test_submit_with_cluster_config_incompatible_image_fails(auto_mock_setup):
     Test that submission fails with incompatible cluster_config image.
     """
 
-    cluster_config = ManagedClusterConfig(image="ray:2.8.0")  # Different version
+    cluster_config = RayCluster(image="ray:2.8.0")  # Different version
 
     rayjob = RayJob(
         job_name="test-job",
@@ -836,15 +835,15 @@ def test_validate_ray_version_compatibility_method(auto_mock_setup):
     )
 
     rayjob._validate_ray_version_compatibility()
-    rayjob._cluster_config = ManagedClusterConfig(image=f"ray:{RAY_VERSION}")
+    rayjob._cluster_config = RayCluster(image=f"ray:{RAY_VERSION}")
     rayjob._validate_ray_version_compatibility()
-    rayjob._cluster_config = ManagedClusterConfig(image="ray:2.8.0")
+    rayjob._cluster_config = RayCluster(image="ray:2.8.0")
     with pytest.raises(
         ValueError, match="Cluster config image: Ray version mismatch detected"
     ):
         rayjob._validate_ray_version_compatibility()
 
-    rayjob._cluster_config = ManagedClusterConfig(image="custom-image:latest")
+    rayjob._cluster_config = RayCluster(image="custom-image:latest")
     with pytest.warns(
         UserWarning, match="Cluster config image: Cannot determine Ray version"
     ):
@@ -858,7 +857,7 @@ def test_validate_cluster_config_image_method(auto_mock_setup):
 
     rayjob = RayJob(
         job_name="test-job",
-        cluster_config=ManagedClusterConfig(),
+        cluster_config=RayCluster(),
         namespace="test-namespace",
         entrypoint="python -c 'print()'",
     )
@@ -886,7 +885,7 @@ def test_validate_cluster_config_image_edge_cases(auto_mock_setup):
 
     rayjob = RayJob(
         job_name="test-job",
-        cluster_config=ManagedClusterConfig(),
+        cluster_config=RayCluster(),
         namespace="test-namespace",
         entrypoint="python -c 'print()'",
     )
@@ -1110,7 +1109,7 @@ def test_rayjob_kueue_label_no_default_queue(auto_mock_setup, mocker, caplog):
     mock_api_instance = auto_mock_setup["rayjob_api"]
     mock_api_instance.submit_job.return_value = {"metadata": {"name": "test-job"}}
 
-    cluster_config = ManagedClusterConfig()
+    cluster_config = RayCluster()
     rayjob = RayJob(
         job_name="test-job",
         cluster_config=cluster_config,
@@ -1136,7 +1135,7 @@ def test_rayjob_kueue_explicit_local_queue(auto_mock_setup):
     mock_api_instance = auto_mock_setup["rayjob_api"]
     mock_api_instance.submit_job.return_value = {"metadata": {"name": "test-job"}}
 
-    cluster_config = ManagedClusterConfig()
+    cluster_config = RayCluster()
     rayjob = RayJob(
         job_name="test-job",
         cluster_config=cluster_config,
@@ -1167,7 +1166,7 @@ def test_rayjob_queue_label_explicit_vs_default(auto_mock_setup, mocker):
         return_value="default-queue",
     )
 
-    config = ManagedClusterConfig(num_workers=1)
+    config = RayCluster(num_workers=1)
 
     # Test 1: Explicit queue should be used (no default queue lookup)
     mock_api_instance1 = auto_mock_setup["rayjob_api"]
@@ -1248,7 +1247,7 @@ def test_rayjob_priority_class(auto_mock_setup, mocker):
     mock_api_instance = auto_mock_setup["rayjob_api"]
     mock_api_instance.submit_job.return_value = {"metadata": {"name": "test-job"}}
 
-    config = ManagedClusterConfig(num_workers=1)
+    config = RayCluster(num_workers=1)
     rayjob = RayJob(
         job_name="test-job",
         entrypoint="python -c 'print()'",
@@ -1273,7 +1272,7 @@ def test_rayjob_priority_class_not_added_when_none(auto_mock_setup):
     mock_api_instance = auto_mock_setup["rayjob_api"]
     mock_api_instance.submit_job.return_value = {"metadata": {"name": "test-job"}}
 
-    config = ManagedClusterConfig(num_workers=1)
+    config = RayCluster(num_workers=1)
     rayjob = RayJob(
         job_name="test-job",
         entrypoint="python -c 'print()'",
@@ -1300,7 +1299,7 @@ def test_rayjob_priority_class_validation_invalid(auto_mock_setup, mocker):
         return_value=False,
     )
 
-    config = ManagedClusterConfig(num_workers=1)
+    config = RayCluster(num_workers=1)
     rayjob = RayJob(
         job_name="test-job",
         entrypoint="python -c 'print()'",
@@ -1328,7 +1327,7 @@ def test_rayjob_priority_class_validation_cannot_verify(auto_mock_setup, mocker)
     mock_api_instance = auto_mock_setup["rayjob_api"]
     mock_api_instance.submit_job.return_value = {"metadata": {"name": "test-job"}}
 
-    config = ManagedClusterConfig(num_workers=1)
+    config = RayCluster(num_workers=1)
     rayjob = RayJob(
         job_name="test-job",
         entrypoint="python -c 'print()'",
@@ -1413,7 +1412,7 @@ def test_rayjob_with_ttl_and_deadline(auto_mock_setup):
     mock_api_instance = auto_mock_setup["rayjob_api"]
     mock_api_instance.submit_job.return_value = {"metadata": {"name": "test-job"}}
 
-    cluster_config = ManagedClusterConfig()
+    cluster_config = RayCluster()
     rayjob = RayJob(
         job_name="test-job",
         cluster_config=cluster_config,
@@ -1439,7 +1438,7 @@ def test_rayjob_shutdown_after_job_finishes(auto_mock_setup):
     mock_api_instance.submit_job.return_value = {"metadata": {"name": "test-job"}}
 
     # Test with managed cluster (should shutdown)
-    cluster_config = ManagedClusterConfig()
+    cluster_config = RayCluster()
     rayjob = RayJob(
         job_name="test-job",
         cluster_config=cluster_config,
@@ -1520,7 +1519,7 @@ def test_rayjob_initialization_logging(auto_mock_setup, caplog):
     Test RayJob initialization logging.
     """
     with caplog.at_level("INFO"):
-        cluster_config = ManagedClusterConfig()
+        cluster_config = RayCluster()
         rayjob = RayJob(
             job_name="test-job",
             cluster_config=cluster_config,
@@ -1576,7 +1575,7 @@ def test_build_submitter_pod_template_uses_cluster_config_image(
         return_value="auto-detected-image:py3.12",
     )
 
-    cluster_config = ManagedClusterConfig(image="custom-cluster-image:v1")
+    cluster_config = RayCluster(image="custom-cluster-image:v1")
 
     rayjob = RayJob(
         job_name="test-job",

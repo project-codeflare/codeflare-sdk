@@ -67,12 +67,12 @@ spec:
             name: client
           resources:
             limits:
-              cpu: 8
+              cpu: '8'
               intel.com/gpu: 2
               memory: 16G
               nvidia.com/gpu: 1
             requests:
-              cpu: 4
+              cpu: '4'
               intel.com/gpu: 2
               memory: 12G
               nvidia.com/gpu: 1
@@ -167,11 +167,11 @@ spec:
           name: machine-learning
           resources:
             limits:
-              cpu: 8
+              cpu: '8'
               memory: 16G
               nvidia.com/gpu: 1
             requests:
-              cpu: 4
+              cpu: '4'
               memory: 12G
               nvidia.com/gpu: 1
           volumeMounts:

@@ -13,20 +13,27 @@
 # limitations under the License.
 
 """
-The status sub-module defines Enums containing information for Ray cluster
-states states, and CodeFlare cluster states, as well as
-dataclasses to store information for Ray clusters.
+Status enums and info classes for RayCluster.
+
+This module defines:
+- RayClusterStatus: Enum of possible cluster states from KubeRay
+- CodeFlareClusterStatus: Enum of higher-level SDK states
+- RayClusterInfo: Dataclass combining RayCluster with runtime status/dashboard
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
-import typing
-from typing import Union
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .raycluster import RayCluster
 
 
 class RayClusterStatus(Enum):
     """
     Defines the possible reportable states of a Ray cluster.
+
+    These values correspond to the states reported by the KubeRay operator.
     """
 
     # https://github.com/ray-project/kuberay/blob/master/ray-operator/apis/ray/v1/raycluster_types.go#L112-L117
@@ -39,7 +46,10 @@ class RayClusterStatus(Enum):
 
 class CodeFlareClusterStatus(Enum):
     """
-    Defines the possible reportable states of a Codeflare cluster.
+    Defines the possible reportable states of a CodeFlare-managed cluster.
+
+    These are higher-level states used by the CodeFlare SDK to represent
+    the cluster lifecycle from the user's perspective.
     """
 
     READY = 1
@@ -52,23 +62,14 @@ class CodeFlareClusterStatus(Enum):
 
 
 @dataclass
-class RayCluster:
+class RayClusterInfo:
     """
-    For storing information about a Ray cluster.
+    Runtime information about a Ray cluster.
+
+    Combines a RayCluster configuration with its current runtime state
+    (status and dashboard URL) obtained from Kubernetes.
     """
 
-    name: str
+    cluster: "RayCluster"
     status: RayClusterStatus
-    head_cpu_requests: int
-    head_cpu_limits: int
-    head_mem_requests: str
-    head_mem_limits: str
-    num_workers: int
-    worker_mem_requests: str
-    worker_mem_limits: str
-    worker_cpu_requests: Union[int, str]
-    worker_cpu_limits: Union[int, str]
-    namespace: str
     dashboard: str
-    worker_extended_resources: typing.Dict[str, int] = field(default_factory=dict)
-    head_extended_resources: typing.Dict[str, int] = field(default_factory=dict)

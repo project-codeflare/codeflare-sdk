@@ -1,12 +1,11 @@
 from .status import (
     RayClusterStatus,
     CodeFlareClusterStatus,
-    RayCluster,
+    RayClusterInfo,
 )
 
-from .cluster import (
-    Cluster,
-    ClusterConfiguration,
+from .raycluster import (
+    RayCluster,
     get_cluster,
     list_all_queued,
     list_all_clusters,

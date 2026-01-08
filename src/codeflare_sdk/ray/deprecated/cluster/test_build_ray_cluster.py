@@ -15,7 +15,7 @@ from collections import namedtuple
 import sys
 from .build_ray_cluster import gen_names, update_image, build_ray_cluster
 import uuid
-from codeflare_sdk.ray.cluster.cluster import ClusterConfiguration, Cluster
+from .cluster import ClusterConfiguration, Cluster
 
 
 def test_gen_names_with_name(mocker):
@@ -38,7 +38,7 @@ def test_gen_names_without_name(mocker):
 def test_update_image_without_supported_python_version(mocker):
     # Mock SUPPORTED_PYTHON_VERSIONS
     mocker.patch.dict(
-        "codeflare_sdk.common.utils.constants.SUPPORTED_PYTHON_VERSIONS",
+        "codeflare_sdk.common.deprecated.utils.constants.SUPPORTED_PYTHON_VERSIONS",
         {
             "3.11": "ray-py3.11",
             "3.12": "ray-py3.12",
@@ -81,12 +81,14 @@ def test_build_ray_cluster_with_gcs_ft(mocker):
         )
     )
 
-    mocker.patch("codeflare_sdk.ray.cluster.build_ray_cluster.config_check")
+    mocker.patch("codeflare_sdk.ray.deprecated.cluster.build_ray_cluster.config_check")
     mocker.patch(
-        "codeflare_sdk.ray.cluster.build_ray_cluster.get_api_client", return_value=None
+        "codeflare_sdk.ray.deprecated.cluster.build_ray_cluster.get_api_client",
+        return_value=None,
     )
     mocker.patch(
-        "codeflare_sdk.ray.cluster.build_ray_cluster.update_image", return_value=None
+        "codeflare_sdk.ray.deprecated.cluster.build_ray_cluster.update_image",
+        return_value=None,
     )
 
     resource = build_ray_cluster(cluster)

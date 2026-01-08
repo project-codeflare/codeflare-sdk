@@ -1,16 +1,17 @@
 """
-Tests for the simplified ManagedClusterConfig accelerator_configs behavior.
+Tests for RayCluster accelerator_configs behavior (migrated from RayCluster).
 """
 
 import pytest
-from codeflare_sdk.ray.rayjobs.config import ManagedClusterConfig, DEFAULT_ACCELERATORS
+from codeflare_sdk.ray.raycluster import RayCluster
+from codeflare_sdk.ray.rayclusters.raycluster import DEFAULT_ACCELERATOR_CONFIGS
 from kubernetes.client import V1VolumeMount
 from kubernetes.client import V1Volume, V1SecretVolumeSource
 
 
 def test_accelerator_configs_defaults_to_default_accelerators():
-    """Test that accelerator_configs defaults to DEFAULT_ACCELERATORS.copy()"""
-    config = ManagedClusterConfig()
+    """Test that accelerator_configs defaults to DEFAULT_ACCELERATOR_CONFIGS.copy()"""
+    config = RayCluster()
 
     # Should have all the default accelerators
     assert "nvidia.com/gpu" in config.accelerator_configs
@@ -18,37 +19,38 @@ def test_accelerator_configs_defaults_to_default_accelerators():
     assert "google.com/tpu" in config.accelerator_configs
 
     # Should be a copy, not the same object
-    assert config.accelerator_configs is not DEFAULT_ACCELERATORS
-    assert config.accelerator_configs == DEFAULT_ACCELERATORS
+    assert config.accelerator_configs is not DEFAULT_ACCELERATOR_CONFIGS
+    assert config.accelerator_configs == DEFAULT_ACCELERATOR_CONFIGS
 
 
 def test_accelerator_configs_can_be_overridden():
     """Test that users can override accelerator_configs with custom mappings"""
     custom_configs = {
-        "nvidia.com/gpu": "GPU",
+        "nvidia.com/gpu": "CUSTOM_GPU",
         "custom.com/accelerator": "CUSTOM_ACCELERATOR",
     }
 
-    config = ManagedClusterConfig(accelerator_configs=custom_configs)
+    # Overwrite is required when changing a default accelerator mapping.
+    config = RayCluster(
+        accelerator_configs=custom_configs,
+        overwrite_default_accelerator_configs=True,
+    )
 
-    # Should have custom configs
-    assert config.accelerator_configs == custom_configs
+    # Should include defaults plus the overridden mapping.
     assert "custom.com/accelerator" in config.accelerator_configs
-    assert "nvidia.com/gpu" in config.accelerator_configs
-
-    # Should NOT have other defaults
-    assert "intel.com/gpu" not in config.accelerator_configs
-    assert "google.com/tpu" not in config.accelerator_configs
+    assert config.accelerator_configs["nvidia.com/gpu"] == "CUSTOM_GPU"
+    assert "intel.com/gpu" in config.accelerator_configs
+    assert "google.com/tpu" in config.accelerator_configs
 
 
 def test_accelerator_configs_can_extend_defaults():
     """Test that users can extend defaults by providing additional configs"""
     extended_configs = {
-        **DEFAULT_ACCELERATORS,
+        **DEFAULT_ACCELERATOR_CONFIGS,
         "custom.com/accelerator": "CUSTOM_ACCEL",
     }
 
-    config = ManagedClusterConfig(accelerator_configs=extended_configs)
+    config = RayCluster(accelerator_configs=extended_configs)
 
     # Should have all defaults plus custom
     assert "nvidia.com/gpu" in config.accelerator_configs
@@ -59,7 +61,7 @@ def test_accelerator_configs_can_extend_defaults():
 
 def test_gpu_validation_works_with_defaults():
     """Test that GPU validation works with default accelerator configs"""
-    config = ManagedClusterConfig(head_accelerators={"nvidia.com/gpu": 1})
+    config = RayCluster(head_accelerators={"nvidia.com/gpu": 1})
 
     # Should not raise any errors
     assert config.head_accelerators == {"nvidia.com/gpu": 1}
@@ -67,7 +69,7 @@ def test_gpu_validation_works_with_defaults():
 
 def test_gpu_validation_works_with_custom_configs():
     """Test that GPU validation works with custom accelerator configs"""
-    config = ManagedClusterConfig(
+    config = RayCluster(
         accelerator_configs={"custom.com/accelerator": "CUSTOM_ACCEL"},
         head_accelerators={"custom.com/accelerator": 1},
     )
@@ -79,48 +81,48 @@ def test_gpu_validation_works_with_custom_configs():
 def test_gpu_validation_fails_with_unsupported_accelerator():
     """Test that GPU validation fails with unsupported accelerators"""
     with pytest.raises(
-        ValueError, match="GPU configuration 'unsupported.com/accelerator' not found"
+        ValueError, match="Accelerator 'unsupported.com/accelerator' not found"
     ):
-        ManagedClusterConfig(head_accelerators={"unsupported.com/accelerator": 1})
+        RayCluster(head_accelerators={"unsupported.com/accelerator": 1})
 
 
 def test_config_type_validation_errors(mocker):
     """Test that type validation properly raises errors with incorrect types."""
     # Mock the _is_type method to return False for type checking
     mocker.patch.object(
-        ManagedClusterConfig,
+        RayCluster,
         "_is_type",
         side_effect=lambda value, expected_type: False,  # Always fail type check
     )
 
     # This should raise TypeError during initialization
     with pytest.raises(TypeError, match="Type validation failed"):
-        ManagedClusterConfig()
+        RayCluster()
 
 
 def test_config_is_type_method():
     """Test the _is_type static method for type checking."""
     # Test basic types
-    assert ManagedClusterConfig._is_type("test", str) is True
-    assert ManagedClusterConfig._is_type(123, int) is True
-    assert ManagedClusterConfig._is_type(123, str) is False
+    assert RayCluster._is_type("test", str) is True
+    assert RayCluster._is_type(123, int) is True
+    assert RayCluster._is_type(123, str) is False
 
     # Test optional types (Union with None)
     from typing import Optional
 
-    assert ManagedClusterConfig._is_type(None, Optional[str]) is True
-    assert ManagedClusterConfig._is_type("test", Optional[str]) is True
-    assert ManagedClusterConfig._is_type(123, Optional[str]) is False
+    assert RayCluster._is_type(None, Optional[str]) is True
+    assert RayCluster._is_type("test", Optional[str]) is True
+    assert RayCluster._is_type(123, Optional[str]) is False
 
     # Test dict types
-    assert ManagedClusterConfig._is_type({}, dict) is True
-    assert ManagedClusterConfig._is_type({"key": "value"}, dict) is True
-    assert ManagedClusterConfig._is_type([], dict) is False
+    assert RayCluster._is_type({}, dict) is True
+    assert RayCluster._is_type({"key": "value"}, dict) is True
+    assert RayCluster._is_type([], dict) is False
 
 
 def test_ray_usage_stats_always_disabled_by_default():
     """Test that RAY_USAGE_STATS_ENABLED is always set to '0' by default"""
-    config = ManagedClusterConfig()
+    config = RayCluster()
 
     # Should always have the environment variable set to "0"
     assert "RAY_USAGE_STATS_ENABLED" in config.envs
@@ -130,7 +132,7 @@ def test_ray_usage_stats_always_disabled_by_default():
 def test_ray_usage_stats_overwrites_user_env():
     """Test that RAY_USAGE_STATS_ENABLED is always set to '0' even if user specifies it"""
     # User tries to enable usage stats
-    config = ManagedClusterConfig(envs={"RAY_USAGE_STATS_ENABLED": "1"})
+    config = RayCluster(envs={"RAY_USAGE_STATS_ENABLED": "1"})
 
     # Should still be disabled (our setting takes precedence)
     assert "RAY_USAGE_STATS_ENABLED" in config.envs
@@ -140,7 +142,7 @@ def test_ray_usage_stats_overwrites_user_env():
 def test_ray_usage_stats_overwrites_user_env_string():
     """Test that RAY_USAGE_STATS_ENABLED is always set to '0' even if user specifies it as string"""
     # User tries to enable usage stats with string
-    config = ManagedClusterConfig(envs={"RAY_USAGE_STATS_ENABLED": "true"})
+    config = RayCluster(envs={"RAY_USAGE_STATS_ENABLED": "true"})
 
     # Should still be disabled (our setting takes precedence)
     assert "RAY_USAGE_STATS_ENABLED" in config.envs
@@ -156,7 +158,7 @@ def test_ray_usage_stats_with_other_user_envs():
         "RAY_USAGE_STATS_ENABLED": "1",  # This should be overwritten
     }
 
-    config = ManagedClusterConfig(envs=user_envs)
+    config = RayCluster(envs=user_envs)
 
     # Our setting should take precedence
     assert config.envs["RAY_USAGE_STATS_ENABLED"] == "0"
@@ -172,7 +174,7 @@ def test_ray_usage_stats_with_other_user_envs():
 def test_add_file_volumes_existing_volume_early_return():
     """Test add_file_volumes early return when volume already exists."""
 
-    config = ManagedClusterConfig()
+    config = RayCluster()
 
     # Pre-add a volume with same name
     existing_volume = V1Volume(
@@ -192,7 +194,7 @@ def test_add_file_volumes_existing_volume_early_return():
 def test_add_file_volumes_existing_mount_early_return():
     """Test add_file_volumes early return when mount already exists."""
 
-    config = ManagedClusterConfig()
+    config = RayCluster()
 
     # Pre-add a mount with same name
     existing_mount = V1VolumeMount(name="ray-job-files", mount_path="/existing/path")
@@ -208,7 +210,7 @@ def test_add_file_volumes_existing_mount_early_return():
 
 def test_build_file_secret_spec_labels():
     """Test that build_file_secret_spec creates Secret with correct labels."""
-    config = ManagedClusterConfig()
+    config = RayCluster()
 
     job_name = "test-job"
     namespace = "test-namespace"
@@ -231,14 +233,15 @@ def test_build_file_secret_spec_labels():
 
 
 def test_managed_cluster_config_uses_update_image_for_head(mocker):
-    """Test that ManagedClusterConfig calls update_image() for head container."""
-    # Mock update_image where it's used (in config module), not where it's defined
+    """Test that RayCluster calls update_image() for head container."""
+    # Mock update_image where RayCluster uses it (rayclusters.raycluster).
+    # This ensures we intercept the call made during build_ray_cluster_spec().
     mock_update_image = mocker.patch(
-        "codeflare_sdk.ray.rayjobs.config.update_image",
+        "codeflare_sdk.ray.rayclusters.raycluster.update_image",
         return_value="mocked-image:latest",
     )
 
-    config = ManagedClusterConfig(image="custom-image:v1")
+    config = RayCluster(image="custom-image:v1")
 
     # Build cluster spec (which should call update_image)
     spec = config.build_ray_cluster_spec("test-cluster")
@@ -251,14 +254,15 @@ def test_managed_cluster_config_uses_update_image_for_head(mocker):
 
 
 def test_managed_cluster_config_uses_update_image_for_worker(mocker):
-    """Test that ManagedClusterConfig calls update_image() for worker container."""
-    # Mock update_image where it's used (in config module), not where it's defined
+    """Test that RayCluster calls update_image() for worker container."""
+    # Mock update_image where RayCluster uses it (rayclusters.raycluster).
+    # This keeps the test aligned with the actual import path.
     mock_update_image = mocker.patch(
-        "codeflare_sdk.ray.rayjobs.config.update_image",
+        "codeflare_sdk.ray.rayclusters.raycluster.update_image",
         return_value="mocked-image:latest",
     )
 
-    config = ManagedClusterConfig(image="custom-image:v1")
+    config = RayCluster(image="custom-image:v1")
 
     # Build cluster spec (which should call update_image)
     spec = config.build_ray_cluster_spec("test-cluster")
@@ -272,13 +276,14 @@ def test_managed_cluster_config_uses_update_image_for_worker(mocker):
 
 def test_managed_cluster_config_with_empty_image_uses_update_image(mocker):
     """Test that empty image triggers update_image() to auto-detect."""
-    # Mock update_image where it's used (in config module), not where it's defined
+    # Mock update_image where RayCluster uses it (rayclusters.raycluster).
+    # This verifies auto-detection is triggered during spec generation.
     mock_update_image = mocker.patch(
-        "codeflare_sdk.ray.rayjobs.config.update_image",
+        "codeflare_sdk.ray.rayclusters.raycluster.update_image",
         return_value="auto-detected-image:py3.12",
     )
 
-    config = ManagedClusterConfig(image="")
+    config = RayCluster(image="")
 
     # Build cluster spec
     spec = config.build_ray_cluster_spec("test-cluster")
@@ -296,7 +301,7 @@ def test_managed_cluster_config_with_empty_image_uses_update_image(mocker):
 
 def test_build_ray_cluster_spec_has_enable_in_tree_autoscaling_false():
     """Test that build_ray_cluster_spec sets enableInTreeAutoscaling to False."""
-    config = ManagedClusterConfig()
+    config = RayCluster()
 
     spec = config.build_ray_cluster_spec("test-cluster")
 
@@ -307,7 +312,7 @@ def test_build_ray_cluster_spec_has_enable_in_tree_autoscaling_false():
 
 def test_build_ray_cluster_spec_autoscaling_disabled_for_kueue():
     """Test that autoscaling is explicitly disabled for Kueue-managed jobs."""
-    config = ManagedClusterConfig(num_workers=3)
+    config = RayCluster(num_workers=3)
 
     spec = config.build_ray_cluster_spec("kueue-cluster")
 
@@ -322,9 +327,9 @@ def test_build_ray_cluster_spec_autoscaling_disabled_for_kueue():
 
 
 def test_managed_cluster_config_default_image_integration():
-    """Test that ManagedClusterConfig works with default images (integration test)."""
+    """Test that RayCluster works with default images (integration test)."""
     # Create config without specifying an image (should auto-detect based on Python version)
-    config = ManagedClusterConfig()
+    config = RayCluster()
 
     # Build cluster spec
     spec = config.build_ray_cluster_spec("test-cluster")

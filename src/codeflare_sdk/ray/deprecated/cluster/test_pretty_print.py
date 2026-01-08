@@ -12,22 +12,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from codeflare_sdk.ray.cluster.pretty_print import (
+from .pretty_print import (
     print_cluster_status,
     print_clusters,
     print_no_resources_found,
 )
-from codeflare_sdk.ray.cluster.status import (
-    RayCluster,
+from .status import (
+    RayClusterInfo,
     RayClusterStatus,
     CodeFlareClusterStatus,
 )
-from codeflare_sdk.ray.cluster.cluster import (
+from .cluster import (
     Cluster,
     ClusterConfiguration,
     _copy_to_ray,
 )
-from codeflare_sdk.common.utils.unit_test_support import get_local_queue
+from ....common.deprecated.utils.unit_test_support import get_local_queue
 
 
 def test_print_no_resources(capsys):
@@ -49,7 +49,7 @@ def test_print_no_resources(capsys):
 
 def test_ray_details(mocker, capsys):
     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
-    ray1 = RayCluster(
+    ray1 = RayClusterInfo(
         name="raytest1",
         status=RayClusterStatus.READY,
         num_workers=1,
@@ -65,11 +65,11 @@ def test_ray_details(mocker, capsys):
         head_mem_limits=8,
     )
     mocker.patch(
-        "codeflare_sdk.ray.cluster.cluster.Cluster.status",
+        "codeflare_sdk.ray.deprecated.cluster.cluster.Cluster.status",
         return_value=(False, CodeFlareClusterStatus.UNKNOWN),
     )
     mocker.patch(
-        "codeflare_sdk.ray.cluster.cluster.Cluster.cluster_dashboard_uri",
+        "codeflare_sdk.ray.deprecated.cluster.cluster.Cluster.cluster_dashboard_uri",
         return_value="",
     )
     mocker.patch(

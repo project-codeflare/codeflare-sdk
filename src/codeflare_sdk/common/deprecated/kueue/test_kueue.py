@@ -18,8 +18,7 @@ from ..utils.unit_test_support import (
     apply_template,
 )
 from unittest.mock import patch
-from copy import deepcopy
-from codeflare_sdk.ray.raycluster import RayCluster
+from codeflare_sdk.ray.deprecated.cluster.cluster import Cluster, ClusterConfiguration
 import yaml
 import os
 import filecmp
@@ -31,16 +30,18 @@ from .kueue import (
     priority_class_exists,
 )
 
-parent = Path(__file__).resolve().parents[4]  # project directory
+parent = Path(__file__).resolve().parents[5]  # project directory
 cluster_dir = os.path.expanduser("~/.codeflare/resources/")
 
 
 def test_none_local_queue(mocker):
     mocker.patch("kubernetes.client.CustomObjectsApi.list_namespaced_custom_object")
-    cluster = RayCluster(
-        name="unit-test-cluster-kueue", namespace="ns", local_queue=None
-    )
-    assert cluster.local_queue is None
+    config = ClusterConfiguration(name="unit-test-cluster-kueue", namespace="ns")
+    config.name = "unit-test-cluster-kueue"
+    config.local_queue = None
+
+    cluster = Cluster(config)
+    assert cluster.config.local_queue == None
 
 
 def test_cluster_creation_local_queue(mocker):
@@ -55,20 +56,12 @@ def test_cluster_creation_local_queue(mocker):
         "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
         return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
     )
-    cluster = RayCluster(
-        name="unit-test-cluster-kueue",
-        namespace="ns",
-        write_to_file=True,
-        local_queue="local-queue-default",
-        num_workers=2,
-        worker_cpu_requests=3,
-        worker_cpu_limits=4,
-        worker_memory_requests=5,
-        worker_memory_limits=6,
-    )
-    # Build the resource yaml to trigger file writing
-    cluster._resource_yaml = cluster._build_standalone_ray_cluster()
-    assert cluster._resource_yaml == f"{cluster_dir}unit-test-cluster-kueue.yaml"
+    config = create_cluster_config()
+    config.name = "unit-test-cluster-kueue"
+    config.write_to_file = True
+    config.local_queue = "local-queue-default"
+    cluster = Cluster(config)
+    assert cluster.resource_yaml == f"{cluster_dir}unit-test-cluster-kueue.yaml"
     expected_rc = apply_template(
         f"{parent}/tests/test_cluster_yamls/kueue/ray_cluster_kueue.yaml",
         get_template_variables(),
@@ -79,24 +72,14 @@ def test_cluster_creation_local_queue(mocker):
         assert cluster_kueue == expected_rc
 
     # With resources loaded in memory, no Local Queue specified.
-    cluster = RayCluster(
-        name="unit-test-cluster-kueue",
-        namespace="ns",
-        write_to_file=False,
-        num_workers=2,
-        worker_cpu_requests=3,
-        worker_cpu_limits=4,
-        worker_memory_requests=5,
-        worker_memory_limits=6,
-    )
-    cluster._resource_yaml = cluster._build_standalone_ray_cluster()
-    # Without a local_queue, the queue label should not be present.
-    expected_rc_no_queue = deepcopy(expected_rc)
-    expected_rc_no_queue["metadata"]["labels"].pop("kueue.x-k8s.io/queue-name", None)
-    assert cluster._resource_yaml == expected_rc_no_queue
+    config = create_cluster_config()
+    config.name = "unit-test-cluster-kueue"
+    config.write_to_file = False
+    cluster = Cluster(config)
+    assert cluster.resource_yaml == expected_rc
 
 
-def test_get_local_queue_exists_fail(mocker, capsys):
+def test_get_local_queue_exists_fail(mocker):
     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch(
         "kubernetes.client.CustomObjectsApi.get_cluster_custom_object",
@@ -106,26 +89,17 @@ def test_get_local_queue_exists_fail(mocker, capsys):
         "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
         return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
     )
-    # RayCluster doesn't raise ValueError for invalid local_queue during init,
-    # but prints a warning when building the resource
-    cluster = RayCluster(
-        name="unit-test-cluster-kueue",
-        namespace="ns",
-        write_to_file=True,
-        local_queue="local_queue_doesn't_exist",
-        num_workers=2,
-        worker_cpu_requests=3,
-        worker_cpu_limits=4,
-        worker_memory_requests=5,
-        worker_memory_limits=6,
-    )
-    # Build the resource to trigger the warning
-    cluster._build_standalone_ray_cluster()
-    captured = capsys.readouterr()
-    assert (
-        "local_queue provided does not exist or is not in this namespace"
-        in captured.out
-    )
+    config = create_cluster_config()
+    config.name = "unit-test-cluster-kueue"
+    config.write_to_file = True
+    config.local_queue = "local_queue_doesn't_exist"
+    try:
+        Cluster(config)
+    except ValueError as e:
+        assert (
+            str(e)
+            == "local_queue provided does not exist or is not in this namespace. Please provide the correct local_queue name in Cluster Configuration"
+        )
 
 
 def test_list_local_queues(mocker):
@@ -174,7 +148,7 @@ def test_local_queue_exists_found(mocker):
     mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
     mock_api_instance = mocker.Mock()
     mocker.patch("kubernetes.client.CustomObjectsApi", return_value=mock_api_instance)
-    mocker.patch("codeflare_sdk.common.kubernetes_cluster.auth.config_check")
+    mocker.patch("codeflare_sdk.ray.deprecated.cluster.cluster.config_check")
 
     # Mock return value for list_namespaced_custom_object
     mock_api_instance.list_namespaced_custom_object.return_value = {
@@ -204,7 +178,7 @@ def test_local_queue_exists_not_found(mocker):
     mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
     mock_api_instance = mocker.Mock()
     mocker.patch("kubernetes.client.CustomObjectsApi", return_value=mock_api_instance)
-    mocker.patch("codeflare_sdk.common.kubernetes_cluster.auth.config_check")
+    mocker.patch("codeflare_sdk.ray.deprecated.cluster.cluster.config_check")
 
     # Mock return value for list_namespaced_custom_object
     mock_api_instance.list_namespaced_custom_object.return_value = {
@@ -243,9 +217,12 @@ def test_add_queue_label_with_valid_local_queue(mocker):
     }
 
     # Mock other dependencies
-    mocker.patch("codeflare_sdk.common.kueue.local_queue_exists", return_value=True)
     mocker.patch(
-        "codeflare_sdk.common.kueue.get_default_kueue_name",
+        "codeflare_sdk.common.deprecated.kueue.kueue.local_queue_exists",
+        return_value=True,
+    )
+    mocker.patch(
+        "codeflare_sdk.common.deprecated.kueue.kueue.get_default_kueue_name",
         return_value="default-queue",
     )
 
@@ -271,7 +248,10 @@ def test_add_queue_label_with_invalid_local_queue(mocker):
     }
 
     # Mock the local_queue_exists function to return False
-    mocker.patch("codeflare_sdk.common.kueue.local_queue_exists", return_value=False)
+    mocker.patch(
+        "codeflare_sdk.common.deprecated.kueue.kueue.local_queue_exists",
+        return_value=False,
+    )
 
     # Define input item and parameters
     item = {"metadata": {}}

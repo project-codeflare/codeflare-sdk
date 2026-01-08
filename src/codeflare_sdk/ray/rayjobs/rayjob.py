@@ -33,6 +33,7 @@ from codeflare_sdk.common.utils.utils import get_ray_image_for_python_version
 from codeflare_sdk.vendored.python_client.kuberay_job_api import RayjobApi
 from codeflare_sdk.vendored.python_client.kuberay_cluster_api import RayClusterApi
 from codeflare_sdk.ray.rayjobs.config import ManagedClusterConfig
+from codeflare_sdk.ray.raycluster import RayCluster
 from codeflare_sdk.ray.rayjobs.runtime_env import (
     create_file_secret,
     extract_all_local_files,
@@ -66,7 +67,7 @@ class RayJob:
         job_name: str,
         entrypoint: str,
         cluster_name: Optional[str] = None,
-        cluster_config: Optional[ManagedClusterConfig] = None,
+        cluster_config: Optional[Union[ManagedClusterConfig, RayCluster]] = None,
         namespace: Optional[str] = None,
         runtime_env: Optional[Union[RuntimeEnv, Dict[str, Any]]] = None,
         ttl_seconds_after_finished: int = 0,
@@ -81,7 +82,9 @@ class RayJob:
             job_name: The name for the Ray job
             entrypoint: The Python script or command to run (required)
             cluster_name: The name of an existing Ray cluster (optional if cluster_config provided)
-            cluster_config: Configuration for creating a new cluster (optional if cluster_name provided)
+            cluster_config: Configuration for creating a new cluster. Can be:
+                - RayCluster: The new unified cluster configuration (recommended)
+                - ManagedClusterConfig: Legacy configuration (deprecated)
             namespace: The Kubernetes namespace (auto-detected if not specified)
             runtime_env: Ray runtime environment configuration. Can be:
                 - RuntimeEnv object from ray.runtime_env

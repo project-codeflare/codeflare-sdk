@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from codeflare_sdk.common.kubernetes_cluster import (
+# Use deprecated kubernetes_cluster to keep tests scoped to deprecated APIs.
+from codeflare_sdk.common.deprecated.kubernetes_cluster import (
     Authentication,
     KubeConfigFileAuthentication,
     TokenAuthentication,
@@ -23,12 +24,10 @@ import os
 from pathlib import Path
 import pytest
 
-parent = Path(__file__).resolve().parents[4]  # project directory
+parent = Path(__file__).resolve().parents[5]  # project directory
 
 
 def test_token_auth_creation():
-    # Ensure the CA cert env var does not leak from other tests or shell state.
-    os.environ.pop("CF_SDK_CA_CERT_PATH", None)
     token_auth = TokenAuthentication(token="token", server="server")
     assert token_auth.token == "token"
     assert token_auth.server == "server"
@@ -72,8 +71,6 @@ def test_token_auth_login_logout(mocker):
 
 
 def test_token_auth_login_tls(mocker):
-    # Ensure the CA cert env var does not leak from other tests or shell state.
-    os.environ.pop("CF_SDK_CA_CERT_PATH", None)
     mocker.patch.object(client, "ApiClient")
 
     token_auth = TokenAuthentication(
@@ -99,15 +96,17 @@ def test_token_auth_login_tls(mocker):
         skip_tls=False,
     )
     assert token_auth.login() == ("Logged into testserver:6443")
-    # Clean up env var so later tests use a clean environment.
-    os.environ.pop("CF_SDK_CA_CERT_PATH", None)
 
 
 def test_config_check_no_config_file(mocker):
     mocker.patch("os.path.expanduser", return_value="/mock/home/directory")
     mocker.patch("os.path.isfile", return_value=False)
-    mocker.patch("codeflare_sdk.common.kubernetes_cluster.auth.config_path", None)
-    mocker.patch("codeflare_sdk.common.kubernetes_cluster.auth.api_client", None)
+    mocker.patch(
+        "codeflare_sdk.common.deprecated.kubernetes_cluster.auth.config_path", None
+    )
+    mocker.patch(
+        "codeflare_sdk.common.deprecated.kubernetes_cluster.auth.api_client", None
+    )
 
     with pytest.raises(PermissionError):
         config_check()
@@ -118,8 +117,12 @@ def test_config_check_with_incluster_config(mocker):
     mocker.patch("os.path.isfile", return_value=False)
     mocker.patch.dict(os.environ, {"KUBERNETES_PORT": "number"})
     mocker.patch("kubernetes.config.load_incluster_config", side_effect=None)
-    mocker.patch("codeflare_sdk.common.kubernetes_cluster.auth.config_path", None)
-    mocker.patch("codeflare_sdk.common.kubernetes_cluster.auth.api_client", None)
+    mocker.patch(
+        "codeflare_sdk.common.deprecated.kubernetes_cluster.auth.config_path", None
+    )
+    mocker.patch(
+        "codeflare_sdk.common.deprecated.kubernetes_cluster.auth.api_client", None
+    )
 
     result = config_check()
     assert result == None
@@ -129,8 +132,12 @@ def test_config_check_with_existing_config_file(mocker):
     mocker.patch("os.path.expanduser", return_value="/mock/home/directory")
     mocker.patch("os.path.isfile", return_value=True)
     mocker.patch("kubernetes.config.load_kube_config", side_effect=None)
-    mocker.patch("codeflare_sdk.common.kubernetes_cluster.auth.config_path", None)
-    mocker.patch("codeflare_sdk.common.kubernetes_cluster.auth.api_client", None)
+    mocker.patch(
+        "codeflare_sdk.common.deprecated.kubernetes_cluster.auth.config_path", None
+    )
+    mocker.patch(
+        "codeflare_sdk.common.deprecated.kubernetes_cluster.auth.api_client", None
+    )
 
     result = config_check()
     assert result == None
@@ -138,9 +145,12 @@ def test_config_check_with_existing_config_file(mocker):
 
 def test_config_check_with_config_path_and_no_api_client(mocker):
     mocker.patch(
-        "codeflare_sdk.common.kubernetes_cluster.auth.config_path", "/mock/config/path"
+        "codeflare_sdk.common.deprecated.kubernetes_cluster.auth.config_path",
+        "/mock/config/path",
     )
-    mocker.patch("codeflare_sdk.common.kubernetes_cluster.auth.api_client", None)
+    mocker.patch(
+        "codeflare_sdk.common.deprecated.kubernetes_cluster.auth.api_client", None
+    )
     result = config_check()
     assert result == "/mock/config/path"
 

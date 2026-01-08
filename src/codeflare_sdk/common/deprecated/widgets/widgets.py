@@ -27,8 +27,9 @@ import ipywidgets as widgets
 from IPython.display import display, HTML, Javascript
 import pandas as pd
 
-from ...common.utils import get_current_namespace
-from ...ray.rayclusters.status import RayClusterStatus
+from ...utils import get_current_namespace
+from codeflare_sdk.ray.deprecated.cluster.config import ClusterConfiguration
+from codeflare_sdk.ray.deprecated.cluster.status import RayClusterStatus
 from ..kubernetes_cluster import _kube_api_error_handling
 from ..kubernetes_cluster.auth import (
     config_check,
@@ -142,10 +143,7 @@ class RayClusterManagerWidgets:
         """
         _on_list_jobs_button_click handles the event when the View Jobs button is clicked, opening the Ray Jobs Dashboard in a new tab
         """
-        # Local import to avoid circular imports:
-        # - RayCluster imports this widgets module (to optionally show buttons in notebooks)
-        # - This widgets module sometimes needs RayCluster utilities at runtime
-        from codeflare_sdk import RayCluster
+        from codeflare_sdk import Cluster
 
         cluster_name = self.classification_widget.value
 
@@ -153,7 +151,7 @@ class RayClusterManagerWidgets:
         with widgets.Output(), contextlib.redirect_stdout(
             io.StringIO()
         ), contextlib.redirect_stderr(io.StringIO()):
-            cluster = RayCluster(name=cluster_name, namespace=self.namespace)
+            cluster = Cluster(ClusterConfiguration(cluster_name, self.namespace))
         dashboard_url = cluster.cluster_dashboard_uri()
 
         with self.user_output:
@@ -168,7 +166,7 @@ class RayClusterManagerWidgets:
         """
         _on_ray_dashboard_button_click handles the event when the Open Ray Dashboard button is clicked, opening the Ray Dashboard in a new tab
         """
-        from codeflare_sdk import RayCluster
+        from codeflare_sdk import Cluster
 
         cluster_name = self.classification_widget.value
 
@@ -176,7 +174,7 @@ class RayClusterManagerWidgets:
         with widgets.Output(), contextlib.redirect_stdout(
             io.StringIO()
         ), contextlib.redirect_stderr(io.StringIO()):
-            cluster = RayCluster(name=cluster_name, namespace=self.namespace)
+            cluster = Cluster(ClusterConfiguration(cluster_name, self.namespace))
         dashboard_url = cluster.cluster_dashboard_uri()
 
         with self.user_output:
@@ -274,7 +272,7 @@ class RayClusterManagerWidgets:
 
 
 def cluster_apply_down_buttons(
-    cluster: "codeflare_sdk.ray.rayclusters.raycluster.RayCluster",
+    cluster: "codeflare_sdk.ray.deprecated.cluster.cluster.Cluster",
 ) -> widgets.Button:
     """
     The cluster_apply_down_buttons function returns two button widgets for a create and delete button.
@@ -418,8 +416,7 @@ def _fetch_cluster_data(namespace):
     """
     _fetch_cluster_data function fetches all clusters and their spec in a given namespace and returns a DataFrame.
     """
-    # Local import to avoid circular imports during module initialization.
-    from codeflare_sdk.ray.raycluster import list_all_clusters
+    from codeflare_sdk.ray.deprecated.cluster.cluster import list_all_clusters
 
     rayclusters = list_all_clusters(namespace, False)
     if not rayclusters:

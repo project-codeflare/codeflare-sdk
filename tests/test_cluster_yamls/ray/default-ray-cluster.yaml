@@ -51,10 +51,10 @@ spec:
             value: '0'
           resources:
             limits:
-              cpu: 2
+              cpu: '2'
               memory: 8G
             requests:
-              cpu: 1
+              cpu: '1'
               memory: 5G
           volumeMounts:
           - mountPath: /etc/pki/tls/certs/odh-trusted-ca-bundle.crt
@@ -109,10 +109,10 @@ spec:
           name: machine-learning
           resources:
             limits:
-              cpu: 1
+              cpu: '1'
               memory: 6G
             requests:
-              cpu: 1
+              cpu: '1'
               memory: 3G
           env:
           - name: RAY_USAGE_STATS_ENABLED

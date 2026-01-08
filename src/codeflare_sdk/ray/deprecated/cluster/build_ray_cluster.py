@@ -17,11 +17,13 @@
     (in the cluster sub-module) for RayCluster generation.
 """
 from typing import List, Union, Tuple, Dict
-from ...common import _kube_api_error_handling
-from ...common.kubernetes_cluster import get_api_client, config_check
+
+# Use deprecated common utilities to keep deprecated cluster self-contained.
+from ....common.deprecated import _kube_api_error_handling
+from ....common.deprecated.kubernetes_cluster import get_api_client, config_check
 from kubernetes.client.exceptions import ApiException
-from ...common.utils.constants import RAY_VERSION
-from ...common.utils.utils import update_image
+from ....common.deprecated.utils.constants import RAY_VERSION
+from ....common.deprecated.utils.utils import update_image
 import codeflare_sdk
 import os
 
@@ -51,7 +53,7 @@ import sys
 import warnings
 import json
 
-from codeflare_sdk.common.utils import constants
+from codeflare_sdk.common.deprecated.utils import constants
 
 FORBIDDEN_CUSTOM_RESOURCE_TYPES = ["GPU", "CPU", "memory"]
 VOLUME_MOUNTS = [
@@ -385,6 +387,11 @@ def get_resources(
     """
     The get_resources() function generates a V1ResourceRequirements object for cpu/memory request/limits and GPU resources
     """
+    # Normalize CPU values to strings for consistent Kubernetes resource quantities.
+    if isinstance(cpu_requests, (int, float)):
+        cpu_requests = str(cpu_requests)
+    if isinstance(cpu_limits, (int, float)):
+        cpu_limits = str(cpu_limits)
     resource_requirements = V1ResourceRequirements(
         requests={"cpu": cpu_requests, "memory": memory_requests},
         limits={"cpu": cpu_limits, "memory": memory_limits},

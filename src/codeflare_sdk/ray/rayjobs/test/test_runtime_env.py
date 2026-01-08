@@ -21,8 +21,7 @@ from codeflare_sdk.common.utils.constants import MOUNT_PATH, RAY_VERSION
 from ray.runtime_env import RuntimeEnv
 
 from codeflare_sdk.ray.rayjobs.rayjob import RayJob
-from codeflare_sdk.ray.cluster.config import ClusterConfiguration
-from codeflare_sdk.ray.rayjobs.config import ManagedClusterConfig
+from codeflare_sdk.ray.raycluster import RayCluster
 from kubernetes.client import (
     V1Volume,
     V1VolumeMount,
@@ -84,7 +83,7 @@ def test_build_file_secret_spec():
     """
     Test building Secret specification for files.
     """
-    config = ManagedClusterConfig()
+    config = RayCluster()
     files = {"main.py": "print('main')", "helper.py": "print('helper')"}
 
     spec = config.build_file_secret_spec(
@@ -103,7 +102,7 @@ def test_build_file_volume_specs():
     """
     Test building volume and mount specifications for files.
     """
-    config = ManagedClusterConfig()
+    config = RayCluster()
 
     volume_spec, mount_spec = config.build_file_volume_specs(
         secret_name="test-files", mount_path="/custom/path"
@@ -120,7 +119,7 @@ def test_add_file_volumes():
     """
     Test adding file volumes to cluster configuration.
     """
-    config = ManagedClusterConfig()
+    config = RayCluster()
 
     # Initially no volumes
     assert len(config.volumes) == 0
@@ -145,7 +144,7 @@ def test_add_file_volumes_duplicate_prevention():
     """
     Test that adding file volumes twice doesn't create duplicates.
     """
-    config = ManagedClusterConfig()
+    config = RayCluster()
 
     # Add volumes twice
     config.add_file_volumes(secret_name="test-files")
@@ -312,7 +311,7 @@ def test_file_handling_kubernetes_best_practice_flow(mocker, tmp_path):
     mock_create_secret = mocker.patch(
         "codeflare_sdk.ray.rayjobs.rayjob.create_file_secret"
     )
-    mock_add_volumes = mocker.patch.object(ManagedClusterConfig, "add_file_volumes")
+    mock_add_volumes = mocker.patch.object(RayCluster, "add_file_volumes")
 
     # RayClusterApi is already mocked by auto_mock_setup
 
@@ -344,7 +343,7 @@ def test_file_handling_kubernetes_best_practice_flow(mocker, tmp_path):
     try:
         os.chdir(tmp_path)
 
-        cluster_config = ManagedClusterConfig()
+        cluster_config = RayCluster()
 
         rayjob = RayJob(
             job_name="test-job",
@@ -392,7 +391,7 @@ def test_rayjob_submit_with_files_new_cluster(auto_mock_setup, tmp_path):
     test_file = tmp_path / "test.py"
     test_file.write_text("print('Hello from the test file!')")
 
-    cluster_config = ManagedClusterConfig()
+    cluster_config = RayCluster()
 
     original_cwd = os.getcwd()
     os.chdir(tmp_path)
@@ -464,7 +463,7 @@ def test_add_file_volumes_existing_volume_skip():
     """
     from kubernetes.client import V1SecretVolumeSource
 
-    config = ManagedClusterConfig()
+    config = RayCluster()
 
     # Pre-add a volume with same name
     existing_volume = V1Volume(
@@ -482,7 +481,7 @@ def test_add_file_volumes_existing_mount_skip():
     """
     Test add_file_volumes skips when mount already exists (missing coverage).
     """
-    config = ManagedClusterConfig()
+    config = RayCluster()
 
     # Pre-add a mount with same name
     existing_mount = V1VolumeMount(name="ray-job-files", mount_path="/existing/path")

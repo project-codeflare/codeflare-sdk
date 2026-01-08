@@ -12,21 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from codeflare_sdk.common.utils.unit_test_support import (
+from codeflare_sdk.common.deprecated.utils.unit_test_support import (
     apply_template,
     get_example_extended_storage_opts,
     create_cluster_wrong_type,
     create_cluster_all_config_params,
     get_template_variables,
 )
-from codeflare_sdk.ray.cluster.cluster import ClusterConfiguration, Cluster
+from .cluster import ClusterConfiguration, Cluster
 from pathlib import Path
 import filecmp
 import pytest
 import os
 import yaml
 
-parent = Path(__file__).resolve().parents[4]  # project directory
+parent = Path(__file__).resolve().parents[5]  # project directory
 expected_clusters_dir = f"{parent}/tests/test_cluster_yamls"
 cluster_dir = os.path.expanduser("~/.codeflare/resources/")
 
@@ -48,7 +48,7 @@ def test_default_cluster_creation(mocker):
 
 @pytest.mark.filterwarnings("ignore::UserWarning")
 def test_config_creation_all_parameters(mocker):
-    from codeflare_sdk.ray.cluster.config import DEFAULT_RESOURCE_MAPPING
+    from .config import DEFAULT_RESOURCE_MAPPING
 
     expected_extended_resource_mapping = DEFAULT_RESOURCE_MAPPING
     expected_extended_resource_mapping.update({"example.com/gpu": "GPU"})

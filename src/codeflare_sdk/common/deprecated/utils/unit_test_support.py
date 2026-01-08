@@ -14,9 +14,14 @@
 
 import string
 import sys
-from codeflare_sdk.common.utils import constants
-from codeflare_sdk.common.utils.utils import get_ray_image_for_python_version
-from codeflare_sdk.ray.raycluster import RayCluster
+
+# Use deprecated utils/constants to keep deprecated test helpers aligned.
+from codeflare_sdk.common.deprecated.utils import constants
+from codeflare_sdk.common.deprecated.utils.utils import get_ray_image_for_python_version
+from codeflare_sdk.ray.deprecated.cluster.cluster import (
+    Cluster,
+    ClusterConfiguration,
+)
 import os
 import yaml
 from pathlib import Path
@@ -24,12 +29,12 @@ from kubernetes import client
 from kubernetes.client import V1Toleration
 from unittest.mock import patch
 
-parent = Path(__file__).resolve().parents[4]  # project directory
+parent = Path(__file__).resolve().parents[5]  # project directory
 cluster_dir = os.path.expanduser("~/.codeflare/resources/")
 
 
 def create_cluster_config(num_workers=2, write_to_file=False):
-    return RayCluster(
+    config = ClusterConfiguration(
         name="unit-test-cluster",
         namespace="ns",
         num_workers=num_workers,
@@ -39,54 +44,37 @@ def create_cluster_config(num_workers=2, write_to_file=False):
         worker_memory_limits=6,
         write_to_file=write_to_file,
     )
+    return config
 
 
-def create_cluster(num_workers=2, write_to_file=False):
-    return create_cluster_config(num_workers, write_to_file)
+def create_cluster(mocker, num_workers=2, write_to_file=False):
+    cluster = Cluster(create_cluster_config(num_workers, write_to_file))
+    return cluster
 
 
 def patch_cluster_with_dynamic_client(mocker, cluster, dynamic_client=None):
-    """
-    Patch out Kubernetes client creation for unit tests.
-
-    This helper is shared by multiple test modules. It avoids real cluster I/O by:
-    - Stubbing _throw_for_no_raycluster to skip CRD validation
-    - Stubbing down() for tests that only care about apply() / YAML generation
-    - Stubbing config_check() for environments without kubeconfig
-    """
-    # RayCluster validates that RayCluster CRD exists - skip in tests
-    if hasattr(cluster, "_throw_for_no_raycluster"):
-        mocker.patch.object(cluster, "_throw_for_no_raycluster", return_value=None)
-
-    # Some tests use this helper for apply-only flows and want teardown to be a no-op.
-    if hasattr(cluster, "down"):
-        mocker.patch.object(cluster, "down", return_value=None)
-
-    # RayCluster uses a module-level config_check() function.
-    # Patch it here to keep tests hermetic.
-    mocker.patch(
-        "codeflare_sdk.common.kubernetes_cluster.auth.config_check",
-        return_value=None,
-    )
+    mocker.patch.object(cluster, "get_dynamic_client", return_value=dynamic_client)
+    mocker.patch.object(cluster, "down", return_value=None)
+    mocker.patch.object(cluster, "config_check", return_value=None)
+    # mocker.patch.object(cluster, "_throw_for_no_raycluster", return_value=None)
 
 
 def create_cluster_wrong_type():
-    # Intentionally pass wrong types to validate RayCluster's type checking.
-    # The expected behavior is a multi-line TypeError (see tests).
-    return RayCluster(
+    config = ClusterConfiguration(
         name="unit-test-cluster",
         namespace="ns",
-        num_workers=True,  # wrong: should be int (bool is rejected)
-        worker_cpu_requests=[],  # wrong: should be int|str
+        num_workers=True,
+        worker_cpu_requests=[],
         worker_cpu_limits=4,
         worker_memory_requests=5,
         worker_memory_limits=6,
-        worker_accelerators={"nvidia.com/gpu": 7},
+        worker_extended_resource_requests={"nvidia.com/gpu": 7},
         image_pull_secrets=["unit-test-pull-secret"],
         image=constants.CUDA_PY312_RUNTIME_IMAGE,
         write_to_file=True,
-        labels={1: 1},  # wrong: should be Dict[str, str]
+        labels={1: 1},
     )
+    return config
 
 
 def get_package_and_version(package_name, requirements_file_path):
@@ -412,21 +400,21 @@ def mock_server_side_apply(resource, body=None, name=None, namespace=None, **kwa
 
 
 @patch.dict("os.environ", {"NB_PREFIX": "test-prefix"})
-def create_cluster_all_config_params(mocker, cluster_name) -> RayCluster:
+def create_cluster_all_config_params(mocker, cluster_name) -> Cluster:
     mocker.patch(
         "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
         return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
     )
     volumes, volume_mounts = get_example_extended_storage_opts()
 
-    return RayCluster(
+    config = ClusterConfiguration(
         name=cluster_name,
         namespace="ns",
         head_cpu_requests=4,
         head_cpu_limits=8,
         head_memory_requests=12,
         head_memory_limits=16,
-        head_accelerators={"nvidia.com/gpu": 1, "intel.com/gpu": 2},
+        head_extended_resource_requests={"nvidia.com/gpu": 1, "intel.com/gpu": 2},
         head_tolerations=[
             V1Toleration(
                 key="key1", operator="Equal", value="value1", effect="NoSchedule"
@@ -448,9 +436,9 @@ def create_cluster_all_config_params(mocker, cluster_name) -> RayCluster:
         write_to_file=True,
         verify_tls=True,
         labels={"key1": "value1", "key2": "value2"},
-        worker_accelerators={"nvidia.com/gpu": 1},
-        accelerator_configs={"example.com/gpu": "GPU", "intel.com/gpu": "TPU"},
-        overwrite_default_accelerator_configs=True,
+        worker_extended_resource_requests={"nvidia.com/gpu": 1},
+        extended_resource_mapping={"example.com/gpu": "GPU", "intel.com/gpu": "TPU"},
+        overwrite_default_resource_mapping=True,
         local_queue="local-queue-default",
         annotations={
             "key1": "value1",
@@ -459,6 +447,7 @@ def create_cluster_all_config_params(mocker, cluster_name) -> RayCluster:
         volumes=volumes,
         volume_mounts=volume_mounts,
     )
+    return Cluster(config)
 
 
 def get_example_extended_storage_opts():

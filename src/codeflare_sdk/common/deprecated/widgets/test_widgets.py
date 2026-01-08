@@ -12,16 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import codeflare_sdk.common.widgets.widgets as cf_widgets
+import codeflare_sdk.common.deprecated.widgets.widgets as cf_widgets
 import pandas as pd
 from unittest.mock import MagicMock, patch
-from ..utils.unit_test_support import get_local_queue, create_cluster_config
-from codeflare_sdk.ray.raycluster import RayCluster
-from codeflare_sdk.ray.rayclusters.status import RayClusterInfo
-
-# Import RayClusterStatus from the same location as the widgets module uses
-# to ensure enum values match during comparison
-from codeflare_sdk.ray.rayclusters.status import RayClusterStatus
+from codeflare_sdk.common.deprecated.utils.unit_test_support import (
+    get_local_queue,
+    create_cluster_config,
+)
+from codeflare_sdk.ray.deprecated.cluster.cluster import Cluster
+from codeflare_sdk.ray.deprecated.cluster.status import (
+    RayClusterInfo,
+    RayClusterStatus,
+)
 import pytest
 from kubernetes import client
 
@@ -39,7 +41,7 @@ def test_cluster_apply_down_buttons(mocker):
         "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
         return_value=get_local_queue("kueue.x-k8s.io", "v1beta1", "ns", "localqueues"),
     )
-    cluster = create_cluster_config()
+    cluster = Cluster(create_cluster_config())
 
     with patch("ipywidgets.Button") as MockButton, patch(
         "ipywidgets.Checkbox"
@@ -105,16 +107,18 @@ def test_view_clusters(mocker, capsys):
         assert result is None
 
     # Prepare to run view_clusters when notebook environment is detected
-    mocker.patch("codeflare_sdk.common.widgets.widgets.is_notebook", return_value=True)
+    mocker.patch(
+        "codeflare_sdk.common.deprecated.widgets.widgets.is_notebook", return_value=True
+    )
     mock_get_current_namespace = mocker.patch(
-        "codeflare_sdk.common.widgets.widgets.get_current_namespace",
+        "codeflare_sdk.common.deprecated.widgets.widgets.get_current_namespace",
         return_value="default",
     )
     namespace = mock_get_current_namespace.return_value
 
     # Assert the function returns None when no clusters are found
     mock_fetch_cluster_data = mocker.patch(
-        "codeflare_sdk.common.widgets.widgets._fetch_cluster_data",
+        "codeflare_sdk.common.deprecated.widgets.widgets._fetch_cluster_data",
         return_value=pd.DataFrame(),
     )
     result = cf_widgets.view_clusters()
@@ -125,7 +129,7 @@ def test_view_clusters(mocker, capsys):
 
     # Prepare to run view_clusters with a test DataFrame
     mock_fetch_cluster_data = mocker.patch(
-        "codeflare_sdk.common.widgets.widgets._fetch_cluster_data",
+        "codeflare_sdk.common.deprecated.widgets.widgets._fetch_cluster_data",
         return_value=pd.DataFrame(
             {
                 "Name": ["test-cluster"],
@@ -147,7 +151,7 @@ def test_view_clusters(mocker, capsys):
     )
     # Patch the constructor of RayClusterManagerWidgets to return our initialized instance
     mock_constructor = mocker.patch(
-        "codeflare_sdk.common.widgets.widgets.RayClusterManagerWidgets",
+        "codeflare_sdk.common.deprecated.widgets.widgets.RayClusterManagerWidgets",
         return_value=ray_cluster_manager_instance,
     )
 
@@ -226,15 +230,15 @@ def test_ray_cluster_manager_widgets_init(mocker, capsys):
         }
     )
     mock_fetch_cluster_data = mocker.patch(
-        "codeflare_sdk.common.widgets.widgets._fetch_cluster_data",
+        "codeflare_sdk.common.deprecated.widgets.widgets._fetch_cluster_data",
         return_value=test_ray_clusters_df,
     )
     mocker.patch(
-        "codeflare_sdk.common.utils.get_current_namespace",
+        "codeflare_sdk.common.deprecated.utils.get_current_namespace",
         return_value=namespace,
     )
     mock_delete_cluster = mocker.patch(
-        "codeflare_sdk.common.widgets.widgets._delete_cluster"
+        "codeflare_sdk.common.deprecated.widgets.widgets._delete_cluster"
     )
 
     # # Mock ToggleButtons
@@ -297,11 +301,13 @@ def test_ray_cluster_manager_widgets_init(mocker, capsys):
     mock_ray_dashboard_button = MagicMock()
     mock_refresh_dataframe_button = MagicMock()
 
-    mock_javascript = mocker.patch("codeflare_sdk.common.widgets.widgets.Javascript")
+    mock_javascript = mocker.patch(
+        "codeflare_sdk.common.deprecated.widgets.widgets.Javascript"
+    )
     ray_cluster_manager_instance.url_output = MagicMock()
 
     mock_dashboard_uri = mocker.patch(
-        "codeflare_sdk.ray.rayclusters.raycluster.RayCluster.cluster_dashboard_uri",
+        "codeflare_sdk.ray.deprecated.cluster.cluster.Cluster.cluster_dashboard_uri",
         return_value="https://ray-dashboard-test-cluster-1-ns.apps.cluster.awsroute.org",
     )
 
@@ -362,7 +368,15 @@ def test_ray_cluster_manager_widgets_init(mocker, capsys):
 
 
 def test_fetch_cluster_data(mocker):
-    # Create mock RayClusterInfo objects for use in tests
+    # Return empty dataframe when no clusters are found
+    mocker.patch(
+        "codeflare_sdk.ray.deprecated.cluster.cluster.list_all_clusters",
+        return_value=[],
+    )
+    df = cf_widgets._fetch_cluster_data(namespace="default")
+    assert df.empty
+
+    # Create mock RayClusterInfo objects
     mock_raycluster1 = MagicMock(spec=RayClusterInfo)
     mock_raycluster1.name = "test-cluster-1"
     mock_raycluster1.namespace = "default"
@@ -377,6 +391,8 @@ def test_fetch_cluster_data(mocker):
     mock_raycluster1.worker_cpu_limits = "2000m"
     mock_raycluster1.worker_mem_requests = "2Gi"
     mock_raycluster1.worker_mem_limits = "4Gi"
+    mock_raycluster1.status = MagicMock()
+    mock_raycluster1.status.name = "READY"
     mock_raycluster1.status = RayClusterStatus.READY
 
     mock_raycluster2 = MagicMock(spec=RayClusterInfo)
@@ -393,24 +409,16 @@ def test_fetch_cluster_data(mocker):
     mock_raycluster2.worker_cpu_limits = None
     mock_raycluster2.worker_mem_requests = None
     mock_raycluster2.worker_mem_limits = None
+    mock_raycluster2.status = MagicMock()
+    mock_raycluster2.status.name = "SUSPENDED"
     mock_raycluster2.status = RayClusterStatus.SUSPENDED
 
-    # Mock list_all_clusters - widgets imports from codeflare_sdk.ray.raycluster
-    # Use side_effect to return different values on successive calls
-    mock_list_all_clusters = mocker.patch(
-        "codeflare_sdk.ray.raycluster.list_all_clusters",
-        side_effect=[
-            [],  # First call returns empty list
-            [mock_raycluster1, mock_raycluster2],  # Second call returns clusters
-        ],
-    )
-
-    # Test 1: Return empty dataframe when no clusters are found
-    df = cf_widgets._fetch_cluster_data(namespace="default")
-    assert df.empty
-
-    # Test 2: Call with mock clusters
-    df = cf_widgets._fetch_cluster_data(namespace="default")
+    with patch(
+        "codeflare_sdk.ray.deprecated.cluster.cluster.list_all_clusters",
+        return_value=[mock_raycluster1, mock_raycluster2],
+    ):
+        # Call the function under test
+        df = cf_widgets._fetch_cluster_data(namespace="default")
 
     # Expected DataFrame
     expected_data = {
