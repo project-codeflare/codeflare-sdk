@@ -331,3 +331,26 @@ def get_api_client() -> client.ApiClient:
     to_return = client.ApiClient()
     _client_with_cert(to_return)
     return to_return
+
+
+def set_api_client(new_client: client.ApiClient):
+    """
+    Set a custom Kubernetes API client for the SDK to use.
+
+    This is useful when you want to use kube-authkit or other authentication
+    methods to create an API client and register it with the CodeFlare SDK.
+
+    Example:
+        >>> from kube_authkit import get_k8s_client, AuthConfig
+        >>> from codeflare_sdk.common.kubernetes_cluster.auth import set_api_client
+        >>>
+        >>> auth_config = AuthConfig(k8s_api_host="...", openshift_token="...")
+        >>> api_client = get_k8s_client(config=auth_config)
+        >>> set_api_client(api_client)
+
+    Args:
+        new_client: The Kubernetes API client instance to use.
+    """
+    global api_client, config_path
+    api_client = new_client
+    config_path = "custom"  # Mark as configured with custom client

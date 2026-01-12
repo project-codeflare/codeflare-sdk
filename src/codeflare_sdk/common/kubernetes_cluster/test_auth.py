@@ -17,6 +17,7 @@ from codeflare_sdk.common.kubernetes_cluster import (
     KubeConfigFileAuthentication,
     TokenAuthentication,
     config_check,
+    set_api_client,
 )
 from kubernetes import client, config
 import os
@@ -285,3 +286,18 @@ def test_config_check_with_kube_authkit(mocker):
     mock_auth_config.assert_called_once_with(method="auto")
     # Should call get_k8s_client
     assert mock_get_k8s_client.called
+
+
+def test_set_api_client():
+    """Test set_api_client registers a custom API client."""
+    import codeflare_sdk.common.kubernetes_cluster.auth as auth_module
+
+    # Create a mock client
+    mock_client = client.ApiClient()
+
+    # Set it using the new function
+    set_api_client(mock_client)
+
+    # Verify it was registered
+    assert auth_module.api_client is mock_client
+    assert auth_module.config_path == "custom"

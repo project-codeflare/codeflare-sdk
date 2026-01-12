@@ -5,6 +5,7 @@ from .auth import (
     KubeConfigFileAuthentication,
     config_check,
     get_api_client,
+    set_api_client,
 )
 
 # Re-export kube-authkit for convenience
@@ -19,6 +20,7 @@ try:
         "KubeConfigFileAuthentication",
         "config_check",
         "get_api_client",
+        "set_api_client",
         # New - kube-authkit
         "AuthConfig",
         "get_k8s_client",
@@ -32,6 +34,7 @@ except ImportError:
         "KubeConfigFileAuthentication",
         "config_check",
         "get_api_client",
+        "set_api_client",
     ]
 
 from .kube_api_helpers import _kube_api_error_handling

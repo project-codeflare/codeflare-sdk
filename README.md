@@ -32,10 +32,14 @@ CodeFlare SDK uses [kube-authkit](https://github.com/opendatahub-io/kube-authkit
 
 ```python
 from kube_authkit import get_k8s_client, AuthConfig
-from codeflare_sdk import Cluster, ClusterConfiguration
+from codeflare_sdk import set_api_client, Cluster, ClusterConfiguration
 
-# Option 1: Auto-detect authentication (recommended)
-api_client = get_k8s_client()
+# Option 1: Auto-detect authentication (recommended - no explicit auth needed!)
+cluster = Cluster(ClusterConfiguration(
+    name='my-cluster',
+    num_workers=2,
+))
+cluster.apply()
 
 # Option 2: OIDC authentication
 auth_config = AuthConfig(
@@ -45,20 +49,22 @@ auth_config = AuthConfig(
     use_device_flow=True
 )
 api_client = get_k8s_client(config=auth_config)
+set_api_client(api_client)  # Register with CodeFlare SDK
 
-# Option 3: OpenShift OAuth
-auth_config = AuthConfig(method="openshift")
+# Option 3: OpenShift OAuth with token
+auth_config = AuthConfig(
+    k8s_api_host="https://api.example.com:6443",
+    openshift_token="your-token"
+)
 api_client = get_k8s_client(config=auth_config)
+set_api_client(api_client)  # Register with CodeFlare SDK
 
-# Use with CodeFlare SDK
+# Now create your cluster
 cluster = Cluster(ClusterConfiguration(
     name='my-cluster',
     num_workers=2,
 ))
 cluster.apply()
-```
-
-**Note:** For direct token authentication, see the [Migration Guide](./docs/auth_migration_guide.md).
 ```
 
 ### Migration from Legacy Authentication
@@ -75,19 +81,20 @@ auth.login()
 
 **New recommended approach:**
 ```python
-# ✅ Recommended - Auto-detection
-from kube_authkit import get_k8s_client
-api_client = get_k8s_client()
+# ✅ Recommended - Auto-detection (no explicit auth needed!)
+from codeflare_sdk import Cluster, ClusterConfiguration
+cluster = Cluster(ClusterConfiguration(name="my-cluster"))
 
-# ✅ For OIDC or OpenShift OAuth
+# ✅ For OIDC or OpenShift OAuth with token
 from kube_authkit import AuthConfig, get_k8s_client
-auth_config = AuthConfig(method="oidc", oidc_issuer="...", client_id="...")
-api_client = get_k8s_client(config=auth_config)
+from codeflare_sdk import set_api_client
 
-# ⚠️ For token-based auth, continue using TokenAuthentication (deprecated)
-from codeflare_sdk import TokenAuthentication
-auth = TokenAuthentication(token="...", server="...")
-auth.login()
+auth_config = AuthConfig(
+    k8s_api_host="https://api.example.com:6443",
+    openshift_token="your-token"
+)
+api_client = get_k8s_client(config=auth_config)
+set_api_client(api_client)  # Register with CodeFlare SDK
 ```
 
 ## Development

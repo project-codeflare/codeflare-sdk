@@ -42,12 +42,30 @@ auth.logout()
 ### After (Option 1 - Auto-Detection, Recommended)
 
 ```python
-from kube_authkit import get_k8s_client
+from codeflare_sdk import Cluster, ClusterConfiguration
 
-# Auto-detect authentication (kubeconfig or in-cluster)
-api_client = get_k8s_client()
+# The SDK will auto-detect authentication (kubeconfig or in-cluster)
+# No explicit authentication code needed!
+cluster = Cluster(ClusterConfiguration(name="my-cluster"))
+```
 
-# Your cluster operations - the SDK will automatically use the authenticated client
+### After (Option 2 - Explicit kube-authkit Authentication)
+
+```python
+from kube_authkit import get_k8s_client, AuthConfig
+from codeflare_sdk import set_api_client, Cluster, ClusterConfiguration
+
+# Create authenticated client with kube-authkit
+auth_config = AuthConfig(
+    k8s_api_host="https://api.example.com:6443",
+    openshift_token="my-token",
+)
+api_client = get_k8s_client(config=auth_config)
+
+# Register it with CodeFlare SDK
+set_api_client(api_client)
+
+# Your cluster operations - will use the registered client
 # ...
 
 # No logout needed - authentication is managed automatically
