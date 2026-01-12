@@ -66,8 +66,6 @@ instructions <https://www.substratus.ai/blog/kind-with-gpus>`__.
         # Add RBAC permissions to sdk-user
         kubectl create clusterrole list-ingresses --verb=get,list --resource=ingresses
         kubectl create clusterrolebinding sdk-user-list-ingresses --clusterrole=list-ingresses --user=sdk-user
-        kubectl create clusterrole appwrapper-creator --verb=get,list,create,delete,patch --resource=appwrappers
-        kubectl create clusterrolebinding sdk-user-appwrapper-creator --clusterrole=appwrapper-creator --user=sdk-user
         kubectl create clusterrole namespace-creator --verb=get,list,create,delete,patch --resource=namespaces
         kubectl create clusterrolebinding sdk-user-namespace-creator --clusterrole=namespace-creator --user=sdk-user
         kubectl create clusterrole list-rayclusters --verb=get,list --resource=rayclusters

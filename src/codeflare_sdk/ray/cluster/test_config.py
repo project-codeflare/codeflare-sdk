@@ -28,7 +28,7 @@ import yaml
 
 parent = Path(__file__).resolve().parents[4]  # project directory
 expected_clusters_dir = f"{parent}/tests/test_cluster_yamls"
-aw_dir = os.path.expanduser("~/.codeflare/resources/")
+cluster_dir = os.path.expanduser("~/.codeflare/resources/")
 
 
 def test_default_cluster_creation(mocker):
@@ -46,21 +46,6 @@ def test_default_cluster_creation(mocker):
     assert cluster.resource_yaml == expected_rc
 
 
-def test_default_appwrapper_creation(mocker):
-    # Create an AppWrapper using the default config variables
-    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
-    mocker.patch("kubernetes.client.CustomObjectsApi.list_namespaced_custom_object")
-
-    cluster = Cluster(
-        ClusterConfiguration(name="default-appwrapper", namespace="ns", appwrapper=True)
-    )
-
-    expected_aw = apply_template(
-        f"{expected_clusters_dir}/ray/default-appwrapper.yaml", get_template_variables()
-    )
-    assert cluster.resource_yaml == expected_aw
-
-
 @pytest.mark.filterwarnings("ignore::UserWarning")
 def test_config_creation_all_parameters(mocker):
     from codeflare_sdk.ray.cluster.config import DEFAULT_RESOURCE_MAPPING
@@ -70,7 +55,7 @@ def test_config_creation_all_parameters(mocker):
     expected_extended_resource_mapping["intel.com/gpu"] = "TPU"
     volumes, volume_mounts = get_example_extended_storage_opts()
 
-    cluster = create_cluster_all_config_params(mocker, "test-all-params", False)
+    cluster = create_cluster_all_config_params(mocker, "test-all-params")
     assert cluster.config.name == "test-all-params" and cluster.config.namespace == "ns"
     assert cluster.config.head_cpu_requests == 4
     assert cluster.config.head_cpu_limits == 8
@@ -85,7 +70,6 @@ def test_config_creation_all_parameters(mocker):
     assert cluster.config.num_workers == 10
     assert cluster.config.worker_memory_requests == "12G"
     assert cluster.config.worker_memory_limits == "16G"
-    assert cluster.config.appwrapper == False
     assert cluster.config.envs == {
         "key1": "value1",
         "key2": "value2",
@@ -111,19 +95,8 @@ def test_config_creation_all_parameters(mocker):
     assert cluster.config.volume_mounts == volume_mounts
 
     assert filecmp.cmp(
-        f"{aw_dir}test-all-params.yaml",
+        f"{cluster_dir}test-all-params.yaml",
         f"{expected_clusters_dir}/ray/unit-test-all-params.yaml",
-        shallow=True,
-    )
-
-
-@pytest.mark.filterwarnings("ignore::UserWarning")
-def test_all_config_params_aw(mocker):
-    create_cluster_all_config_params(mocker, "aw-all-params", True)
-
-    assert filecmp.cmp(
-        f"{aw_dir}aw-all-params.yaml",
-        f"{expected_clusters_dir}/appwrapper/unit-test-all-params.yaml",
         shallow=True,
     )
 
@@ -228,5 +201,4 @@ def test_ray_usage_stats_enabled(mocker):
 
 # Make sure to always keep this function last
 def test_cleanup():
-    os.remove(f"{aw_dir}test-all-params.yaml")
-    os.remove(f"{aw_dir}aw-all-params.yaml")
+    os.remove(f"{cluster_dir}test-all-params.yaml")

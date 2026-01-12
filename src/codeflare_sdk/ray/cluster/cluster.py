@@ -22,9 +22,7 @@ from time import sleep
 from typing import List, Optional, Tuple, Dict
 import copy
 
-from ray.job_submission import JobSubmissionClient, JobStatus
-import time
-import uuid
+from ray.job_submission import JobSubmissionClient
 import warnings
 
 from ...common.utils import get_current_namespace
@@ -43,10 +41,6 @@ from .status import (
     CodeFlareClusterStatus,
     RayCluster,
     RayClusterStatus,
-)
-from ..appwrapper import (
-    AppWrapper,
-    AppWrapperStatus,
 )
 from ...common.widgets.widgets import (
     cluster_apply_down_buttons,
@@ -78,7 +72,7 @@ class Cluster:
     def __init__(self, config: ClusterConfiguration):
         """
         Create the resource cluster object by passing in a ClusterConfiguration
-        (defined in the config sub-module). An AppWrapper will then be generated
+        (defined in the config sub-module). A RayCluster will then be generated
         based off of the configured resources to represent the desired cluster
         request.
         """
@@ -116,6 +110,7 @@ class Cluster:
 
     @property
     def job_client(self):
+        self._check_tls_certs_exist()
         k8client = get_api_client()
         if self._job_submission_client:
             return self._job_submission_client
@@ -133,7 +128,7 @@ class Cluster:
 
     def create_resource(self):
         """
-        Called upon cluster object creation, creates an AppWrapper yaml based on
+        Called upon cluster object creation, creates a RayCluster yaml based on
         the specifications of the ClusterConfiguration.
         """
         if self.config.namespace is None:
@@ -162,31 +157,8 @@ class Cluster:
         try:
             config_check()
             api_instance = client.CustomObjectsApi(get_api_client())
-            if self.config.appwrapper:
-                if self.config.write_to_file:
-                    with open(self.resource_yaml) as f:
-                        aw = yaml.load(f, Loader=yaml.FullLoader)
-                        api_instance.create_namespaced_custom_object(
-                            group="workload.codeflare.dev",
-                            version="v1beta2",
-                            namespace=namespace,
-                            plural="appwrappers",
-                            body=aw,
-                        )
-                else:
-                    api_instance.create_namespaced_custom_object(
-                        group="workload.codeflare.dev",
-                        version="v1beta2",
-                        namespace=namespace,
-                        plural="appwrappers",
-                        body=self.resource_yaml,
-                    )
-                print(f"AppWrapper: '{self.config.name}' has successfully been created")
-            else:
-                self._component_resources_up(namespace, api_instance)
-                print(
-                    f"Ray Cluster: '{self.config.name}' has successfully been created"
-                )
+            self._component_resources_up(namespace, api_instance)
+            print(f"Ray Cluster: '{self.config.name}' has successfully been created")
         except Exception as e:  # pragma: no cover
             if e.status == 422:
                 print(
@@ -199,10 +171,19 @@ class Cluster:
             return _kube_api_error_handling(e)
 
     # Applies a new cluster with the provided or default spec
-    def apply(self, force=False):
+    def apply(self, force=False, timeout: int = 300):
         """
         Applies the Cluster yaml using server-side apply.
-        If 'force' is set to True, conflicts will be forced.
+
+        After applying the cluster resources, this method waits for the CA secret
+        to be created by KubeRay and generates TLS certificates for mTLS connections.
+
+        Args:
+            force (bool):
+                If True, conflicts will be forced during server-side apply.
+            timeout (int):
+                Maximum time in seconds to wait for post-apply operations such as
+                TLS certificate generation. Default is 300 seconds (5 minutes).
         """
         # check if RayCluster CustomResourceDefinition exists if not throw RuntimeError
         self._throw_for_no_raycluster()
@@ -216,37 +197,14 @@ class Cluster:
             self.config_check()
             api_instance = client.CustomObjectsApi(get_api_client())
             crds = self.get_dynamic_client().resources
-            if self.config.appwrapper:
-                api_version = "workload.codeflare.dev/v1beta2"
-                api_instance = crds.get(api_version=api_version, kind="AppWrapper")
-                # defaulting body to resource_yaml
-                body = self.resource_yaml
-                if self.config.write_to_file:
-                    # if write_to_file is True, load the file from AppWrapper yaml and update body
-                    with open(self.resource_yaml) as f:
-                        aw = yaml.load(f, Loader=yaml.FullLoader)
-                    body = aw
-                api_instance.server_side_apply(
-                    field_manager=CF_SDK_FIELD_MANAGER,
-                    group="workload.codeflare.dev",
-                    version="v1beta2",
-                    namespace=namespace,
-                    plural="appwrappers",
-                    body=body,
-                    force_conflicts=force,
-                )
-                print(
-                    f"AppWrapper: '{name}' configuration has successfully been applied. For optimal resource management, you should delete this Ray Cluster when no longer in use."
-                )
-            else:
-                api_version = "ray.io/v1"
-                api_instance = crds.get(api_version=api_version, kind="RayCluster")
-                self._component_resources_apply(
-                    namespace=namespace, api_instance=api_instance
-                )
-                print(
-                    f"Ray Cluster: '{name}' has successfully been applied. For optimal resource management, you should delete this Ray Cluster when no longer in use."
-                )
+            api_version = "ray.io/v1"
+            api_instance = crds.get(api_version=api_version, kind="RayCluster")
+            self._component_resources_apply(
+                namespace=namespace, api_instance=api_instance
+            )
+            print(
+                f"Ray Cluster: '{name}' has successfully been applied. For optimal resource management, you should delete this Ray Cluster when no longer in use."
+            )
         except AttributeError as e:
             raise RuntimeError(f"Failed to initialize DynamicClient: {e}")
         except Exception as e:  # pragma: no cover
@@ -261,6 +219,90 @@ class Cluster:
                     "WARNING: Failed to create RayCluster due to unexpected error. Please contact your administrator."
                 )
             return _kube_api_error_handling(e)
+
+        # Generate TLS certificates for mTLS connections
+        tls_success = self._generate_tls_certs_with_wait(timeout=timeout)
+
+        # Final completion message
+        if tls_success:
+            print(
+                f"Cluster '{name}' is ready. Use cluster.details() to see the status."
+            )
+        else:
+            print(
+                f"Cluster '{name}' resources applied but TLS setup incomplete. "
+                "Run cluster.wait_ready() to complete setup."
+            )
+
+    def _generate_tls_certs_with_wait(self, timeout: int = 300) -> bool:
+        """
+        Waits for the CA secret to be created and generates TLS certificates.
+
+        This is called by apply() to generate client TLS certificates after the
+        cluster resources have been applied. The CA secret is created by KubeRay
+        when the head pod starts, so we need to poll until it's available.
+
+        Args:
+            timeout (int):
+                Maximum time in seconds to wait for the CA secret. Default is 300.
+
+        Returns:
+            bool: True if TLS certificates were generated successfully, False otherwise.
+        """
+        from codeflare_sdk.common.utils import generate_cert
+
+        print("Waiting for client TLS configuration to be available...")
+        elapsed = 0
+        poll_interval = 5
+
+        # First, poll until the CA secret exists (without triggering error messages)
+        while elapsed < timeout:
+            if self._ca_secret_exists():
+                break
+            sleep(poll_interval)
+            elapsed += poll_interval
+        else:
+            # Timeout reached
+            print(
+                f"Warning: Timed out after {timeout}s waiting for TLS configuration. "
+                "Client certificates were not generated. You can generate them later by calling "
+                "cluster.wait_ready() or generate_cert.generate_tls_cert()."
+            )
+            return False
+
+        # CA secret exists, now generate the certificates
+        try:
+            generate_cert.generate_tls_cert(self.config.name, self.config.namespace)
+            generate_cert.export_env(self.config.name, self.config.namespace)
+            print("Client TLS configuration ready")
+            return True
+        except Exception as e:
+            print(f"Warning: Could not generate TLS certificates: {e}")
+            print(
+                "You can manually generate certificates using generate_cert.generate_tls_cert() "
+                "or call cluster.wait_ready() later."
+            )
+            return False
+
+    def _ca_secret_exists(self) -> bool:
+        """
+        Checks if the CA secret for this cluster exists.
+
+        Returns:
+            bool: True if the CA secret exists, False otherwise.
+        """
+        try:
+            api_instance = client.CoreV1Api(get_api_client())
+            label_selector = f"ray.openshift.ai/cluster-name={self.config.name}"
+            secrets = api_instance.list_namespaced_secret(
+                self.config.namespace, label_selector=label_selector
+            )
+            for secret in secrets.items:
+                if f"{self.config.name}-ca-secret-" in secret.metadata.name:
+                    return True
+            return False
+        except Exception:
+            return False
 
     def _throw_for_no_raycluster(self):
         api_instance = client.CustomObjectsApi(get_api_client())
@@ -283,8 +325,11 @@ class Cluster:
 
     def down(self):
         """
-        Deletes the AppWrapper yaml, scaling-down and deleting all resources
+        Deletes the RayCluster, scaling-down and deleting all resources
         associated with the cluster.
+
+        Also removes the TLS certificates generated for this cluster to prevent
+        accumulation of sensitive key material.
         """
         namespace = self.config.namespace
         resource_name = self.config.name
@@ -292,20 +337,14 @@ class Cluster:
         try:
             self.config_check()
             api_instance = client.CustomObjectsApi(get_api_client())
-            if self.config.appwrapper:
-                api_instance.delete_namespaced_custom_object(
-                    group="workload.codeflare.dev",
-                    version="v1beta2",
-                    namespace=namespace,
-                    plural="appwrappers",
-                    name=resource_name,
-                )
-                print(f"AppWrapper: '{resource_name}' has successfully been deleted")
-            else:
-                _delete_resources(resource_name, namespace, api_instance)
-                print(
-                    f"Ray Cluster: '{self.config.name}' has successfully been deleted"
-                )
+            _delete_resources(resource_name, namespace, api_instance)
+            print(f"Ray Cluster: '{self.config.name}' has successfully been deleted")
+
+            # Automatically clean up TLS certificates (silently)
+            from codeflare_sdk.common.utils import generate_cert
+
+            generate_cert.cleanup_tls_cert(resource_name, namespace)
+
         except Exception as e:  # pragma: no cover
             return _kube_api_error_handling(e)
 
@@ -318,37 +357,6 @@ class Cluster:
         """
         ready = False
         status = CodeFlareClusterStatus.UNKNOWN
-        if self.config.appwrapper:
-            # check the app wrapper status
-            appwrapper = _app_wrapper_status(self.config.name, self.config.namespace)
-            if appwrapper:
-                if appwrapper.status in [
-                    AppWrapperStatus.RESUMING,
-                    AppWrapperStatus.RESETTING,
-                ]:
-                    ready = False
-                    status = CodeFlareClusterStatus.STARTING
-                elif appwrapper.status in [
-                    AppWrapperStatus.FAILED,
-                ]:
-                    ready = False
-                    status = CodeFlareClusterStatus.FAILED  # should deleted be separate
-                    return status, ready  # exit early, no need to check ray status
-                elif appwrapper.status in [
-                    AppWrapperStatus.SUSPENDED,
-                    AppWrapperStatus.SUSPENDING,
-                ]:
-                    ready = False
-                    if appwrapper.status == AppWrapperStatus.SUSPENDED:
-                        status = CodeFlareClusterStatus.QUEUED
-                    else:
-                        status = CodeFlareClusterStatus.QUEUEING
-                    if print_to_console:
-                        pretty_print.print_app_wrappers_status([appwrapper])
-                    return (
-                        status,
-                        ready,
-                    )  # no need to check the ray status since still in queue
 
         # check the ray cluster status
         cluster = _ray_cluster_status(self.config.name, self.config.namespace)
@@ -374,10 +382,7 @@ class Cluster:
                 _, cluster.worker_gpu = head_worker_gpu_count_from_cluster(self)
                 pretty_print.print_cluster_status(cluster)
         elif print_to_console:
-            if status == CodeFlareClusterStatus.UNKNOWN:
-                pretty_print.print_no_resources_found()
-            else:
-                pretty_print.print_app_wrappers_status([appwrapper], starting=True)
+            pretty_print.print_no_resources_found()
 
         return status, ready
 
@@ -438,6 +443,10 @@ class Cluster:
         ready or the timeout is reached. If dashboard_check is enabled, it will also
         check for the readiness of the dashboard.
 
+        TLS certificates are ensured to exist for mTLS connections. If certificates
+        were already generated by apply(), this is a no-op. Otherwise, certificates
+        will be generated when the cluster becomes ready.
+
         Args:
             timeout (Optional[int]):
                 The maximum time to wait for the cluster to be ready in seconds. If None, waits indefinitely.
@@ -466,6 +475,20 @@ class Cluster:
             sleep(5)
             time += 5
         print("Requested cluster is up and running!")
+
+        # Ensure TLS certificates exist (required for mTLS)
+        # If apply() already generated them, this will be a no-op
+        try:
+            from codeflare_sdk.common.utils import generate_cert
+
+            generate_cert.generate_tls_cert(self.config.name, self.config.namespace)
+            generate_cert.export_env(self.config.name, self.config.namespace)
+        except Exception as e:
+            # Don't fail cluster setup if certificate generation fails
+            print(f"Warning: Could not generate TLS certificates: {e}")
+            print(
+                "You can manually generate certificates using generate_cert.generate_tls_cert()"
+            )
 
         dashboard_wait_logged = False
         while dashboard_check:
@@ -509,11 +532,87 @@ class Cluster:
             pretty_print.print_clusters([cluster])
         return cluster
 
+    def _check_tls_certs_exist(self):
+        """
+        Check if TLS certificates exist and print helpful warning if not.
+
+        This is called by connection methods (cluster_uri, local_client_url, job_client)
+        to help users debug mTLS connection issues.
+        """
+        from codeflare_sdk.common.utils.generate_cert import _get_tls_base_dir
+        from pathlib import Path
+
+        cert_dir = _get_tls_base_dir() / f"{self.config.name}-{self.config.namespace}"
+
+        if not cert_dir.exists() or not (cert_dir / "tls.crt").exists():
+            print("\n" + "=" * 70)
+            print("⚠️  WARNING: TLS Certificates Not Found!")
+            print("=" * 70)
+            print(f"Expected location: {cert_dir}")
+            print()
+            print("TLS certificates are required for mTLS connections to Ray clusters.")
+            print(
+                "Without certificates, your connection will likely fail with a timeout"
+            )
+            print("or TLS handshake error.")
+            print()
+            print("To fix this issue:")
+            print("  1. Call cluster.wait_ready() after cluster.apply()")
+            print(
+                "     → This automatically generates certificates when cluster is ready"
+            )
+            print()
+            print("  2. Or manually generate certificates:")
+            print("     from codeflare_sdk.common.utils import generate_cert")
+            print(
+                f"     generate_cert.generate_tls_cert('{self.config.name}', '{self.config.namespace}')"
+            )
+            print(
+                f"     generate_cert.export_env('{self.config.name}', '{self.config.namespace}')"
+            )
+            print("=" * 70 + "\n")
+
     def cluster_uri(self) -> str:
         """
         Returns a string containing the cluster's URI.
+
+        Note: If connecting to a cluster with mTLS enabled, ensure you have called
+        cluster.wait_ready() first to automatically generate TLS certificates.
         """
+        self._check_tls_certs_exist()
         return f"ray://{self.config.name}-head-svc.{self.config.namespace}.svc:10001"
+
+    def refresh_certificates(self):
+        """
+        Refreshes TLS certificates by removing old ones and generating new ones.
+
+        This is useful when:
+        - The server CA secret has been rotated
+        - Certificates have expired
+        - You encounter TLS handshake failures
+        - You need to regenerate certificates for any reason
+
+        The method will:
+        1. Remove existing client certificates
+        2. Fetch the latest CA from Kubernetes
+        3. Generate new client certificates
+        4. Update environment variables for Ray
+
+        Example:
+            >>> # If you get TLS errors after CA rotation
+            >>> cluster.refresh_certificates()
+            >>> # Now you can reconnect
+            >>> ray.init(address=cluster.cluster_uri())
+        """
+        from codeflare_sdk.common.utils import generate_cert
+
+        print(f"Refreshing TLS certificates for '{self.config.name}'...")
+
+        # Use the refresh function which handles cleanup and regeneration
+        generate_cert.refresh_tls_cert(self.config.name, self.config.namespace)
+        generate_cert.export_env(self.config.name, self.config.namespace)
+
+        print(f"✓ TLS certificates refreshed for '{self.config.name}'")
 
     def cluster_dashboard_uri(self) -> str:
         """
@@ -625,6 +724,7 @@ class Cluster:
             str:
                 The Ray client URL based on the ingress domain.
         """
+        self._check_tls_certs_exist()
         ingress_domain = _get_ingress_domain(self)
         return f"ray://{ingress_domain}"
 
@@ -671,23 +771,16 @@ def list_all_clusters(namespace: str, print_to_console: bool = True):
     return clusters
 
 
-def list_all_queued(
-    namespace: str, print_to_console: bool = True, appwrapper: bool = False
-):
+def list_all_queued(namespace: str, print_to_console: bool = True):
     """
     Returns (and prints by default) a list of all currently queued-up Ray Clusters
     in a given namespace.
     """
-    if appwrapper:
-        resources = _get_app_wrappers(namespace, filter=[AppWrapperStatus.SUSPENDED])
-        if print_to_console:
-            pretty_print.print_app_wrappers_status(resources)
-    else:
-        resources = _get_ray_clusters(
-            namespace, filter=[RayClusterStatus.READY, RayClusterStatus.SUSPENDED]
-        )
-        if print_to_console:
-            pretty_print.print_ray_clusters_status(resources)
+    resources = _get_ray_clusters(
+        namespace, filter=[RayClusterStatus.READY, RayClusterStatus.SUSPENDED]
+    )
+    if print_to_console:
+        pretty_print.print_ray_clusters_status(resources)
     return resources
 
 
@@ -698,16 +791,16 @@ def get_cluster(
     write_to_file: bool = False,
 ):
     """
-    Retrieves an existing Ray Cluster or AppWrapper as a Cluster object.
+    Retrieves an existing Ray Cluster as a Cluster object.
 
-    This function fetches an existing Ray Cluster or AppWrapper from the Kubernetes cluster and returns
+    This function fetches an existing Ray Cluster from the Kubernetes cluster and returns
     it as a `Cluster` object, including its YAML configuration under `Cluster.resource_yaml`.
 
     Args:
         cluster_name (str):
-            The name of the Ray Cluster or AppWrapper.
+            The name of the Ray Cluster.
         namespace (str, optional):
-            The Kubernetes namespace where the Ray Cluster or AppWrapper is located. Default is "default".
+            The Kubernetes namespace where the Ray Cluster is located. Default is "default".
         verify_tls (bool, optional):
             Whether to verify TLS when connecting to the cluster. Default is True.
         write_to_file (bool, optional):
@@ -715,78 +808,61 @@ def get_cluster(
 
     Returns:
         Cluster:
-            A Cluster object representing the retrieved Ray Cluster or AppWrapper.
+            A Cluster object representing the retrieved Ray Cluster.
 
     Raises:
         Exception:
-            If the Ray Cluster or AppWrapper cannot be found or does not exist.
+            If the Ray Cluster cannot be found or does not exist.
     """
     config_check()
     api_instance = client.CustomObjectsApi(get_api_client())
-    # Check/Get the AppWrapper if it exists
-    is_appwrapper = _check_aw_exists(cluster_name, namespace)
-    if is_appwrapper:
-        try:
-            resource = api_instance.get_namespaced_custom_object(
-                group="workload.codeflare.dev",
-                version="v1beta2",
-                namespace=namespace,
-                plural="appwrappers",
-                name=cluster_name,
-            )
-            resource_extraction = resource["spec"]["components"][0]["template"]
-        except Exception as e:
-            return _kube_api_error_handling(e)
-    else:
-        # Get the Ray Cluster
-        try:
-            resource = api_instance.get_namespaced_custom_object(
-                group="ray.io",
-                version="v1",
-                namespace=namespace,
-                plural="rayclusters",
-                name=cluster_name,
-            )
-            resource_extraction = resource
-        except Exception as e:
-            return _kube_api_error_handling(e)
+    # Get the Ray Cluster
+    try:
+        resource = api_instance.get_namespaced_custom_object(
+            group="ray.io",
+            version="v1",
+            namespace=namespace,
+            plural="rayclusters",
+            name=cluster_name,
+        )
+    except Exception as e:
+        return _kube_api_error_handling(e)
 
     (
         head_extended_resources,
         worker_extended_resources,
-    ) = Cluster._head_worker_extended_resources_from_rc_dict(resource_extraction)
+    ) = Cluster._head_worker_extended_resources_from_rc_dict(resource)
     # Create a Cluster Configuration with just the necessary provided parameters
     cluster_config = ClusterConfiguration(
         name=cluster_name,
         namespace=namespace,
         verify_tls=verify_tls,
         write_to_file=write_to_file,
-        appwrapper=is_appwrapper,
-        head_cpu_limits=resource_extraction["spec"]["headGroupSpec"]["template"][
-            "spec"
-        ]["containers"][0]["resources"]["requests"]["cpu"],
-        head_cpu_requests=resource_extraction["spec"]["headGroupSpec"]["template"][
-            "spec"
-        ]["containers"][0]["resources"]["limits"]["cpu"],
-        head_memory_limits=resource_extraction["spec"]["headGroupSpec"]["template"][
+        head_cpu_limits=resource["spec"]["headGroupSpec"]["template"]["spec"][
+            "containers"
+        ][0]["resources"]["requests"]["cpu"],
+        head_cpu_requests=resource["spec"]["headGroupSpec"]["template"]["spec"][
+            "containers"
+        ][0]["resources"]["limits"]["cpu"],
+        head_memory_limits=resource["spec"]["headGroupSpec"]["template"]["spec"][
+            "containers"
+        ][0]["resources"]["requests"]["memory"],
+        head_memory_requests=resource["spec"]["headGroupSpec"]["template"]["spec"][
+            "containers"
+        ][0]["resources"]["limits"]["memory"],
+        num_workers=resource["spec"]["workerGroupSpecs"][0]["minReplicas"],
+        worker_cpu_limits=resource["spec"]["workerGroupSpecs"][0]["template"]["spec"][
+            "containers"
+        ][0]["resources"]["limits"]["cpu"],
+        worker_cpu_requests=resource["spec"]["workerGroupSpecs"][0]["template"]["spec"][
+            "containers"
+        ][0]["resources"]["requests"]["cpu"],
+        worker_memory_limits=resource["spec"]["workerGroupSpecs"][0]["template"][
             "spec"
         ]["containers"][0]["resources"]["requests"]["memory"],
-        head_memory_requests=resource_extraction["spec"]["headGroupSpec"]["template"][
+        worker_memory_requests=resource["spec"]["workerGroupSpecs"][0]["template"][
             "spec"
         ]["containers"][0]["resources"]["limits"]["memory"],
-        num_workers=resource_extraction["spec"]["workerGroupSpecs"][0]["minReplicas"],
-        worker_cpu_limits=resource_extraction["spec"]["workerGroupSpecs"][0][
-            "template"
-        ]["spec"]["containers"][0]["resources"]["limits"]["cpu"],
-        worker_cpu_requests=resource_extraction["spec"]["workerGroupSpecs"][0][
-            "template"
-        ]["spec"]["containers"][0]["resources"]["requests"]["cpu"],
-        worker_memory_limits=resource_extraction["spec"]["workerGroupSpecs"][0][
-            "template"
-        ]["spec"]["containers"][0]["resources"]["requests"]["memory"],
-        worker_memory_requests=resource_extraction["spec"]["workerGroupSpecs"][0][
-            "template"
-        ]["spec"]["containers"][0]["resources"]["limits"]["memory"],
         head_extended_resource_requests=head_extended_resources,
         worker_extended_resource_requests=worker_extended_resources,
     )
@@ -806,7 +882,7 @@ def get_cluster(
         if write_to_file:
             cluster.resource_yaml = write_cluster_to_file(cluster, resource)
         else:
-            # Update the Cluster's resource_yaml to reflect the retrieved Ray Cluster/AppWrapper
+            # Update the Cluster's resource_yaml to reflect the retrieved Ray Cluster
             cluster.resource_yaml = resource
             print(f"Yaml resources loaded for {cluster.config.name}")
 
@@ -827,9 +903,6 @@ def remove_autogenerated_fields(resource):
                 "generation",
                 "status",
                 "suspend",
-                "workload.codeflare.dev/user",  # AppWrapper field
-                "workload.codeflare.dev/userid",  # AppWrapper field
-                "podSetInfos",  # AppWrapper field
             ]:
                 del resource[key]
             else:
@@ -875,24 +948,6 @@ def _apply_ray_cluster(
     )
 
 
-def _check_aw_exists(name: str, namespace: str) -> bool:
-    try:
-        config_check()
-        api_instance = client.CustomObjectsApi(get_api_client())
-        aws = api_instance.list_namespaced_custom_object(
-            group="workload.codeflare.dev",
-            version="v1beta2",
-            namespace=namespace,
-            plural="appwrappers",
-        )
-    except Exception as e:  # pragma: no cover
-        return _kube_api_error_handling(e, print_error=False)
-    for aw in aws["items"]:
-        if aw["metadata"]["name"] == name:
-            return True
-    return False
-
-
 # Cant test this until get_current_namespace is fixed and placed in this function over using `self`
 def _get_ingress_domain(self):  # pragma: no cover
     config_check()
@@ -933,25 +988,6 @@ def _get_ingress_domain(self):  # pragma: no cover
             if ingress.spec.rules[0].http.paths[0].backend.service.port.number == 10001:
                 domain = ingress.spec.rules[0].host
     return domain
-
-
-def _app_wrapper_status(name, namespace="default") -> Optional[AppWrapper]:
-    try:
-        config_check()
-        api_instance = client.CustomObjectsApi(get_api_client())
-        aws = api_instance.list_namespaced_custom_object(
-            group="workload.codeflare.dev",
-            version="v1beta2",
-            namespace=namespace,
-            plural="appwrappers",
-        )
-    except Exception as e:  # pragma: no cover
-        return _kube_api_error_handling(e)
-
-    for aw in aws["items"]:
-        if aw["metadata"]["name"] == name:
-            return _map_to_app_wrapper(aw)
-    return None
 
 
 def _ray_cluster_status(name, namespace="default") -> Optional[RayCluster]:
@@ -999,33 +1035,6 @@ def _get_ray_clusters(
         for rc in rcs["items"]:
             list_of_clusters.append(_map_to_ray_cluster(rc))
     return list_of_clusters
-
-
-def _get_app_wrappers(
-    namespace="default", filter=List[AppWrapperStatus]
-) -> List[AppWrapper]:
-    list_of_app_wrappers = []
-
-    try:
-        config_check()
-        api_instance = client.CustomObjectsApi(get_api_client())
-        aws = api_instance.list_namespaced_custom_object(
-            group="workload.codeflare.dev",
-            version="v1beta2",
-            namespace=namespace,
-            plural="appwrappers",
-        )
-    except Exception as e:  # pragma: no cover
-        return _kube_api_error_handling(e)
-
-    for item in aws["items"]:
-        app_wrapper = _map_to_app_wrapper(item)
-        if filter and app_wrapper.status in filter:
-            list_of_app_wrappers.append(app_wrapper)
-        else:
-            # Unsure what the purpose of the filter is
-            list_of_app_wrappers.append(app_wrapper)
-    return list_of_app_wrappers
 
 
 def _map_to_ray_cluster(rc) -> Optional[RayCluster]:
@@ -1119,18 +1128,6 @@ def _map_to_ray_cluster(rc) -> Optional[RayCluster]:
         ]["resources"]["limits"]["memory"],
         head_extended_resources=head_extended_resources,
         dashboard=dashboard_url,
-    )
-
-
-def _map_to_app_wrapper(aw) -> AppWrapper:
-    if "status" in aw:
-        return AppWrapper(
-            name=aw["metadata"]["name"],
-            status=AppWrapperStatus(aw["status"]["phase"].lower()),
-        )
-    return AppWrapper(
-        name=aw["metadata"]["name"],
-        status=AppWrapperStatus("suspended"),
     )
 
 

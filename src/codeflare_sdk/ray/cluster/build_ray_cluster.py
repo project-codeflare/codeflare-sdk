@@ -13,8 +13,8 @@
 # limitations under the License.
 
 """
-    This sub-module exists primarily to be used internally by the Cluster object
-    (in the cluster sub-module) for RayCluster/AppWrapper generation.
+This sub-module exists primarily to be used internally by the Cluster object
+    (in the cluster sub-module) for RayCluster generation.
 """
 from typing import List, Union, Tuple, Dict
 from ...common import _kube_api_error_handling
@@ -97,9 +97,9 @@ VOLUMES = [
 ]
 
 
-# RayCluster/AppWrapper builder function
+# RayCluster builder function
 def build_ray_cluster(cluster: "codeflare_sdk.ray.cluster.Cluster"):
-    """build_ray_cluster is used for creating a Ray Cluster/AppWrapper dict
+    """build_ray_cluster is used for creating a Ray Cluster dict
 
     The resource is a dict template which uses Kubernetes Objects for creating metadata, resource requests,
     specs and containers. The result is sanitised and returned either as a dict or written as a yaml file.
@@ -138,9 +138,11 @@ def build_ray_cluster(cluster: "codeflare_sdk.ray.cluster.Cluster"):
                     "resources": head_resources,
                 },
                 "template": V1PodTemplateSpec(
-                    metadata=V1ObjectMeta(cluster.config.annotations)
-                    if cluster.config.annotations
-                    else None,
+                    metadata=(
+                        V1ObjectMeta(cluster.config.annotations)
+                        if cluster.config.annotations
+                        else None
+                    ),
                     spec=get_pod_spec(
                         cluster,
                         [get_head_container_spec(cluster)],
@@ -160,9 +162,11 @@ def build_ray_cluster(cluster: "codeflare_sdk.ray.cluster.Cluster"):
                         "resources": worker_resources,
                     },
                     "template": V1PodTemplateSpec(
-                        metadata=V1ObjectMeta(cluster.config.annotations)
-                        if cluster.config.annotations
-                        else None,
+                        metadata=(
+                            V1ObjectMeta(cluster.config.annotations)
+                            if cluster.config.annotations
+                            else None
+                        ),
                         spec=get_pod_spec(
                             cluster,
                             [get_worker_container_spec(cluster)],
@@ -201,11 +205,6 @@ def build_ray_cluster(cluster: "codeflare_sdk.ray.cluster.Cluster"):
 
     config_check()
     k8s_client = get_api_client() or client.ApiClient()
-
-    if cluster.config.appwrapper:
-        # Wrap the Ray Cluster in an AppWrapper
-        appwrapper_name, _ = gen_names(cluster.config.name)
-        resource = wrap_cluster(cluster, appwrapper_name, resource)
 
     resource = k8s_client.sanitize_for_serialization(resource)
 
@@ -247,8 +246,7 @@ def get_labels(cluster: "codeflare_sdk.ray.cluster.Cluster"):
     if cluster.config.labels != {}:
         labels.update(cluster.config.labels)
 
-    if cluster.config.appwrapper is False:
-        add_queue_label(cluster, labels)
+    add_queue_label(cluster, labels)
 
     return labels
 
@@ -533,30 +531,6 @@ def get_default_local_queue(cluster: "codeflare_sdk.ray.cluster.Cluster", labels
             labels.update({"kueue.x-k8s.io/queue-name": lq["metadata"]["name"]})
 
 
-# AppWrapper related functions
-def wrap_cluster(
-    cluster: "codeflare_sdk.ray.cluster.Cluster",
-    appwrapper_name: str,
-    ray_cluster_yaml: dict,
-):
-    """
-    Wraps the pre-built Ray Cluster dict in an AppWrapper
-    """
-    wrapping = {
-        "apiVersion": "workload.codeflare.dev/v1beta2",
-        "kind": "AppWrapper",
-        "metadata": {"name": appwrapper_name, "namespace": cluster.config.namespace},
-        "spec": {"components": [{"template": ray_cluster_yaml}]},
-    }
-    # Add local queue label if it is necessary
-    labels = {}
-    add_queue_label(cluster, labels)
-    if labels != {}:
-        wrapping["metadata"]["labels"] = labels
-
-    return wrapping
-
-
 # Etc.
 def generate_custom_storage(provided_storage: list, default_storage: list):
     """
@@ -576,7 +550,7 @@ def generate_custom_storage(provided_storage: list, default_storage: list):
 
 def write_to_file(cluster: "codeflare_sdk.ray.cluster.Cluster", resource: dict):
     """
-    The write_to_file function writes the built Ray Cluster/AppWrapper dict as a yaml file in the .codeflare folder
+    The write_to_file function writes the built Ray Cluster dict as a yaml file in the .codeflare folder
     """
     directory_path = os.path.expanduser("~/.codeflare/resources/")
     output_file_name = os.path.join(directory_path, cluster.config.name + ".yaml")
@@ -606,12 +580,11 @@ def write_to_file(cluster: "codeflare_sdk.ray.cluster.Cluster", resource: dict):
 
 def gen_names(name):
     """
-    Generates a unique name for the appwrapper and Ray Cluster
+    Generates a unique name for the Ray Cluster
     """
     if not name:
         gen_id = str(uuid.uuid4())
-        appwrapper_name = "appwrapper-" + gen_id
         cluster_name = "cluster-" + gen_id
-        return appwrapper_name, cluster_name
+        return cluster_name
     else:
-        return name, name
+        return name

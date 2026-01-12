@@ -175,15 +175,11 @@ def test_delete_cluster(mocker, capsys):
         side_effect=[
             mock_ray_cluster,
             client.ApiException(status=404),
-            client.ApiException(status=404),
             mock_ray_cluster,
         ],
     )
 
-    # In this scenario, the RayCluster exists and the AppWrapper does not.
-    mocker.patch(
-        "codeflare_sdk.ray.cluster.cluster._check_aw_exists", return_value=False
-    )
+    # Test RayCluster deletion
     mock_delete_rc = mocker.patch(
         "kubernetes.client.CustomObjectsApi.delete_namespaced_custom_object"
     )
@@ -194,23 +190,6 @@ def test_delete_cluster(mocker, capsys):
         version="v1",
         namespace=namespace,
         plural="rayclusters",
-        name=name,
-    )
-
-    # In this scenario, the AppWrapper exists and the RayCluster does not
-    mocker.patch(
-        "codeflare_sdk.ray.cluster.cluster._check_aw_exists", return_value=True
-    )
-    mock_delete_aw = mocker.patch(
-        "kubernetes.client.CustomObjectsApi.delete_namespaced_custom_object"
-    )
-    cf_widgets._delete_cluster(name, namespace)
-
-    mock_delete_aw.assert_called_once_with(
-        group="workload.codeflare.dev",
-        version="v1beta2",
-        namespace=namespace,
-        plural="appwrappers",
         name=name,
     )
 

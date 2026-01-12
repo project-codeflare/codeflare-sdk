@@ -58,8 +58,6 @@ class ClusterConfiguration:
             The number of workers to create.
         worker_tolerations:
             List of tolerations for worker nodes.
-        appwrapper:
-            A boolean indicating whether to use an AppWrapper.
         envs:
             A dictionary of environment variables to set for the cluster.
         image:
@@ -112,7 +110,6 @@ class ClusterConfiguration:
     worker_memory_requests: Union[int, str] = 3
     worker_memory_limits: Union[int, str] = 6
     worker_tolerations: Optional[List[V1Toleration]] = None
-    appwrapper: bool = False
     envs: Dict[str, str] = field(default_factory=dict)
     image: str = ""
     image_pull_secrets: List[str] = field(default_factory=list)
@@ -226,8 +223,6 @@ class ClusterConfiguration:
         """Validate the types of all fields in the ClusterConfiguration dataclass."""
         errors = []
         for field_info in fields(self):
-            if field_info.name == "appwrapper":
-                continue
             value = getattr(self, field_info.name)
             expected_type = field_info.type
             if not self._is_type(value, expected_type):
