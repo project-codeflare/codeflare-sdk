@@ -38,7 +38,7 @@ def test_kubeconfig_auth_fallback_to_legacy(mocker):
     # Make get_k8s_client raise an exception
     mocker.patch(
         "codeflare_sdk.common.kubernetes_cluster.auth.get_k8s_client",
-        side_effect=Exception("kube-authkit failed")
+        side_effect=Exception("kube-authkit failed"),
     )
 
     # Mock the legacy config.load_kube_config
@@ -115,10 +115,7 @@ def test_token_auth_exception_handling(mocker):
     )
 
     # Patch only AuthenticationApi's __init__ to return our mock
-    mocker.patch(
-        "kubernetes.client.AuthenticationApi",
-        return_value=mock_auth_instance
-    )
+    mocker.patch("kubernetes.client.AuthenticationApi", return_value=mock_auth_instance)
 
     # Mock error handling
     mock_error_handler = mocker.patch(

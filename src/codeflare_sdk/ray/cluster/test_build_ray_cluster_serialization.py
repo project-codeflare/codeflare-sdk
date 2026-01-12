@@ -29,7 +29,7 @@ def test_yaml_serialization_with_pydantic_models():
         name="test-serialization",
         namespace="test-ns",
         num_workers=1,
-        write_to_file=True
+        write_to_file=True,
     )
 
     # Create cluster - this triggers YAML serialization via write_to_file
@@ -41,28 +41,30 @@ def test_yaml_serialization_with_pydantic_models():
 
     # Verify the file contains valid YAML
     import yaml
-    with open(expected_file, 'r') as f:
+
+    with open(expected_file, "r") as f:
         content = yaml.safe_load(f)
 
     assert content is not None, "YAML content should not be None"
-    assert 'kind' in content or 'apiVersion' in content, "YAML should contain Kubernetes resource fields"
+    assert (
+        "kind" in content or "apiVersion" in content
+    ), "YAML should contain Kubernetes resource fields"
 
 
 def test_yaml_serialization_without_write_to_file():
     """Test that in-memory resource creation works without file writing"""
     config = ClusterConfiguration(
-        name="test-in-memory",
-        namespace="test-ns",
-        num_workers=1,
-        write_to_file=False
+        name="test-in-memory", namespace="test-ns", num_workers=1, write_to_file=False
     )
 
     # Create cluster - resource should be in memory only
     cluster = Cluster(config)
 
     # Verify resource_yaml is a dict (in-memory)
-    assert isinstance(cluster.resource_yaml, dict), "resource_yaml should be a dict when write_to_file=False"
-    assert 'kind' in cluster.resource_yaml or 'apiVersion' in cluster.resource_yaml
+    assert isinstance(
+        cluster.resource_yaml, dict
+    ), "resource_yaml should be a dict when write_to_file=False"
+    assert "kind" in cluster.resource_yaml or "apiVersion" in cluster.resource_yaml
 
 
 def test_json_serialization_fallback():
@@ -74,12 +76,13 @@ def test_json_serialization_fallback():
         name="test-json-fallback",
         namespace="test-ns",
         num_workers=1,
-        write_to_file=True
+        write_to_file=True,
     )
     cluster = Cluster(config)
 
     # The resource should be serializable via JSON round-trip
     import json
+
     resource_json = json.dumps(cluster.resource_yaml, default=str)
     assert resource_json is not None
 
