@@ -79,6 +79,14 @@ def mock_kubernetes(monkeypatch, tmp_path):
             """Return empty dict for delete operations."""
             return {}
 
+        def list_namespaced_secret(self, namespace, **kwargs):  # pragma: no cover
+            """Return empty secret list."""
+
+            class SecretList:
+                items = []
+
+            return SecretList()
+
         def list_namespace(self, *args, **kwargs):  # pragma: no cover
             """Return empty namespace list."""
 
@@ -156,6 +164,17 @@ def mock_kubernetes(monkeypatch, tmp_path):
     resources_dir = real_home / ".codeflare" / "resources"
     resources_dir.mkdir(parents=True, exist_ok=True)
 
+    # Clean up any existing test TLS directories at START to prevent interference
+    # with list_tls_certificates tests
+    tls_test_dir = resources_dir / "tls-cluster-namespace"
+    if tls_test_dir.exists():  # pragma: no cover
+        for f in tls_test_dir.glob("*"):  # pragma: no cover
+            f.unlink(missing_ok=True)  # pragma: no cover
+        try:  # pragma: no cover
+            tls_test_dir.rmdir()  # pragma: no cover
+        except OSError:  # pragma: no cover
+            pass  # pragma: no cover
+
     # Create a minimal kubeconfig file in ~/.kube/config if it doesn't exist
     # This prevents PermissionError in config_check()
     kube_dir = real_home / ".kube"
@@ -196,18 +215,6 @@ users:
         "-----END CERTIFICATE-----\n"
     )
     (tls_dir / "ca.key").write_text(
-        "-----BEGIN PRIVATE KEY-----\nFAKEKEY\n-----END PRIVATE KEY-----\n"
-    )
-
-    # Also create TLS files in CWD for tests that look relative to working directory
-    cwd_tls_dir = tmp_path / "tls-cluster-namespace"
-    cwd_tls_dir.mkdir(exist_ok=True)
-    (cwd_tls_dir / "ca.crt").write_text(
-        "-----BEGIN CERTIFICATE-----\n"
-        "MIIDMjCCAhqgAwIBAgIRAKz6UjGPWFAKGAKEAAAAIAQwDQYJKoZIhvcNAQELBQAw\n"
-        "-----END CERTIFICATE-----\n"
-    )
-    (cwd_tls_dir / "ca.key").write_text(
         "-----BEGIN PRIVATE KEY-----\nFAKEKEY\n-----END PRIVATE KEY-----\n"
     )
 
