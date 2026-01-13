@@ -14,7 +14,7 @@ on:
       python-version:
         required: true
         description: "Provide the python version to be used for the notebooks"
-        default: "3.11"
+        default: "3.12"
       codeflare-repository-organization:
         required: true
         description: "Owner of origin notebooks repository used to open a PR"

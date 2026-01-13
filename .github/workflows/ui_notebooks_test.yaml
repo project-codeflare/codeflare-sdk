@@ -3,14 +3,15 @@ name: UI notebooks tests
 on:
   pull_request:
     branches: [ main ]
-    types: [ labeled ]
+    types: [ labeled, synchronize ]
 
 concurrency:
   group: ${{ github.head_ref }}-${{ github.workflow }}
   cancel-in-progress: true
 
 env:
-  CODEFLARE_OPERATOR_IMG: "quay.io/project-codeflare/codeflare-operator:dev"
+  KUEUE_VERSION: v0.13.4
+  KUBERAY_VERSION: v1.4.2
 
 jobs:
   verify-3_widget_example:
@@ -30,42 +31,64 @@ jobs:
           ref: "main"
           path: "common"
 
-      - name: Checkout CodeFlare operator repository
-        uses: actions/checkout@v4
-        with:
-          repository: project-codeflare/codeflare-operator
-          path: codeflare-operator
-
-      - name: Set Go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: "./codeflare-operator/go.mod"
-          cache-dependency-path: "./codeflare-operator/go.sum"
-
-      - name: Set up gotestfmt
-        uses: gotesttools/gotestfmt-action@v2
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Set up specific Python version
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
           cache: "pip" # caching pip dependencies
 
       - name: Setup and start KinD cluster
         uses: ./common/github-actions/kind
 
-      - name: Deploy CodeFlare stack
+      - name: Deploy Kueue and KubeRay
         id: deploy
         run: |
-          cd codeflare-operator
-          echo Setting up CodeFlare stack
-          make setup-e2e
-          echo Deploying CodeFlare operator
-          make deploy -e IMG="${CODEFLARE_OPERATOR_IMG}" -e ENV="e2e"
-          kubectl wait --timeout=120s --for=condition=Available=true deployment -n openshift-operators codeflare-operator-manager
-          cd ..
+          # Install Kueue
+          echo "Installing Kueue ${KUEUE_VERSION}..."
+          kubectl apply --server-side -f https://github.com/kubernetes-sigs/kueue/releases/download/${KUEUE_VERSION}/manifests.yaml
+          kubectl wait --timeout=120s --for=condition=Available=true deployment -n kueue-system kueue-controller-manager
+
+          # Install KubeRay from opendatahub-io fork (has RHOAI features)
+          echo "Installing KubeRay ${KUBERAY_VERSION} from opendatahub-io..."
+          kubectl create -k "github.com/opendatahub-io/kuberay/ray-operator/config/default?ref=${KUBERAY_VERSION}"
+          kubectl wait --timeout=120s --for=condition=Available=true deployment kuberay-operator
+
+          # Create default Kueue resources for the tests
+          echo "Creating Kueue resources..."
+          kubectl apply -f - <<EOF
+          apiVersion: kueue.x-k8s.io/v1beta1
+          kind: ResourceFlavor
+          metadata:
+            name: default-flavor
+          ---
+          apiVersion: kueue.x-k8s.io/v1beta1
+          kind: ClusterQueue
+          metadata:
+            name: cluster-queue
+          spec:
+            namespaceSelector: {}
+            resourceGroups:
+            - coveredResources: ["cpu", "memory", "nvidia.com/gpu"]
+              flavors:
+              - name: default-flavor
+                resources:
+                - name: cpu
+                  nominalQuota: 100
+                - name: memory
+                  nominalQuota: 100Gi
+                - name: nvidia.com/gpu
+                  nominalQuota: 10
+          ---
+          apiVersion: kueue.x-k8s.io/v1beta1
+          kind: LocalQueue
+          metadata:
+            name: local-queue
+            namespace: default
+            annotations:
+              kueue.x-k8s.io/default-queue: "true"
+          spec:
+            clusterQueue: cluster-queue
+          EOF
 
       - name: Setup Guided notebooks execution
         run: |
@@ -87,7 +110,7 @@ jobs:
           jq -r 'del(.cells[] | select(.source[] | contains("Create authentication object for user permissions")))' 3_widget_example.ipynb > 3_widget_example.ipynb.tmp && mv 3_widget_example.ipynb.tmp 3_widget_example.ipynb
           jq -r 'del(.cells[] | select(.source[] | contains("auth.logout()")))' 3_widget_example.ipynb > 3_widget_example.ipynb.tmp && mv 3_widget_example.ipynb.tmp 3_widget_example.ipynb
           # Set explicit namespace as SDK need it (currently) to resolve local queues
-          sed -i "s|head_memory_limits=2,|head_memory_limits=2, namespace='default',|" 3_widget_example.ipynb
+          sed -i "s|head_memory_limits=8,|head_memory_limits=8, namespace='default',|" 3_widget_example.ipynb
           sed -i "s|view_clusters()|view_clusters('default')|" 3_widget_example.ipynb
         working-directory: demo-notebooks/guided-demos
 
