@@ -3,14 +3,15 @@ name: Guided notebooks tests
 on:
   pull_request:
     branches: [ main ]
-    types: [ labeled ]
+    types: [ labeled, synchronize ]
 
 concurrency:
   group: ${{ github.head_ref }}-${{ github.workflow }}
   cancel-in-progress: true
 
 env:
-  CODEFLARE_OPERATOR_IMG: "quay.io/project-codeflare/codeflare-operator:dev"
+  KUEUE_VERSION: v0.13.4
+  KUBERAY_VERSION: v1.4.2
 
 jobs:
   verify-0_basic_ray:
@@ -30,42 +31,64 @@ jobs:
           ref: 'main'
           path: 'common'
 
-      - name: Checkout CodeFlare operator repository
-        uses: actions/checkout@v4
-        with:
-          repository: project-codeflare/codeflare-operator
-          path: codeflare-operator
-
-      - name: Set Go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: './codeflare-operator/go.mod'
-          cache-dependency-path: "./codeflare-operator/go.sum"
-
-      - name: Set up gotestfmt
-        uses: gotesttools/gotestfmt-action@v2
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Set up specific Python version
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.12'
           cache: 'pip' # caching pip dependencies
 
       - name: Setup and start KinD cluster
         uses: ./common/github-actions/kind
 
-      - name: Deploy CodeFlare stack
+      - name: Deploy Kueue and KubeRay
         id: deploy
         run: |
-          cd codeflare-operator
-          echo Setting up CodeFlare stack
-          make setup-e2e
-          echo Deploying CodeFlare operator
-          make deploy -e IMG="${CODEFLARE_OPERATOR_IMG}" -e ENV="e2e"
-          kubectl wait --timeout=120s --for=condition=Available=true deployment -n openshift-operators codeflare-operator-manager
-          cd ..
+          # Install Kueue
+          echo "Installing Kueue ${KUEUE_VERSION}..."
+          kubectl apply --server-side -f https://github.com/kubernetes-sigs/kueue/releases/download/${KUEUE_VERSION}/manifests.yaml
+          kubectl wait --timeout=120s --for=condition=Available=true deployment -n kueue-system kueue-controller-manager
+
+          # Install KubeRay from opendatahub-io fork (has RHOAI features)
+          echo "Installing KubeRay ${KUBERAY_VERSION} from opendatahub-io..."
+          kubectl create -k "github.com/opendatahub-io/kuberay/ray-operator/config/default?ref=${KUBERAY_VERSION}"
+          kubectl wait --timeout=120s --for=condition=Available=true deployment kuberay-operator
+
+          # Create default Kueue resources for the tests
+          echo "Creating Kueue resources..."
+          kubectl apply -f - <<EOF
+          apiVersion: kueue.x-k8s.io/v1beta1
+          kind: ResourceFlavor
+          metadata:
+            name: default-flavor
+          ---
+          apiVersion: kueue.x-k8s.io/v1beta1
+          kind: ClusterQueue
+          metadata:
+            name: cluster-queue
+          spec:
+            namespaceSelector: {}
+            resourceGroups:
+            - coveredResources: ["cpu", "memory", "nvidia.com/gpu"]
+              flavors:
+              - name: default-flavor
+                resources:
+                - name: cpu
+                  nominalQuota: 100
+                - name: memory
+                  nominalQuota: 100Gi
+                - name: nvidia.com/gpu
+                  nominalQuota: 10
+          ---
+          apiVersion: kueue.x-k8s.io/v1beta1
+          kind: LocalQueue
+          metadata:
+            name: local-queue
+            namespace: default
+            annotations:
+              kueue.x-k8s.io/default-queue: "true"
+          spec:
+            clusterQueue: cluster-queue
+          EOF
 
       - name: Setup Guided notebooks execution
         run: |
@@ -85,16 +108,12 @@ jobs:
           jq -r 'del(.cells[] | select(.source[] | contains("Create authentication object for user permissions")))' 0_basic_ray.ipynb > 0_basic_ray.ipynb.tmp && mv 0_basic_ray.ipynb.tmp 0_basic_ray.ipynb
           jq -r 'del(.cells[] | select(.source[] | contains("auth.logout()")))' 0_basic_ray.ipynb > 0_basic_ray.ipynb.tmp && mv 0_basic_ray.ipynb.tmp 0_basic_ray.ipynb
           # Set explicit namespace as SDK need it (currently) to resolve local queues
-          sed -i "s/head_memory_limits=2,/head_memory_limits=2, namespace='default',/" 0_basic_ray.ipynb
+          sed -i "s/head_memory_limits=8,/head_memory_limits=8, namespace='default',/" 0_basic_ray.ipynb
+          # Disable dashboard check as KinD doesn't have HTTPRoute/Route configured
+          sed -i "s/cluster.wait_ready()/cluster.wait_ready(dashboard_check=False)/" 0_basic_ray.ipynb
           # Run notebook
           poetry run papermill 0_basic_ray.ipynb 0_basic_ray_out.ipynb --log-output --execution-timeout 600
         working-directory: demo-notebooks/guided-demos
-
-      - name: Print CodeFlare operator logs
-        if: always() && steps.deploy.outcome == 'success'
-        run: |
-          echo "Printing CodeFlare operator logs"
-          kubectl logs -n openshift-operators --tail -1 -l app.kubernetes.io/name=codeflare-operator | tee ${TEMP_DIR}/codeflare-operator.log
 
       - name: Print Kueue operator logs
         if: always() && steps.deploy.outcome == 'success'
@@ -107,7 +126,7 @@ jobs:
         if: always() && steps.deploy.outcome == 'success'
         run: |
           echo "Printing KubeRay operator logs"
-          kubectl logs -n ray-system --tail -1 -l app.kubernetes.io/name=kuberay | tee ${TEMP_DIR}/kuberay.log
+          kubectl logs --tail -1 -l app.kubernetes.io/name=kuberay | tee ${TEMP_DIR}/kuberay.log
 
       - name: Export all KinD pod logs
         uses: ./common/github-actions/kind-export-logs
@@ -124,9 +143,9 @@ jobs:
           path: |
             ${{ env.TEMP_DIR }}/**/*.log
 
-  verify-1_cluster_job_client:
+  verify-4_rayjob_existing_cluster:
     if: ${{ contains(github.event.pull_request.labels.*.name, 'test-guided-notebooks') }}
-    runs-on: gpu-t4-4-core
+    runs-on: ubuntu-latest-4core
 
     steps:
       - name: Checkout code
@@ -141,50 +160,64 @@ jobs:
           ref: 'main'
           path: 'common'
 
-      - name: Checkout CodeFlare operator repository
-        uses: actions/checkout@v4
-        with:
-          repository: project-codeflare/codeflare-operator
-          path: codeflare-operator
-
-      - name: Set Go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: './codeflare-operator/go.mod'
-          cache-dependency-path: "./codeflare-operator/go.sum"
-
-      - name: Set up gotestfmt
-        uses: gotesttools/gotestfmt-action@v2
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Set up specific Python version
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.12'
           cache: 'pip' # caching pip dependencies
-
-      - name: Setup NVidia GPU environment for KinD
-        uses: ./common/github-actions/nvidia-gpu-setup
 
       - name: Setup and start KinD cluster
         uses: ./common/github-actions/kind
 
-      - name: Install NVidia GPU operator for KinD
-        uses: ./common/github-actions/nvidia-gpu-operator
-        with:
-          enable-time-slicing: 'true'
-
-      - name: Deploy CodeFlare stack
+      - name: Deploy Kueue and KubeRay
         id: deploy
         run: |
-          cd codeflare-operator
-          echo Setting up CodeFlare stack
-          make setup-e2e
-          echo Deploying CodeFlare operator
-          make deploy -e IMG="${CODEFLARE_OPERATOR_IMG}" -e ENV="e2e"
-          kubectl wait --timeout=120s --for=condition=Available=true deployment -n openshift-operators codeflare-operator-manager
-          cd ..
+          # Install Kueue
+          echo "Installing Kueue ${KUEUE_VERSION}..."
+          kubectl apply --server-side -f https://github.com/kubernetes-sigs/kueue/releases/download/${KUEUE_VERSION}/manifests.yaml
+          kubectl wait --timeout=120s --for=condition=Available=true deployment -n kueue-system kueue-controller-manager
+
+          # Install KubeRay from opendatahub-io fork (has RHOAI features)
+          echo "Installing KubeRay ${KUBERAY_VERSION} from opendatahub-io..."
+          kubectl create -k "github.com/opendatahub-io/kuberay/ray-operator/config/default?ref=${KUBERAY_VERSION}"
+          kubectl wait --timeout=120s --for=condition=Available=true deployment kuberay-operator
+
+          # Create default Kueue resources for the tests
+          echo "Creating Kueue resources..."
+          kubectl apply -f - <<EOF
+          apiVersion: kueue.x-k8s.io/v1beta1
+          kind: ResourceFlavor
+          metadata:
+            name: default-flavor
+          ---
+          apiVersion: kueue.x-k8s.io/v1beta1
+          kind: ClusterQueue
+          metadata:
+            name: cluster-queue
+          spec:
+            namespaceSelector: {}
+            resourceGroups:
+            - coveredResources: ["cpu", "memory", "nvidia.com/gpu"]
+              flavors:
+              - name: default-flavor
+                resources:
+                - name: cpu
+                  nominalQuota: 100
+                - name: memory
+                  nominalQuota: 100Gi
+                - name: nvidia.com/gpu
+                  nominalQuota: 10
+          ---
+          apiVersion: kueue.x-k8s.io/v1beta1
+          kind: LocalQueue
+          metadata:
+            name: local-queue
+            namespace: default
+            annotations:
+              kueue.x-k8s.io/default-queue: "true"
+          spec:
+            clusterQueue: cluster-queue
+          EOF
 
       - name: Setup Guided notebooks execution
         run: |
@@ -196,27 +229,22 @@ jobs:
           echo "Installing SDK..."
           poetry install --with test,docs
 
-      - name: Run 1_cluster_job_client.ipynb
+      - name: Run 4_rayjob_existing_cluster.ipynb
         run: |
           set -euo pipefail
 
-          # Remove login/logout cells, as KinD doesn't support authentication using token
-          jq -r 'del(.cells[] | select(.source[] | contains("Create authentication object for user permissions")))' 1_cluster_job_client.ipynb > 1_cluster_job_client.ipynb.tmp && mv 1_cluster_job_client.ipynb.tmp 1_cluster_job_client.ipynb
-          jq -r 'del(.cells[] | select(.source[] | contains("auth.logout()")))' 1_cluster_job_client.ipynb > 1_cluster_job_client.ipynb.tmp && mv 1_cluster_job_client.ipynb.tmp 1_cluster_job_client.ipynb
-          # Replace async logs with waiting for job to finish, async logs don't work properly in papermill
-          JOB_WAIT=$(jq -r '.' ${GITHUB_WORKSPACE}/.github/resources/wait_for_job_cell.json)
-          jq --argjson job_wait "$JOB_WAIT" -r '(.cells[] | select(.source[] | contains("async for lines in client.tail_job_logs"))) |= $job_wait' 1_cluster_job_client.ipynb > 1_cluster_job_client.ipynb.tmp && mv 1_cluster_job_client.ipynb.tmp 1_cluster_job_client.ipynb
-          # Set explicit namespace as SDK need it (currently) to resolve local queues
-          sed -i "s/head_cpu_limits=1,/head_cpu_limits=1, namespace='default',/" 1_cluster_job_client.ipynb
+          # Remove oc login cell, as KinD doesn't support oc login
+          jq -r 'del(.cells[] | select(.source[] | contains("oc login")))' 4_rayjob_existing_cluster.ipynb > 4_rayjob_existing_cluster.ipynb.tmp && mv 4_rayjob_existing_cluster.ipynb.tmp 4_rayjob_existing_cluster.ipynb
+          # Remove GPU requests (KinD doesn't have GPUs)
+          sed -i "s/head_extended_resource_requests={'nvidia.com\/gpu':1},/head_extended_resource_requests={'nvidia.com\/gpu':0},/" 4_rayjob_existing_cluster.ipynb
+          sed -i "s/worker_extended_resource_requests={'nvidia.com\/gpu':1},/worker_extended_resource_requests={'nvidia.com\/gpu':0},/" 4_rayjob_existing_cluster.ipynb
+          # Set explicit namespace for RayJob (notebook stores JSON with escaped quotes)
+          sed -i 's/namespace=\\"your-namespace\\"/namespace=\\"default\\"/' 4_rayjob_existing_cluster.ipynb
+          # Add namespace to ClusterConfiguration
+          sed -i "s/head_memory_limits=8,/head_memory_limits=8, namespace='default',/" 4_rayjob_existing_cluster.ipynb
           # Run notebook
-          poetry run papermill 1_cluster_job_client.ipynb 1_cluster_job_client_out.ipynb --log-output --execution-timeout 1200
+          poetry run papermill 4_rayjob_existing_cluster.ipynb 4_rayjob_existing_cluster_out.ipynb --log-output --execution-timeout 600
         working-directory: demo-notebooks/guided-demos
-
-      - name: Print CodeFlare operator logs
-        if: always() && steps.deploy.outcome == 'success'
-        run: |
-          echo "Printing CodeFlare operator logs"
-          kubectl logs -n openshift-operators --tail -1 -l app.kubernetes.io/name=codeflare-operator | tee ${TEMP_DIR}/codeflare-operator.log
 
       - name: Print Kueue operator logs
         if: always() && steps.deploy.outcome == 'success'
@@ -229,7 +257,7 @@ jobs:
         if: always() && steps.deploy.outcome == 'success'
         run: |
           echo "Printing KubeRay operator logs"
-          kubectl logs -n ray-system --tail -1 -l app.kubernetes.io/name=kuberay | tee ${TEMP_DIR}/kuberay.log
+          kubectl logs --tail -1 -l app.kubernetes.io/name=kuberay | tee ${TEMP_DIR}/kuberay.log
 
       - name: Export all KinD pod logs
         uses: ./common/github-actions/kind-export-logs
@@ -241,14 +269,14 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always() && steps.deploy.outcome == 'success'
         with:
-          name: logs-1_cluster_job_client
+          name: logs-4_rayjob_existing_cluster
           retention-days: 10
           path: |
             ${{ env.TEMP_DIR }}/**/*.log
 
-  verify-2_basic_interactive:
+  verify-5_submit_rayjob_cr:
     if: ${{ contains(github.event.pull_request.labels.*.name, 'test-guided-notebooks') }}
-    runs-on: gpu-t4-4-core
+    runs-on: ubuntu-latest-4core
 
     steps:
       - name: Checkout code
@@ -263,55 +291,64 @@ jobs:
           ref: 'main'
           path: 'common'
 
-      - name: Checkout CodeFlare operator repository
-        uses: actions/checkout@v4
-        with:
-          repository: project-codeflare/codeflare-operator
-          path: codeflare-operator
-
-      - name: Set Go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: './codeflare-operator/go.mod'
-          cache-dependency-path: "./codeflare-operator/go.sum"
-
-      - name: Set up gotestfmt
-        uses: gotesttools/gotestfmt-action@v2
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Set up specific Python version
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.12'
           cache: 'pip' # caching pip dependencies
-
-      - name: Setup NVidia GPU environment for KinD
-        uses: ./common/github-actions/nvidia-gpu-setup
 
       - name: Setup and start KinD cluster
         uses: ./common/github-actions/kind
 
-      - name: Install NVidia GPU operator for KinD
-        uses: ./common/github-actions/nvidia-gpu-operator
-        with:
-          enable-time-slicing: 'true'
-
-      - name: Deploy CodeFlare stack
+      - name: Deploy Kueue and KubeRay
         id: deploy
         run: |
-          cd codeflare-operator
-          echo Setting up CodeFlare stack
-          make setup-e2e
-          echo Deploying CodeFlare operator
-          make deploy -e IMG="${CODEFLARE_OPERATOR_IMG}" -e ENV="e2e"
-          kubectl wait --timeout=120s --for=condition=Available=true deployment -n openshift-operators codeflare-operator-manager
-          cd ..
+          # Install Kueue
+          echo "Installing Kueue ${KUEUE_VERSION}..."
+          kubectl apply --server-side -f https://github.com/kubernetes-sigs/kueue/releases/download/${KUEUE_VERSION}/manifests.yaml
+          kubectl wait --timeout=120s --for=condition=Available=true deployment -n kueue-system kueue-controller-manager
 
-      - name: Install MINIO
-        run: |
-          kubectl apply -f ./tests/e2e/minio_deployment.yaml
-          kubectl wait --timeout=120s --for=condition=Available=true deployment -n default minio
+          # Install KubeRay from opendatahub-io fork (has RHOAI features)
+          echo "Installing KubeRay ${KUBERAY_VERSION} from opendatahub-io..."
+          kubectl create -k "github.com/opendatahub-io/kuberay/ray-operator/config/default?ref=${KUBERAY_VERSION}"
+          kubectl wait --timeout=120s --for=condition=Available=true deployment kuberay-operator
+
+          # Create default Kueue resources for the tests
+          echo "Creating Kueue resources..."
+          kubectl apply -f - <<EOF
+          apiVersion: kueue.x-k8s.io/v1beta1
+          kind: ResourceFlavor
+          metadata:
+            name: default-flavor
+          ---
+          apiVersion: kueue.x-k8s.io/v1beta1
+          kind: ClusterQueue
+          metadata:
+            name: cluster-queue
+          spec:
+            namespaceSelector: {}
+            resourceGroups:
+            - coveredResources: ["cpu", "memory", "nvidia.com/gpu"]
+              flavors:
+              - name: default-flavor
+                resources:
+                - name: cpu
+                  nominalQuota: 100
+                - name: memory
+                  nominalQuota: 100Gi
+                - name: nvidia.com/gpu
+                  nominalQuota: 10
+          ---
+          apiVersion: kueue.x-k8s.io/v1beta1
+          kind: LocalQueue
+          metadata:
+            name: local-queue
+            namespace: default
+            annotations:
+              kueue.x-k8s.io/default-queue: "true"
+          spec:
+            clusterQueue: cluster-queue
+          EOF
 
       - name: Setup Guided notebooks execution
         run: |
@@ -323,35 +360,17 @@ jobs:
           echo "Installing SDK..."
           poetry install --with test,docs
 
-      - name: Run 2_basic_interactive.ipynb
+      - name: Run 5_submit_rayjob_cr.ipynb
         run: |
           set -euo pipefail
 
-          # Remove login/logout cells, as KinD doesn't support authentication using token
-          jq -r 'del(.cells[] | select(.source[] | contains("Create authentication object for user permissions")))' 2_basic_interactive.ipynb > 2_basic_interactive.ipynb.tmp && mv 2_basic_interactive.ipynb.tmp 2_basic_interactive.ipynb
-          jq -r 'del(.cells[] | select(.source[] | contains("auth.logout()")))' 2_basic_interactive.ipynb > 2_basic_interactive.ipynb.tmp && mv 2_basic_interactive.ipynb.tmp 2_basic_interactive.ipynb
-          # Rewrite cluster_uri() to local_client_url() to retrieve client URL available out of cluster, as the test is executed outside of cluster
-          sed -i "s/cluster_uri()/local_client_url()/" 2_basic_interactive.ipynb
-          # Set explicit namespace as SDK need it (currently) to resolve local queues
-          sed -i "s/head_cpu_limits=1,/head_cpu_limits=1, namespace='default',/" 2_basic_interactive.ipynb
-          # Add MINIO related modules to runtime environment
-          sed -i "s/\\\\\"transformers/\\\\\"s3fs\\\\\", \\\\\"pyarrow\\\\\", \\\\\"transformers/" 2_basic_interactive.ipynb
-          # Replace markdown cell with remote configuration for MINIO
-          MINIO_CONFIG=$(jq -r '.' ${GITHUB_WORKSPACE}/.github/resources/minio_remote_config_cell.json)
-          jq --argjson minio_config "$MINIO_CONFIG" -r '(.cells[] | select(.source[] | contains("Now that we are connected"))) |= $minio_config' 2_basic_interactive.ipynb > 2_basic_interactive.ipynb.tmp && mv 2_basic_interactive.ipynb.tmp 2_basic_interactive.ipynb
-          # Configure persistent storage for Ray trainer
-          sed -i -E "s/# run_config.*\)/, run_config=ray.get(get_minio_run_config.remote())/" 2_basic_interactive.ipynb
+          # Remove oc login cell, as KinD doesn't support oc login
+          jq -r 'del(.cells[] | select(.source[] | contains("oc login")))' 5_submit_rayjob_cr.ipynb > 5_submit_rayjob_cr.ipynb.tmp && mv 5_submit_rayjob_cr.ipynb.tmp 5_submit_rayjob_cr.ipynb
+          # Set explicit namespace (notebook stores JSON with escaped quotes)
+          sed -i 's/namespace=\\"your-namespace\\"/namespace=\\"default\\"/' 5_submit_rayjob_cr.ipynb
           # Run notebook
-          poetry run papermill 2_basic_interactive.ipynb 2_basic_interactive_out.ipynb --log-output --execution-timeout 1200
-        env:
-          GRPC_DNS_RESOLVER: "native"
+          poetry run papermill 5_submit_rayjob_cr.ipynb 5_submit_rayjob_cr_out.ipynb --log-output --execution-timeout 600
         working-directory: demo-notebooks/guided-demos
-
-      - name: Print CodeFlare operator logs
-        if: always() && steps.deploy.outcome == 'success'
-        run: |
-          echo "Printing CodeFlare operator logs"
-          kubectl logs -n openshift-operators --tail -1 -l app.kubernetes.io/name=codeflare-operator | tee ${TEMP_DIR}/codeflare-operator.log
 
       - name: Print Kueue operator logs
         if: always() && steps.deploy.outcome == 'success'
@@ -364,7 +383,7 @@ jobs:
         if: always() && steps.deploy.outcome == 'success'
         run: |
           echo "Printing KubeRay operator logs"
-          kubectl logs -n ray-system --tail -1 -l app.kubernetes.io/name=kuberay | tee ${TEMP_DIR}/kuberay.log
+          kubectl logs --tail -1 -l app.kubernetes.io/name=kuberay | tee ${TEMP_DIR}/kuberay.log
 
       - name: Export all KinD pod logs
         uses: ./common/github-actions/kind-export-logs
@@ -376,7 +395,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always() && steps.deploy.outcome == 'success'
         with:
-          name: logs-2_basic_interactive
+          name: logs-5_submit_rayjob_cr
           retention-days: 10
           path: |
             ${{ env.TEMP_DIR }}/**/*.log
