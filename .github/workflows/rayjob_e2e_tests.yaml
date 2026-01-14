@@ -18,7 +18,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  CODEFLARE_OPERATOR_IMG: "quay.io/project-codeflare/codeflare-operator:dev"
+  KUEUE_VERSION: v0.13.4
+  KUBERAY_VERSION: v1.4.2
 
 jobs:
   kubernetes-rayjob:
@@ -37,23 +38,6 @@ jobs:
           ref: "main"
           path: "common"
 
-      - name: Checkout CodeFlare operator repository
-        uses: actions/checkout@v4
-        with:
-          repository: project-codeflare/codeflare-operator
-          path: codeflare-operator
-
-      - name: Set Go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: "./codeflare-operator/go.mod"
-          cache-dependency-path: "./codeflare-operator/go.sum"
-
-      - name: Set up gotestfmt
-        uses: gotesttools/gotestfmt-action@v2
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Set up specific Python version
         uses: actions/setup-python@v5
         with:
@@ -71,16 +55,55 @@ jobs:
       - name: Install NVidia GPU operator for KinD
         uses: ./common/github-actions/nvidia-gpu-operator
 
-      - name: Deploy CodeFlare stack
+      - name: Deploy Kueue and KubeRay
         id: deploy
         run: |
-          cd codeflare-operator
-          echo Setting up CodeFlare stack
-          make setup-e2e KUEUE_VERSION=v0.13.4 KUBERAY_VERSION=v1.4.0
-          echo Deploying CodeFlare operator
-          make deploy -e IMG="${CODEFLARE_OPERATOR_IMG}" -e ENV="e2e"
-          kubectl wait --timeout=120s --for=condition=Available=true deployment -n openshift-operators codeflare-operator-manager
-          cd ..
+          # Install Kueue
+          echo "Installing Kueue ${KUEUE_VERSION}..."
+          kubectl apply --server-side -f https://github.com/kubernetes-sigs/kueue/releases/download/${KUEUE_VERSION}/manifests.yaml
+          kubectl wait --timeout=120s --for=condition=Available=true deployment -n kueue-system kueue-controller-manager
+
+          # Install KubeRay from opendatahub-io fork (has RHOAI features)
+          echo "Installing KubeRay ${KUBERAY_VERSION} from opendatahub-io..."
+          kubectl create -k "github.com/opendatahub-io/kuberay/ray-operator/config/default?ref=${KUBERAY_VERSION}"
+          kubectl wait --timeout=120s --for=condition=Available=true deployment kuberay-operator
+
+          # Create default Kueue resources for the tests
+          echo "Creating Kueue resources..."
+          kubectl apply -f - <<EOF
+          apiVersion: kueue.x-k8s.io/v1beta1
+          kind: ResourceFlavor
+          metadata:
+            name: default-flavor
+          ---
+          apiVersion: kueue.x-k8s.io/v1beta1
+          kind: ClusterQueue
+          metadata:
+            name: cluster-queue
+          spec:
+            namespaceSelector: {}
+            resourceGroups:
+            - coveredResources: ["cpu", "memory", "nvidia.com/gpu"]
+              flavors:
+              - name: default-flavor
+                resources:
+                - name: cpu
+                  nominalQuota: 100
+                - name: memory
+                  nominalQuota: 100Gi
+                - name: nvidia.com/gpu
+                  nominalQuota: 10
+          ---
+          apiVersion: kueue.x-k8s.io/v1beta1
+          kind: LocalQueue
+          metadata:
+            name: local-queue
+            namespace: default
+            annotations:
+              kueue.x-k8s.io/default-queue: "true"
+          spec:
+            clusterQueue: cluster-queue
+          EOF
 
       - name: Add user to KinD
         uses: ./common/github-actions/kind-add-user
@@ -142,17 +165,11 @@ jobs:
           echo "Printing Pytest output logs"
           cat ${CODEFLARE_TEST_OUTPUT_DIR}/pytest_output_rayjob.log
 
-      - name: Print CodeFlare operator logs
-        if: always() && steps.deploy.outcome == 'success'
-        run: |
-          echo "Printing CodeFlare operator logs"
-          kubectl logs -n openshift-operators --tail -1 -l app.kubernetes.io/name=codeflare-operator | tee ${CODEFLARE_TEST_OUTPUT_DIR}/codeflare-operator.log
-
       - name: Print KubeRay operator logs
         if: always() && steps.deploy.outcome == 'success'
         run: |
           echo "Printing KubeRay operator logs"
-          kubectl logs -n default --tail -1 -l app.kubernetes.io/name=kuberay | tee ${CODEFLARE_TEST_OUTPUT_DIR}/kuberay.log
+          kubectl logs --tail -1 -l app.kubernetes.io/name=kuberay | tee ${CODEFLARE_TEST_OUTPUT_DIR}/kuberay.log
 
       - name: Print Kueue controller logs
         if: always() && steps.deploy.outcome == 'success'

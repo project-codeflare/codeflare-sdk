@@ -67,8 +67,9 @@ class TestRayJobExistingCluster:
         cluster.apply()
 
         # Wait for cluster to be ready (with Kueue admission)
+        # On KinD, disable dashboard check as HTTPRoute/Route is not available
         print(f"Waiting for cluster '{cluster_name}' to be ready...")
-        cluster.wait_ready(timeout=600)
+        cluster.wait_ready(timeout=600, dashboard_check=is_openshift())
         print(f"✓ Cluster '{cluster_name}' is ready")
 
         # RayJob with explicit local_queue (will be ignored for existing clusters)

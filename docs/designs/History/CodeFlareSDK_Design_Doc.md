@@ -97,7 +97,6 @@ We will rely on the Kubernetes cluster’s default security, where users cannot 
     * System tests of SDK as part of the entire CodeFlare stack for main scenarios
 * Unit testing, integration testing, and system testing approaches
     * Unit testing will occur with every PR.
-    * For system testing we can leverage [current e2e](https://github.com/project-codeflare/codeflare-operator/tree/main/test/e2e) tests from the operator repo.
 * Validation criteria and expected outcomes
     * Minimum of 95% code coverage at all times.
     * Expect all unit tests to pass before a PR is merged.
