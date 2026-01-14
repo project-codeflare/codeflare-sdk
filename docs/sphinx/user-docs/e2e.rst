@@ -4,7 +4,7 @@ Running e2e tests locally
 Pre-requisites
 ^^^^^^^^^^^^^^
 
--  We recommend using Python 3.11, along with Poetry.
+-  We recommend using Python 3.12, along with Poetry.
 
 On KinD clusters
 ----------------
@@ -21,18 +21,66 @@ instructions <https://www.substratus.ai/blog/kind-with-gpus>`__.
 
 -  Setup Phase:
 
-   -  Pull the `codeflare-operator
-      repo <https://github.com/project-codeflare/codeflare-operator>`__
-      and run the following make targets:
+   -  Create a KinD cluster:
 
    ::
 
-      make kind-e2e
-      export CLUSTER_HOSTNAME=kind
-      make setup-e2e
-      make deploy -e IMG=quay.io/project-codeflare/codeflare-operator:v1.3.0
+      kind create cluster
 
-      For running tests locally on Kind cluster, we need to disable `rayDashboardOAuthEnabled` in `codeflare-operator-config` ConfigMap and then restart CodeFlare Operator
+   -  Install Kueue:
+
+   ::
+
+      KUEUE_VERSION=v0.13.4
+      kubectl apply --server-side -f https://github.com/kubernetes-sigs/kueue/releases/download/${KUEUE_VERSION}/manifests.yaml
+      kubectl wait --timeout=120s --for=condition=Available=true deployment -n kueue-system kueue-controller-manager
+
+   -  Install KubeRay from the opendatahub-io fork (includes RHOAI features):
+
+   ::
+
+      KUBERAY_VERSION=v1.4.2
+      kubectl create -k "github.com/opendatahub-io/kuberay/ray-operator/config/default?ref=${KUBERAY_VERSION}"
+      kubectl wait --timeout=120s --for=condition=Available=true deployment kuberay-operator
+
+   -  Create Kueue resources (ResourceFlavor, ClusterQueue, LocalQueue):
+
+   ::
+
+      kubectl apply -f - <<EOF
+      apiVersion: kueue.x-k8s.io/v1beta1
+      kind: ResourceFlavor
+      metadata:
+        name: default-flavor
+      ---
+      apiVersion: kueue.x-k8s.io/v1beta1
+      kind: ClusterQueue
+      metadata:
+        name: cluster-queue
+      spec:
+        namespaceSelector: {}
+        resourceGroups:
+        - coveredResources: ["cpu", "memory", "nvidia.com/gpu"]
+          flavors:
+          - name: default-flavor
+            resources:
+            - name: cpu
+              nominalQuota: 100
+            - name: memory
+              nominalQuota: 100Gi
+            - name: nvidia.com/gpu
+              nominalQuota: 10
+      ---
+      apiVersion: kueue.x-k8s.io/v1beta1
+      kind: LocalQueue
+      metadata:
+        name: local-queue
+        namespace: default
+        annotations:
+          kueue.x-k8s.io/default-queue: "true"
+      spec:
+        clusterQueue: cluster-queue
+      EOF
 
    -  **(Optional)** - Create and add ``sdk-user`` with limited
       permissions to the cluster to run through the e2e tests:
@@ -68,21 +116,18 @@ instructions <https://www.substratus.ai/blog/kind-with-gpus>`__.
         kubectl create clusterrolebinding sdk-user-list-ingresses --clusterrole=list-ingresses --user=sdk-user
         kubectl create clusterrole namespace-creator --verb=get,list,create,delete,patch --resource=namespaces
         kubectl create clusterrolebinding sdk-user-namespace-creator --clusterrole=namespace-creator --user=sdk-user
-        kubectl create clusterrole list-rayclusters --verb=get,list --resource=rayclusters
-        kubectl create clusterrolebinding sdk-user-list-rayclusters --clusterrole=list-rayclusters --user=sdk-user
+        kubectl create clusterrole raycluster-creator --verb=get,list,create,delete,patch --resource=rayclusters
+        kubectl create clusterrolebinding sdk-user-raycluster-creator --clusterrole=raycluster-creator --user=sdk-user
+        kubectl create clusterrole rayjob-creator --verb=get,list,create,delete,patch --resource=rayjobs
+        kubectl create clusterrolebinding sdk-user-rayjob-creator --clusterrole=rayjob-creator --user=sdk-user
+        kubectl create clusterrole list-secrets --verb=get,list --resource=secrets
+        kubectl create clusterrolebinding sdk-user-list-secrets --clusterrole=list-secrets --user=sdk-user
         kubectl config use-context sdk-user
-
-   -  Install the latest development version of kueue
-
-   ::
-
-      kubectl apply --server-side -k "github.com/opendatahub-io/kueue/config/rhoai?ref=dev"
 
 -  Test Phase:
 
-   -  Once we have the codeflare-operator, kuberay-operator and kueue
-      running and ready, we can run the e2e test on the codeflare-sdk
-      repository:
+   -  Once we have kuberay-operator and kueue running and ready, we can
+      run the e2e test on the codeflare-sdk repository:
 
    ::
 
@@ -102,21 +147,60 @@ On OpenShift clusters
 
 -  Setup Phase:
 
-   -  Pull the `codeflare-operator
-      repo <https://github.com/project-codeflare/codeflare-operator>`__
-      and run the following make targets:
+   -  Install Kueue:
 
    ::
 
+      KUEUE_VERSION=v0.13.4
+      kubectl apply --server-side -f https://github.com/kubernetes-sigs/kueue/releases/download/${KUEUE_VERSION}/manifests.yaml
+      kubectl wait --timeout=120s --for=condition=Available=true deployment -n kueue-system kueue-controller-manager
 
-      make setup-e2e
-      make deploy -e IMG=quay.io/project-codeflare/codeflare-operator:v1.3.0
-
-   -  Install the latest development version of kueue
+   -  Install KubeRay from the opendatahub-io fork (includes RHOAI features):
 
    ::
 
-      kubectl apply --server-side -k "github.com/opendatahub-io/kueue/config/rhoai?ref=dev"
+      KUBERAY_VERSION=v1.4.2
+      kubectl create -k "github.com/opendatahub-io/kuberay/ray-operator/config/default?ref=${KUBERAY_VERSION}"
+      kubectl wait --timeout=120s --for=condition=Available=true deployment kuberay-operator
+
+   -  Create Kueue resources (ResourceFlavor, ClusterQueue, LocalQueue):
+
+   ::
+
+      kubectl apply -f - <<EOF
+      apiVersion: kueue.x-k8s.io/v1beta1
+      kind: ResourceFlavor
+      metadata:
+        name: default-flavor
+      ---
+      apiVersion: kueue.x-k8s.io/v1beta1
+      kind: ClusterQueue
+      metadata:
+        name: cluster-queue
+      spec:
+        namespaceSelector: {}
+        resourceGroups:
+        - coveredResources: ["cpu", "memory", "nvidia.com/gpu"]
+          flavors:
+          - name: default-flavor
+            resources:
+            - name: cpu
+              nominalQuota: 100
+            - name: memory
+              nominalQuota: 100Gi
+            - name: nvidia.com/gpu
+              nominalQuota: 10
+      ---
+      apiVersion: kueue.x-k8s.io/v1beta1
+      kind: LocalQueue
+      metadata:
+        name: local-queue
+        namespace: default
+        annotations:
+          kueue.x-k8s.io/default-queue: "true"
+      spec:
+        clusterQueue: cluster-queue
+      EOF
 
 If the system you run on contains NVidia GPU then you can enable the GPU
 support on OpenShift, this will allow you to run also GPU tests. To
@@ -127,9 +211,8 @@ executed on nodes with taint (i.e. GPU taint).
 
 -  Test Phase:
 
-   -  Once we have the codeflare-operator, kuberay-operator and kueue
-      running and ready, we can run the e2e test on the codeflare-sdk
-      repository:
+   -  Once we have kuberay-operator and kueue running and ready, we can
+      run the e2e test on the codeflare-sdk repository:
 
    ::
 
