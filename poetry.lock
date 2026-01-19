@@ -2120,14 +2120,14 @@ files = [
 
 [[package]]
 name = "kube-authkit"
-version = "0.1.0"
+version = "0.2.0"
 description = "Unified Kubernetes authentication toolkit - supports KubeConfig, In-Cluster, OIDC, and OpenShift OAuth authentication"
 optional = false
 python-versions = ">=3.10"
 groups = ["main"]
 files = [
-    {file = "kube_authkit-0.1.0-py3-none-any.whl", hash = "sha256:a137664ef1a382d54e8d0dc85818eaec67030cb714c1ed36426c6862ae5793e2"},
-    {file = "kube_authkit-0.1.0.tar.gz", hash = "sha256:412971b12980e32ce2d9ce9f965b1049de1ef82b199f3d4fa2a155fb55d13c64"},
+    {file = "kube_authkit-0.2.0-py3-none-any.whl", hash = "sha256:ab7cb0d59d31a631688c0cdb80e4a8dc27dc09f1153e80975fd5f76557f40a26"},
+    {file = "kube_authkit-0.2.0.tar.gz", hash = "sha256:b91b65dc059bbd0a83b26b6cb9622fbf7fcce79a9dde334b8a6e96646c0ddc8e"},
 ]
 
 [package.dependencies]
@@ -5449,4 +5449,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.11"
-content-hash = "d84a7f27ba77f2e65149092d62ecb208504d2b3461299ec555b0b1e87cc3fa4f"
+content-hash = "e766a25a47011f8c63b0f75d4524663ceeba20428f324dafd5b432f02a324e33"
