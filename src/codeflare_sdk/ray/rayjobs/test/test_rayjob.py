@@ -105,6 +105,42 @@ def test_rayjob_init_validation_neither_provided(auto_mock_setup):
         RayJob(job_name="test-job", entrypoint="python test.py")
 
 
+def test_rayjob_init_validation_ttl_with_existing_cluster(auto_mock_setup):
+    """
+    Test that providing ttl_seconds_after_finished with cluster_name raises error.
+    TTL can only be set when creating a new cluster via cluster_config.
+    """
+    with pytest.raises(
+        ValueError,
+        match="❌ Configuration Error: 'ttl_seconds_after_finished' cannot be set when targeting "
+        "an existing cluster \\(via 'cluster_name'\\)",
+    ):
+        RayJob(
+            job_name="test-job",
+            cluster_name="existing-cluster",
+            entrypoint="python test.py",
+            ttl_seconds_after_finished=300,
+        )
+
+
+def test_rayjob_init_ttl_zero_with_existing_cluster_allowed(auto_mock_setup):
+    """
+    Test that ttl_seconds_after_finished=0 is allowed with cluster_name.
+    The validation only checks for non-zero TTL values.
+    """
+    rayjob = RayJob(
+        job_name="test-job",
+        cluster_name="existing-cluster",
+        entrypoint="python test.py",
+        ttl_seconds_after_finished=0,
+        namespace="test-namespace",
+    )
+
+    assert rayjob.name == "test-job"
+    assert rayjob.cluster_name == "existing-cluster"
+    assert rayjob.ttl_seconds_after_finished == 0
+
+
 def test_rayjob_init_with_cluster_config(auto_mock_setup):
     """
     Test RayJob initialization with cluster configuration for auto-creation.
@@ -245,7 +281,6 @@ def test_build_rayjob_cr_with_existing_cluster(auto_mock_setup):
         cluster_name="existing-cluster",
         namespace="test-namespace",
         entrypoint="python main.py",
-        ttl_seconds_after_finished=300,
     )
 
     rayjob_cr = rayjob._build_rayjob_cr()
@@ -256,7 +291,6 @@ def test_build_rayjob_cr_with_existing_cluster(auto_mock_setup):
     spec = rayjob_cr["spec"]
     assert spec["entrypoint"] == "python main.py"
     assert spec["shutdownAfterJobFinishes"] is False
-    assert spec["ttlSecondsAfterFinished"] == 300
 
     assert spec["clusterSelector"]["ray.io/cluster"] == "existing-cluster"
     assert "rayClusterSpec" not in spec
@@ -526,12 +560,14 @@ def test_rayjob_with_runtime_env_dict(auto_mock_setup):
 def test_rayjob_with_active_deadline_and_ttl(auto_mock_setup):
     """
     Test RayJob with both active deadline and TTL settings.
+    Note: TTL can only be set when creating a new cluster (via cluster_config).
     """
 
+    cluster_config = ManagedClusterConfig()
     rayjob = RayJob(
         job_name="test-job",
         entrypoint="python -c 'print()'",
-        cluster_name="test-cluster",
+        cluster_config=cluster_config,
         active_deadline_seconds=300,
         ttl_seconds_after_finished=600,
         namespace="test-namespace",
@@ -594,11 +630,13 @@ def test_rayjob_error_handling_invalid_cluster_config(auto_mock_setup):
 def test_rayjob_constructor_parameter_validation(auto_mock_setup):
     """
     Test constructor parameter validation.
+    Note: TTL can only be set when creating a new cluster (via cluster_config).
     """
+    cluster_config = ManagedClusterConfig()
     rayjob = RayJob(
         job_name="test-job",
         entrypoint="python -c 'print()'",
-        cluster_name="test-cluster",
+        cluster_config=cluster_config,
         namespace="test-ns",
         runtime_env=RuntimeEnv(pip=["numpy"]),
         ttl_seconds_after_finished=300,
@@ -607,7 +645,7 @@ def test_rayjob_constructor_parameter_validation(auto_mock_setup):
 
     assert rayjob.name == "test-job"
     assert rayjob.entrypoint == "python -c 'print()'"
-    assert rayjob.cluster_name == "test-cluster"
+    assert rayjob.cluster_name == "test-job-cluster"  # Generated from job name
     assert rayjob.namespace == "test-ns"
     # Check that runtime_env is a RuntimeEnv object and contains pip dependencies
     assert isinstance(rayjob.runtime_env, RuntimeEnv)
