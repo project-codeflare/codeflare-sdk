@@ -18,5 +18,8 @@ from .cluster import (
     list_all_clusters,
     RayClusterStatus,
     CodeFlareClusterStatus,
+)
+
+from .rayclusters import (
     RayCluster,
 )

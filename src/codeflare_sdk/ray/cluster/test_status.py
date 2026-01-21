@@ -20,7 +20,7 @@ from codeflare_sdk.ray.cluster.cluster import (
 from codeflare_sdk.ray.cluster.status import (
     CodeFlareClusterStatus,
     RayClusterStatus,
-    RayCluster,
+    RayClusterInfo,
 )
 import os
 from ...common.utils.unit_test_support import get_local_queue
@@ -32,7 +32,7 @@ def test_cluster_status(mocker):
     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
 
-    fake_ray = RayCluster(
+    fake_ray = RayClusterInfo(
         name="test",
         status=RayClusterStatus.UNKNOWN,
         num_workers=1,

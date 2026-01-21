@@ -18,7 +18,7 @@ from codeflare_sdk.ray.cluster.pretty_print import (
     print_no_resources_found,
 )
 from codeflare_sdk.ray.cluster.status import (
-    RayCluster,
+    RayClusterInfo,
     RayClusterStatus,
     CodeFlareClusterStatus,
 )
@@ -49,7 +49,7 @@ def test_print_no_resources(capsys):
 
 def test_ray_details(mocker, capsys):
     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
-    ray1 = RayCluster(
+    ray1 = RayClusterInfo(
         name="raytest1",
         status=RayClusterStatus.READY,
         num_workers=1,

@@ -39,7 +39,7 @@ def custom_api(k8s_client):
 
 
 @pytest.fixture(scope="session")
-def is_openshift_platform():
+def is_openshift_platform(k8s_client):
     """
     Detect if running on OpenShift by checking for OpenShift-specific API resources.
 
@@ -47,8 +47,8 @@ def is_openshift_platform():
         bool: True if running on OpenShift, False otherwise.
     """
     try:
-        api = client.ApiClient()
-        discovery = client.ApisApi(api)
+        # Use the existing api_client from k8s_client to ensure kubeconfig is loaded
+        discovery = client.ApisApi(k8s_client.api_client)
         groups = discovery.get_api_versions().groups
         for group in groups:
             if group.name == "image.openshift.io":
