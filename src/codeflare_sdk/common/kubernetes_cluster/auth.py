@@ -151,7 +151,7 @@ class KubeConfigFileAuthentication(KubeConfiguration):
         global config_path
         global api_client
         try:
-            if self.kube_config_path == None:
+            if self.kube_config_path is None:
                 return "Please specify a config file path"
             config_path = self.kube_config_path
             api_client = None
@@ -183,7 +183,7 @@ def config_check() -> str:
     global config_path
     global api_client
     home_directory = os.path.expanduser("~")
-    if config_path == None and api_client == None:
+    if config_path is None and api_client is None:
         if os.path.isfile("%s/.kube/config" % home_directory):
             try:
                 config.load_kube_config()
@@ -199,7 +199,7 @@ def config_check() -> str:
                 "Action not permitted, have you put in correct/up-to-date auth credentials?"
             )
 
-    if config_path != None and api_client == None:
+    if config_path is not None and api_client is None:
         return config_path
 
 
@@ -237,7 +237,7 @@ def get_api_client() -> client.ApiClient:
         client.ApiClient:
             The Kubernetes API client object.
     """
-    if api_client != None:
+    if api_client is not None:
         return api_client
     to_return = client.ApiClient()
     _client_with_cert(to_return)
