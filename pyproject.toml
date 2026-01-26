@@ -39,7 +39,7 @@ rich = ">=12.5,<14.0"
 ray = {version = "2.52.1", extras = ["data", "default"]}
 kubernetes = ">= 27.2.0"
 cryptography = "46.0.3"
-executing = "1.2.0"
+executing = "2.2.1"
 pydantic = ">= 2.10.6"
 ipywidgets = "8.1.2"
 
