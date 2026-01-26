@@ -128,8 +128,8 @@ jobs:
           kubectl create clusterrolebinding sdk-user-clusterqueue-creator --clusterrole=clusterqueue-creator --user=sdk-user
           kubectl create clusterrole localqueue-creator --verb=get,list,create,delete,patch --resource=localqueues
           kubectl create clusterrolebinding sdk-user-localqueue-creator --clusterrole=localqueue-creator --user=sdk-user
-          kubectl create clusterrole list-secrets --verb=get,list --resource=secrets
-          kubectl create clusterrolebinding sdk-user-list-secrets --clusterrole=list-secrets --user=sdk-user
+          kubectl create clusterrole secrets-manager --verb=get,list,create,delete,patch --resource=secrets
+          kubectl create clusterrolebinding sdk-user-secrets-manager --clusterrole=secrets-manager --user=sdk-user
           kubectl create clusterrole pod-creator --verb=get,list,watch --resource=pods
           kubectl create clusterrolebinding sdk-user-pod-creator --clusterrole=pod-creator --user=sdk-user
           kubectl create clusterrole service-reader --verb=get,list,watch --resource=services
