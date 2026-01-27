@@ -1,7 +1,7 @@
 from .status import (
     RayClusterStatus,
     CodeFlareClusterStatus,
-    RayCluster,
+    RayClusterInfo,
 )
 
 from .cluster import (

@@ -22,7 +22,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich import box
 from typing import List
-from .status import RayCluster, RayClusterStatus
+from .status import RayClusterInfo, RayClusterStatus
 
 
 def print_no_resources_found():
@@ -34,7 +34,7 @@ def print_no_resources_found():
     )
 
 
-def print_ray_clusters_status(clusters: List[RayCluster], starting: bool = False):
+def print_ray_clusters_status(clusters: List[RayClusterInfo], starting: bool = False):
     if not clusters:
         print_no_resources_found()
         return  # shortcircuit
@@ -58,7 +58,7 @@ def print_ray_clusters_status(clusters: List[RayCluster], starting: bool = False
     console.print(Panel.fit(table))
 
 
-def print_cluster_status(cluster: RayCluster):
+def print_cluster_status(cluster: RayClusterInfo):
     "Pretty prints the status of a passed-in cluster"
     if not cluster:
         print_no_resources_found()
@@ -97,7 +97,7 @@ def print_cluster_status(cluster: RayCluster):
     console.print(table5)
 
 
-def print_clusters(clusters: List[RayCluster]):
+def print_clusters(clusters: List[RayClusterInfo]):
     if not clusters:
         print_no_resources_found()
         return  # shortcircuit

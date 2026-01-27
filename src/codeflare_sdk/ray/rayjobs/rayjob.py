@@ -20,7 +20,7 @@ import logging
 import os
 import re
 import warnings
-from typing import Dict, Any, Optional, Tuple, Union
+from typing import Dict, Any, Optional, Tuple, Union, TYPE_CHECKING
 
 from ray.runtime_env import RuntimeEnv
 from codeflare_sdk.common.kueue.kueue import (
@@ -38,6 +38,9 @@ from codeflare_sdk.ray.rayjobs.runtime_env import (
     extract_all_local_files,
     process_runtime_env,
 )
+
+if TYPE_CHECKING:
+    from codeflare_sdk.ray.rayclusters.raycluster import RayCluster
 
 from ...common.utils import get_current_namespace
 from ...common.utils.validation import validate_ray_version_compatibility
@@ -66,7 +69,7 @@ class RayJob:
         job_name: str,
         entrypoint: str,
         cluster_name: Optional[str] = None,
-        cluster_config: Optional[ManagedClusterConfig] = None,
+        cluster_config: Optional[Union["RayCluster", ManagedClusterConfig]] = None,
         namespace: Optional[str] = None,
         runtime_env: Optional[Union[RuntimeEnv, Dict[str, Any]]] = None,
         ttl_seconds_after_finished: int = 0,
@@ -81,7 +84,10 @@ class RayJob:
             job_name: The name for the Ray job
             entrypoint: The Python script or command to run (required)
             cluster_name: The name of an existing Ray cluster (optional if cluster_config provided)
-            cluster_config: Configuration for creating a new cluster (optional if cluster_name provided)
+            cluster_config: Configuration for creating a new cluster. Can be either:
+                - RayCluster object (recommended API)
+                - ManagedClusterConfig object (legacy API)
+                Optional if cluster_name provided
             namespace: The Kubernetes namespace (auto-detected if not specified)
             runtime_env: Ray runtime environment configuration. Can be:
                 - RuntimeEnv object from ray.runtime_env

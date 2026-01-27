@@ -19,6 +19,7 @@ Cluster object.
 """
 
 import pathlib
+from typing_extensions import deprecated
 import warnings
 from dataclasses import dataclass, field, fields
 from typing import Dict, List, Optional, Union, get_args, get_origin
@@ -39,6 +40,9 @@ DEFAULT_RESOURCE_MAPPING = {
 }
 
 
+@deprecated(
+    "Cluster(ClusterConfiguration(..)) has been deprecated in favor of RayCluster(..)"
+)
 @dataclass
 class ClusterConfiguration:
     """

@@ -52,7 +52,7 @@ class CodeFlareClusterStatus(Enum):
 
 
 @dataclass
-class RayCluster:
+class RayClusterInfo:
     """
     For storing information about a Ray cluster.
     """

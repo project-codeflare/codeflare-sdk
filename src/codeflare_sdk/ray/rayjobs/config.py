@@ -21,6 +21,7 @@ Cluster object.
 import pathlib
 from dataclasses import dataclass, field, fields
 from typing import Dict, List, Optional, Union, get_args, get_origin, Any, Tuple
+from typing_extensions import deprecated
 from kubernetes.client import (
     V1LocalObjectReference,
     V1SecretVolumeSource,
@@ -61,6 +62,7 @@ DEFAULT_ACCELERATORS = {
 }
 
 
+@deprecated("ManagedClusterConfig has been deprecated in favor of RayCluster(..)")
 @dataclass
 class ManagedClusterConfig:
     """
