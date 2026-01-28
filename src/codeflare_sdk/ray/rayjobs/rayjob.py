@@ -118,6 +118,15 @@ class RayJob:
                 "to specify which existing cluster to use."
             )
 
+        if cluster_name is not None and ttl_seconds_after_finished != 0:
+            raise ValueError(
+                "❌ Configuration Error: 'ttl_seconds_after_finished' cannot be set when targeting "
+                "an existing cluster (via 'cluster_name').\n"
+                "TTL controls automatic cleanup of RayJob-managed clusters, which only applies "
+                "when creating a new cluster via 'cluster_config'.\n"
+                "For existing clusters, the RayJob CR will remain after completion for inspection."
+            )
+
         self.name = job_name
         self.entrypoint = entrypoint
 
