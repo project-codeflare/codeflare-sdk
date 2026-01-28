@@ -39,7 +39,7 @@ rich = ">=12.5,<14.0"
 ray = {version = "2.52.1", extras = ["data", "default"]}
 kubernetes = ">= 27.2.0"
 cryptography = "46.0.3"
-executing = "1.2.0"
+executing = "2.2.1"
 pydantic = ">= 2.10.6"
 ipywidgets = "8.1.2"
 kube-authkit = "^0.2.0"
@@ -63,11 +63,11 @@ optional = true
 
 [tool.poetry.group.test.dependencies]
 pytest = "7.4.0"
-coverage = "7.6.4"
-pytest-mock = "3.11.1"
+coverage = "7.13.1"
+pytest-mock = "3.15.1"
 pytest-timeout = "2.3.1"
 jupyterlab = "4.5.0"
-selenium = "4.40.0.202601140013"
+selenium = "4.41.0.202601270013"
 webdriver-manager = "4.0.2"
 
 
