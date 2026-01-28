@@ -92,7 +92,9 @@ class KubeConfiguration(metaclass=abc.ABCMeta):
         """
         pass
 
+from typing_extensions import deprecated
 
+@deprecated("Use kube_authkit.AuthConfig with token strategy instead.")
 class TokenAuthentication(Authentication):
     """
     DEPRECATED: Use kube_authkit.AuthConfig with token strategy instead.
