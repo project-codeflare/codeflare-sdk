@@ -30,12 +30,7 @@ from pathlib import Path
 
 def test_kubeconfig_auth_fallback_to_legacy(mocker):
     """Test that KubeConfigFileAuthentication falls back to legacy when kube-authkit fails."""
-    # Mock kube-authkit to be available but fail
-    mocker.patch(
-        "codeflare_sdk.common.kubernetes_cluster.auth.KUBE_AUTHKIT_AVAILABLE", True
-    )
-
-    # Make get_k8s_client raise an exception
+    # Make get_k8s_client raise an exception to trigger fallback
     mocker.patch(
         "codeflare_sdk.common.kubernetes_cluster.auth.get_k8s_client",
         side_effect=Exception("kube-authkit failed"),

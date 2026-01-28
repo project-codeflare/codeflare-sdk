@@ -28,18 +28,8 @@ from .kube_api_helpers import _kube_api_error_handling
 
 from typing import Optional
 
-# Import kube-authkit
-try:
-    from kube_authkit import get_k8s_client, AuthConfig
-
-    KUBE_AUTHKIT_AVAILABLE = True
-except ImportError:
-    KUBE_AUTHKIT_AVAILABLE = False
-    warnings.warn(
-        "kube-authkit is not installed. Advanced authentication features unavailable. "
-        "Install with: pip install kube-authkit",
-        ImportWarning,
-    )
+# Import kube-authkit (mandatory dependency)
+from kube_authkit import get_k8s_client, AuthConfig
 
 global api_client
 api_client = None
@@ -92,7 +82,9 @@ class KubeConfiguration(metaclass=abc.ABCMeta):
         """
         pass
 
+
 from typing_extensions import deprecated
+
 
 @deprecated("Use kube_authkit.AuthConfig with token strategy instead.")
 class TokenAuthentication(Authentication):
@@ -124,7 +116,6 @@ class TokenAuthentication(Authentication):
         self.server = server
         self.skip_tls = skip_tls
         self.ca_cert_path = _gen_ca_cert_path(ca_cert_path)
-        self._use_kube_authkit = KUBE_AUTHKIT_AVAILABLE
 
     def login(self) -> str:
         """
@@ -186,7 +177,6 @@ class KubeConfigFileAuthentication(KubeConfiguration):
             stacklevel=2,
         )
         self.kube_config_path = kube_config_path
-        self._use_kube_authkit = KUBE_AUTHKIT_AVAILABLE
 
     def load_kube_config(self):
         """
@@ -198,21 +188,20 @@ class KubeConfigFileAuthentication(KubeConfiguration):
         if self.kube_config_path == None:
             return "Please specify a config file path"
 
-        # Try kube-authkit first if available
-        if self._use_kube_authkit:
-            try:
-                auth_config = AuthConfig(method="kubeconfig")
-                # kube-authkit auto-detects kubeconfig location, but we need to set it
-                # This may need adjustment based on actual kube-authkit API
-                api_client = get_k8s_client(config=auth_config)
-                config_path = self.kube_config_path
-                return "Loaded user config file at path %s" % self.kube_config_path
-            except Exception as e:
-                warnings.warn(
-                    f"kube-authkit failed, using legacy method: {e}", RuntimeWarning
-                )
-                # Reset for legacy implementation
-                api_client = None
+        # Try kube-authkit first
+        try:
+            auth_config = AuthConfig(method="kubeconfig")
+            # kube-authkit auto-detects kubeconfig location, but we need to set it
+            # This may need adjustment based on actual kube-authkit API
+            api_client = get_k8s_client(config=auth_config)
+            config_path = self.kube_config_path
+            return "Loaded user config file at path %s" % self.kube_config_path
+        except Exception as e:
+            warnings.warn(
+                f"kube-authkit failed, using legacy method: {e}", RuntimeWarning
+            )
+            # Reset for legacy implementation
+            api_client = None
 
         # Legacy implementation
         try:
@@ -258,7 +247,7 @@ def config_check() -> str:
         return config_path
 
     # Try kube-authkit auto-detection
-    if KUBE_AUTHKIT_AVAILABLE and config_path is None:
+    if config_path is None:
         try:
             # Auto-detect authentication method (kubeconfig or in-cluster)
             auth_config = AuthConfig(method="auto")

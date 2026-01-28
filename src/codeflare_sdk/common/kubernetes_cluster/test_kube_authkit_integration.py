@@ -126,9 +126,6 @@ class TestKubeAuthkitIntegration:
 
         mock_client = mocker.MagicMock()
         mocker.patch("kube_authkit.get_k8s_client", return_value=mock_client)
-        mocker.patch(
-            "codeflare_sdk.common.kubernetes_cluster.auth.KUBE_AUTHKIT_AVAILABLE", True
-        )
 
         # Mock the global api_client to return our mock
         mocker.patch(
@@ -166,27 +163,15 @@ class TestAuthConfigDocumentation:
 
 
 class TestKubeAuthkitAvailability:
-    """Test handling of kube-authkit availability."""
-
-    def test_kube_authkit_available_flag(self):
-        """Test that KUBE_AUTHKIT_AVAILABLE flag is set correctly."""
-        from codeflare_sdk.common.kubernetes_cluster.auth import KUBE_AUTHKIT_AVAILABLE
-
-        # Since we're running this test, kube-authkit should be available
-        assert KUBE_AUTHKIT_AVAILABLE is True
+    """Test kube-authkit integration (always available as mandatory dependency)."""
 
     def test_kube_authkit_imports_work(self):
         """Test that kube-authkit imports work from auth module."""
+        # These imports should always work since kube-authkit is mandatory
         from codeflare_sdk.common.kubernetes_cluster.auth import (
-            KUBE_AUTHKIT_AVAILABLE,
+            get_k8s_client as auth_get_k8s_client,
+            AuthConfig as auth_AuthConfig,
         )
 
-        if KUBE_AUTHKIT_AVAILABLE:
-            # These imports should work if kube-authkit is available
-            from codeflare_sdk.common.kubernetes_cluster.auth import (
-                get_k8s_client as auth_get_k8s_client,
-                AuthConfig as auth_AuthConfig,
-            )
-
-            assert auth_get_k8s_client is not None
-            assert auth_AuthConfig is not None
+        assert auth_get_k8s_client is not None
+        assert auth_AuthConfig is not None

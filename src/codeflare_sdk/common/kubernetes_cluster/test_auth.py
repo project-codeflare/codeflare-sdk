@@ -236,11 +236,8 @@ def test_token_auth_uses_legacy_implementation(mocker):
 
 
 def test_kubeconfig_auth_with_kube_authkit(mocker):
-    """Test KubeConfigFileAuthentication uses kube-authkit when available."""
-    # Mock kube-authkit to be available
-    mocker.patch(
-        "codeflare_sdk.common.kubernetes_cluster.auth.KUBE_AUTHKIT_AVAILABLE", True
-    )
+    """Test KubeConfigFileAuthentication uses kube-authkit."""
+    # Mock kube-authkit (always available as mandatory dependency)
     mock_get_k8s_client = mocker.patch(
         "codeflare_sdk.common.kubernetes_cluster.auth.get_k8s_client"
     )
@@ -260,10 +257,7 @@ def test_kubeconfig_auth_with_kube_authkit(mocker):
 
 def test_config_check_with_kube_authkit(mocker):
     """Test config_check uses kube-authkit auto-detection."""
-    # Mock kube-authkit to be available
-    mocker.patch(
-        "codeflare_sdk.common.kubernetes_cluster.auth.KUBE_AUTHKIT_AVAILABLE", True
-    )
+    # Mock kube-authkit (always available as mandatory dependency)
     mock_auth_config = mocker.patch(
         "codeflare_sdk.common.kubernetes_cluster.auth.AuthConfig"
     )
