@@ -344,7 +344,7 @@ def set_api_client(new_client: client.ApiClient):
         >>> from kube_authkit import get_k8s_client, AuthConfig
         >>> from codeflare_sdk.common.kubernetes_cluster.auth import set_api_client
         >>>
-        >>> auth_config = AuthConfig(k8s_api_host="...", openshift_token="...")
+        >>> auth_config = AuthConfig(k8s_api_host="...", token="...")
         >>> api_client = get_k8s_client(config=auth_config)
         >>> set_api_client(api_client)
 

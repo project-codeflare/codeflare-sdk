@@ -58,7 +58,7 @@ from codeflare_sdk import set_api_client, Cluster, ClusterConfiguration
 # Create authenticated client with kube-authkit
 auth_config = AuthConfig(
     k8s_api_host="https://api.example.com:6443",
-    openshift_token="my-token",
+    token="my-token",
 )
 api_client = get_k8s_client(config=auth_config)
 

@@ -54,7 +54,7 @@ set_api_client(api_client)  # Register with CodeFlare SDK
 # Option 3: OpenShift OAuth with token
 auth_config = AuthConfig(
     k8s_api_host="https://api.example.com:6443",
-    openshift_token="your-token"
+    token="your-token"
 )
 api_client = get_k8s_client(config=auth_config)
 set_api_client(api_client)  # Register with CodeFlare SDK
@@ -91,7 +91,7 @@ from codeflare_sdk import set_api_client
 
 auth_config = AuthConfig(
     k8s_api_host="https://api.example.com:6443",
-    openshift_token="your-token"
+    token="your-token"
 )
 api_client = get_k8s_client(config=auth_config)
 set_api_client(api_client)  # Register with CodeFlare SDK
