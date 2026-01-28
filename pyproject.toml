@@ -42,6 +42,7 @@ cryptography = "46.0.3"
 executing = "2.2.1"
 pydantic = ">= 2.10.6"
 ipywidgets = "8.1.2"
+kube-authkit = "^0.2.0"
 
 [[tool.poetry.source]]
 name = "pypi"

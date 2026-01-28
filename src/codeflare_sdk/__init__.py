@@ -21,6 +21,14 @@ from .common import (
     KubeConfigFileAuthentication,
 )
 
+from .common.kubernetes_cluster import set_api_client
+
+# Export kube-authkit at top level for convenience
+try:
+    from kube_authkit import AuthConfig, get_k8s_client
+except ImportError:
+    pass  # Will show warning from auth.py
+
 from .common.kueue import (
     list_local_queues,
 )

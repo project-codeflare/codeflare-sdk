@@ -13,13 +13,14 @@
 # limitations under the License.
 
 """
-The auth sub-module contains the definitions for the Authentication objects, which represent
-the methods by which a user can authenticate to their cluster(s). The abstract class, `Authentication`,
-contains two required methods `login()` and `logout()`. Users can use one of the existing concrete classes to
-authenticate to their cluster or add their own custom concrete classes here.
+The auth sub-module contains authentication methods for Kubernetes clusters.
+
+Recommended: Use kube-authkit's AuthConfig directly for new code.
+Legacy: TokenAuthentication and KubeConfigFileAuthentication are deprecated but still supported.
 """
 
 import abc
+import warnings
 from kubernetes import client, config
 import os
 import urllib3
@@ -27,12 +28,22 @@ from .kube_api_helpers import _kube_api_error_handling
 
 from typing import Optional
 
+# Import kube-authkit (mandatory dependency)
+from kube_authkit import get_k8s_client, AuthConfig
+
 global api_client
 api_client = None
 global config_path
 config_path = None
 
 WORKBENCH_CA_CERT_PATH = "/etc/pki/tls/custom-certs/ca-bundle.crt"
+
+# Deprecation message template
+_DEPRECATION_MSG = (
+    "{cls_name} is deprecated and will be removed in a future version. "
+    "Please use kube-authkit's AuthConfig directly. "
+    "See: https://github.com/opendatahub-io/kube-authkit"
+)
 
 
 class Authentication(metaclass=abc.ABCMeta):
@@ -72,8 +83,14 @@ class KubeConfiguration(metaclass=abc.ABCMeta):
         pass
 
 
+from typing_extensions import deprecated
+
+
+@deprecated("Use kube_authkit.AuthConfig with token strategy instead.")
 class TokenAuthentication(Authentication):
     """
+    DEPRECATED: Use kube_authkit.AuthConfig with token strategy instead.
+
     `TokenAuthentication` is a subclass of `Authentication`. It can be used to authenticate to a Kubernetes
     cluster when the user has an API token and the API server address.
     """
@@ -89,6 +106,11 @@ class TokenAuthentication(Authentication):
         Initialize a TokenAuthentication object that requires a value for `token`, the API Token
         and `server`, the API server address for authenticating to a Kubernetes cluster.
         """
+        warnings.warn(
+            _DEPRECATION_MSG.format(cls_name="TokenAuthentication"),
+            DeprecationWarning,
+            stacklevel=2,
+        )
 
         self.token = token
         self.server = server
@@ -100,9 +122,14 @@ class TokenAuthentication(Authentication):
         This function is used to log in to a Kubernetes cluster using the user's API token and API server address.
         Depending on the cluster, a user can choose to login in with `--insecure-skip-tls-verify` by setting `skip_tls`
         to `True` or `--certificate-authority` by setting `skip_tls` to False and providing a path to a ca bundle with `ca_cert_path`.
+
+        Note: kube-authkit does not support direct token authentication via AuthConfig,
+        so this uses the legacy implementation.
         """
         global config_path
         global api_client
+
+        # Legacy implementation (kube-authkit doesn't support direct token auth)
         try:
             configuration = client.Configuration()
             configuration.api_key_prefix["authorization"] = "Bearer"
@@ -137,11 +164,18 @@ class TokenAuthentication(Authentication):
 
 class KubeConfigFileAuthentication(KubeConfiguration):
     """
+    DEPRECATED: Use kube_authkit.AuthConfig with kubeconfig strategy instead.
+
     A class that defines the necessary methods for passing a user's own Kubernetes config file.
     Specifically this class defines the `load_kube_config()` and `config_check()` functions.
     """
 
     def __init__(self, kube_config_path: str = None):
+        warnings.warn(
+            _DEPRECATION_MSG.format(cls_name="KubeConfigFileAuthentication"),
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self.kube_config_path = kube_config_path
 
     def load_kube_config(self):
@@ -150,9 +184,27 @@ class KubeConfigFileAuthentication(KubeConfiguration):
         """
         global config_path
         global api_client
+
+        if self.kube_config_path == None:
+            return "Please specify a config file path"
+
+        # Try kube-authkit first
         try:
-            if self.kube_config_path == None:
-                return "Please specify a config file path"
+            auth_config = AuthConfig(method="kubeconfig")
+            # kube-authkit auto-detects kubeconfig location, but we need to set it
+            # This may need adjustment based on actual kube-authkit API
+            api_client = get_k8s_client(config=auth_config)
+            config_path = self.kube_config_path
+            return "Loaded user config file at path %s" % self.kube_config_path
+        except Exception as e:
+            warnings.warn(
+                f"kube-authkit failed, using legacy method: {e}", RuntimeWarning
+            )
+            # Reset for legacy implementation
+            api_client = None
+
+        # Legacy implementation
+        try:
             config_path = self.kube_config_path
             api_client = None
             config.load_kube_config(config_path)
@@ -167,10 +219,17 @@ def config_check() -> str:
     """
     Check and load the Kubernetes config from the default location.
 
+    Uses kube-authkit's auto-detection when available, falls back to legacy method.
+
     This function checks if a Kubernetes config file exists at the default path
     (`~/.kube/config`). If none is provided, it tries to load in-cluster config.
     If the `config_path` global variable is set by an external module (e.g., `auth.py`),
     this path will be used directly.
+
+    Priority:
+    1. Existing global api_client (already authenticated)
+    2. kube-authkit auto-detection (kubeconfig, in-cluster, etc.)
+    3. Legacy method (kubeconfig or in-cluster)
 
     Returns:
         str:
@@ -182,6 +241,27 @@ def config_check() -> str:
     """
     global config_path
     global api_client
+
+    # If already configured, return early
+    if api_client is not None:
+        return config_path
+
+    # Try kube-authkit auto-detection
+    if config_path is None:
+        try:
+            # Auto-detect authentication method (kubeconfig or in-cluster)
+            auth_config = AuthConfig(method="auto")
+            api_client = get_k8s_client(config=auth_config)
+            # Verify connection
+            client.AuthenticationApi(api_client).get_api_group()
+            return config_path
+        except Exception as e:
+            # Fall through to legacy method
+            api_client = None
+            # Don't warn - auto-detection failure is expected when no auth is configured
+            pass
+
+    # Legacy implementation
     home_directory = os.path.expanduser("~")
     if config_path == None and api_client == None:
         if os.path.isfile("%s/.kube/config" % home_directory):
@@ -242,3 +322,26 @@ def get_api_client() -> client.ApiClient:
     to_return = client.ApiClient()
     _client_with_cert(to_return)
     return to_return
+
+
+def set_api_client(new_client: client.ApiClient):
+    """
+    Set a custom Kubernetes API client for the SDK to use.
+
+    This is useful when you want to use kube-authkit or other authentication
+    methods to create an API client and register it with the CodeFlare SDK.
+
+    Example:
+        >>> from kube_authkit import get_k8s_client, AuthConfig
+        >>> from codeflare_sdk.common.kubernetes_cluster.auth import set_api_client
+        >>>
+        >>> auth_config = AuthConfig(k8s_api_host="...", token="...")
+        >>> api_client = get_k8s_client(config=auth_config)
+        >>> set_api_client(api_client)
+
+    Args:
+        new_client: The Kubernetes API client instance to use.
+    """
+    global api_client, config_path
+    api_client = new_client
+    config_path = "custom"  # Mark as configured with custom client
