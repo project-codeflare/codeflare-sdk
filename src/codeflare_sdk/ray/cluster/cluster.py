@@ -1176,6 +1176,13 @@ def _get_dashboard_url_from_httproute(
     Get the Ray dashboard URL from an HTTPRoute (RHOAI v3.0+ Gateway API).
     Searches for HTTPRoute labeled with ray.io/cluster-name and ray.io/cluster-namespace.
     Returns the dashboard URL if found, or None to allow fallback to Routes/Ingress.
+
+    Hostname resolution order:
+    1. Gateway spec.listeners[].hostname
+    2. OpenShift Route exposing the Gateway
+    3. GatewayConfig CR domain configuration (ODH/RHOAI)
+    4. Gateway status.addresses[].value
+
     Args:
         cluster_name: Ray cluster name
         namespace: Ray cluster namespace
@@ -1282,6 +1289,29 @@ def _get_dashboard_url_from_httproute(
                         break
             except Exception:
                 pass  # Continue to next fallback
+
+        # If no hostname from Route, try GatewayConfig CR
+        if not hostname:
+            try:
+                # GatewayConfig is a cluster-scoped CR in services.platform.opendatahub.io
+                gateway_config = api_instance.get_cluster_custom_object(
+                    group="services.platform.opendatahub.io",
+                    version="v1alpha1",
+                    plural="gatewayconfigs",
+                    name="default",
+                )
+
+                # Extract subdomain (defaults to "data-science-gateway")
+                subdomain = gateway_config.get("spec", {}).get("subdomain", "").strip()
+                if not subdomain:
+                    subdomain = "data-science-gateway"
+
+                # Extract domain from GatewayConfig
+                domain = gateway_config.get("spec", {}).get("domain", "").strip()
+                if domain:
+                    hostname = f"{subdomain}.{domain}"
+            except Exception:
+                pass
 
         # If still no hostname, try status.addresses (internal address - may only work in-cluster)
         if not hostname:
