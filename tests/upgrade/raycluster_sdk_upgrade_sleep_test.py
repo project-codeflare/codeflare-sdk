@@ -4,7 +4,6 @@ from time import sleep
 from codeflare_sdk import (
     Cluster,
     ClusterConfiguration,
-    TokenAuthentication,
     get_cluster,
 )
 from codeflare_sdk.ray.client import RayJobClient
@@ -41,12 +40,11 @@ class TestSetupSleepRayJob:
     def run_mnist_raycluster_sdk_oauth(self):
         ray_image = get_ray_image()
 
-        auth = TokenAuthentication(
-            token=run_oc_command(["whoami", "--show-token=true"]),
-            server=run_oc_command(["whoami", "--show-server=true"]),
-            skip_tls=True,
-        )
-        auth.login()
+        # Set up authentication based on detected method
+        auth_instance = authenticate_for_tests()
+
+        # Store auth instance for cleanup
+        self.auth_instance = auth_instance
 
         cluster = Cluster(
             ClusterConfiguration(
@@ -71,7 +69,7 @@ class TestSetupSleepRayJob:
             cluster.apply()
             cluster.status()
             # wait for raycluster to be Ready
-            cluster.wait_ready()
+            wait_ready_with_stuck_detection(cluster)
             cluster.status()
             # Check cluster details
             cluster.details()
@@ -88,11 +86,25 @@ class TestSetupSleepRayJob:
             assert False, "Cluster is not ready!"
 
     def assert_jobsubmit(self):
-        auth_token = run_oc_command(["whoami", "--show-token=true"])
+        # Get authentication token based on method
+        auth_config = get_authentication_config()
         cluster = get_cluster("mnist", namespace)
         cluster.details()
         ray_dashboard = cluster.cluster_dashboard_uri()
-        header = {"Authorization": f"Bearer {auth_token}"}
+
+        if auth_config["method"] == "legacy":
+            # For legacy auth, use oc command to get token
+            auth_token = run_oc_command(["whoami", "--show-token=true"])
+            header = {"Authorization": f"Bearer {auth_token}"}
+        else:
+            # For BYOIDC/kubeconfig, try to get token from current context
+            try:
+                auth_token = run_oc_command(["whoami", "--show-token=true"])
+                header = {"Authorization": f"Bearer {auth_token}"}
+            except Exception as e:
+                print(f"Warning: Could not get auth token via oc command: {e}")
+                header = {}
+
         client = RayJobClient(address=ray_dashboard, headers=header, verify=False)
 
         # Submit the job
@@ -131,12 +143,13 @@ class TestSetupSleepRayJob:
 class TestVerifySleepRayJobRunning:
     def setup_method(self):
         initialize_kubernetes_client(self)
-        auth = TokenAuthentication(
-            token=run_oc_command(["whoami", "--show-token=true"]),
-            server=run_oc_command(["whoami", "--show-server=true"]),
-            skip_tls=True,
-        )
-        auth.login()
+
+        # Set up authentication based on detected method
+        auth_instance = authenticate_for_tests()
+
+        # Store auth instance for cleanup
+        self.auth_instance = auth_instance
+
         self.namespace = namespace
         self.cluster = get_cluster("mnist", self.namespace)
         self.cluster_queue = cluster_queue
@@ -155,9 +168,23 @@ class TestVerifySleepRayJobRunning:
         self.cluster.down()
 
     def get_ray_job_client(self, cluster):
-        auth_token = run_oc_command(["whoami", "--show-token=true"])
+        # Get authentication token based on method
+        auth_config = get_authentication_config()
         ray_dashboard = cluster.cluster_dashboard_uri()
-        header = {"Authorization": f"Bearer {auth_token}"}
+
+        if auth_config["method"] == "legacy":
+            # For legacy auth, use oc command to get token
+            auth_token = run_oc_command(["whoami", "--show-token=true"])
+            header = {"Authorization": f"Bearer {auth_token}"}
+        else:
+            # For BYOIDC/kubeconfig, try to get token from current context
+            try:
+                auth_token = run_oc_command(["whoami", "--show-token=true"])
+                header = {"Authorization": f"Bearer {auth_token}"}
+            except Exception as e:
+                print(f"Warning: Could not get auth token via oc command: {e}")
+                header = {}
+
         return RayJobClient(address=ray_dashboard, headers=header, verify=False)
 
     # Assertions

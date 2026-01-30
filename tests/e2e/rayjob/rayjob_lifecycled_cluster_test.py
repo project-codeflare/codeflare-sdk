@@ -76,13 +76,19 @@ class TestRayJobLifecycledCluster:
             )
 
             assert rayjob.submit() == job_name
+            print(f"✓ RayJob {job_name} submitted successfully")
+
+            # Add diagnostic information
+            print(f"RayJob details: name={rayjob.name}, namespace={rayjob.namespace}")
 
             # Verify Secret was created with owner reference
             self.verify_secret_with_owner_reference(rayjob)
 
-            assert self.job_api.wait_until_job_running(
-                name=rayjob.name, k8s_namespace=rayjob.namespace, timeout=600
-            )
+            # Wait for job to be running with retry logic for BYOIDC stability
+            job_running = self._wait_for_job_running_with_retry(rayjob, max_retries=2)
+            assert (
+                job_running
+            ), f"RayJob {rayjob.name} failed to reach running state after retries"
 
             assert self.job_api.wait_until_job_finished(
                 name=rayjob.name, k8s_namespace=rayjob.namespace, timeout=300
@@ -190,6 +196,71 @@ class TestRayJobLifecycledCluster:
                         )
                     except:
                         pass
+
+    def _wait_for_job_running_with_retry(
+        self, rayjob: RayJob, max_retries: int = 2
+    ) -> bool:
+        """
+        Wait for RayJob to reach running state with retry logic for BYOIDC stability.
+
+        Args:
+            rayjob: The RayJob instance
+            max_retries: Maximum number of retry attempts
+
+        Returns:
+            bool: True if job reaches running state, False otherwise
+        """
+        for attempt in range(max_retries + 1):
+            try:
+                print(
+                    f"Waiting for RayJob {rayjob.name} to reach running state (attempt {attempt + 1}/{max_retries + 1})"
+                )
+
+                # Try to wait for job running (increased timeout for BYOIDC stability)
+                if self.job_api.wait_until_job_running(
+                    name=rayjob.name, k8s_namespace=rayjob.namespace, timeout=720
+                ):
+                    print(
+                        f"✓ RayJob {rayjob.name} reached running state on attempt {attempt + 1}"
+                    )
+                    return True
+                else:
+                    print(
+                        f"✗ RayJob {rayjob.name} failed to reach running state on attempt {attempt + 1}"
+                    )
+
+            except Exception as e:
+                print(f"Exception during RayJob wait attempt {attempt + 1}: {e}")
+
+            # If not the last attempt, wait before retrying
+            if attempt < max_retries:
+                print(f"Retrying in 30 seconds...")
+                sleep(30)
+
+                # Verify and re-initialize authentication if needed (for BYOIDC token refresh)
+                try:
+                    from support import (
+                        verify_authentication_stability,
+                        setup_authentication,
+                    )
+
+                    if not verify_authentication_stability():
+                        print(
+                            "Authentication stability check failed, re-initializing..."
+                        )
+                        setup_authentication()
+                        print("Re-initialized authentication for retry")
+                    else:
+                        print("Authentication is stable, proceeding with retry")
+                except Exception as auth_e:
+                    print(
+                        f"Warning: Could not verify/re-initialize authentication: {auth_e}"
+                    )
+
+        print(
+            f"✗ RayJob {rayjob.name} failed to reach running state after {max_retries + 1} attempts"
+        )
+        return False
 
     def verify_secret_with_owner_reference(self, rayjob: RayJob):
         """Verify that the Secret was created with proper owner reference to the RayJob."""

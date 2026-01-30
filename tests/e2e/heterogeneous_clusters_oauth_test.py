@@ -1,7 +1,6 @@
 from codeflare_sdk import (
     Cluster,
     ClusterConfiguration,
-    TokenAuthentication,
 )
 
 from codeflare_sdk.common.kueue.kueue import list_local_queues
@@ -19,6 +18,9 @@ class TestHeterogeneousClustersOauth:
         initialize_kubernetes_client(self)
 
     def teardown_method(self):
+        # Clean up authentication if needed
+        if hasattr(self, "auth_instance"):
+            cleanup_authentication(self.auth_instance)
         delete_namespace(self)
         delete_kueue_resources(self)
 
@@ -32,12 +34,11 @@ class TestHeterogeneousClustersOauth:
     ):
         ray_image = get_ray_image()
 
-        auth = TokenAuthentication(
-            token=run_oc_command(["whoami", "--show-token=true"]),
-            server=run_oc_command(["whoami", "--show-server=true"]),
-            skip_tls=True,
-        )
-        auth.login()
+        # Set up authentication based on detected method
+        auth_instance = authenticate_for_tests()
+
+        # Store auth instance for cleanup
+        self.auth_instance = auth_instance
 
         for flavor in self.resource_flavors:
             node_labels = (
@@ -70,7 +71,7 @@ class TestHeterogeneousClustersOauth:
             )
             cluster.apply()
             # Wait for the cluster to be scheduled and ready, we don't need the dashboard for this check
-            cluster.wait_ready(dashboard_check=False)
+            wait_ready_with_stuck_detection(cluster, dashboard_check=False)
             node_name = get_pod_node(self, self.namespace, cluster_name)
             print(f"Cluster {cluster_name}-{flavor} is running on node: {node_name}")
             assert (

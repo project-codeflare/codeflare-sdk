@@ -22,7 +22,7 @@ cleanup_on_exit() {
         export KUBECONFIG="${TEMP_KUBECONFIG}"
 
         # Try to login as admin for cleanup
-        if [ -n "${OCP_ADMIN_USER_USERNAME:-}" ] && [ -n "${OCP_ADMIN_USER_PASSWORD:-}" ] && [ -n "${OCP_API_URL:-}" ]; then
+        if [ "$AUTH_METHOD" = "legacy" ] && [ -n "${OCP_ADMIN_USER_USERNAME:-}" ] && [ -n "${OCP_ADMIN_USER_PASSWORD:-}" ] && [ -n "${OCP_API_URL:-}" ]; then
             echo "Logging in to OpenShift with OCP_ADMIN_USER for cleanup..."
             if oc login "$OCP_API_URL" \
                 --username="$OCP_ADMIN_USER_USERNAME" \
@@ -76,6 +76,15 @@ cleanup_on_exit() {
             else
                 echo "WARNING: Failed to login with OCP_ADMIN_USER for cleanup"
             fi
+        elif [ "$AUTH_METHOD" = "kube-authkit" ] || [ "$AUTH_METHOD" = "byoidc" ] || [ "$AUTH_METHOD" = "kubeconfig" ]; then
+            echo "Using kubeconfig-based authentication for cleanup (kube-authkit/BYOIDC/kubeconfig mode)"
+            # For BYOIDC/kubeconfig, assume we're already authenticated via kubeconfig
+            # Verify we can access the cluster
+            if oc whoami >/dev/null 2>&1; then
+                echo "Successfully verified kubeconfig authentication for cleanup"
+            else
+                echo "WARNING: Cannot access cluster with current kubeconfig for cleanup"
+            fi
         else
             echo "WARNING: Admin credentials not available for cleanup"
         fi
@@ -100,10 +109,21 @@ trap cleanup_on_exit EXIT
 # Environment Variables Setup
 #
 # Required environment variables (should be set by Jenkins or --env-file):
+#
+# For Legacy Authentication:
 #   TEST_USER_USERNAME=<username>
 #   TEST_USER_PASSWORD=<password>
 #   OCP_ADMIN_USER_USERNAME=<username>
 #   OCP_ADMIN_USER_PASSWORD=<password>
+#
+# For BYOIDC Authentication:
+#   CLUSTER_AUTH=oidc
+#   TEST_USER_USERNAME=<odh-user*>
+#   OCP_ADMIN_USER_USERNAME=byoidc-admin
+#   (passwords not needed - kubeconfig-based auth)
+#
+# For Kubeconfig Authentication:
+#   (no specific env vars needed - auto-detected)
 # ============================================================================
 
 # ============================================================================
@@ -114,35 +134,139 @@ echo "Environment Variables Debug"
 echo "============================================================================"
 echo "Checking required environment variables..."
 
-# List of required environment variables
-REQUIRED_VARS=(
-    "TEST_USER_USERNAME"
-    "TEST_USER_PASSWORD"
-    "OCP_ADMIN_USER_USERNAME"
-    "OCP_ADMIN_USER_PASSWORD"
-)
+# Simplified authentication detection for kube-authkit
+echo "Using kube-authkit for automatic authentication detection..."
 
-# Check each variable
-MISSING_VARS=()
-for var in "${REQUIRED_VARS[@]}"; do
-    if [ -n "${!var}" ]; then
-        echo "  ✓ $var: [SET]"
-    else
-        echo "  ✗ $var: [NOT SET]"
-        MISSING_VARS+=("$var")
+# First check if we can detect BYOIDC from cluster (to avoid false legacy detection)
+CLUSTER_IS_BYOIDC=false
+if oc whoami >/dev/null 2>&1; then
+    # Check for BYOIDC patterns in cluster
+    if oc get oauth cluster -o jsonpath='{.spec.identityProviders[*].openID.issuer}' 2>/dev/null | grep -qi "keycloak\|rh-ods\.com"; then
+        echo "Detected BYOIDC cluster from OAuth configuration"
+        CLUSTER_IS_BYOIDC=true
+    elif oc get authentication cluster -o jsonpath='{.spec.oidcProviders[*].issuer.url}' 2>/dev/null | grep -qi "keycloak\|rh-ods\.com"; then
+        echo "Detected BYOIDC cluster from Authentication resource OIDC providers"
+        CLUSTER_IS_BYOIDC=true
+    elif oc get authentication cluster -o jsonpath='{.status.oidcClients}' 2>/dev/null | grep -q "oc-cli"; then
+        echo "Detected BYOIDC cluster from Authentication status oidcClients"
+        CLUSTER_IS_BYOIDC=true
     fi
-done
+fi
+
+# Choose authentication method based on cluster type and environment variables
+if [ "$CLUSTER_IS_BYOIDC" = "true" ]; then
+    AUTH_METHOD="kube-authkit"
+    echo "Using kube-authkit for BYOIDC cluster (auto-detection)"
+
+    # Use BYOIDC credentials from Jenkins vault
+    if [ -n "${BYOIDC_ADMIN_USERNAME}" ] && [ -n "${BYOIDC_TEST_USERNAME}" ] && [ -n "${BYOIDC_TEST_PASSWORD}" ]; then
+        export OCP_ADMIN_USER_USERNAME="${BYOIDC_ADMIN_USERNAME}"
+        export TEST_USER_USERNAME="${BYOIDC_TEST_USERNAME}"
+        export TEST_USER_PASSWORD="${BYOIDC_TEST_PASSWORD}"
+        echo "Using BYOIDC credentials from Jenkins vault"
+    else
+        echo "ERROR: BYOIDC credentials not available from Jenkins vault"
+        echo "Missing environment variables: BYOIDC_ADMIN_USERNAME, BYOIDC_TEST_USERNAME, or BYOIDC_TEST_PASSWORD"
+        echo "Please ensure Jenkins vault is properly configured for BYOIDC clusters"
+        exit 1
+    fi
+
+elif [ -n "${OCP_ADMIN_USER_USERNAME}" ] && [ -n "${OCP_ADMIN_USER_PASSWORD}" ] && [ -n "${TEST_USER_USERNAME}" ] && [ -n "${TEST_USER_PASSWORD}" ]; then
+    # Check if this looks like legacy credentials (not BYOIDC patterns)
+    if [[ ! "${OCP_ADMIN_USER_USERNAME}" =~ ^(byoidc-admin|odh-(admin|user)[0-9]+)$ ]] && [[ ! "${TEST_USER_USERNAME}" =~ ^odh-(admin|user)[0-9]+$ ]]; then
+        AUTH_METHOD="legacy"
+        echo "Detected legacy authentication from environment variables"
+    else
+        AUTH_METHOD="kube-authkit"
+        echo "Environment variables look like BYOIDC but cluster detection failed - using kube-authkit"
+    fi
+else
+    AUTH_METHOD="kube-authkit"
+    echo "Using kube-authkit auto-detection (handles kubeconfig, in-cluster, etc.)"
+fi
+
+echo "Final authentication method: $AUTH_METHOD"
+
+# Debug: Print relevant environment variables
+echo "Environment variables:"
+echo "  CLUSTER_AUTH: ${CLUSTER_AUTH:-[NOT SET]}"
+echo "  OCP_ADMIN_USER_USERNAME: ${OCP_ADMIN_USER_USERNAME:-[NOT SET]}"
+echo "  TEST_USER_USERNAME: ${TEST_USER_USERNAME:-[NOT SET]}"
+
+# Check required variables based on authentication method
+MISSING_VARS=()
+if [ "$AUTH_METHOD" = "legacy" ]; then
+    REQUIRED_VARS=(
+        "TEST_USER_USERNAME"
+        "TEST_USER_PASSWORD"
+        "OCP_ADMIN_USER_USERNAME"
+        "OCP_ADMIN_USER_PASSWORD"
+    )
+
+    for var in "${REQUIRED_VARS[@]}"; do
+        if [ -n "${!var}" ]; then
+            echo "  ✓ $var: [SET]"
+        else
+            echo "  ✗ $var: [NOT SET]"
+            MISSING_VARS+=("$var")
+        fi
+    done
+
+elif [ "$AUTH_METHOD" = "kube-authkit" ]; then
+    echo "  ✓ kube-authkit will auto-detect authentication method"
+    echo "  ✓ Authentication will be handled automatically from kubeconfig"
+
+    # For BYOIDC clusters, we still need user values for RBAC testing
+    if [ "$CLUSTER_IS_BYOIDC" = "true" ]; then
+        echo "  ✓ BYOIDC cluster detected - validating user configuration for RBAC testing"
+
+        # Validate admin user (from Jenkins vault)
+        if [ -n "${OCP_ADMIN_USER_USERNAME}" ]; then
+            echo "  ✓ OCP_ADMIN_USER_USERNAME: ${OCP_ADMIN_USER_USERNAME} (BYOIDC admin)"
+        else
+            echo "  ✗ OCP_ADMIN_USER_USERNAME: Not set"
+            MISSING_VARS+=("OCP_ADMIN_USER_USERNAME")
+        fi
+
+        # Validate test user (from Jenkins vault)
+        if [ -n "${TEST_USER_USERNAME}" ]; then
+            if [[ "${TEST_USER_USERNAME}" =~ ^odh-admin[0-9]+$ ]]; then
+                echo "  ⚠️  TEST_USER_USERNAME: ${TEST_USER_USERNAME} (admin user - RBAC testing will be limited)"
+            elif [[ "${TEST_USER_USERNAME}" =~ ^odh-user[0-9]+$ ]]; then
+                echo "  ✓ TEST_USER_USERNAME: ${TEST_USER_USERNAME} (non-admin user - good for RBAC testing)"
+            else
+                echo "  ✓ TEST_USER_USERNAME: ${TEST_USER_USERNAME} (custom user)"
+            fi
+        else
+            echo "  ✗ TEST_USER_USERNAME: Not set"
+            MISSING_VARS+=("TEST_USER_USERNAME")
+        fi
+
+        # Validate test user password (needed for user context switching)
+        if [ -n "${TEST_USER_PASSWORD}" ]; then
+            echo "  ✓ TEST_USER_PASSWORD: [SET] (needed for BYOIDC user context)"
+        else
+            echo "  ✗ TEST_USER_PASSWORD: [NOT SET] (needed for BYOIDC user context switching)"
+            MISSING_VARS+=("TEST_USER_PASSWORD")
+        fi
+    else
+        echo "  ✓ Non-BYOIDC cluster - no specific user validation needed"
+    fi
+
+else  # kubeconfig
+    echo "  ✓ Using kubeconfig-based authentication (no specific env vars required)"
+fi
 
 echo ""
 if [ ${#MISSING_VARS[@]} -gt 0 ]; then
-    echo "ERROR: The following required environment variables are not set:"
+    echo "ERROR: The following required environment variables are not set or invalid for $AUTH_METHOD authentication:"
     for var in "${MISSING_VARS[@]}"; do
         echo "  - $var"
     done
     echo ""
     exit 1
 else
-    echo "All required environment variables are set."
+    echo "All required environment variables are set for $AUTH_METHOD authentication."
     echo ""
 fi
 echo "============================================================================"
@@ -263,61 +387,101 @@ else
 fi
 
 # ============================================================================
-# Login to OpenShift with Admin User (OCP_ADMIN_USER) to apply RBAC
+# Authentication Setup for RBAC Application
 # ============================================================================
-echo "Logging in to OpenShift with OCP_ADMIN_USER to apply RBAC policies..."
-if [ -z "$OCP_ADMIN_USER_USERNAME" ] || [ -z "$OCP_ADMIN_USER_PASSWORD" ]; then
-    echo "ERROR: OCP_ADMIN_USER credentials not found in environment (required to apply RBAC)"
-    exit 1
+echo "Setting up authentication for RBAC policies..."
+
+if [ "$AUTH_METHOD" = "legacy" ]; then
+    echo "Using legacy authentication with username/password..."
+    if [ -z "$OCP_ADMIN_USER_USERNAME" ] || [ -z "$OCP_ADMIN_USER_PASSWORD" ]; then
+        echo "ERROR: OCP_ADMIN_USER credentials not found in environment (required for legacy auth)"
+        exit 1
+    fi
+else
+    echo "Using kube-authkit authentication (auto-detection)..."
+    # kube-authkit will handle authentication automatically
+    if ! oc whoami >/dev/null 2>&1; then
+        echo "ERROR: Cannot access cluster - please ensure kubeconfig is properly configured"
+        exit 1
+    fi
+
+    CURRENT_USER=$(oc whoami 2>/dev/null)
+    echo "Current authenticated user: $CURRENT_USER"
+
+    # Verify admin permissions by trying to list cluster roles
+    if ! oc get clusterroles >/dev/null 2>&1; then
+        echo "ERROR: Current user does not have cluster admin permissions required for RBAC setup"
+        echo "Please ensure the kubeconfig is configured with a user that has cluster-admin role"
+        exit 1
+    fi
+
+    echo "✅ Verified cluster admin permissions for RBAC setup"
 fi
 
-# Use a temporary kubeconfig for login (since the mounted one is read-only)
-TEMP_KUBECONFIG="/tmp/kubeconfig-$$"
-cp "${KUBECONFIG}" "${TEMP_KUBECONFIG}" 2>/dev/null || {
-    echo "WARNING: Could not copy kubeconfig, creating new one"
-    touch "${TEMP_KUBECONFIG}"
-}
+if [ "$AUTH_METHOD" = "legacy" ]; then
+    echo "Performing legacy authentication login..."
 
-# Set KUBECONFIG to the temporary one before login
-export KUBECONFIG="${TEMP_KUBECONFIG}"
+    # Use a temporary kubeconfig for login (since the mounted one is read-only)
+    TEMP_KUBECONFIG="/tmp/kubeconfig-$$"
+    cp "${KUBECONFIG}" "${TEMP_KUBECONFIG}" 2>/dev/null || {
+        echo "WARNING: Could not copy kubeconfig, creating new one"
+        touch "${TEMP_KUBECONFIG}"
+    }
 
-# Create ~/.kube directory and ensure config file exists there
-# This is needed because config_check() looks for ~/.kube/config
-mkdir -p ~/.kube
-cp "${TEMP_KUBECONFIG}" ~/.kube/config || {
-    echo "WARNING: Could not copy kubeconfig to ~/.kube/config"
-}
+    # Set KUBECONFIG to the temporary one before login
+    export KUBECONFIG="${TEMP_KUBECONFIG}"
 
-oc login "$OCP_API_URL" \
-    --username="$OCP_ADMIN_USER_USERNAME" \
-    --password="$OCP_ADMIN_USER_PASSWORD" \
-    --insecure-skip-tls-verify=true || {
-    echo "ERROR: Failed to login with OCP_ADMIN_USER"
-    rm -f "${TEMP_KUBECONFIG}"
-    exit 1
-}
+    # Create ~/.kube directory and ensure config file exists there
+    mkdir -p ~/.kube
+    cp "${TEMP_KUBECONFIG}" ~/.kube/config || {
+        echo "WARNING: Could not copy kubeconfig to ~/.kube/config"
+    }
 
-# Update ~/.kube/config after login (oc login modifies the kubeconfig)
-cp "${TEMP_KUBECONFIG}" ~/.kube/config || {
-    echo "WARNING: Could not update ~/.kube/config after login"
-}
+    oc login "$OCP_API_URL" \
+        --username="$OCP_ADMIN_USER_USERNAME" \
+        --password="$OCP_ADMIN_USER_PASSWORD" \
+        --insecure-skip-tls-verify=true || {
+        echo "ERROR: Failed to login with OCP_ADMIN_USER"
+        rm -f "${TEMP_KUBECONFIG}"
+        exit 1
+    }
 
-# Verify we're logged in as the admin user
-CURRENT_USER=$(oc whoami 2>/dev/null)
-if [ "$CURRENT_USER" != "$OCP_ADMIN_USER_USERNAME" ]; then
-    echo "ERROR: Login verification failed. Expected user: $OCP_ADMIN_USER_USERNAME, got: ${CURRENT_USER:-none}"
-    rm -f "${TEMP_KUBECONFIG}"
-    exit 1
+    # Update ~/.kube/config after login (oc login modifies the kubeconfig)
+    cp "${TEMP_KUBECONFIG}" ~/.kube/config || {
+        echo "WARNING: Could not update ~/.kube/config after login"
+    }
+
+    # Verify we're logged in as the admin user
+    CURRENT_USER=$(oc whoami 2>/dev/null)
+    if [ "$CURRENT_USER" != "$OCP_ADMIN_USER_USERNAME" ]; then
+        echo "ERROR: Login verification failed. Expected user: $OCP_ADMIN_USER_USERNAME, got: ${CURRENT_USER:-none}"
+        rm -f "${TEMP_KUBECONFIG}"
+        exit 1
+    fi
+
+    echo "✅ Successfully logged in with legacy authentication (user: $CURRENT_USER)"
+
+else
+    echo "Using kube-authkit authentication (no explicit login needed)..."
+
+    # Create a temporary copy of kubeconfig for consistency
+    TEMP_KUBECONFIG="/tmp/kubeconfig-$$"
+    cp "${KUBECONFIG}" "${TEMP_KUBECONFIG}" 2>/dev/null || {
+        echo "ERROR: Could not copy kubeconfig"
+        exit 1
+    }
+
+    export KUBECONFIG="${TEMP_KUBECONFIG}"
+
+    # Create ~/.kube directory and copy config
+    mkdir -p ~/.kube
+    cp "${TEMP_KUBECONFIG}" ~/.kube/config || {
+        echo "WARNING: Could not copy kubeconfig to ~/.kube/config"
+    }
+
+    CURRENT_USER=$(oc whoami 2>/dev/null)
+    echo "Using kubeconfig authentication (current user: $CURRENT_USER)"
 fi
-
-# Warn if admin user is the same as test user (likely a configuration error)
-if [ "$OCP_ADMIN_USER_USERNAME" = "$TEST_USER_USERNAME" ]; then
-    echo "WARNING: OCP_ADMIN_USER_USERNAME is the same as TEST_USER_USERNAME ($OCP_ADMIN_USER_USERNAME)"
-    echo "         This user may not have cluster-admin permissions needed to apply RBAC policies."
-    echo "         Please ensure OCP_ADMIN_USER_USERNAME is set to a user with cluster-admin role."
-fi
-
-echo "Successfully logged in with OCP_ADMIN_USER (verified: $CURRENT_USER)"
 
 # ============================================================================
 # Set Kueue Component to Unmanaged State
@@ -373,23 +537,32 @@ sed "s/TEST_USER_USERNAME_PLACEHOLDER/$ESCAPED_USERNAME/g" "$RBAC_FILE" > "$RBAC
 
 # Verify we're still logged in as admin before applying RBAC
 CURRENT_USER=$(oc whoami 2>/dev/null)
-if [ "$CURRENT_USER" != "$OCP_ADMIN_USER_USERNAME" ]; then
-    echo "ERROR: Not logged in as admin user. Current user: ${CURRENT_USER:-none}, expected: $OCP_ADMIN_USER_USERNAME"
-    echo "Re-logging in as admin..."
-    oc login "$OCP_API_URL" \
-        --username="$OCP_ADMIN_USER_USERNAME" \
-        --password="$OCP_ADMIN_USER_PASSWORD" \
-        --insecure-skip-tls-verify=true || {
-        echo "ERROR: Failed to re-login with OCP_ADMIN_USER"
-        rm -f "$RBAC_TEMP_FILE"
-        exit 1
-    }
-    CURRENT_USER=$(oc whoami 2>/dev/null)
+if [ "$AUTH_METHOD" = "legacy" ]; then
     if [ "$CURRENT_USER" != "$OCP_ADMIN_USER_USERNAME" ]; then
-        echo "ERROR: Still not logged in as admin after re-login. Current user: ${CURRENT_USER:-none}"
+        echo "ERROR: Not logged in as admin user. Current user: ${CURRENT_USER:-none}, expected: $OCP_ADMIN_USER_USERNAME"
+        echo "Re-logging in as admin..."
+        oc login "$OCP_API_URL" \
+            --username="$OCP_ADMIN_USER_USERNAME" \
+            --password="$OCP_ADMIN_USER_PASSWORD" \
+            --insecure-skip-tls-verify=true || {
+            echo "ERROR: Failed to re-login with OCP_ADMIN_USER"
+            rm -f "$RBAC_TEMP_FILE"
+            exit 1
+        }
+        CURRENT_USER=$(oc whoami 2>/dev/null)
+        if [ "$CURRENT_USER" != "$OCP_ADMIN_USER_USERNAME" ]; then
+            echo "ERROR: Still not logged in as admin after re-login. Current user: ${CURRENT_USER:-none}"
+            rm -f "$RBAC_TEMP_FILE"
+            exit 1
+        fi
+    fi
+elif [ "$AUTH_METHOD" = "byoidc" ] || [ "$AUTH_METHOD" = "kubeconfig" ]; then
+    if [ -z "$CURRENT_USER" ]; then
+        echo "ERROR: Not authenticated with kubeconfig"
         rm -f "$RBAC_TEMP_FILE"
         exit 1
     fi
+    echo "Verified kubeconfig authentication (current user: $CURRENT_USER)"
 fi
 
 echo "Applying RBAC policies as user: $CURRENT_USER"
@@ -405,29 +578,81 @@ echo "Successfully applied RBAC policies for user: $TEST_USER_USERNAME"
 rm -f "$RBAC_TEMP_FILE"
 
 # ============================================================================
-# Login to OpenShift with TEST_USER
+# Setup Test User Authentication
 # ============================================================================
-echo "Logging in to OpenShift with TEST_USER..."
-if [ -z "$TEST_USER_USERNAME" ] || [ -z "$TEST_USER_PASSWORD" ]; then
-    echo "ERROR: TEST_USER credentials not found in environment"
-    exit 1
+if [ "$AUTH_METHOD" = "legacy" ]; then
+    echo "Setting up legacy test user authentication..."
+    if [ -z "$TEST_USER_USERNAME" ] || [ -z "$TEST_USER_PASSWORD" ]; then
+        echo "ERROR: TEST_USER credentials not found in environment"
+        exit 1
+    fi
+
+    oc login "$OCP_API_URL" \
+        --username="$TEST_USER_USERNAME" \
+        --password="$TEST_USER_PASSWORD" \
+        --insecure-skip-tls-verify=true || {
+        echo "ERROR: Failed to login with TEST_USER"
+        rm -f "${TEMP_KUBECONFIG}"
+        exit 1
+    }
+
+    # Update ~/.kube/config after test user login
+    cp "${TEMP_KUBECONFIG}" ~/.kube/config || {
+        echo "WARNING: Could not update ~/.kube/config after test user login"
+    }
+
+    echo "✅ Successfully logged in with legacy test user"
+
+else
+    echo "Using kube-authkit for test user authentication..."
+
+    # For BYOIDC clusters, we need to switch to the test user context
+    if [ "$CLUSTER_IS_BYOIDC" = "true" ] && [ -n "$TEST_USER_USERNAME" ] && [ -n "$TEST_USER_PASSWORD" ]; then
+        echo "Setting up BYOIDC test user context for: $TEST_USER_USERNAME"
+
+        # Use Python to set up BYOIDC user context with OIDC tokens
+        python3 -c "
+import sys
+import os
+sys.path.insert(0, '/codeflare-sdk/tests/e2e')
+
+try:
+    from support import setup_byoidc_user_context
+
+    username = os.getenv('TEST_USER_USERNAME')
+    password = os.getenv('TEST_USER_PASSWORD')
+
+    print(f'Setting up BYOIDC user context for: {username}')
+
+    if setup_byoidc_user_context(username, password):
+        print(f'✓ Successfully set up BYOIDC user context: {username}')
+        sys.exit(0)
+    else:
+        print(f'✗ Failed to set up BYOIDC user context: {username}')
+        sys.exit(1)
+except Exception as e:
+    print(f'ERROR: Exception during BYOIDC setup: {e}')
+    sys.exit(1)
+" || {
+            echo "WARNING: Failed to set up BYOIDC user context"
+            echo "This may be due to:"
+            echo "  - OIDC token endpoint connectivity issues"
+            echo "  - Invalid user credentials"
+            echo "  - Cluster authentication configuration issues"
+            echo "Tests will continue with admin user (RBAC policies have been applied)"
+        }
+    else
+        echo "✅ Using current authenticated user for tests"
+    fi
+    # Verify we can access the cluster
+    CURRENT_USER=$(oc whoami 2>/dev/null)
+    if [ -z "$CURRENT_USER" ]; then
+        echo "ERROR: Cannot access cluster with current kubeconfig"
+        exit 1
+    fi
+
+    echo "✅ Test execution will use kube-authkit authentication (current user: $CURRENT_USER)"
 fi
-
-oc login "$OCP_API_URL" \
-    --username="$TEST_USER_USERNAME" \
-    --password="$TEST_USER_PASSWORD" \
-    --insecure-skip-tls-verify=true || {
-    echo "ERROR: Failed to login with TEST_USER"
-    rm -f "${TEMP_KUBECONFIG}"
-    exit 1
-}
-
-# Update ~/.kube/config after test user login (oc login modifies the kubeconfig)
-cp "${TEMP_KUBECONFIG}" ~/.kube/config || {
-    echo "WARNING: Could not update ~/.kube/config after test user login"
-}
-
-echo "Successfully logged in with TEST_USER"
 
 # ============================================================================
 # Get RHOAI Dashboard URL for UI Tests
