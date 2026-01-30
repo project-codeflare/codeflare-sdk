@@ -16,7 +16,6 @@ import pytest
 from codeflare_sdk import (
     Cluster,
     ClusterConfiguration,
-    TokenAuthentication,
 )
 
 from kubernetes import client
@@ -29,10 +28,13 @@ from support import (
     delete_kueue_resources,
     get_ray_image,
     run_oc_command,
+    authenticate_for_tests,
+    cleanup_authentication,
     # Gateway API helpers
     wait_for_network_policies,
     wait_for_network_policies_deletion,
     verify_network_policy_spec,
+    wait_ready_enhanced,
 )
 
 
@@ -48,6 +50,9 @@ class TestNetworkPolicyDetails:
         self.networking_api = client.NetworkingV1Api(self.api_instance.api_client)
 
     def teardown_method(self):
+        # Clean up authentication if needed
+        if hasattr(self, "auth_instance"):
+            cleanup_authentication(self.auth_instance)
         # Only delete namespace if it was created
         if hasattr(self, "namespace"):
             delete_namespace(self)
@@ -67,12 +72,11 @@ class TestNetworkPolicyDetails:
         cluster_name = "netpol-test"
         ray_image = get_ray_image()
 
-        auth = TokenAuthentication(
-            token=run_oc_command(["whoami", "--show-token=true"]),
-            server=run_oc_command(["whoami", "--show-server=true"]),
-            skip_tls=True,
-        )
-        auth.login()
+        # Set up authentication based on detected method
+        auth_instance = authenticate_for_tests()
+
+        # Store auth instance for cleanup
+        self.auth_instance = auth_instance
 
         cluster = Cluster(
             ClusterConfiguration(
@@ -95,7 +99,7 @@ class TestNetworkPolicyDetails:
 
         try:
             cluster.apply()
-            cluster.wait_ready()
+            wait_ready_enhanced(cluster)
 
             # Get network policies
             policies = wait_for_network_policies(
