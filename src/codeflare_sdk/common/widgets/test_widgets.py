@@ -18,7 +18,7 @@ from unittest.mock import MagicMock, patch
 from ..utils.unit_test_support import get_local_queue, create_cluster_config
 from codeflare_sdk.ray.cluster.cluster import Cluster
 from codeflare_sdk.ray.cluster.status import (
-    RayCluster,
+    RayClusterInfo,
     RayClusterStatus,
 )
 import pytest
@@ -366,8 +366,8 @@ def test_fetch_cluster_data(mocker):
     df = cf_widgets._fetch_cluster_data(namespace="default")
     assert df.empty
 
-    # Create mock RayCluster objects
-    mock_raycluster1 = MagicMock(spec=RayCluster)
+    # Create mock RayClusterInfo objects
+    mock_raycluster1 = MagicMock(spec=RayClusterInfo)
     mock_raycluster1.name = "test-cluster-1"
     mock_raycluster1.namespace = "default"
     mock_raycluster1.num_workers = 1
@@ -385,7 +385,7 @@ def test_fetch_cluster_data(mocker):
     mock_raycluster1.status.name = "READY"
     mock_raycluster1.status = RayClusterStatus.READY
 
-    mock_raycluster2 = MagicMock(spec=RayCluster)
+    mock_raycluster2 = MagicMock(spec=RayClusterInfo)
     mock_raycluster2.name = "test-cluster-2"
     mock_raycluster2.namespace = "default"
     mock_raycluster2.num_workers = 2

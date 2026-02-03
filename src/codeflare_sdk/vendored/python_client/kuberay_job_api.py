@@ -21,6 +21,48 @@ TERMINAL_JOB_STATUSES = [
 ]
 
 
+def _format_combined_status(name: str, deployment_status: str, job_status: str) -> str:
+    """
+    Format combined deployment and job status into a single readable message.
+
+    Args:
+        name: The name of the RayJob
+        deployment_status: The jobDeploymentStatus value (e.g., "Initializing", "Running", "Complete")
+        job_status: The jobStatus value (e.g., "PENDING", "RUNNING", "SUCCEEDED")
+
+    Returns:
+        A formatted log message showing both statuses with context
+    """
+    deployment_status = deployment_status or "Unknown"
+    job_status = job_status or "PENDING"
+
+    # Provide contextual descriptions for common state combinations
+    if deployment_status == "Initializing":
+        context = "RayCluster starting, job waiting"
+    elif deployment_status == "Running" and job_status in ["", "PENDING"]:
+        context = "RayCluster ready, job starting"
+    elif deployment_status == "Running" and job_status == "RUNNING":
+        context = "RayCluster ready, job running"
+    elif deployment_status == "Suspended":
+        context = "RayCluster suspended"
+    elif deployment_status == "Suspending":
+        context = "RayCluster suspending"
+    elif deployment_status in ["Complete", "Failed"]:
+        context = "finished"
+    elif job_status in TERMINAL_JOB_STATUSES:
+        context = "finished"
+    else:
+        context = ""
+
+    # Build the message - keep it simple and human-readable
+    if context:
+        return "RayJob '{}': {}".format(name, context)
+    else:
+        return "RayJob '{}': cluster={}, job={}".format(
+            name, deployment_status, job_status
+        )
+
+
 class RayjobApi:
     """
     RayjobApi provides APIs to list, get, create, build, update, delete rayjobs.
@@ -129,6 +171,9 @@ class RayjobApi:
         This method waits for the job to reach a terminal state by checking both jobStatus
         (STOPPED, SUCCEEDED, FAILED) and jobDeploymentStatus (Complete, Failed).
 
+        Logs combined status messages showing both deployment and job status together,
+        only logging when status changes to reduce noise.
+
         Parameters:
         - name (str): The name of the Ray job custom resource.
         - k8s_namespace (str, optional): The namespace in which to retrieve the Ray job. Defaults to "default".
@@ -138,67 +183,51 @@ class RayjobApi:
         Returns:
             bool: True if the rayjob reaches a terminal status, False otherwise.
         """
+        prev_deployment_status = None
+        prev_job_status = None
+
         while timeout > 0:
             status = self.get_job_status(
                 name, k8s_namespace, timeout, delay_between_attempts
             )
 
             if status:
-                if "jobDeploymentStatus" in status:
-                    deployment_status = status["jobDeploymentStatus"]
-                    if deployment_status in ["Complete", "Failed"]:
-                        log.info(
-                            "rayjob {} has finished with deployment status: {}".format(
-                                name, deployment_status
-                            )
-                        )
-                        return True
-                    elif deployment_status == "Suspended":
-                        log.info("rayjob {} is suspended".format(name))
-                        # Suspended is not terminal, continue waiting
-                    elif deployment_status in ["Initializing", "Running", "Suspending"]:
-                        log.info(
-                            "rayjob {} is {}".format(name, deployment_status.lower())
-                        )
-                    elif deployment_status:
-                        log.info(
-                            "rayjob {} deployment status: {}".format(
-                                name, deployment_status
-                            )
-                        )
+                deployment_status = status.get("jobDeploymentStatus", "")
+                job_status = status.get("jobStatus", "")
 
-                if "jobStatus" in status:
-                    current_status = status["jobStatus"]
-                    if current_status in ["", "PENDING"]:
-                        log.info("rayjob {} has not started yet".format(name))
-                    elif current_status == "RUNNING":
-                        log.info("rayjob {} is running".format(name))
-                    elif current_status in TERMINAL_JOB_STATUSES:
-                        log.info(
-                            "rayjob {} has finished with status {}!".format(
-                                name, current_status
-                            )
-                        )
-                        return True
-                    else:
-                        log.info(
-                            "rayjob {} has an unknown status: {}".format(
-                                name, current_status
-                            )
-                        )
-                elif "jobDeploymentStatus" not in status:
+                # Check for terminal states first
+                is_terminal = (
+                    deployment_status in ["Complete", "Failed"]
+                    or job_status in TERMINAL_JOB_STATUSES
+                )
+
+                # Log combined status only when there's a change (skip if terminal, we'll log final message instead)
+                if (
+                    deployment_status != prev_deployment_status
+                    or job_status != prev_job_status
+                ) and not is_terminal:
                     log.info(
-                        "rayjob {} status fields not available yet, waiting...".format(
-                            name
+                        _format_combined_status(name, deployment_status, job_status)
+                    )
+                    prev_deployment_status = deployment_status
+                    prev_job_status = job_status
+
+                if is_terminal:
+                    log.info(
+                        "RayJob '{}': finished with status {}".format(
+                            name, job_status or deployment_status
                         )
                     )
+                    return True
+            else:
+                # No status available yet
+                if prev_deployment_status is None and prev_job_status is None:
+                    log.info("RayJob '{}': waiting for status...".format(name))
 
             time.sleep(delay_between_attempts)
             timeout -= delay_between_attempts
 
-        log.info(
-            "rayjob {} has not reached terminal status before timeout".format(name)
-        )
+        log.info("RayJob '{}': timed out waiting for completion".format(name))
         return False
 
     def wait_until_job_running(
@@ -213,6 +242,8 @@ class RayjobApi:
         This method waits for the job's jobDeploymentStatus to reach "Running".
         Useful for confirming a job has started after submission or resubmission.
 
+        Logs combined status messages and only logs when status changes to reduce noise.
+
         Parameters:
         - name (str): The name of the Ray job custom resource.
         - k8s_namespace (str, optional): The namespace in which to retrieve the Ray job. Defaults to "default".
@@ -222,34 +253,46 @@ class RayjobApi:
         Returns:
             bool: True if the rayjob reaches Running status, False otherwise.
         """
+        prev_deployment_status = None
+        prev_job_status = None
+
         while timeout > 0:
             status = self.get_job_status(
                 name, k8s_namespace, timeout, delay_between_attempts
             )
 
-            if status and "jobDeploymentStatus" in status:
-                deployment_status = status["jobDeploymentStatus"]
+            if status:
+                deployment_status = status.get("jobDeploymentStatus", "")
+                job_status = status.get("jobStatus", "")
+
+                # Log combined status only when there's a change
+                if (
+                    deployment_status != prev_deployment_status
+                    or job_status != prev_job_status
+                ):
+                    log.info(
+                        _format_combined_status(name, deployment_status, job_status)
+                    )
+                    prev_deployment_status = deployment_status
+                    prev_job_status = job_status
+
                 if deployment_status == "Running":
-                    log.info("rayjob {} is running".format(name))
                     return True
                 elif deployment_status in ["Complete", "Failed", "Suspended"]:
                     log.info(
-                        "rayjob {} reached terminal/suspended status {} before running".format(
+                        "RayJob '{}': reached {} before running".format(
                             name, deployment_status
                         )
                     )
                     return False
-                elif deployment_status:
-                    log.info("rayjob {} is {}".format(name, deployment_status.lower()))
-                else:
-                    log.info("rayjob {} deployment status not set yet".format(name))
             else:
-                log.info("rayjob {} status not available yet, waiting...".format(name))
+                if prev_deployment_status is None:
+                    log.info("RayJob '{}': waiting for status...".format(name))
 
             time.sleep(delay_between_attempts)
             timeout -= delay_between_attempts
 
-        log.info("rayjob {} has not reached running status before timeout".format(name))
+        log.info("RayJob '{}': timed out waiting for running state".format(name))
         return False
 
     def suspend_job(self, name: str, k8s_namespace: str = "default") -> bool:
