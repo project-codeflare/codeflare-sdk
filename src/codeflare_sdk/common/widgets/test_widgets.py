@@ -76,13 +76,16 @@ def test_cluster_apply_down_buttons(mocker):
 
         # Check if the `apply` and `down` methods were called
         mock_wait_ready.assert_called_once()
-        mock_apply.assert_called_once()
+        # Widget button uses shorter TLS timeout (60s) to avoid blocking UI
+        mock_apply.assert_called_once_with(timeout=60)
         mock_down.assert_called_once()
 
 
 @patch.dict("os.environ", {}, clear=True)  # Mock environment with no variables
 def test_is_notebook_false():
-    assert cf_widgets.is_notebook() is False
+    # Mock get_ipython to return None (no IPython shell)
+    with patch("IPython.get_ipython", return_value=None):
+        assert cf_widgets.is_notebook() is False
 
 
 @patch.dict(
@@ -90,6 +93,43 @@ def test_is_notebook_false():
 )  # Mock Jupyter environment variable
 def test_is_notebook_true():
     assert cf_widgets.is_notebook() is True
+
+
+@patch.dict("os.environ", {}, clear=True)  # No env vars
+def test_is_notebook_with_zmq_shell():
+    """Test is_notebook returns True when running in ZMQInteractiveShell (Jupyter)."""
+    mock_shell = MagicMock()
+    mock_shell.__class__.__name__ = "ZMQInteractiveShell"
+
+    with patch("IPython.get_ipython", return_value=mock_shell):
+        assert cf_widgets.is_notebook() is True
+
+
+@patch.dict("os.environ", {}, clear=True)  # No env vars
+def test_is_notebook_with_terminal_shell():
+    """Test is_notebook returns False when running in TerminalInteractiveShell (ipython CLI)."""
+    mock_shell = MagicMock()
+    mock_shell.__class__.__name__ = "TerminalInteractiveShell"
+
+    with patch("IPython.get_ipython", return_value=mock_shell):
+        assert cf_widgets.is_notebook() is False
+
+
+@patch.dict(
+    "os.environ", {"JPY_PARENT_PID": "12345"}
+)  # Standard Jupyter environment variable
+def test_is_notebook_with_jpy_parent_pid():
+    """Test is_notebook returns True when JPY_PARENT_PID env var is set."""
+    # Mock get_ipython to return None to test env var fallback
+    with patch("IPython.get_ipython", return_value=None):
+        assert cf_widgets.is_notebook() is True
+
+
+@patch.dict("os.environ", {}, clear=True)  # No env vars
+def test_is_notebook_ipython_import_error():
+    """Test is_notebook handles ImportError gracefully."""
+    with patch.dict("sys.modules", {"IPython": None}):
+        assert cf_widgets.is_notebook() is False
 
 
 def test_view_clusters(mocker, capsys):

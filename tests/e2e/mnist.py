@@ -39,11 +39,13 @@ print("prior to running the trainer")
 print("MASTER_ADDR: is ", os.getenv("MASTER_ADDR"))
 print("MASTER_PORT: is ", os.getenv("MASTER_PORT"))
 
-print("ACCELERATOR: is ", os.getenv("ACCELERATOR"))
-ACCELERATOR = os.getenv("ACCELERATOR")
+# Get accelerator from environment variable, default to "auto" for pytorch_lightning 2.x compatibility
+# Valid values: auto, cuda, tpu, cpu, mps, gpu
+ACCELERATOR = os.getenv("ACCELERATOR", "auto")
+print("ACCELERATOR: is ", ACCELERATOR)
 
-# If GPU is requested but CUDA is not available, fall back to CPU
-if ACCELERATOR == "gpu" and not torch.cuda.is_available():
+# If GPU/CUDA is requested but CUDA is not available, fall back to CPU
+if ACCELERATOR in ("gpu", "cuda") and not torch.cuda.is_available():
     print("Warning: GPU requested but CUDA is not available. Falling back to CPU.")
     ACCELERATOR = "cpu"
 
@@ -249,7 +251,7 @@ trainer = Trainer(
     callbacks=[TQDMProgressBar(refresh_rate=20)],
     num_nodes=int(os.environ.get("GROUP_WORLD_SIZE", 1)),
     devices=int(os.environ.get("LOCAL_WORLD_SIZE", 1)),
-    replace_sampler_ddp=False,
+    use_distributed_sampler=False,
     strategy="ddp",
 )
 

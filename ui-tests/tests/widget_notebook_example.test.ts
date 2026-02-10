@@ -50,6 +50,7 @@ test.describe("Widget Functionality", () => {
 
     // Verify widgets render correctly
     await waitForWidget(page, applyDownWidgetCellIndex, 'input[type="checkbox"]', 30000);
+
     await waitForWidget(page, applyDownWidgetCellIndex, 'button:has-text("Cluster Down")', 10000);
     await waitForWidget(page, applyDownWidgetCellIndex, 'button:has-text("Cluster Apply")', 10000);
 
@@ -71,7 +72,7 @@ test.describe("Widget Functionality", () => {
     });
 
     // Test Cluster Apply button WITHOUT the wait_ready checkbox checked
-    // This avoids the 300s TLS timeout + dashboard_check issues in KinD
+    // This avoids the long TLS timeout + dashboard_check issues in KinD
     await interactWithWidget(page, applyDownWidgetCellIndex, 'button:has-text("Cluster Apply")', async (button) => {
       await button.click();
 
@@ -80,6 +81,10 @@ test.describe("Widget Functionality", () => {
       const successMessage = await page.waitForSelector('text=Ray Cluster: \'widgettest\' has successfully been applied', { timeout: 30000 });
       expect(successMessage).not.toBeNull();
     });
+
+    // Wait for apply() to complete (widget uses 60s TLS timeout)
+    // We wait for either success or failure message from the TLS setup phase
+    await page.waitForSelector('text=/Cluster .widgettest. (is ready|resources applied but TLS setup incomplete)/', { timeout: 90000 });
 
     // Test view_clusters widget
     const viewClustersCellIndex = 4; // 5 on OpenShift
@@ -104,8 +109,8 @@ test.describe("Widget Functionality", () => {
     // Test Delete Cluster button to clean up
     await interactWithWidget(page, viewClustersCellIndex, 'button:has-text("Delete Cluster")', async (button) => {
       await button.click();
-      // Wait for deletion confirmation
-      const successMessage = await page.waitForSelector(`text=Cluster widgettest in the ${namespace} namespace was deleted successfully.`, { timeout: 10000 });
+      // Wait for deletion confirmation - increase timeout as cluster deletion can take time
+      const successMessage = await page.waitForSelector(`text=Cluster widgettest in the ${namespace} namespace was deleted successfully.`, { timeout: 30000 });
       expect(successMessage).not.toBeNull();
     });
   });
@@ -114,18 +119,21 @@ test.describe("Widget Functionality", () => {
 async function waitForWidget(page, cellIndex: number, widgetSelector: string, timeout = 5000) {
   const widgetCell = await page.notebook.getCellOutput(cellIndex);
 
-  if (widgetCell) {
-    await widgetCell.waitForSelector(widgetSelector, { timeout });
+  if (!widgetCell) {
+    throw new Error(`Cell ${cellIndex} has no output - widgets not rendered. Check if is_notebook() detection is working.`);
   }
+  await widgetCell.waitForSelector(widgetSelector, { timeout });
 }
 
 async function interactWithWidget(page, cellIndex: number, widgetSelector: string, action: (widget) => Promise<void>) {
   const widgetCell = await page.notebook.getCellOutput(cellIndex);
 
-  if (widgetCell) {
-    const widget = await widgetCell.$(widgetSelector);
-    if (widget) {
-      await action(widget);
-    }
+  if (!widgetCell) {
+    throw new Error(`Cell ${cellIndex} has no output - cannot interact with widget.`);
   }
+  const widget = await widgetCell.$(widgetSelector);
+  if (!widget) {
+    throw new Error(`Widget '${widgetSelector}' not found in cell ${cellIndex}.`);
+  }
+  await action(widget);
 }
