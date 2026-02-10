@@ -299,7 +299,9 @@ def cluster_apply_down_buttons(
     def on_apply_button_clicked(b):  # Handle the apply button click event
         with output:
             output.clear_output()
-            cluster.apply()
+            # Use shorter TLS timeout (60s) for widget button clicks to avoid blocking UI
+            # Users who need full TLS wait can use wait_ready() checkbox or call apply() directly
+            cluster.apply(timeout=60)
 
             # If the wait_ready Checkbox is clicked(value == True) trigger the wait_ready function
             if wait_ready_check.value:
@@ -327,15 +329,34 @@ def _wait_ready_check_box():
 
 def is_notebook() -> bool:
     """
-    The is_notebook function checks if Jupyter Notebook environment variables exist in the given environment and return True/False based on that.
+    The is_notebook function checks if we're running in a Jupyter Notebook environment.
+
+    Detection methods:
+    1. Check for IPython's ZMQInteractiveShell (standard Jupyter kernel)
+    2. Check for known environment variables (VSCode, RHOAI/ODH)
     """
+    # First, try the standard IPython detection method
+    try:
+        from IPython import get_ipython
+
+        shell = get_ipython()
+        if shell is not None:
+            shell_class = shell.__class__.__name__
+            # ZMQInteractiveShell = Jupyter notebook/lab, qtconsole
+            if shell_class == "ZMQInteractiveShell":
+                return True
+    except (ImportError, NameError):
+        pass
+
+    # Fallback: check for known environment variables
     if (
         "PYDEVD_IPYTHON_COMPATIBLE_DEBUGGING" in os.environ
         or "JPY_SESSION_NAME" in os.environ
-    ):  # If running Jupyter NBs in VsCode or RHOAI/ODH display UI buttons
+        or "JPY_PARENT_PID" in os.environ  # Standard Jupyter
+    ):
         return True
-    else:
-        return False
+
+    return False
 
 
 def view_clusters(namespace: str = None):

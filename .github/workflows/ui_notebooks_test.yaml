@@ -104,6 +104,38 @@ jobs:
           poetry run yarn playwright install chromium
         working-directory: ui-tests
 
+      - name: Verify Kind cluster connectivity
+        run: |
+          echo "Checking kubeconfig location..."
+          echo "HOME: $HOME"
+          ls -la ~/.kube/ || echo "No .kube directory found"
+
+          echo "Checking kubeconfig format..."
+          kubectl config view --minify
+
+          # Check if kubeconfig has embedded certs or file references
+          if grep -q "certificate-authority:" ~/.kube/config 2>/dev/null; then
+            echo "WARNING: kubeconfig uses external certificate files"
+          fi
+          if grep -q "certificate-authority-data:" ~/.kube/config 2>/dev/null; then
+            echo "OK: kubeconfig has embedded certificate data"
+          fi
+
+          echo "Testing cluster connectivity..."
+          kubectl cluster-info
+          kubectl get nodes
+          kubectl get pods -A
+
+          # Test Python kubernetes client connectivity
+          echo "Testing Python kubernetes client..."
+          python3 -c "
+          from kubernetes import client, config
+          config.load_kube_config()
+          v1 = client.CoreV1Api()
+          nodes = v1.list_node()
+          print(f'Successfully connected! Found {len(nodes.items)} nodes')
+          "
+
       - name: Fix 3_widget_example.ipynb notebook for test
         run: |
           # Remove login/logout cells, as KinD doesn't support authentication using token
@@ -117,6 +149,13 @@ jobs:
       - name: Run UI notebook tests
         run: |
           set -euo pipefail
+
+          # Verify kubectl can connect to the cluster
+          kubectl cluster-info
+          kubectl get nodes
+
+          # Debug: Show kubeconfig location
+          echo "KUBECONFIG: ${KUBECONFIG:-~/.kube/config}"
 
           poetry run yarn test
         working-directory: ui-tests

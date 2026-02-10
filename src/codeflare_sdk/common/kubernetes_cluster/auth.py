@@ -284,15 +284,27 @@ def config_check() -> str:
         return config_path
 
 
-def _client_with_cert(client: client.ApiClient, ca_cert_path: Optional[str] = None):
-    client.configuration.verify_ssl = True
+def _client_with_cert(api_client: client.ApiClient, ca_cert_path: Optional[str] = None):
+    """
+    Configure SSL certificate verification for a Kubernetes API client.
+
+    If a custom CA cert path is provided or configured via environment variable,
+    it will be used. Otherwise, the existing ssl_ca_cert configuration from the
+    kubeconfig (which may include embedded certificates) is preserved.
+
+    Args:
+        api_client: The Kubernetes API client to configure.
+        ca_cert_path: Optional path to a custom CA certificate file.
+    """
+    api_client.configuration.verify_ssl = True
     cert_path = _gen_ca_cert_path(ca_cert_path)
-    if cert_path is None:
-        client.configuration.ssl_ca_cert = None
-    elif os.path.isfile(cert_path):
-        client.configuration.ssl_ca_cert = cert_path
-    else:
-        raise FileNotFoundError(f"Certificate file not found at {cert_path}")
+    if cert_path is not None:
+        if os.path.isfile(cert_path):
+            api_client.configuration.ssl_ca_cert = cert_path
+        else:
+            raise FileNotFoundError(f"Certificate file not found at {cert_path}")
+    # If cert_path is None, preserve the existing ssl_ca_cert from kubeconfig
+    # (which may contain embedded certificate data from certificate-authority-data)
 
 
 def _gen_ca_cert_path(ca_cert_path: Optional[str]):
