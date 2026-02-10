@@ -19,6 +19,7 @@ Cluster object.
 """
 
 import pathlib
+import re
 import warnings
 from dataclasses import dataclass, field, fields
 from typing import Dict, List, Optional, Union, get_args, get_origin
@@ -37,6 +38,20 @@ DEFAULT_RESOURCE_MAPPING = {
     "huawei.com/Ascend910": "NPU",
     "huawei.com/Ascend310": "NPU",
 }
+
+# Kubernetes metadata.name must be a lowercase RFC 1123 subdomain
+_RFC1123_SUBDOMAIN = re.compile(
+    r"^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$"
+)
+
+
+def _validate_cluster_name(name: str):
+    """Raise ValueError if name is not a valid Kubernetes metadata.name (RFC 1123 subdomain)."""
+    if not name or not _RFC1123_SUBDOMAIN.match(name):
+        raise ValueError(
+            "Cluster name must be a valid RFC 1123 subdomain "
+            "(lowercase, numbers, hyphens/dots; start and end with letter or number)."
+        )
 
 
 @dataclass
@@ -171,6 +186,7 @@ class ClusterConfiguration:
         self._validate_extended_resource_requests(
             self.worker_extended_resource_requests
         )
+        _validate_cluster_name(self.name)
 
     def _combine_extended_resource_mapping(self):
         if overwritten := set(self.extended_resource_mapping.keys()).intersection(
