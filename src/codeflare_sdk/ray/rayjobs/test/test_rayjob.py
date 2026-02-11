@@ -18,7 +18,6 @@ from codeflare_sdk.common.utils.constants import RAY_VERSION
 from ray.runtime_env import RuntimeEnv
 
 from codeflare_sdk.ray.rayjobs.rayjob import RayJob
-from codeflare_sdk.ray.cluster.config import ClusterConfiguration
 from codeflare_sdk.ray.rayjobs.config import ManagedClusterConfig
 from kubernetes.client import V1Volume, V1VolumeMount, V1Toleration
 
@@ -80,7 +79,7 @@ def test_rayjob_init_validation_both_provided(auto_mock_setup):
     """
     Test that providing both cluster_name and cluster_config raises error.
     """
-    cluster_config = ClusterConfiguration(name="test-cluster", namespace="test")
+    cluster_config = ManagedClusterConfig()
 
     with pytest.raises(
         ValueError,
@@ -145,9 +144,7 @@ def test_rayjob_init_with_cluster_config(auto_mock_setup):
     """
     Test RayJob initialization with cluster configuration for auto-creation.
     """
-    cluster_config = ClusterConfiguration(
-        name="auto-cluster", namespace="test-namespace", num_workers=2
-    )
+    cluster_config = ManagedClusterConfig(num_workers=2)
 
     rayjob = RayJob(
         job_name="test-job",
@@ -166,9 +163,7 @@ def test_rayjob_cluster_name_generation(auto_mock_setup):
     """
     Test that cluster names are generated when config has empty name.
     """
-    cluster_config = ClusterConfiguration(
-        name="",  # Empty name should trigger generation
-        namespace="test-namespace",
+    cluster_config = ManagedClusterConfig(
         num_workers=1,
     )
 
@@ -186,9 +181,7 @@ def test_rayjob_cluster_config_namespace_none(auto_mock_setup):
     """
     Test that cluster config namespace is set when None.
     """
-    cluster_config = ClusterConfiguration(
-        name="test-cluster",
-        namespace=None,  # This should be set to job namespace
+    cluster_config = ManagedClusterConfig(
         num_workers=1,
     )
 
