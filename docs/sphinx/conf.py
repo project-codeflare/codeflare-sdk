@@ -12,9 +12,9 @@ sys.path.insert(0, os.path.abspath(".."))
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = "CodeFlare SDK"
-copyright = "2024, Project CodeFlare"
+copyright = "2026, Project CodeFlare"
 author = "Project CodeFlare"
-release = "v0.21.1"
+release = "v0.34.0"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
