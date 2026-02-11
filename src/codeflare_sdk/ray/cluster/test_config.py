@@ -201,6 +201,15 @@ def test_ray_usage_stats_enabled(mocker):
     assert env_vars["RAY_USAGE_STATS_ENABLED"] == "1"
 
 
+def test_cluster_name_validation():
+    with pytest.raises(ValueError):
+        ClusterConfiguration(name="TestCluster", namespace="ns")
+    with pytest.raises(ValueError):
+        ClusterConfiguration(name="testcluster-", namespace="ns")
+    with pytest.raises(ValueError):
+        ClusterConfiguration(name="-testcluster", namespace="ns")
+
+
 # Make sure to always keep this function last
 def test_cleanup():
     os.remove(f"{cluster_dir}test-all-params.yaml")
