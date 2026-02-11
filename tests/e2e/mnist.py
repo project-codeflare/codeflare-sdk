@@ -40,7 +40,7 @@ print("MASTER_ADDR: is ", os.getenv("MASTER_ADDR"))
 print("MASTER_PORT: is ", os.getenv("MASTER_PORT"))
 
 print("ACCELERATOR: is ", os.getenv("ACCELERATOR"))
-ACCELERATOR = os.getenv("ACCELERATOR")
+ACCELERATOR = os.getenv("ACCELERATOR", "auto")
 
 # If GPU is requested but CUDA is not available, fall back to CPU
 if ACCELERATOR == "gpu" and not torch.cuda.is_available():
@@ -253,7 +253,7 @@ trainer = Trainer(
     callbacks=[TQDMProgressBar(refresh_rate=20)],
     num_nodes=int(os.environ.get("GROUP_WORLD_SIZE", 1)),
     devices=int(os.environ.get("LOCAL_WORLD_SIZE", 1)),
-    replace_sampler_ddp=False,
+    use_distributed_sampler=False,
     strategy="ddp",
 )
 
