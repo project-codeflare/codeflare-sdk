@@ -203,11 +203,11 @@ def test_ray_usage_stats_enabled(mocker):
 
 def test_cluster_name_validation():
     with pytest.raises(ValueError):
-        ClusterConfiguration(name="Test Cluster", namespace="ns")
+        ClusterConfiguration(name="TestCluster", namespace="ns")
     with pytest.raises(ValueError):
-        ClusterConfiguration(name="test.cluster", namespace="ns")
+        ClusterConfiguration(name="testcluster-", namespace="ns")
     with pytest.raises(ValueError):
-        ClusterConfiguration(name="testcluster?", namespace="ns")
+        ClusterConfiguration(name="-testcluster", namespace="ns")
 
 
 # Make sure to always keep this function last

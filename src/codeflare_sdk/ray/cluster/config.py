@@ -45,13 +45,12 @@ _RFC1123_SUBDOMAIN = re.compile(
 )
 
 
-def _validate_cluster_name(name: str) -> None:
+def _validate_cluster_name(name: str):
     """Raise ValueError if name is not a valid Kubernetes metadata.name (RFC 1123 subdomain)."""
     if not name or not _RFC1123_SUBDOMAIN.match(name):
         raise ValueError(
-            "Cluster name must be a lowercase RFC 1123 subdomain: "
-            "only lowercase letters (a-z), numbers (0-9), hyphens (-) or dots (.), "
-            "and must start and end with a letter or number (e.g. 'my-cluster')."
+            "Cluster name must be a valid RFC 1123 subdomain "
+            "(lowercase, numbers, hyphens/dots; start and end with letter or number)."
         )
 
 
