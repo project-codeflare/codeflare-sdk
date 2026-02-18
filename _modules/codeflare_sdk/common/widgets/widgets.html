@@ -1,0 +1,663 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>codeflare_sdk.common.widgets.widgets &mdash; CodeFlare SDK 0.35.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../_static/documentation_options.js?v=ca1b380b"></script>
+      <script src="../../../../_static/doctools.js?v=9a2dae69"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            CodeFlare SDK
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Code Documentation:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../modules.html">codeflare_sdk</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">User Documentation:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user-docs/authentication.html">Authentication via the CodeFlare SDK</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user-docs/cluster-configuration.html">Ray Cluster Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user-docs/ray-cluster-interaction.html">Ray Cluster Interaction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user-docs/rayjob.html">Submitting RayJobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user-docs/e2e.html">Running e2e tests locally</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user-docs/s3-compatible-storage.html">S3 compatible storage with Ray Train examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user-docs/setup-kueue.html">Basic Kueue Resources configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user-docs/ui-widgets.html">Jupyter UI Widgets</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">CodeFlare SDK</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">codeflare_sdk.common.widgets.widgets</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for codeflare_sdk.common.widgets.widgets</h1><div class="highlight"><pre>
+<span></span><span class="c1"># Copyright 2024 IBM, Red Hat</span>
+<span class="c1">#</span>
+<span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="c1"># you may not use this file except in compliance with the License.</span>
+<span class="c1"># You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#      http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">The widgets sub-module contains the ui widgets created using the ipywidgets package.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">contextlib</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">io</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">codeflare_sdk</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">kubernetes</span><span class="w"> </span><span class="kn">import</span> <span class="n">client</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">kubernetes.client.rest</span><span class="w"> </span><span class="kn">import</span> <span class="n">ApiException</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">ipywidgets</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">widgets</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">IPython.display</span><span class="w"> </span><span class="kn">import</span> <span class="n">display</span><span class="p">,</span> <span class="n">HTML</span><span class="p">,</span> <span class="n">Javascript</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">...common.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_current_namespace</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">...ray.cluster.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">ClusterConfiguration</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">...ray.cluster.status</span><span class="w"> </span><span class="kn">import</span> <span class="n">RayClusterStatus</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">..kubernetes_cluster</span><span class="w"> </span><span class="kn">import</span> <span class="n">_kube_api_error_handling</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">..kubernetes_cluster.auth</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">config_check</span><span class="p">,</span>
+    <span class="n">get_api_client</span><span class="p">,</span>
+<span class="p">)</span>
+
+
+<div class="viewcode-block" id="RayClusterManagerWidgets">
+<a class="viewcode-back" href="../../../../codeflare_sdk.common.widgets.html#codeflare_sdk.common.widgets.widgets.RayClusterManagerWidgets">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">RayClusterManagerWidgets</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    The RayClusterManagerWidgets class is responsible for initialising the ToggleButtons, Button, and Output widgets.</span>
+<span class="sd">    It also handles the user interactions and displays the cluster details.</span>
+<span class="sd">    Used when calling the view_clusters function.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ray_clusters_df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="n">namespace</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="c1"># Data</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ray_clusters_df</span> <span class="o">=</span> <span class="n">ray_clusters_df</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">namespace</span> <span class="o">=</span> <span class="n">get_current_namespace</span><span class="p">()</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">namespace</span> <span class="k">else</span> <span class="n">namespace</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">raycluster_data_output</span> <span class="o">=</span> <span class="n">widgets</span><span class="o">.</span><span class="n">Output</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">user_output</span> <span class="o">=</span> <span class="n">widgets</span><span class="o">.</span><span class="n">Output</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">url_output</span> <span class="o">=</span> <span class="n">widgets</span><span class="o">.</span><span class="n">Output</span><span class="p">()</span>
+
+        <span class="c1"># Widgets</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">classification_widget</span> <span class="o">=</span> <span class="n">widgets</span><span class="o">.</span><span class="n">ToggleButtons</span><span class="p">(</span>
+            <span class="n">options</span><span class="o">=</span><span class="n">ray_clusters_df</span><span class="p">[</span><span class="s2">&quot;Name&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span>
+            <span class="n">value</span><span class="o">=</span><span class="n">ray_clusters_df</span><span class="p">[</span><span class="s2">&quot;Name&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">()[</span><span class="mi">0</span><span class="p">],</span>
+            <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Select an existing cluster:&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">delete_button</span> <span class="o">=</span> <span class="n">widgets</span><span class="o">.</span><span class="n">Button</span><span class="p">(</span>
+            <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Delete Cluster&quot;</span><span class="p">,</span>
+            <span class="n">icon</span><span class="o">=</span><span class="s2">&quot;trash&quot;</span><span class="p">,</span>
+            <span class="n">tooltip</span><span class="o">=</span><span class="s2">&quot;Delete the selected cluster&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">list_jobs_button</span> <span class="o">=</span> <span class="n">widgets</span><span class="o">.</span><span class="n">Button</span><span class="p">(</span>
+            <span class="n">description</span><span class="o">=</span><span class="s2">&quot;View Jobs&quot;</span><span class="p">,</span>
+            <span class="n">icon</span><span class="o">=</span><span class="s2">&quot;suitcase&quot;</span><span class="p">,</span>
+            <span class="n">tooltip</span><span class="o">=</span><span class="s2">&quot;Open the Ray Job Dashboard&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ray_dashboard_button</span> <span class="o">=</span> <span class="n">widgets</span><span class="o">.</span><span class="n">Button</span><span class="p">(</span>
+            <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Open Ray Dashboard&quot;</span><span class="p">,</span>
+            <span class="n">icon</span><span class="o">=</span><span class="s2">&quot;dashboard&quot;</span><span class="p">,</span>
+            <span class="n">tooltip</span><span class="o">=</span><span class="s2">&quot;Open the Ray Dashboard in a new tab&quot;</span><span class="p">,</span>
+            <span class="n">layout</span><span class="o">=</span><span class="n">widgets</span><span class="o">.</span><span class="n">Layout</span><span class="p">(</span><span class="n">width</span><span class="o">=</span><span class="s2">&quot;auto&quot;</span><span class="p">),</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">refresh_data_button</span> <span class="o">=</span> <span class="n">widgets</span><span class="o">.</span><span class="n">Button</span><span class="p">(</span>
+            <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Refresh Data&quot;</span><span class="p">,</span>
+            <span class="n">icon</span><span class="o">=</span><span class="s2">&quot;refresh&quot;</span><span class="p">,</span>
+            <span class="n">tooltip</span><span class="o">=</span><span class="s2">&quot;Refresh the list of Ray Clusters&quot;</span><span class="p">,</span>
+            <span class="n">layout</span><span class="o">=</span><span class="n">widgets</span><span class="o">.</span><span class="n">Layout</span><span class="p">(</span><span class="n">width</span><span class="o">=</span><span class="s2">&quot;auto&quot;</span><span class="p">,</span> <span class="n">left</span><span class="o">=</span><span class="s2">&quot;1em&quot;</span><span class="p">),</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Set up interactions</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_initialize_callbacks</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_trigger_initial_display</span><span class="p">()</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_initialize_callbacks</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Called upon RayClusterManagerWidgets initialisation.</span>
+<span class="sd">        Sets up event handlers and callbacks for UI interactions.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Observe cluster selection</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">classification_widget</span><span class="o">.</span><span class="n">observe</span><span class="p">(</span>
+            <span class="k">lambda</span> <span class="n">selection_change</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_on_cluster_click</span><span class="p">(</span><span class="n">selection_change</span><span class="p">),</span>
+            <span class="n">names</span><span class="o">=</span><span class="s2">&quot;value&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="c1"># Set up button clicks</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">delete_button</span><span class="o">.</span><span class="n">on_click</span><span class="p">(</span><span class="k">lambda</span> <span class="n">b</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_on_delete_button_click</span><span class="p">(</span><span class="n">b</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">list_jobs_button</span><span class="o">.</span><span class="n">on_click</span><span class="p">(</span><span class="k">lambda</span> <span class="n">b</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_on_list_jobs_button_click</span><span class="p">(</span><span class="n">b</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ray_dashboard_button</span><span class="o">.</span><span class="n">on_click</span><span class="p">(</span>
+            <span class="k">lambda</span> <span class="n">b</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_on_ray_dashboard_button_click</span><span class="p">(</span><span class="n">b</span><span class="p">)</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">refresh_data_button</span><span class="o">.</span><span class="n">on_click</span><span class="p">(</span>
+            <span class="k">lambda</span> <span class="n">b</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_on_refresh_data_button_click</span><span class="p">(</span><span class="n">b</span><span class="p">)</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_trigger_initial_display</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Called upon RayClusterManagerWidgets initialisation.</span>
+<span class="sd">        Triggers an initial display update with the current cluster value.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Trigger display with initial cluster value</span>
+        <span class="n">initial_value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">classification_widget</span><span class="o">.</span><span class="n">value</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_on_cluster_click</span><span class="p">({</span><span class="s2">&quot;new&quot;</span><span class="p">:</span> <span class="n">initial_value</span><span class="p">})</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_on_cluster_click</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">selection_change</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        _on_cluster_click handles the event when a cluster is selected from the toggle buttons, updating the output with cluster details.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">new_value</span> <span class="o">=</span> <span class="n">selection_change</span><span class="p">[</span><span class="s2">&quot;new&quot;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">classification_widget</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">new_value</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_refresh_dataframe</span><span class="p">()</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_on_delete_button_click</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">b</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        _on_delete_button_click handles the event when the Delete Button is clicked, deleting the selected cluster.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">cluster_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">classification_widget</span><span class="o">.</span><span class="n">value</span>
+
+        <span class="n">_delete_cluster</span><span class="p">(</span><span class="n">cluster_name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">namespace</span><span class="p">)</span>
+
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">user_output</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">user_output</span><span class="o">.</span><span class="n">clear_output</span><span class="p">()</span>
+            <span class="nb">print</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Cluster </span><span class="si">{</span><span class="n">cluster_name</span><span class="si">}</span><span class="s2"> in the </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">namespace</span><span class="si">}</span><span class="s2"> namespace was deleted successfully.&quot;</span>
+            <span class="p">)</span>
+
+        <span class="c1"># Refresh the dataframe</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_refresh_dataframe</span><span class="p">()</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_on_list_jobs_button_click</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">b</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        _on_list_jobs_button_click handles the event when the View Jobs button is clicked, opening the Ray Jobs Dashboard in a new tab</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">codeflare_sdk</span><span class="w"> </span><span class="kn">import</span> <span class="n">Cluster</span>
+
+        <span class="n">cluster_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">classification_widget</span><span class="o">.</span><span class="n">value</span>
+
+        <span class="c1"># Suppress from Cluster Object initialisation widgets and outputs</span>
+        <span class="k">with</span> <span class="n">widgets</span><span class="o">.</span><span class="n">Output</span><span class="p">(),</span> <span class="n">contextlib</span><span class="o">.</span><span class="n">redirect_stdout</span><span class="p">(</span>
+            <span class="n">io</span><span class="o">.</span><span class="n">StringIO</span><span class="p">()</span>
+        <span class="p">),</span> <span class="n">contextlib</span><span class="o">.</span><span class="n">redirect_stderr</span><span class="p">(</span><span class="n">io</span><span class="o">.</span><span class="n">StringIO</span><span class="p">()):</span>
+            <span class="n">cluster</span> <span class="o">=</span> <span class="n">Cluster</span><span class="p">(</span><span class="n">ClusterConfiguration</span><span class="p">(</span><span class="n">cluster_name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">namespace</span><span class="p">))</span>
+        <span class="n">dashboard_url</span> <span class="o">=</span> <span class="n">cluster</span><span class="o">.</span><span class="n">cluster_dashboard_uri</span><span class="p">()</span>
+
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">user_output</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">user_output</span><span class="o">.</span><span class="n">clear_output</span><span class="p">()</span>
+            <span class="nb">print</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Opening Ray Jobs Dashboard for </span><span class="si">{</span><span class="n">cluster_name</span><span class="si">}</span><span class="s2"> cluster:</span><span class="se">\n</span><span class="si">{</span><span class="n">dashboard_url</span><span class="si">}</span><span class="s2">/#/jobs&quot;</span>
+            <span class="p">)</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">url_output</span><span class="p">:</span>
+            <span class="n">display</span><span class="p">(</span><span class="n">Javascript</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;window.open(&quot;</span><span class="si">{</span><span class="n">dashboard_url</span><span class="si">}</span><span class="s1">/#/jobs&quot;, &quot;_blank&quot;);&#39;</span><span class="p">))</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_on_ray_dashboard_button_click</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">b</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        _on_ray_dashboard_button_click handles the event when the Open Ray Dashboard button is clicked, opening the Ray Dashboard in a new tab</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">codeflare_sdk</span><span class="w"> </span><span class="kn">import</span> <span class="n">Cluster</span>
+
+        <span class="n">cluster_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">classification_widget</span><span class="o">.</span><span class="n">value</span>
+
+        <span class="c1"># Suppress from Cluster Object initialisation widgets and outputs</span>
+        <span class="k">with</span> <span class="n">widgets</span><span class="o">.</span><span class="n">Output</span><span class="p">(),</span> <span class="n">contextlib</span><span class="o">.</span><span class="n">redirect_stdout</span><span class="p">(</span>
+            <span class="n">io</span><span class="o">.</span><span class="n">StringIO</span><span class="p">()</span>
+        <span class="p">),</span> <span class="n">contextlib</span><span class="o">.</span><span class="n">redirect_stderr</span><span class="p">(</span><span class="n">io</span><span class="o">.</span><span class="n">StringIO</span><span class="p">()):</span>
+            <span class="n">cluster</span> <span class="o">=</span> <span class="n">Cluster</span><span class="p">(</span><span class="n">ClusterConfiguration</span><span class="p">(</span><span class="n">cluster_name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">namespace</span><span class="p">))</span>
+        <span class="n">dashboard_url</span> <span class="o">=</span> <span class="n">cluster</span><span class="o">.</span><span class="n">cluster_dashboard_uri</span><span class="p">()</span>
+
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">user_output</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">user_output</span><span class="o">.</span><span class="n">clear_output</span><span class="p">()</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Opening Ray Dashboard for </span><span class="si">{</span><span class="n">cluster_name</span><span class="si">}</span><span class="s2"> cluster:</span><span class="se">\n</span><span class="si">{</span><span class="n">dashboard_url</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">url_output</span><span class="p">:</span>
+            <span class="n">display</span><span class="p">(</span><span class="n">Javascript</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;window.open(&quot;</span><span class="si">{</span><span class="n">dashboard_url</span><span class="si">}</span><span class="s1">&quot;, &quot;_blank&quot;);&#39;</span><span class="p">))</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_on_refresh_data_button_click</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">b</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        _on_refresh_button_click handles the event when the Refresh Data button is clicked, refreshing the list of Ray Clusters.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">refresh_data_button</span><span class="o">.</span><span class="n">disabled</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_refresh_dataframe</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">refresh_data_button</span><span class="o">.</span><span class="n">disabled</span> <span class="o">=</span> <span class="kc">False</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_refresh_dataframe</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        _refresh_data function refreshes the list of Ray Clusters.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ray_clusters_df</span> <span class="o">=</span> <span class="n">_fetch_cluster_data</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">namespace</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">ray_clusters_df</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">classification_widget</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">delete_button</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">list_jobs_button</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ray_dashboard_button</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">refresh_data_button</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+            <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">raycluster_data_output</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">raycluster_data_output</span><span class="o">.</span><span class="n">clear_output</span><span class="p">()</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;No clusters found in the </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">namespace</span><span class="si">}</span><span class="s2"> namespace.&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Store the current selection if it still exists (Was not previously deleted).</span>
+            <span class="n">selected_cluster</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">classification_widget</span><span class="o">.</span><span class="n">value</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">classification_widget</span><span class="o">.</span><span class="n">value</span>
+                <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">ray_clusters_df</span><span class="p">[</span><span class="s2">&quot;Name&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+                <span class="k">else</span> <span class="kc">None</span>
+            <span class="p">)</span>
+
+            <span class="c1"># Update list of Ray Clusters.</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">classification_widget</span><span class="o">.</span><span class="n">options</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ray_clusters_df</span><span class="p">[</span><span class="s2">&quot;Name&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+
+            <span class="c1"># If the selected cluster exists, preserve the selection to remain viewing the currently selected cluster.</span>
+            <span class="c1"># If it does not exist, default to the first available cluster.</span>
+            <span class="k">if</span> <span class="n">selected_cluster</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">classification_widget</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">selected_cluster</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">classification_widget</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ray_clusters_df</span><span class="p">[</span><span class="s2">&quot;Name&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+            <span class="c1"># Update the output with the current Ray Cluster details.</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_display_cluster_details</span><span class="p">()</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_display_cluster_details</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        _display_cluster_details function displays the selected cluster details in the output widget.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">raycluster_data_output</span><span class="o">.</span><span class="n">clear_output</span><span class="p">()</span>
+        <span class="n">selected_cluster</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ray_clusters_df</span><span class="p">[</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ray_clusters_df</span><span class="p">[</span><span class="s2">&quot;Name&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">classification_widget</span><span class="o">.</span><span class="n">value</span>
+        <span class="p">]</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">raycluster_data_output</span><span class="p">:</span>
+            <span class="n">display</span><span class="p">(</span>
+                <span class="n">HTML</span><span class="p">(</span>
+                    <span class="n">selected_cluster</span><span class="p">[</span>
+                        <span class="p">[</span>
+                            <span class="s2">&quot;Name&quot;</span><span class="p">,</span>
+                            <span class="s2">&quot;Namespace&quot;</span><span class="p">,</span>
+                            <span class="s2">&quot;Num Workers&quot;</span><span class="p">,</span>
+                            <span class="s2">&quot;Head GPUs&quot;</span><span class="p">,</span>
+                            <span class="s2">&quot;Head CPU Req~Lim&quot;</span><span class="p">,</span>
+                            <span class="s2">&quot;Head Memory Req~Lim&quot;</span><span class="p">,</span>
+                            <span class="s2">&quot;Worker GPUs&quot;</span><span class="p">,</span>
+                            <span class="s2">&quot;Worker CPU Req~Lim&quot;</span><span class="p">,</span>
+                            <span class="s2">&quot;Worker Memory Req~Lim&quot;</span><span class="p">,</span>
+                            <span class="s2">&quot;status&quot;</span><span class="p">,</span>
+                        <span class="p">]</span>
+                    <span class="p">]</span><span class="o">.</span><span class="n">to_html</span><span class="p">(</span><span class="n">escape</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">border</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+
+<div class="viewcode-block" id="RayClusterManagerWidgets.display_widgets">
+<a class="viewcode-back" href="../../../../codeflare_sdk.common.widgets.html#codeflare_sdk.common.widgets.widgets.RayClusterManagerWidgets.display_widgets">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">display_widgets</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">display</span><span class="p">(</span><span class="n">widgets</span><span class="o">.</span><span class="n">VBox</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">classification_widget</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">raycluster_data_output</span><span class="p">]))</span>
+        <span class="n">display</span><span class="p">(</span>
+            <span class="n">widgets</span><span class="o">.</span><span class="n">HBox</span><span class="p">(</span>
+                <span class="p">[</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">delete_button</span><span class="p">,</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">list_jobs_button</span><span class="p">,</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">ray_dashboard_button</span><span class="p">,</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">refresh_data_button</span><span class="p">,</span>
+                <span class="p">]</span>
+            <span class="p">),</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">url_output</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">user_output</span><span class="p">,</span>
+        <span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="cluster_apply_down_buttons">
+<a class="viewcode-back" href="../../../../codeflare_sdk.common.widgets.html#codeflare_sdk.common.widgets.widgets.cluster_apply_down_buttons">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">cluster_apply_down_buttons</span><span class="p">(</span>
+    <span class="n">cluster</span><span class="p">:</span> <span class="s2">&quot;codeflare_sdk.ray.cluster.cluster.Cluster&quot;</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">widgets</span><span class="o">.</span><span class="n">Button</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    The cluster_apply_down_buttons function returns two button widgets for a create and delete button.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">apply_button</span> <span class="o">=</span> <span class="n">widgets</span><span class="o">.</span><span class="n">Button</span><span class="p">(</span>
+        <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Cluster Apply&quot;</span><span class="p">,</span>
+        <span class="n">tooltip</span><span class="o">=</span><span class="s2">&quot;Create the Ray Cluster&quot;</span><span class="p">,</span>
+        <span class="n">icon</span><span class="o">=</span><span class="s2">&quot;play&quot;</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="n">delete_button</span> <span class="o">=</span> <span class="n">widgets</span><span class="o">.</span><span class="n">Button</span><span class="p">(</span>
+        <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Cluster Down&quot;</span><span class="p">,</span>
+        <span class="n">tooltip</span><span class="o">=</span><span class="s2">&quot;Delete the Ray Cluster&quot;</span><span class="p">,</span>
+        <span class="n">icon</span><span class="o">=</span><span class="s2">&quot;trash&quot;</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="n">wait_ready_check</span> <span class="o">=</span> <span class="n">_wait_ready_check_box</span><span class="p">()</span>
+    <span class="n">output</span> <span class="o">=</span> <span class="n">widgets</span><span class="o">.</span><span class="n">Output</span><span class="p">()</span>
+
+    <span class="c1"># Display the buttons in an HBox wrapped in a VBox which includes the wait_ready Checkbox</span>
+    <span class="n">button_display</span> <span class="o">=</span> <span class="n">widgets</span><span class="o">.</span><span class="n">HBox</span><span class="p">([</span><span class="n">apply_button</span><span class="p">,</span> <span class="n">delete_button</span><span class="p">])</span>
+    <span class="n">display</span><span class="p">(</span><span class="n">widgets</span><span class="o">.</span><span class="n">VBox</span><span class="p">([</span><span class="n">button_display</span><span class="p">,</span> <span class="n">wait_ready_check</span><span class="p">]),</span> <span class="n">output</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">on_apply_button_clicked</span><span class="p">(</span><span class="n">b</span><span class="p">):</span>  <span class="c1"># Handle the apply button click event</span>
+        <span class="k">with</span> <span class="n">output</span><span class="p">:</span>
+            <span class="n">output</span><span class="o">.</span><span class="n">clear_output</span><span class="p">()</span>
+            <span class="c1"># Use shorter TLS timeout (60s) for widget button clicks to avoid blocking UI</span>
+            <span class="c1"># Users who need full TLS wait can use wait_ready() checkbox or call apply() directly</span>
+            <span class="n">cluster</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">timeout</span><span class="o">=</span><span class="mi">60</span><span class="p">)</span>
+
+            <span class="c1"># If the wait_ready Checkbox is clicked(value == True) trigger the wait_ready function</span>
+            <span class="k">if</span> <span class="n">wait_ready_check</span><span class="o">.</span><span class="n">value</span><span class="p">:</span>
+                <span class="n">cluster</span><span class="o">.</span><span class="n">wait_ready</span><span class="p">()</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">on_down_button_clicked</span><span class="p">(</span><span class="n">b</span><span class="p">):</span>  <span class="c1"># Handle the down button click event</span>
+        <span class="k">with</span> <span class="n">output</span><span class="p">:</span>
+            <span class="n">output</span><span class="o">.</span><span class="n">clear_output</span><span class="p">()</span>
+            <span class="n">cluster</span><span class="o">.</span><span class="n">down</span><span class="p">()</span>
+
+    <span class="n">apply_button</span><span class="o">.</span><span class="n">on_click</span><span class="p">(</span><span class="n">on_apply_button_clicked</span><span class="p">)</span>
+    <span class="n">delete_button</span><span class="o">.</span><span class="n">on_click</span><span class="p">(</span><span class="n">on_down_button_clicked</span><span class="p">)</span></div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_wait_ready_check_box</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    The wait_ready_check_box function will return a checkbox widget used for waiting for the resource to be in the state READY.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">wait_ready_check_box</span> <span class="o">=</span> <span class="n">widgets</span><span class="o">.</span><span class="n">Checkbox</span><span class="p">(</span>
+        <span class="kc">False</span><span class="p">,</span>
+        <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Wait for Cluster?&quot;</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="k">return</span> <span class="n">wait_ready_check_box</span>
+
+
+<div class="viewcode-block" id="is_notebook">
+<a class="viewcode-back" href="../../../../codeflare_sdk.common.widgets.html#codeflare_sdk.common.widgets.widgets.is_notebook">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">is_notebook</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    The is_notebook function checks if we&#39;re running in a Jupyter Notebook environment.</span>
+
+<span class="sd">    Detection methods:</span>
+<span class="sd">    1. Check for IPython&#39;s ZMQInteractiveShell (standard Jupyter kernel)</span>
+<span class="sd">    2. Check for known environment variables (VSCode, RHOAI/ODH)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># First, try the standard IPython detection method</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">IPython</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_ipython</span>
+
+        <span class="n">shell</span> <span class="o">=</span> <span class="n">get_ipython</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">shell</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">shell_class</span> <span class="o">=</span> <span class="n">shell</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span>
+            <span class="c1"># ZMQInteractiveShell = Jupyter notebook/lab, qtconsole</span>
+            <span class="k">if</span> <span class="n">shell_class</span> <span class="o">==</span> <span class="s2">&quot;ZMQInteractiveShell&quot;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">True</span>
+    <span class="k">except</span> <span class="p">(</span><span class="ne">ImportError</span><span class="p">,</span> <span class="ne">NameError</span><span class="p">):</span>
+        <span class="k">pass</span>
+
+    <span class="c1"># Fallback: check for known environment variables</span>
+    <span class="k">if</span> <span class="p">(</span>
+        <span class="s2">&quot;PYDEVD_IPYTHON_COMPATIBLE_DEBUGGING&quot;</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span>
+        <span class="ow">or</span> <span class="s2">&quot;JPY_SESSION_NAME&quot;</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span>
+        <span class="ow">or</span> <span class="s2">&quot;JPY_PARENT_PID&quot;</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span>  <span class="c1"># Standard Jupyter</span>
+    <span class="p">):</span>
+        <span class="k">return</span> <span class="kc">True</span>
+
+    <span class="k">return</span> <span class="kc">False</span></div>
+
+
+
+<div class="viewcode-block" id="view_clusters">
+<a class="viewcode-back" href="../../../../codeflare_sdk.common.widgets.html#codeflare_sdk.common.widgets.widgets.view_clusters">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">view_clusters</span><span class="p">(</span><span class="n">namespace</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    view_clusters function will display existing clusters with their specs, and handle user interactions.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">is_notebook</span><span class="p">():</span>
+        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+            <span class="s2">&quot;view_clusters can only be used in a Jupyter Notebook environment.&quot;</span>
+        <span class="p">)</span>
+        <span class="k">return</span>  <span class="c1"># Exit function if not in Jupyter Notebook</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">namespace</span><span class="p">:</span>
+        <span class="n">namespace</span> <span class="o">=</span> <span class="n">get_current_namespace</span><span class="p">()</span>
+
+    <span class="n">ray_clusters_df</span> <span class="o">=</span> <span class="n">_fetch_cluster_data</span><span class="p">(</span><span class="n">namespace</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">ray_clusters_df</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;No clusters found in the </span><span class="si">{</span><span class="n">namespace</span><span class="si">}</span><span class="s2"> namespace.&quot;</span><span class="p">)</span>
+        <span class="k">return</span>
+
+    <span class="c1"># Initialize the RayClusterManagerWidgets class</span>
+    <span class="n">ray_cluster_manager</span> <span class="o">=</span> <span class="n">RayClusterManagerWidgets</span><span class="p">(</span>
+        <span class="n">ray_clusters_df</span><span class="o">=</span><span class="n">ray_clusters_df</span><span class="p">,</span> <span class="n">namespace</span><span class="o">=</span><span class="n">namespace</span>
+    <span class="p">)</span>
+
+    <span class="c1"># Display the UI components</span>
+    <span class="n">ray_cluster_manager</span><span class="o">.</span><span class="n">display_widgets</span><span class="p">()</span></div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_delete_cluster</span><span class="p">(</span>
+    <span class="n">cluster_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">namespace</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">timeout</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
+    <span class="n">interval</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    _delete_cluster function deletes the cluster with the given name and namespace.</span>
+<span class="sd">    It optionally waits for the cluster to be deleted.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">config_check</span><span class="p">()</span>
+        <span class="n">api_instance</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">CustomObjectsApi</span><span class="p">(</span><span class="n">get_api_client</span><span class="p">())</span>
+
+        <span class="n">api_instance</span><span class="o">.</span><span class="n">delete_namespaced_custom_object</span><span class="p">(</span>
+            <span class="n">group</span><span class="o">=</span><span class="s2">&quot;ray.io&quot;</span><span class="p">,</span>
+            <span class="n">version</span><span class="o">=</span><span class="s2">&quot;v1&quot;</span><span class="p">,</span>
+            <span class="n">namespace</span><span class="o">=</span><span class="n">namespace</span><span class="p">,</span>
+            <span class="n">plural</span><span class="o">=</span><span class="s2">&quot;rayclusters&quot;</span><span class="p">,</span>
+            <span class="n">name</span><span class="o">=</span><span class="n">cluster_name</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Wait for the resource to be deleted</span>
+        <span class="k">while</span> <span class="n">timeout</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">api_instance</span><span class="o">.</span><span class="n">get_namespaced_custom_object</span><span class="p">(</span>
+                    <span class="n">group</span><span class="o">=</span><span class="s2">&quot;ray.io&quot;</span><span class="p">,</span>
+                    <span class="n">version</span><span class="o">=</span><span class="s2">&quot;v1&quot;</span><span class="p">,</span>
+                    <span class="n">namespace</span><span class="o">=</span><span class="n">namespace</span><span class="p">,</span>
+                    <span class="n">plural</span><span class="o">=</span><span class="s2">&quot;rayclusters&quot;</span><span class="p">,</span>
+                    <span class="n">name</span><span class="o">=</span><span class="n">cluster_name</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="c1"># Retry if resource still exists</span>
+                <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">interval</span><span class="p">)</span>
+                <span class="n">timeout</span> <span class="o">-=</span> <span class="n">interval</span>
+                <span class="k">if</span> <span class="n">timeout</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">TimeoutError</span><span class="p">(</span>
+                        <span class="sa">f</span><span class="s2">&quot;Timeout waiting for </span><span class="si">{</span><span class="n">cluster_name</span><span class="si">}</span><span class="s2"> to be deleted.&quot;</span>
+                    <span class="p">)</span>
+            <span class="k">except</span> <span class="n">ApiException</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="c1"># Resource is deleted</span>
+                <span class="k">if</span> <span class="n">e</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="mi">404</span><span class="p">:</span>
+                    <span class="k">break</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
+        <span class="k">return</span> <span class="n">_kube_api_error_handling</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_fetch_cluster_data</span><span class="p">(</span><span class="n">namespace</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    _fetch_cluster_data function fetches all clusters and their spec in a given namespace and returns a DataFrame.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">...ray.cluster.cluster</span><span class="w"> </span><span class="kn">import</span> <span class="n">list_all_clusters</span>
+
+    <span class="n">rayclusters</span> <span class="o">=</span> <span class="n">list_all_clusters</span><span class="p">(</span><span class="n">namespace</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">rayclusters</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">()</span>
+    <span class="n">names</span> <span class="o">=</span> <span class="p">[</span><span class="n">item</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">rayclusters</span><span class="p">]</span>
+    <span class="n">namespaces</span> <span class="o">=</span> <span class="p">[</span><span class="n">item</span><span class="o">.</span><span class="n">namespace</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">rayclusters</span><span class="p">]</span>
+    <span class="n">num_workers</span> <span class="o">=</span> <span class="p">[</span><span class="n">item</span><span class="o">.</span><span class="n">num_workers</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">rayclusters</span><span class="p">]</span>
+    <span class="n">head_extended_resources</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="nb">list</span><span class="p">(</span><span class="n">item</span><span class="o">.</span><span class="n">head_extended_resources</span><span class="o">.</span><span class="n">keys</span><span class="p">())[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="nb">list</span><span class="p">(</span><span class="n">item</span><span class="o">.</span><span class="n">head_extended_resources</span><span class="o">.</span><span class="n">values</span><span class="p">())[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="k">if</span> <span class="n">item</span><span class="o">.</span><span class="n">head_extended_resources</span>
+            <span class="k">else</span> <span class="s2">&quot;0&quot;</span>
+        <span class="p">)</span>
+        <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">rayclusters</span>
+    <span class="p">]</span>
+    <span class="n">worker_extended_resources</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="nb">list</span><span class="p">(</span><span class="n">item</span><span class="o">.</span><span class="n">worker_extended_resources</span><span class="o">.</span><span class="n">keys</span><span class="p">())[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="nb">list</span><span class="p">(</span><span class="n">item</span><span class="o">.</span><span class="n">worker_extended_resources</span><span class="o">.</span><span class="n">values</span><span class="p">())[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="k">if</span> <span class="n">item</span><span class="o">.</span><span class="n">worker_extended_resources</span>
+            <span class="k">else</span> <span class="s2">&quot;0&quot;</span>
+        <span class="p">)</span>
+        <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">rayclusters</span>
+    <span class="p">]</span>
+    <span class="n">head_cpu_requests</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">item</span><span class="o">.</span><span class="n">head_cpu_requests</span> <span class="k">if</span> <span class="n">item</span><span class="o">.</span><span class="n">head_cpu_requests</span> <span class="k">else</span> <span class="mi">0</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">rayclusters</span>
+    <span class="p">]</span>
+    <span class="n">head_cpu_limits</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">item</span><span class="o">.</span><span class="n">head_cpu_limits</span> <span class="k">if</span> <span class="n">item</span><span class="o">.</span><span class="n">head_cpu_limits</span> <span class="k">else</span> <span class="mi">0</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">rayclusters</span>
+    <span class="p">]</span>
+    <span class="n">head_cpu_rl</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">requests</span><span class="si">}</span><span class="s2">~</span><span class="si">{</span><span class="n">limits</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="k">for</span> <span class="n">requests</span><span class="p">,</span> <span class="n">limits</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">head_cpu_requests</span><span class="p">,</span> <span class="n">head_cpu_limits</span><span class="p">)</span>
+    <span class="p">]</span>
+    <span class="n">head_mem_requests</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">item</span><span class="o">.</span><span class="n">head_mem_requests</span> <span class="k">if</span> <span class="n">item</span><span class="o">.</span><span class="n">head_mem_requests</span> <span class="k">else</span> <span class="mi">0</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">rayclusters</span>
+    <span class="p">]</span>
+    <span class="n">head_mem_limits</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">item</span><span class="o">.</span><span class="n">head_mem_limits</span> <span class="k">if</span> <span class="n">item</span><span class="o">.</span><span class="n">head_mem_limits</span> <span class="k">else</span> <span class="mi">0</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">rayclusters</span>
+    <span class="p">]</span>
+    <span class="n">head_mem_rl</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">requests</span><span class="si">}</span><span class="s2">~</span><span class="si">{</span><span class="n">limits</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="k">for</span> <span class="n">requests</span><span class="p">,</span> <span class="n">limits</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">head_mem_requests</span><span class="p">,</span> <span class="n">head_mem_limits</span><span class="p">)</span>
+    <span class="p">]</span>
+    <span class="n">worker_cpu_requests</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">item</span><span class="o">.</span><span class="n">worker_cpu_requests</span> <span class="k">if</span> <span class="n">item</span><span class="o">.</span><span class="n">worker_cpu_requests</span> <span class="k">else</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">rayclusters</span>
+    <span class="p">]</span>
+    <span class="n">worker_cpu_limits</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">item</span><span class="o">.</span><span class="n">worker_cpu_limits</span> <span class="k">if</span> <span class="n">item</span><span class="o">.</span><span class="n">worker_cpu_limits</span> <span class="k">else</span> <span class="mi">0</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">rayclusters</span>
+    <span class="p">]</span>
+    <span class="n">worker_cpu_rl</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">requests</span><span class="si">}</span><span class="s2">~</span><span class="si">{</span><span class="n">limits</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="k">for</span> <span class="n">requests</span><span class="p">,</span> <span class="n">limits</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">worker_cpu_requests</span><span class="p">,</span> <span class="n">worker_cpu_limits</span><span class="p">)</span>
+    <span class="p">]</span>
+    <span class="n">worker_mem_requests</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">item</span><span class="o">.</span><span class="n">worker_mem_requests</span> <span class="k">if</span> <span class="n">item</span><span class="o">.</span><span class="n">worker_mem_requests</span> <span class="k">else</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">rayclusters</span>
+    <span class="p">]</span>
+    <span class="n">worker_mem_limits</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">item</span><span class="o">.</span><span class="n">worker_mem_limits</span> <span class="k">if</span> <span class="n">item</span><span class="o">.</span><span class="n">worker_mem_limits</span> <span class="k">else</span> <span class="mi">0</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">rayclusters</span>
+    <span class="p">]</span>
+    <span class="n">worker_mem_rl</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">requests</span><span class="si">}</span><span class="s2">~</span><span class="si">{</span><span class="n">limits</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="k">for</span> <span class="n">requests</span><span class="p">,</span> <span class="n">limits</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">worker_mem_requests</span><span class="p">,</span> <span class="n">worker_mem_limits</span><span class="p">)</span>
+    <span class="p">]</span>
+    <span class="n">status</span> <span class="o">=</span> <span class="p">[</span><span class="n">item</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">rayclusters</span><span class="p">]</span>
+
+    <span class="n">status</span> <span class="o">=</span> <span class="p">[</span><span class="n">_format_status</span><span class="p">(</span><span class="n">item</span><span class="o">.</span><span class="n">status</span><span class="p">)</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">rayclusters</span><span class="p">]</span>
+
+    <span class="n">data</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;Name&quot;</span><span class="p">:</span> <span class="n">names</span><span class="p">,</span>
+        <span class="s2">&quot;Namespace&quot;</span><span class="p">:</span> <span class="n">namespaces</span><span class="p">,</span>
+        <span class="s2">&quot;Num Workers&quot;</span><span class="p">:</span> <span class="n">num_workers</span><span class="p">,</span>
+        <span class="s2">&quot;Head GPUs&quot;</span><span class="p">:</span> <span class="n">head_extended_resources</span><span class="p">,</span>
+        <span class="s2">&quot;Worker GPUs&quot;</span><span class="p">:</span> <span class="n">worker_extended_resources</span><span class="p">,</span>
+        <span class="s2">&quot;Head CPU Req~Lim&quot;</span><span class="p">:</span> <span class="n">head_cpu_rl</span><span class="p">,</span>
+        <span class="s2">&quot;Head Memory Req~Lim&quot;</span><span class="p">:</span> <span class="n">head_mem_rl</span><span class="p">,</span>
+        <span class="s2">&quot;Worker CPU Req~Lim&quot;</span><span class="p">:</span> <span class="n">worker_cpu_rl</span><span class="p">,</span>
+        <span class="s2">&quot;Worker Memory Req~Lim&quot;</span><span class="p">:</span> <span class="n">worker_mem_rl</span><span class="p">,</span>
+        <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="n">status</span><span class="p">,</span>
+    <span class="p">}</span>
+    <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_format_status</span><span class="p">(</span><span class="n">status</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    _format_status function formats the status enum.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">status_map</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="n">RayClusterStatus</span><span class="o">.</span><span class="n">READY</span><span class="p">:</span> <span class="s1">&#39;&lt;span style=&quot;color: green;&quot;&gt;Ready ✓&lt;/span&gt;&#39;</span><span class="p">,</span>
+        <span class="n">RayClusterStatus</span><span class="o">.</span><span class="n">SUSPENDED</span><span class="p">:</span> <span class="s1">&#39;&lt;span style=&quot;color: #007BFF;&quot;&gt;Suspended ❄️&lt;/span&gt;&#39;</span><span class="p">,</span>
+        <span class="n">RayClusterStatus</span><span class="o">.</span><span class="n">FAILED</span><span class="p">:</span> <span class="s1">&#39;&lt;span style=&quot;color: red;&quot;&gt;Failed ✗&lt;/span&gt;&#39;</span><span class="p">,</span>
+        <span class="n">RayClusterStatus</span><span class="o">.</span><span class="n">UNHEALTHY</span><span class="p">:</span> <span class="s1">&#39;&lt;span style=&quot;color: purple;&quot;&gt;Unhealthy&lt;/span&gt;&#39;</span><span class="p">,</span>
+        <span class="n">RayClusterStatus</span><span class="o">.</span><span class="n">UNKNOWN</span><span class="p">:</span> <span class="s1">&#39;&lt;span style=&quot;color: purple;&quot;&gt;Unknown&lt;/span&gt;&#39;</span><span class="p">,</span>
+    <span class="p">}</span>
+    <span class="k">return</span> <span class="n">status_map</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">status</span><span class="p">,</span> <span class="n">status</span><span class="p">)</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Project CodeFlare.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

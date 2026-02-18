@@ -1,0 +1,381 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>kube_authkit.config &mdash; CodeFlare SDK 0.35.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=ca1b380b"></script>
+      <script src="../../_static/doctools.js?v=9a2dae69"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            CodeFlare SDK
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Code Documentation:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../modules.html">codeflare_sdk</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">User Documentation:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../user-docs/authentication.html">Authentication via the CodeFlare SDK</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../user-docs/cluster-configuration.html">Ray Cluster Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../user-docs/ray-cluster-interaction.html">Ray Cluster Interaction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../user-docs/rayjob.html">Submitting RayJobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../user-docs/e2e.html">Running e2e tests locally</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../user-docs/s3-compatible-storage.html">S3 compatible storage with Ray Train examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../user-docs/setup-kueue.html">Basic Kueue Resources configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../user-docs/ui-widgets.html">Jupyter UI Widgets</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">CodeFlare SDK</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">kube_authkit.config</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for kube_authkit.config</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Configuration dataclass for authentication.</span>
+
+<span class="sd">This module provides the AuthConfig dataclass that centralizes all</span>
+<span class="sd">authentication configuration options.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span><span class="p">,</span> <span class="n">field</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">.exceptions</span><span class="w"> </span><span class="kn">import</span> <span class="n">ConfigurationError</span>
+
+
+<div class="viewcode-block" id="AuthConfig">
+<a class="viewcode-back" href="../../codeflare_sdk.common.kubernetes_cluster.html#codeflare_sdk.common.kubernetes_cluster.AuthConfig">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">AuthConfig</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Configuration for Kubernetes/OpenShift authentication.</span>
+
+<span class="sd">    This dataclass holds all configuration options for authenticating to</span>
+<span class="sd">    a Kubernetes or OpenShift cluster. It supports multiple authentication</span>
+<span class="sd">    methods and can be configured explicitly or through environment variables.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        method: Authentication method to use. Must be specified. Options:</span>
+<span class="sd">            - &quot;auto&quot;: Auto-detect best method by probing the environment</span>
+<span class="sd">            - &quot;kubeconfig&quot;: Use ~/.kube/config or KUBECONFIG</span>
+<span class="sd">            - &quot;incluster&quot;: Use in-cluster service account</span>
+<span class="sd">            - &quot;oidc&quot;: Use OpenID Connect</span>
+<span class="sd">            - &quot;openshift&quot;: Use OpenShift OAuth</span>
+<span class="sd">            - None (default): Raises ConfigurationError; caller must choose</span>
+<span class="sd">        k8s_api_host: Kubernetes API server URL (auto-detected if None)</span>
+<span class="sd">        oidc_issuer: OIDC issuer URL (required for OIDC)</span>
+<span class="sd">        client_id: OIDC client ID (required for OIDC)</span>
+<span class="sd">        client_secret: OIDC client secret (for confidential clients)</span>
+<span class="sd">        token: Bearer token for authentication (optional, for OIDC/OpenShift)</span>
+<span class="sd">        scopes: OIDC scopes to request</span>
+<span class="sd">        use_device_flow: Use Device Code Flow instead of Authorization Code</span>
+<span class="sd">        use_keyring: Store refresh tokens in system keyring</span>
+<span class="sd">        oidc_callback_port: Port for OAuth callback server (default: 8080)</span>
+<span class="sd">        ca_cert: Path to custom CA certificate bundle</span>
+<span class="sd">        verify_ssl: Verify SSL certificates (WARNING: only disable for development)</span>
+<span class="sd">        kubeconfig_path: Path to kubeconfig file (overrides KUBECONFIG env var)</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        &gt;&gt;&gt; # Explicit OIDC with device flow</span>
+<span class="sd">        &gt;&gt;&gt; config = AuthConfig(</span>
+<span class="sd">        ...     method=&quot;oidc&quot;,</span>
+<span class="sd">        ...     oidc_issuer=&quot;https://keycloak.example.com/auth/realms/myrealm&quot;,</span>
+<span class="sd">        ...     client_id=&quot;my-client&quot;,</span>
+<span class="sd">        ...     use_device_flow=True</span>
+<span class="sd">        ... )</span>
+<span class="sd">        &gt;&gt;&gt;</span>
+<span class="sd">        &gt;&gt;&gt; # Auto-detection (opt-in)</span>
+<span class="sd">        &gt;&gt;&gt; config = AuthConfig(method=&quot;auto&quot;)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">k8s_api_host</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">oidc_issuer</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">client_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">client_secret</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">token</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">scopes</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;openid&quot;</span><span class="p">])</span>
+    <span class="n">use_device_flow</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">use_keyring</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">oidc_callback_port</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">8080</span>
+    <span class="n">ca_cert</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">verify_ssl</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="n">kubeconfig_path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Validate configuration after initialization.</span>
+
+<span class="sd">        This method is automatically called after __init__ to:</span>
+<span class="sd">        1. Load configuration from environment variables if not explicitly set</span>
+<span class="sd">        2. Validate that required parameters are present for the chosen method</span>
+<span class="sd">        3. Emit security warnings for dangerous configurations</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            ConfigurationError: If configuration is invalid or incomplete</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Load from environment variables if not explicitly set</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_load_from_environment</span><span class="p">()</span>
+
+        <span class="c1"># Validate that method is specified</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">method</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">ConfigurationError</span><span class="p">(</span>
+                <span class="s2">&quot;Authentication method must be specified&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;Provide method=&#39;auto&#39; to auto-detect, or specify an explicit method &quot;</span>
+                <span class="s2">&quot;(e.g., method=&#39;kubeconfig&#39;, method=&#39;oidc&#39;, method=&#39;incluster&#39;, &quot;</span>
+                <span class="s2">&quot;method=&#39;openshift&#39;)&quot;</span><span class="p">,</span>
+            <span class="p">)</span>
+
+        <span class="c1"># Normalize method name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">method</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">method</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+
+        <span class="c1"># Validate method is known</span>
+        <span class="n">valid_methods</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;auto&quot;</span><span class="p">,</span> <span class="s2">&quot;kubeconfig&quot;</span><span class="p">,</span> <span class="s2">&quot;incluster&quot;</span><span class="p">,</span> <span class="s2">&quot;oidc&quot;</span><span class="p">,</span> <span class="s2">&quot;openshift&quot;</span><span class="p">}</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">method</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">valid_methods</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">ConfigurationError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Invalid authentication method: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">method</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+                <span class="sa">f</span><span class="s2">&quot;Valid methods are: </span><span class="si">{</span><span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="n">valid_methods</span><span class="p">))</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="p">)</span>
+
+        <span class="c1"># Validate OIDC-specific configuration</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">method</span> <span class="o">==</span> <span class="s2">&quot;oidc&quot;</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">oidc_issuer</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">ConfigurationError</span><span class="p">(</span>
+                    <span class="s2">&quot;OIDC authentication requires &#39;oidc_issuer&#39; parameter&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;Provide oidc_issuer or set OIDC_ISSUER environment variable&quot;</span><span class="p">,</span>
+                <span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">client_id</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">ConfigurationError</span><span class="p">(</span>
+                    <span class="s2">&quot;OIDC authentication requires &#39;client_id&#39; parameter&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;Provide client_id or set OIDC_CLIENT_ID environment variable&quot;</span><span class="p">,</span>
+                <span class="p">)</span>
+            <span class="c1"># Validate issuer URL format</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">oidc_issuer</span><span class="o">.</span><span class="n">startswith</span><span class="p">((</span><span class="s2">&quot;https://&quot;</span><span class="p">,</span> <span class="s2">&quot;http://&quot;</span><span class="p">)):</span>
+                <span class="k">raise</span> <span class="n">ConfigurationError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;OIDC issuer must be a valid URL: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">oidc_issuer</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;issuer should start with https:// (or http:// for local development)&quot;</span><span class="p">,</span>
+                <span class="p">)</span>
+            <span class="c1"># Warn about http:// (insecure)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">oidc_issuer</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;http://&quot;</span><span class="p">):</span>
+                <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;OIDC issuer uses insecure http:// protocol: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">oidc_issuer</span><span class="si">}</span><span class="s2">. &quot;</span>
+                    <span class="s2">&quot;This should only be used for local development.&quot;</span><span class="p">,</span>
+                    <span class="n">SecurityWarning</span><span class="p">,</span>
+                    <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+                <span class="p">)</span>
+
+        <span class="c1"># Security warning for disabled SSL verification</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">verify_ssl</span><span class="p">:</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+                <span class="s2">&quot;TLS/SSL verification is disabled (verify_ssl=False). &quot;</span>
+                <span class="s2">&quot;This is insecure and should only be used in development environments. &quot;</span>
+                <span class="s2">&quot;Your credentials and data may be exposed to man-in-the-middle attacks.&quot;</span><span class="p">,</span>
+                <span class="n">SecurityWarning</span><span class="p">,</span>
+                <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+            <span class="p">)</span>
+
+        <span class="c1"># Validate CA cert path if provided</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">ca_cert</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ca_cert</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="n">ConfigurationError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;CA certificate file not found: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">ca_cert</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;Provide a valid path to a CA certificate bundle&quot;</span><span class="p">,</span>
+            <span class="p">)</span>
+
+        <span class="c1"># Validate kubeconfig path if provided</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">kubeconfig_path</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kubeconfig_path</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="n">ConfigurationError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Kubeconfig file not found: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">kubeconfig_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;Provide a valid path to a kubeconfig file&quot;</span><span class="p">,</span>
+            <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_load_from_environment</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Load configuration from environment variables.</span>
+
+<span class="sd">        This method loads configuration from environment variables for</span>
+<span class="sd">        parameters that were not explicitly set. It allows users to</span>
+<span class="sd">        configure authentication through environment variables without</span>
+<span class="sd">        modifying code.</span>
+
+<span class="sd">        Environment Variables:</span>
+<span class="sd">            AUTHKIT_OIDC_ISSUER: OIDC issuer URL</span>
+<span class="sd">            AUTHKIT_CLIENT_ID: OIDC client ID</span>
+<span class="sd">            AUTHKIT_CLIENT_SECRET: OIDC client secret</span>
+<span class="sd">            AUTHKIT_TOKEN: Bearer token for authentication</span>
+<span class="sd">            AUTHKIT_API_HOST: Kubernetes API server URL</span>
+<span class="sd">            KUBECONFIG: Path to kubeconfig file (standard Kubernetes variable)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Load OIDC configuration from environment</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">oidc_issuer</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">oidc_issuer</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;AUTHKIT_OIDC_ISSUER&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">client_id</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">client_id</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;AUTHKIT_CLIENT_ID&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">client_secret</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">client_secret</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;AUTHKIT_CLIENT_SECRET&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Load token from environment (support legacy OPENSHIFT_TOKEN)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">token</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">token</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;AUTHKIT_TOKEN&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;OPENSHIFT_TOKEN&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Load kubeconfig path from environment (standard Kubernetes variable)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">kubeconfig_path</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">kubeconfig_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;KUBECONFIG&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Load API host from environment</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">k8s_api_host</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">k8s_api_host</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;AUTHKIT_API_HOST&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Validate callback port</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">oidc_callback_port</span> <span class="o">&lt;</span> <span class="mi">1</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">oidc_callback_port</span> <span class="o">&gt;</span> <span class="mi">65535</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">ConfigurationError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Invalid OIDC callback port: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">oidc_callback_port</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;Port must be between 1 and 65535&quot;</span><span class="p">,</span>
+            <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return string representation with sensitive fields redacted.</span>
+
+<span class="sd">        This ensures that sensitive information like client_secret is not</span>
+<span class="sd">        exposed in logs or error messages.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            String representation with secrets redacted</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Create a copy of the config dict and redact sensitive fields</span>
+        <span class="n">config_dict</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;method&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">method</span><span class="p">,</span>
+            <span class="s2">&quot;k8s_api_host&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">k8s_api_host</span><span class="p">,</span>
+            <span class="s2">&quot;oidc_issuer&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">oidc_issuer</span><span class="p">,</span>
+            <span class="s2">&quot;client_id&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">client_id</span><span class="p">,</span>
+            <span class="s2">&quot;client_secret&quot;</span><span class="p">:</span> <span class="s2">&quot;***REDACTED***&quot;</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">client_secret</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="s2">&quot;token&quot;</span><span class="p">:</span> <span class="s2">&quot;***REDACTED***&quot;</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">token</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="s2">&quot;scopes&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">scopes</span><span class="p">,</span>
+            <span class="s2">&quot;use_device_flow&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_device_flow</span><span class="p">,</span>
+            <span class="s2">&quot;use_keyring&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_keyring</span><span class="p">,</span>
+            <span class="s2">&quot;oidc_callback_port&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">oidc_callback_port</span><span class="p">,</span>
+            <span class="s2">&quot;ca_cert&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">ca_cert</span><span class="p">,</span>
+            <span class="s2">&quot;verify_ssl&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">verify_ssl</span><span class="p">,</span>
+            <span class="s2">&quot;kubeconfig_path&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">kubeconfig_path</span><span class="p">,</span>
+        <span class="p">}</span>
+
+        <span class="n">params</span> <span class="o">=</span> <span class="s2">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">k</span><span class="si">}</span><span class="s2">=</span><span class="si">{</span><span class="n">v</span><span class="si">!r}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">config_dict</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">v</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;AuthConfig(</span><span class="si">{</span><span class="n">params</span><span class="si">}</span><span class="s2">)&quot;</span>
+
+<div class="viewcode-block" id="AuthConfig.from_dict">
+<a class="viewcode-back" href="../../codeflare_sdk.common.kubernetes_cluster.html#codeflare_sdk.common.kubernetes_cluster.AuthConfig.from_dict">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">from_dict</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">config_dict</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;AuthConfig&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create AuthConfig from dictionary.</span>
+
+<span class="sd">        This is useful for loading configuration from JSON or YAML files.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            config_dict: Dictionary containing configuration parameters</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            AuthConfig instance</span>
+
+<span class="sd">        Example:</span>
+<span class="sd">            &gt;&gt;&gt; config_data = {</span>
+<span class="sd">            ...     &quot;method&quot;: &quot;oidc&quot;,</span>
+<span class="sd">            ...     &quot;oidc_issuer&quot;: &quot;https://keycloak.example.com&quot;,</span>
+<span class="sd">            ...     &quot;client_id&quot;: &quot;my-client&quot;</span>
+<span class="sd">            ... }</span>
+<span class="sd">            &gt;&gt;&gt; config = AuthConfig.from_dict(config_data)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Filter out unknown keys to avoid TypeError</span>
+        <span class="n">valid_fields</span> <span class="o">=</span> <span class="p">{</span><span class="n">f</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="bp">cls</span><span class="o">.</span><span class="n">__dataclass_fields__</span><span class="o">.</span><span class="n">values</span><span class="p">()}</span>
+        <span class="n">filtered_dict</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">config_dict</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">valid_fields</span><span class="p">}</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="o">**</span><span class="n">filtered_dict</span><span class="p">)</span></div>
+</div>
+
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">SecurityWarning</span><span class="p">(</span><span class="ne">UserWarning</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Warning category for security-related issues.</span>
+
+<span class="sd">    This custom warning category allows users to filter security warnings</span>
+<span class="sd">    separately from other warnings if desired.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">pass</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Project CodeFlare.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,289 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>codeflare_sdk.common package &mdash; CodeFlare SDK 0.35.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=ca1b380b"></script>
+      <script src="_static/doctools.js?v=9a2dae69"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="codeflare_sdk.common.kubernetes_cluster package" href="codeflare_sdk.common.kubernetes_cluster.html" />
+    <link rel="prev" title="codeflare_sdk package" href="codeflare_sdk.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            CodeFlare SDK
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Code Documentation:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">codeflare_sdk</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="codeflare_sdk.html">codeflare_sdk package</a><ul class="current">
+<li class="toctree-l3 current"><a class="reference internal" href="codeflare_sdk.html#subpackages">Subpackages</a><ul class="current">
+<li class="toctree-l4 current"><a class="current reference internal" href="#">codeflare_sdk.common package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.html">codeflare_sdk.ray package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.vendored.html">codeflare_sdk.vendored package</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.html#submodules">Submodules</a></li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.html#codeflare-sdk-conftest-module">codeflare_sdk.conftest module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.html#module-codeflare_sdk">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">User Documentation:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/authentication.html">Authentication via the CodeFlare SDK</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/cluster-configuration.html">Ray Cluster Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/ray-cluster-interaction.html">Ray Cluster Interaction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/rayjob.html">Submitting RayJobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/e2e.html">Running e2e tests locally</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/s3-compatible-storage.html">S3 compatible storage with Ray Train examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/setup-kueue.html">Basic Kueue Resources configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/ui-widgets.html">Jupyter UI Widgets</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">CodeFlare SDK</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="modules.html">codeflare_sdk</a></li>
+          <li class="breadcrumb-item"><a href="codeflare_sdk.html">codeflare_sdk package</a></li>
+      <li class="breadcrumb-item active">codeflare_sdk.common package</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/codeflare_sdk.common.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="codeflare-sdk-common-package">
+<h1>codeflare_sdk.common package<a class="headerlink" href="#codeflare-sdk-common-package" title="Link to this heading"></a></h1>
+<section id="subpackages">
+<h2>Subpackages<a class="headerlink" href="#subpackages" title="Link to this heading"></a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="codeflare_sdk.common.kubernetes_cluster.html">codeflare_sdk.common.kubernetes_cluster package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="codeflare_sdk.common.kubernetes_cluster.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="codeflare_sdk.common.kubernetes_cluster.html#module-codeflare_sdk.common.kubernetes_cluster.auth">codeflare_sdk.common.kubernetes_cluster.auth module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.common.kubernetes_cluster.html#codeflare_sdk.common.kubernetes_cluster.auth.Authentication"><code class="docutils literal notranslate"><span class="pre">Authentication</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.common.kubernetes_cluster.html#codeflare_sdk.common.kubernetes_cluster.auth.Authentication.login"><code class="docutils literal notranslate"><span class="pre">Authentication.login()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.common.kubernetes_cluster.html#codeflare_sdk.common.kubernetes_cluster.auth.Authentication.logout"><code class="docutils literal notranslate"><span class="pre">Authentication.logout()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.common.kubernetes_cluster.html#codeflare_sdk.common.kubernetes_cluster.auth.KubeConfigFileAuthentication"><code class="docutils literal notranslate"><span class="pre">KubeConfigFileAuthentication</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.common.kubernetes_cluster.html#codeflare_sdk.common.kubernetes_cluster.auth.KubeConfigFileAuthentication.load_kube_config"><code class="docutils literal notranslate"><span class="pre">KubeConfigFileAuthentication.load_kube_config()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.common.kubernetes_cluster.html#codeflare_sdk.common.kubernetes_cluster.auth.KubeConfiguration"><code class="docutils literal notranslate"><span class="pre">KubeConfiguration</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.common.kubernetes_cluster.html#codeflare_sdk.common.kubernetes_cluster.auth.KubeConfiguration.load_kube_config"><code class="docutils literal notranslate"><span class="pre">KubeConfiguration.load_kube_config()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.common.kubernetes_cluster.html#codeflare_sdk.common.kubernetes_cluster.auth.KubeConfiguration.logout"><code class="docutils literal notranslate"><span class="pre">KubeConfiguration.logout()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.common.kubernetes_cluster.html#codeflare_sdk.common.kubernetes_cluster.auth.TokenAuthentication"><code class="docutils literal notranslate"><span class="pre">TokenAuthentication</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.common.kubernetes_cluster.html#codeflare_sdk.common.kubernetes_cluster.auth.TokenAuthentication.login"><code class="docutils literal notranslate"><span class="pre">TokenAuthentication.login()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.common.kubernetes_cluster.html#codeflare_sdk.common.kubernetes_cluster.auth.TokenAuthentication.logout"><code class="docutils literal notranslate"><span class="pre">TokenAuthentication.logout()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.common.kubernetes_cluster.html#codeflare_sdk.common.kubernetes_cluster.auth.config_check"><code class="docutils literal notranslate"><span class="pre">config_check()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.common.kubernetes_cluster.html#codeflare_sdk.common.kubernetes_cluster.auth.get_api_client"><code class="docutils literal notranslate"><span class="pre">get_api_client()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.common.kubernetes_cluster.html#codeflare_sdk.common.kubernetes_cluster.auth.set_api_client"><code class="docutils literal notranslate"><span class="pre">set_api_client()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="codeflare_sdk.common.kubernetes_cluster.html#module-codeflare_sdk.common.kubernetes_cluster.kube_api_helpers">codeflare_sdk.common.kubernetes_cluster.kube_api_helpers module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="codeflare_sdk.common.kubernetes_cluster.html#module-codeflare_sdk.common.kubernetes_cluster">Module contents</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.common.kubernetes_cluster.html#codeflare_sdk.common.kubernetes_cluster.AuthConfig"><code class="docutils literal notranslate"><span class="pre">AuthConfig</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.common.kubernetes_cluster.html#codeflare_sdk.common.kubernetes_cluster.AuthConfig.ca_cert"><code class="docutils literal notranslate"><span class="pre">AuthConfig.ca_cert</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.common.kubernetes_cluster.html#codeflare_sdk.common.kubernetes_cluster.AuthConfig.client_id"><code class="docutils literal notranslate"><span class="pre">AuthConfig.client_id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.common.kubernetes_cluster.html#codeflare_sdk.common.kubernetes_cluster.AuthConfig.client_secret"><code class="docutils literal notranslate"><span class="pre">AuthConfig.client_secret</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.common.kubernetes_cluster.html#codeflare_sdk.common.kubernetes_cluster.AuthConfig.from_dict"><code class="docutils literal notranslate"><span class="pre">AuthConfig.from_dict()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.common.kubernetes_cluster.html#codeflare_sdk.common.kubernetes_cluster.AuthConfig.k8s_api_host"><code class="docutils literal notranslate"><span class="pre">AuthConfig.k8s_api_host</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.common.kubernetes_cluster.html#codeflare_sdk.common.kubernetes_cluster.AuthConfig.kubeconfig_path"><code class="docutils literal notranslate"><span class="pre">AuthConfig.kubeconfig_path</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.common.kubernetes_cluster.html#codeflare_sdk.common.kubernetes_cluster.AuthConfig.method"><code class="docutils literal notranslate"><span class="pre">AuthConfig.method</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.common.kubernetes_cluster.html#codeflare_sdk.common.kubernetes_cluster.AuthConfig.oidc_callback_port"><code class="docutils literal notranslate"><span class="pre">AuthConfig.oidc_callback_port</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.common.kubernetes_cluster.html#codeflare_sdk.common.kubernetes_cluster.AuthConfig.oidc_issuer"><code class="docutils literal notranslate"><span class="pre">AuthConfig.oidc_issuer</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.common.kubernetes_cluster.html#codeflare_sdk.common.kubernetes_cluster.AuthConfig.scopes"><code class="docutils literal notranslate"><span class="pre">AuthConfig.scopes</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.common.kubernetes_cluster.html#codeflare_sdk.common.kubernetes_cluster.AuthConfig.token"><code class="docutils literal notranslate"><span class="pre">AuthConfig.token</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.common.kubernetes_cluster.html#codeflare_sdk.common.kubernetes_cluster.AuthConfig.use_device_flow"><code class="docutils literal notranslate"><span class="pre">AuthConfig.use_device_flow</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.common.kubernetes_cluster.html#codeflare_sdk.common.kubernetes_cluster.AuthConfig.use_keyring"><code class="docutils literal notranslate"><span class="pre">AuthConfig.use_keyring</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.common.kubernetes_cluster.html#codeflare_sdk.common.kubernetes_cluster.AuthConfig.verify_ssl"><code class="docutils literal notranslate"><span class="pre">AuthConfig.verify_ssl</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.common.kubernetes_cluster.html#codeflare_sdk.common.kubernetes_cluster.Authentication"><code class="docutils literal notranslate"><span class="pre">Authentication</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.common.kubernetes_cluster.html#codeflare_sdk.common.kubernetes_cluster.Authentication.login"><code class="docutils literal notranslate"><span class="pre">Authentication.login()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.common.kubernetes_cluster.html#codeflare_sdk.common.kubernetes_cluster.Authentication.logout"><code class="docutils literal notranslate"><span class="pre">Authentication.logout()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.common.kubernetes_cluster.html#codeflare_sdk.common.kubernetes_cluster.KubeConfigFileAuthentication"><code class="docutils literal notranslate"><span class="pre">KubeConfigFileAuthentication</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.common.kubernetes_cluster.html#codeflare_sdk.common.kubernetes_cluster.KubeConfigFileAuthentication.load_kube_config"><code class="docutils literal notranslate"><span class="pre">KubeConfigFileAuthentication.load_kube_config()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.common.kubernetes_cluster.html#codeflare_sdk.common.kubernetes_cluster.KubeConfiguration"><code class="docutils literal notranslate"><span class="pre">KubeConfiguration</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.common.kubernetes_cluster.html#codeflare_sdk.common.kubernetes_cluster.KubeConfiguration.load_kube_config"><code class="docutils literal notranslate"><span class="pre">KubeConfiguration.load_kube_config()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.common.kubernetes_cluster.html#codeflare_sdk.common.kubernetes_cluster.KubeConfiguration.logout"><code class="docutils literal notranslate"><span class="pre">KubeConfiguration.logout()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.common.kubernetes_cluster.html#codeflare_sdk.common.kubernetes_cluster.TokenAuthentication"><code class="docutils literal notranslate"><span class="pre">TokenAuthentication</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.common.kubernetes_cluster.html#codeflare_sdk.common.kubernetes_cluster.TokenAuthentication.login"><code class="docutils literal notranslate"><span class="pre">TokenAuthentication.login()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.common.kubernetes_cluster.html#codeflare_sdk.common.kubernetes_cluster.TokenAuthentication.logout"><code class="docutils literal notranslate"><span class="pre">TokenAuthentication.logout()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.common.kubernetes_cluster.html#codeflare_sdk.common.kubernetes_cluster.config_check"><code class="docutils literal notranslate"><span class="pre">config_check()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.common.kubernetes_cluster.html#codeflare_sdk.common.kubernetes_cluster.get_api_client"><code class="docutils literal notranslate"><span class="pre">get_api_client()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.common.kubernetes_cluster.html#codeflare_sdk.common.kubernetes_cluster.get_k8s_client"><code class="docutils literal notranslate"><span class="pre">get_k8s_client()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.common.kubernetes_cluster.html#codeflare_sdk.common.kubernetes_cluster.set_api_client"><code class="docutils literal notranslate"><span class="pre">set_api_client()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="codeflare_sdk.common.kueue.html">codeflare_sdk.common.kueue package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="codeflare_sdk.common.kueue.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="codeflare_sdk.common.kueue.html#module-codeflare_sdk.common.kueue.kueue">codeflare_sdk.common.kueue.kueue module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.common.kueue.html#codeflare_sdk.common.kueue.kueue.add_queue_label"><code class="docutils literal notranslate"><span class="pre">add_queue_label()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.common.kueue.html#codeflare_sdk.common.kueue.kueue.get_default_kueue_name"><code class="docutils literal notranslate"><span class="pre">get_default_kueue_name()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.common.kueue.html#codeflare_sdk.common.kueue.kueue.list_local_queues"><code class="docutils literal notranslate"><span class="pre">list_local_queues()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.common.kueue.html#codeflare_sdk.common.kueue.kueue.local_queue_exists"><code class="docutils literal notranslate"><span class="pre">local_queue_exists()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.common.kueue.html#codeflare_sdk.common.kueue.kueue.priority_class_exists"><code class="docutils literal notranslate"><span class="pre">priority_class_exists()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="codeflare_sdk.common.kueue.html#module-codeflare_sdk.common.kueue">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="codeflare_sdk.common.utils.html">codeflare_sdk.common.utils package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="codeflare_sdk.common.utils.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="codeflare_sdk.common.utils.html#module-codeflare_sdk.common.utils.constants">codeflare_sdk.common.utils.constants module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.common.utils.html#codeflare_sdk.common.utils.constants.RAY_VERSION"><code class="docutils literal notranslate"><span class="pre">RAY_VERSION</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="codeflare_sdk.common.utils.html#module-codeflare_sdk.common.utils.demos">codeflare_sdk.common.utils.demos module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.common.utils.html#codeflare_sdk.common.utils.demos.copy_demo_nbs"><code class="docutils literal notranslate"><span class="pre">copy_demo_nbs()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="codeflare_sdk.common.utils.html#module-codeflare_sdk.common.utils.generate_cert">codeflare_sdk.common.utils.generate_cert module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.common.utils.html#codeflare_sdk.common.utils.generate_cert.cleanup_expired_certificates"><code class="docutils literal notranslate"><span class="pre">cleanup_expired_certificates()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.common.utils.html#codeflare_sdk.common.utils.generate_cert.cleanup_old_certificates"><code class="docutils literal notranslate"><span class="pre">cleanup_old_certificates()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.common.utils.html#codeflare_sdk.common.utils.generate_cert.cleanup_tls_cert"><code class="docutils literal notranslate"><span class="pre">cleanup_tls_cert()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.common.utils.html#codeflare_sdk.common.utils.generate_cert.export_env"><code class="docutils literal notranslate"><span class="pre">export_env()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.common.utils.html#codeflare_sdk.common.utils.generate_cert.generate_ca_cert"><code class="docutils literal notranslate"><span class="pre">generate_ca_cert()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.common.utils.html#codeflare_sdk.common.utils.generate_cert.generate_tls_cert"><code class="docutils literal notranslate"><span class="pre">generate_tls_cert()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.common.utils.html#codeflare_sdk.common.utils.generate_cert.get_secret_name"><code class="docutils literal notranslate"><span class="pre">get_secret_name()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.common.utils.html#codeflare_sdk.common.utils.generate_cert.list_tls_certificates"><code class="docutils literal notranslate"><span class="pre">list_tls_certificates()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.common.utils.html#codeflare_sdk.common.utils.generate_cert.refresh_tls_cert"><code class="docutils literal notranslate"><span class="pre">refresh_tls_cert()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="codeflare_sdk.common.utils.html#module-codeflare_sdk.common.utils.k8s_utils">codeflare_sdk.common.utils.k8s_utils module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.common.utils.html#codeflare_sdk.common.utils.k8s_utils.get_current_namespace"><code class="docutils literal notranslate"><span class="pre">get_current_namespace()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="codeflare_sdk.common.utils.html#module-codeflare_sdk.common.utils.utils">codeflare_sdk.common.utils.utils module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.common.utils.html#codeflare_sdk.common.utils.utils.get_ray_image_for_python_version"><code class="docutils literal notranslate"><span class="pre">get_ray_image_for_python_version()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.common.utils.html#codeflare_sdk.common.utils.utils.update_image"><code class="docutils literal notranslate"><span class="pre">update_image()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="codeflare_sdk.common.utils.html#module-codeflare_sdk.common.utils.validation">codeflare_sdk.common.utils.validation module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.common.utils.html#codeflare_sdk.common.utils.validation.extract_ray_version_from_image"><code class="docutils literal notranslate"><span class="pre">extract_ray_version_from_image()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.common.utils.html#codeflare_sdk.common.utils.validation.validate_ray_version_compatibility"><code class="docutils literal notranslate"><span class="pre">validate_ray_version_compatibility()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="codeflare_sdk.common.utils.html#module-codeflare_sdk.common.utils">Module contents</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.common.utils.html#codeflare_sdk.common.utils.get_current_namespace"><code class="docutils literal notranslate"><span class="pre">get_current_namespace()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="codeflare_sdk.common.widgets.html">codeflare_sdk.common.widgets package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="codeflare_sdk.common.widgets.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="codeflare_sdk.common.widgets.html#module-codeflare_sdk.common.widgets.widgets">codeflare_sdk.common.widgets.widgets module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.common.widgets.html#codeflare_sdk.common.widgets.widgets.RayClusterManagerWidgets"><code class="docutils literal notranslate"><span class="pre">RayClusterManagerWidgets</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.common.widgets.html#codeflare_sdk.common.widgets.widgets.RayClusterManagerWidgets.display_widgets"><code class="docutils literal notranslate"><span class="pre">RayClusterManagerWidgets.display_widgets()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.common.widgets.html#codeflare_sdk.common.widgets.widgets.cluster_apply_down_buttons"><code class="docutils literal notranslate"><span class="pre">cluster_apply_down_buttons()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.common.widgets.html#codeflare_sdk.common.widgets.widgets.is_notebook"><code class="docutils literal notranslate"><span class="pre">is_notebook()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.common.widgets.html#codeflare_sdk.common.widgets.widgets.view_clusters"><code class="docutils literal notranslate"><span class="pre">view_clusters()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="codeflare_sdk.common.widgets.html#module-codeflare_sdk.common.widgets">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</section>
+<section id="module-codeflare_sdk.common">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-codeflare_sdk.common" title="Link to this heading"></a></h2>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="codeflare_sdk.html" class="btn btn-neutral float-left" title="codeflare_sdk package" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="codeflare_sdk.common.kubernetes_cluster.html" class="btn btn-neutral float-right" title="codeflare_sdk.common.kubernetes_cluster package" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Project CodeFlare.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

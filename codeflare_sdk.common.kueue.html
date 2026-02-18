@@ -1,0 +1,256 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>codeflare_sdk.common.kueue package &mdash; CodeFlare SDK 0.35.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=ca1b380b"></script>
+      <script src="_static/doctools.js?v=9a2dae69"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="codeflare_sdk.common.utils package" href="codeflare_sdk.common.utils.html" />
+    <link rel="prev" title="codeflare_sdk.common.kubernetes_cluster package" href="codeflare_sdk.common.kubernetes_cluster.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            CodeFlare SDK
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Code Documentation:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">codeflare_sdk</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="codeflare_sdk.html">codeflare_sdk package</a><ul class="current">
+<li class="toctree-l3 current"><a class="reference internal" href="codeflare_sdk.html#subpackages">Subpackages</a><ul class="current">
+<li class="toctree-l4 current"><a class="reference internal" href="codeflare_sdk.common.html">codeflare_sdk.common package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.html">codeflare_sdk.ray package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.vendored.html">codeflare_sdk.vendored package</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.html#submodules">Submodules</a></li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.html#codeflare-sdk-conftest-module">codeflare_sdk.conftest module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.html#module-codeflare_sdk">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">User Documentation:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/authentication.html">Authentication via the CodeFlare SDK</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/cluster-configuration.html">Ray Cluster Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/ray-cluster-interaction.html">Ray Cluster Interaction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/rayjob.html">Submitting RayJobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/e2e.html">Running e2e tests locally</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/s3-compatible-storage.html">S3 compatible storage with Ray Train examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/setup-kueue.html">Basic Kueue Resources configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/ui-widgets.html">Jupyter UI Widgets</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">CodeFlare SDK</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="modules.html">codeflare_sdk</a></li>
+          <li class="breadcrumb-item"><a href="codeflare_sdk.html">codeflare_sdk package</a></li>
+          <li class="breadcrumb-item"><a href="codeflare_sdk.common.html">codeflare_sdk.common package</a></li>
+      <li class="breadcrumb-item active">codeflare_sdk.common.kueue package</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/codeflare_sdk.common.kueue.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="codeflare-sdk-common-kueue-package">
+<h1>codeflare_sdk.common.kueue package<a class="headerlink" href="#codeflare-sdk-common-kueue-package" title="Link to this heading"></a></h1>
+<section id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Link to this heading"></a></h2>
+</section>
+<section id="module-codeflare_sdk.common.kueue.kueue">
+<span id="codeflare-sdk-common-kueue-kueue-module"></span><h2>codeflare_sdk.common.kueue.kueue module<a class="headerlink" href="#module-codeflare_sdk.common.kueue.kueue" title="Link to this heading"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="codeflare_sdk.common.kueue.kueue.add_queue_label">
+<span class="sig-prename descclassname"><span class="pre">codeflare_sdk.common.kueue.kueue.</span></span><span class="sig-name descname"><span class="pre">add_queue_label</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">item</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">namespace</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">local_queue</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/common/kueue/kueue.html#add_queue_label"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.common.kueue.kueue.add_queue_label" title="Link to this definition"></a></dt>
+<dd><p>Adds a local queue name label to the provided item.</p>
+<p>If the local queue is not provided, the default local queue for the namespace is used. The function validates if the
+local queue exists, and if it does, the local queue name label is added to the resource metadata.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><dl class="simple">
+<dt>item (dict):</dt><dd><p>The resource where the label will be added.</p>
+</dd>
+<dt>namespace (str):</dt><dd><p>The namespace of the local queue.</p>
+</dd>
+<dt>local_queue (str, optional):</dt><dd><p>The name of the local queue to use. Defaults to None.</p>
+</dd>
+</dl>
+</dd>
+<dt>Raises:</dt><dd><dl class="simple">
+<dt>ValueError:</dt><dd><p>If the provided or default local queue does not exist in the namespace.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="codeflare_sdk.common.kueue.kueue.get_default_kueue_name">
+<span class="sig-prename descclassname"><span class="pre">codeflare_sdk.common.kueue.kueue.</span></span><span class="sig-name descname"><span class="pre">get_default_kueue_name</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">namespace</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><a class="reference internal" href="_modules/codeflare_sdk/common/kueue/kueue.html#get_default_kueue_name"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.common.kueue.kueue.get_default_kueue_name" title="Link to this definition"></a></dt>
+<dd><p>Retrieves the default Kueue name from the provided namespace.</p>
+<p>This function attempts to fetch the local queues in the given namespace and checks if any of them is annotated
+as the default queue. If found, the name of the default queue is returned.</p>
+<p>The default queue is marked with the annotation “kueue.x-k8s.io/default-queue” set to “true.”</p>
+<dl class="simple">
+<dt>Args:</dt><dd><dl class="simple">
+<dt>namespace (str):</dt><dd><p>The Kubernetes namespace where the local queues are located.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><dl class="simple">
+<dt>Optional[str]:</dt><dd><p>The name of the default queue if it exists, otherwise None.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="codeflare_sdk.common.kueue.kueue.list_local_queues">
+<span class="sig-prename descclassname"><span class="pre">codeflare_sdk.common.kueue.kueue.</span></span><span class="sig-name descname"><span class="pre">list_local_queues</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">namespace</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">flavors</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">dict</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/codeflare_sdk/common/kueue/kueue.html#list_local_queues"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.common.kueue.kueue.list_local_queues" title="Link to this definition"></a></dt>
+<dd><p>This function lists all local queues in the namespace provided.</p>
+<p>If no namespace is provided, it will use the current namespace. If flavors is provided, it will only return local
+queues that support all the flavors provided.</p>
+<dl class="simple">
+<dt>Note:</dt><dd><p>Depending on the version of the local queue API, the available flavors may not be present in the response.</p>
+</dd>
+<dt>Args:</dt><dd><dl class="simple">
+<dt>namespace (str, optional):</dt><dd><p>The namespace to list local queues from. Defaults to None.</p>
+</dd>
+<dt>flavors (List[str], optional):</dt><dd><p>The flavors to filter local queues by. Defaults to None.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><dl class="simple">
+<dt>List[dict]:</dt><dd><p>A list of dictionaries containing the name of the local queue and the available flavors</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="codeflare_sdk.common.kueue.kueue.local_queue_exists">
+<span class="sig-prename descclassname"><span class="pre">codeflare_sdk.common.kueue.kueue.</span></span><span class="sig-name descname"><span class="pre">local_queue_exists</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">namespace</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">local_queue_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="reference internal" href="_modules/codeflare_sdk/common/kueue/kueue.html#local_queue_exists"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.common.kueue.kueue.local_queue_exists" title="Link to this definition"></a></dt>
+<dd><p>Checks if a local queue with the provided name exists in the given namespace.</p>
+<p>This function queries the local queues in the specified namespace and verifies if any queue matches the given name.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><dl class="simple">
+<dt>namespace (str):</dt><dd><p>The namespace where the local queues are located.</p>
+</dd>
+<dt>local_queue_name (str):</dt><dd><p>The name of the local queue to check for existence.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><dl class="simple">
+<dt>bool:</dt><dd><p>True if the local queue exists, False otherwise.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="codeflare_sdk.common.kueue.kueue.priority_class_exists">
+<span class="sig-prename descclassname"><span class="pre">codeflare_sdk.common.kueue.kueue.</span></span><span class="sig-name descname"><span class="pre">priority_class_exists</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">priority_class_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><a class="reference internal" href="_modules/codeflare_sdk/common/kueue/kueue.html#priority_class_exists"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.common.kueue.kueue.priority_class_exists" title="Link to this definition"></a></dt>
+<dd><p>Checks if a WorkloadPriorityClass with the provided name exists in the cluster.</p>
+<p>WorkloadPriorityClass is a cluster-scoped resource.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><dl class="simple">
+<dt>priority_class_name (str):</dt><dd><p>The name of the WorkloadPriorityClass to check for existence.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><dl class="simple">
+<dt>Optional[bool]:</dt><dd><p>True if the WorkloadPriorityClass exists, False if it doesn’t exist,
+None if we cannot verify (e.g., permission denied).</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="module-codeflare_sdk.common.kueue">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-codeflare_sdk.common.kueue" title="Link to this heading"></a></h2>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="codeflare_sdk.common.kubernetes_cluster.html" class="btn btn-neutral float-left" title="codeflare_sdk.common.kubernetes_cluster package" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="codeflare_sdk.common.utils.html" class="btn btn-neutral float-right" title="codeflare_sdk.common.utils package" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Project CodeFlare.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

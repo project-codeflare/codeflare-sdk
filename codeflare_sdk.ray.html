@@ -1,0 +1,397 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>codeflare_sdk.ray package &mdash; CodeFlare SDK 0.35.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=ca1b380b"></script>
+      <script src="_static/doctools.js?v=9a2dae69"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="codeflare_sdk.ray.client package" href="codeflare_sdk.ray.client.html" />
+    <link rel="prev" title="codeflare_sdk.common.widgets package" href="codeflare_sdk.common.widgets.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            CodeFlare SDK
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Code Documentation:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">codeflare_sdk</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="codeflare_sdk.html">codeflare_sdk package</a><ul class="current">
+<li class="toctree-l3 current"><a class="reference internal" href="codeflare_sdk.html#subpackages">Subpackages</a><ul class="current">
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.common.html">codeflare_sdk.common package</a></li>
+<li class="toctree-l4 current"><a class="current reference internal" href="#">codeflare_sdk.ray package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.vendored.html">codeflare_sdk.vendored package</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.html#submodules">Submodules</a></li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.html#codeflare-sdk-conftest-module">codeflare_sdk.conftest module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.html#module-codeflare_sdk">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">User Documentation:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/authentication.html">Authentication via the CodeFlare SDK</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/cluster-configuration.html">Ray Cluster Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/ray-cluster-interaction.html">Ray Cluster Interaction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/rayjob.html">Submitting RayJobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/e2e.html">Running e2e tests locally</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/s3-compatible-storage.html">S3 compatible storage with Ray Train examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/setup-kueue.html">Basic Kueue Resources configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/ui-widgets.html">Jupyter UI Widgets</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">CodeFlare SDK</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="modules.html">codeflare_sdk</a></li>
+          <li class="breadcrumb-item"><a href="codeflare_sdk.html">codeflare_sdk package</a></li>
+      <li class="breadcrumb-item active">codeflare_sdk.ray package</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/codeflare_sdk.ray.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="codeflare-sdk-ray-package">
+<h1>codeflare_sdk.ray package<a class="headerlink" href="#codeflare-sdk-ray-package" title="Link to this heading"></a></h1>
+<section id="subpackages">
+<h2>Subpackages<a class="headerlink" href="#subpackages" title="Link to this heading"></a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="codeflare_sdk.ray.client.html">codeflare_sdk.ray.client package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="codeflare_sdk.ray.client.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="codeflare_sdk.ray.client.html#module-codeflare_sdk.ray.client.ray_jobs">codeflare_sdk.ray.client.ray_jobs module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.ray.client.html#codeflare_sdk.ray.client.ray_jobs.RayJobClient"><code class="docutils literal notranslate"><span class="pre">RayJobClient</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.client.html#codeflare_sdk.ray.client.ray_jobs.RayJobClient.delete_job"><code class="docutils literal notranslate"><span class="pre">RayJobClient.delete_job()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.client.html#codeflare_sdk.ray.client.ray_jobs.RayJobClient.get_address"><code class="docutils literal notranslate"><span class="pre">RayJobClient.get_address()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.client.html#codeflare_sdk.ray.client.ray_jobs.RayJobClient.get_job_info"><code class="docutils literal notranslate"><span class="pre">RayJobClient.get_job_info()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.client.html#codeflare_sdk.ray.client.ray_jobs.RayJobClient.get_job_logs"><code class="docutils literal notranslate"><span class="pre">RayJobClient.get_job_logs()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.client.html#codeflare_sdk.ray.client.ray_jobs.RayJobClient.get_job_status"><code class="docutils literal notranslate"><span class="pre">RayJobClient.get_job_status()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.client.html#codeflare_sdk.ray.client.ray_jobs.RayJobClient.list_jobs"><code class="docutils literal notranslate"><span class="pre">RayJobClient.list_jobs()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.client.html#codeflare_sdk.ray.client.ray_jobs.RayJobClient.stop_job"><code class="docutils literal notranslate"><span class="pre">RayJobClient.stop_job()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.client.html#codeflare_sdk.ray.client.ray_jobs.RayJobClient.submit_job"><code class="docutils literal notranslate"><span class="pre">RayJobClient.submit_job()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.client.html#codeflare_sdk.ray.client.ray_jobs.RayJobClient.tail_job_logs"><code class="docutils literal notranslate"><span class="pre">RayJobClient.tail_job_logs()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="codeflare_sdk.ray.client.html#module-codeflare_sdk.ray.client">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="codeflare_sdk.ray.cluster.html">codeflare_sdk.ray.cluster package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#module-codeflare_sdk.ray.cluster.build_ray_cluster">codeflare_sdk.ray.cluster.build_ray_cluster module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.build_ray_cluster.add_queue_label"><code class="docutils literal notranslate"><span class="pre">add_queue_label()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.build_ray_cluster.build_ray_cluster"><code class="docutils literal notranslate"><span class="pre">build_ray_cluster()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.build_ray_cluster.gen_names"><code class="docutils literal notranslate"><span class="pre">gen_names()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.build_ray_cluster.generate_custom_storage"><code class="docutils literal notranslate"><span class="pre">generate_custom_storage()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.build_ray_cluster.generate_env_vars"><code class="docutils literal notranslate"><span class="pre">generate_env_vars()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.build_ray_cluster.generate_image_pull_secrets"><code class="docutils literal notranslate"><span class="pre">generate_image_pull_secrets()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.build_ray_cluster.get_default_local_queue"><code class="docutils literal notranslate"><span class="pre">get_default_local_queue()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.build_ray_cluster.get_head_container_spec"><code class="docutils literal notranslate"><span class="pre">get_head_container_spec()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.build_ray_cluster.get_labels"><code class="docutils literal notranslate"><span class="pre">get_labels()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.build_ray_cluster.get_metadata"><code class="docutils literal notranslate"><span class="pre">get_metadata()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.build_ray_cluster.get_pod_spec"><code class="docutils literal notranslate"><span class="pre">get_pod_spec()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.build_ray_cluster.get_resources"><code class="docutils literal notranslate"><span class="pre">get_resources()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.build_ray_cluster.get_worker_container_spec"><code class="docutils literal notranslate"><span class="pre">get_worker_container_spec()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.build_ray_cluster.head_worker_extended_resources_from_cluster"><code class="docutils literal notranslate"><span class="pre">head_worker_extended_resources_from_cluster()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.build_ray_cluster.head_worker_gpu_count_from_cluster"><code class="docutils literal notranslate"><span class="pre">head_worker_gpu_count_from_cluster()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.build_ray_cluster.local_queue_exists"><code class="docutils literal notranslate"><span class="pre">local_queue_exists()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.build_ray_cluster.with_nb_annotations"><code class="docutils literal notranslate"><span class="pre">with_nb_annotations()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.build_ray_cluster.write_to_file"><code class="docutils literal notranslate"><span class="pre">write_to_file()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#module-codeflare_sdk.ray.cluster.cluster">codeflare_sdk.ray.cluster.cluster module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.cluster.Cluster"><code class="docutils literal notranslate"><span class="pre">Cluster</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.cluster.Cluster.apply"><code class="docutils literal notranslate"><span class="pre">Cluster.apply()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.cluster.Cluster.cluster_dashboard_uri"><code class="docutils literal notranslate"><span class="pre">Cluster.cluster_dashboard_uri()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.cluster.Cluster.cluster_uri"><code class="docutils literal notranslate"><span class="pre">Cluster.cluster_uri()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.cluster.Cluster.config_check"><code class="docutils literal notranslate"><span class="pre">Cluster.config_check()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.cluster.Cluster.create_resource"><code class="docutils literal notranslate"><span class="pre">Cluster.create_resource()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.cluster.Cluster.details"><code class="docutils literal notranslate"><span class="pre">Cluster.details()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.cluster.Cluster.down"><code class="docutils literal notranslate"><span class="pre">Cluster.down()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.cluster.Cluster.get_dynamic_client"><code class="docutils literal notranslate"><span class="pre">Cluster.get_dynamic_client()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.cluster.Cluster.is_dashboard_ready"><code class="docutils literal notranslate"><span class="pre">Cluster.is_dashboard_ready()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.cluster.Cluster.job_client"><code class="docutils literal notranslate"><span class="pre">Cluster.job_client</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.cluster.Cluster.job_logs"><code class="docutils literal notranslate"><span class="pre">Cluster.job_logs()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.cluster.Cluster.job_status"><code class="docutils literal notranslate"><span class="pre">Cluster.job_status()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.cluster.Cluster.list_jobs"><code class="docutils literal notranslate"><span class="pre">Cluster.list_jobs()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.cluster.Cluster.local_client_url"><code class="docutils literal notranslate"><span class="pre">Cluster.local_client_url()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.cluster.Cluster.refresh_certificates"><code class="docutils literal notranslate"><span class="pre">Cluster.refresh_certificates()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.cluster.Cluster.status"><code class="docutils literal notranslate"><span class="pre">Cluster.status()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.cluster.Cluster.up"><code class="docutils literal notranslate"><span class="pre">Cluster.up()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.cluster.Cluster.wait_ready"><code class="docutils literal notranslate"><span class="pre">Cluster.wait_ready()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.cluster.get_cluster"><code class="docutils literal notranslate"><span class="pre">get_cluster()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.cluster.list_all_clusters"><code class="docutils literal notranslate"><span class="pre">list_all_clusters()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.cluster.list_all_queued"><code class="docutils literal notranslate"><span class="pre">list_all_queued()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.cluster.remove_autogenerated_fields"><code class="docutils literal notranslate"><span class="pre">remove_autogenerated_fields()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#module-codeflare_sdk.ray.cluster.config">codeflare_sdk.ray.cluster.config module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.config.ClusterConfiguration"><code class="docutils literal notranslate"><span class="pre">ClusterConfiguration</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.config.ClusterConfiguration.annotations"><code class="docutils literal notranslate"><span class="pre">ClusterConfiguration.annotations</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.config.ClusterConfiguration.enable_gcs_ft"><code class="docutils literal notranslate"><span class="pre">ClusterConfiguration.enable_gcs_ft</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.config.ClusterConfiguration.enable_usage_stats"><code class="docutils literal notranslate"><span class="pre">ClusterConfiguration.enable_usage_stats</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.config.ClusterConfiguration.envs"><code class="docutils literal notranslate"><span class="pre">ClusterConfiguration.envs</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.config.ClusterConfiguration.extended_resource_mapping"><code class="docutils literal notranslate"><span class="pre">ClusterConfiguration.extended_resource_mapping</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.config.ClusterConfiguration.external_storage_namespace"><code class="docutils literal notranslate"><span class="pre">ClusterConfiguration.external_storage_namespace</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.config.ClusterConfiguration.head_cpu_limits"><code class="docutils literal notranslate"><span class="pre">ClusterConfiguration.head_cpu_limits</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.config.ClusterConfiguration.head_cpu_requests"><code class="docutils literal notranslate"><span class="pre">ClusterConfiguration.head_cpu_requests</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.config.ClusterConfiguration.head_extended_resource_requests"><code class="docutils literal notranslate"><span class="pre">ClusterConfiguration.head_extended_resource_requests</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.config.ClusterConfiguration.head_memory_limits"><code class="docutils literal notranslate"><span class="pre">ClusterConfiguration.head_memory_limits</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.config.ClusterConfiguration.head_memory_requests"><code class="docutils literal notranslate"><span class="pre">ClusterConfiguration.head_memory_requests</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.config.ClusterConfiguration.head_tolerations"><code class="docutils literal notranslate"><span class="pre">ClusterConfiguration.head_tolerations</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.config.ClusterConfiguration.image"><code class="docutils literal notranslate"><span class="pre">ClusterConfiguration.image</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.config.ClusterConfiguration.image_pull_secrets"><code class="docutils literal notranslate"><span class="pre">ClusterConfiguration.image_pull_secrets</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.config.ClusterConfiguration.labels"><code class="docutils literal notranslate"><span class="pre">ClusterConfiguration.labels</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.config.ClusterConfiguration.local_queue"><code class="docutils literal notranslate"><span class="pre">ClusterConfiguration.local_queue</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.config.ClusterConfiguration.name"><code class="docutils literal notranslate"><span class="pre">ClusterConfiguration.name</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.config.ClusterConfiguration.namespace"><code class="docutils literal notranslate"><span class="pre">ClusterConfiguration.namespace</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.config.ClusterConfiguration.num_workers"><code class="docutils literal notranslate"><span class="pre">ClusterConfiguration.num_workers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.config.ClusterConfiguration.overwrite_default_resource_mapping"><code class="docutils literal notranslate"><span class="pre">ClusterConfiguration.overwrite_default_resource_mapping</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.config.ClusterConfiguration.redis_address"><code class="docutils literal notranslate"><span class="pre">ClusterConfiguration.redis_address</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.config.ClusterConfiguration.redis_password_secret"><code class="docutils literal notranslate"><span class="pre">ClusterConfiguration.redis_password_secret</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.config.ClusterConfiguration.verify_tls"><code class="docutils literal notranslate"><span class="pre">ClusterConfiguration.verify_tls</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.config.ClusterConfiguration.volume_mounts"><code class="docutils literal notranslate"><span class="pre">ClusterConfiguration.volume_mounts</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.config.ClusterConfiguration.volumes"><code class="docutils literal notranslate"><span class="pre">ClusterConfiguration.volumes</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.config.ClusterConfiguration.worker_cpu_limits"><code class="docutils literal notranslate"><span class="pre">ClusterConfiguration.worker_cpu_limits</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.config.ClusterConfiguration.worker_cpu_requests"><code class="docutils literal notranslate"><span class="pre">ClusterConfiguration.worker_cpu_requests</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.config.ClusterConfiguration.worker_extended_resource_requests"><code class="docutils literal notranslate"><span class="pre">ClusterConfiguration.worker_extended_resource_requests</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.config.ClusterConfiguration.worker_memory_limits"><code class="docutils literal notranslate"><span class="pre">ClusterConfiguration.worker_memory_limits</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.config.ClusterConfiguration.worker_memory_requests"><code class="docutils literal notranslate"><span class="pre">ClusterConfiguration.worker_memory_requests</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.config.ClusterConfiguration.worker_tolerations"><code class="docutils literal notranslate"><span class="pre">ClusterConfiguration.worker_tolerations</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.config.ClusterConfiguration.write_to_file"><code class="docutils literal notranslate"><span class="pre">ClusterConfiguration.write_to_file</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#module-codeflare_sdk.ray.cluster.pretty_print">codeflare_sdk.ray.cluster.pretty_print module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.pretty_print.print_cluster_status"><code class="docutils literal notranslate"><span class="pre">print_cluster_status()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.pretty_print.print_clusters"><code class="docutils literal notranslate"><span class="pre">print_clusters()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.pretty_print.print_no_resources_found"><code class="docutils literal notranslate"><span class="pre">print_no_resources_found()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.pretty_print.print_ray_clusters_status"><code class="docutils literal notranslate"><span class="pre">print_ray_clusters_status()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#module-codeflare_sdk.ray.cluster.status">codeflare_sdk.ray.cluster.status module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.status.CodeFlareClusterStatus"><code class="docutils literal notranslate"><span class="pre">CodeFlareClusterStatus</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.status.CodeFlareClusterStatus.FAILED"><code class="docutils literal notranslate"><span class="pre">CodeFlareClusterStatus.FAILED</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.status.CodeFlareClusterStatus.QUEUED"><code class="docutils literal notranslate"><span class="pre">CodeFlareClusterStatus.QUEUED</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.status.CodeFlareClusterStatus.QUEUEING"><code class="docutils literal notranslate"><span class="pre">CodeFlareClusterStatus.QUEUEING</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.status.CodeFlareClusterStatus.READY"><code class="docutils literal notranslate"><span class="pre">CodeFlareClusterStatus.READY</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.status.CodeFlareClusterStatus.STARTING"><code class="docutils literal notranslate"><span class="pre">CodeFlareClusterStatus.STARTING</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.status.CodeFlareClusterStatus.SUSPENDED"><code class="docutils literal notranslate"><span class="pre">CodeFlareClusterStatus.SUSPENDED</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.status.CodeFlareClusterStatus.UNKNOWN"><code class="docutils literal notranslate"><span class="pre">CodeFlareClusterStatus.UNKNOWN</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.status.RayCluster"><code class="docutils literal notranslate"><span class="pre">RayCluster</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.status.RayCluster.dashboard"><code class="docutils literal notranslate"><span class="pre">RayCluster.dashboard</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.status.RayCluster.head_cpu_limits"><code class="docutils literal notranslate"><span class="pre">RayCluster.head_cpu_limits</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.status.RayCluster.head_cpu_requests"><code class="docutils literal notranslate"><span class="pre">RayCluster.head_cpu_requests</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.status.RayCluster.head_extended_resources"><code class="docutils literal notranslate"><span class="pre">RayCluster.head_extended_resources</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.status.RayCluster.head_mem_limits"><code class="docutils literal notranslate"><span class="pre">RayCluster.head_mem_limits</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.status.RayCluster.head_mem_requests"><code class="docutils literal notranslate"><span class="pre">RayCluster.head_mem_requests</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.status.RayCluster.name"><code class="docutils literal notranslate"><span class="pre">RayCluster.name</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.status.RayCluster.namespace"><code class="docutils literal notranslate"><span class="pre">RayCluster.namespace</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.status.RayCluster.num_workers"><code class="docutils literal notranslate"><span class="pre">RayCluster.num_workers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.status.RayCluster.status"><code class="docutils literal notranslate"><span class="pre">RayCluster.status</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.status.RayCluster.worker_cpu_limits"><code class="docutils literal notranslate"><span class="pre">RayCluster.worker_cpu_limits</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.status.RayCluster.worker_cpu_requests"><code class="docutils literal notranslate"><span class="pre">RayCluster.worker_cpu_requests</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.status.RayCluster.worker_extended_resources"><code class="docutils literal notranslate"><span class="pre">RayCluster.worker_extended_resources</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.status.RayCluster.worker_mem_limits"><code class="docutils literal notranslate"><span class="pre">RayCluster.worker_mem_limits</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.status.RayCluster.worker_mem_requests"><code class="docutils literal notranslate"><span class="pre">RayCluster.worker_mem_requests</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.status.RayClusterStatus"><code class="docutils literal notranslate"><span class="pre">RayClusterStatus</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.status.RayClusterStatus.FAILED"><code class="docutils literal notranslate"><span class="pre">RayClusterStatus.FAILED</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.status.RayClusterStatus.READY"><code class="docutils literal notranslate"><span class="pre">RayClusterStatus.READY</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.status.RayClusterStatus.SUSPENDED"><code class="docutils literal notranslate"><span class="pre">RayClusterStatus.SUSPENDED</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.status.RayClusterStatus.UNHEALTHY"><code class="docutils literal notranslate"><span class="pre">RayClusterStatus.UNHEALTHY</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.status.RayClusterStatus.UNKNOWN"><code class="docutils literal notranslate"><span class="pre">RayClusterStatus.UNKNOWN</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#module-codeflare_sdk.ray.cluster">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html">codeflare_sdk.ray.rayjobs package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#module-codeflare_sdk.ray.rayjobs.config">codeflare_sdk.ray.rayjobs.config module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig"><code class="docutils literal notranslate"><span class="pre">ManagedClusterConfig</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.accelerator_configs"><code class="docutils literal notranslate"><span class="pre">ManagedClusterConfig.accelerator_configs</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.add_file_volumes"><code class="docutils literal notranslate"><span class="pre">ManagedClusterConfig.add_file_volumes()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.annotations"><code class="docutils literal notranslate"><span class="pre">ManagedClusterConfig.annotations</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.build_file_secret_spec"><code class="docutils literal notranslate"><span class="pre">ManagedClusterConfig.build_file_secret_spec()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.build_file_volume_specs"><code class="docutils literal notranslate"><span class="pre">ManagedClusterConfig.build_file_volume_specs()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.build_ray_cluster_spec"><code class="docutils literal notranslate"><span class="pre">ManagedClusterConfig.build_ray_cluster_spec()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.envs"><code class="docutils literal notranslate"><span class="pre">ManagedClusterConfig.envs</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.head_accelerators"><code class="docutils literal notranslate"><span class="pre">ManagedClusterConfig.head_accelerators</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.head_cpu_limits"><code class="docutils literal notranslate"><span class="pre">ManagedClusterConfig.head_cpu_limits</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.head_cpu_requests"><code class="docutils literal notranslate"><span class="pre">ManagedClusterConfig.head_cpu_requests</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.head_memory_limits"><code class="docutils literal notranslate"><span class="pre">ManagedClusterConfig.head_memory_limits</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.head_memory_requests"><code class="docutils literal notranslate"><span class="pre">ManagedClusterConfig.head_memory_requests</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.head_tolerations"><code class="docutils literal notranslate"><span class="pre">ManagedClusterConfig.head_tolerations</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.image"><code class="docutils literal notranslate"><span class="pre">ManagedClusterConfig.image</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.image_pull_secrets"><code class="docutils literal notranslate"><span class="pre">ManagedClusterConfig.image_pull_secrets</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.labels"><code class="docutils literal notranslate"><span class="pre">ManagedClusterConfig.labels</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.num_workers"><code class="docutils literal notranslate"><span class="pre">ManagedClusterConfig.num_workers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.validate_secret_size"><code class="docutils literal notranslate"><span class="pre">ManagedClusterConfig.validate_secret_size()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.volume_mounts"><code class="docutils literal notranslate"><span class="pre">ManagedClusterConfig.volume_mounts</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.volumes"><code class="docutils literal notranslate"><span class="pre">ManagedClusterConfig.volumes</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.worker_accelerators"><code class="docutils literal notranslate"><span class="pre">ManagedClusterConfig.worker_accelerators</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.worker_cpu_limits"><code class="docutils literal notranslate"><span class="pre">ManagedClusterConfig.worker_cpu_limits</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.worker_cpu_requests"><code class="docutils literal notranslate"><span class="pre">ManagedClusterConfig.worker_cpu_requests</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.worker_memory_limits"><code class="docutils literal notranslate"><span class="pre">ManagedClusterConfig.worker_memory_limits</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.worker_memory_requests"><code class="docutils literal notranslate"><span class="pre">ManagedClusterConfig.worker_memory_requests</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.worker_tolerations"><code class="docutils literal notranslate"><span class="pre">ManagedClusterConfig.worker_tolerations</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#module-codeflare_sdk.ray.rayjobs.pretty_print">codeflare_sdk.ray.rayjobs.pretty_print module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.pretty_print.print_job_status"><code class="docutils literal notranslate"><span class="pre">print_job_status()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.pretty_print.print_no_job_found"><code class="docutils literal notranslate"><span class="pre">print_no_job_found()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#module-codeflare_sdk.ray.rayjobs.rayjob">codeflare_sdk.ray.rayjobs.rayjob module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.rayjob.RayJob"><code class="docutils literal notranslate"><span class="pre">RayJob</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.rayjob.RayJob.delete"><code class="docutils literal notranslate"><span class="pre">RayJob.delete()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.rayjob.RayJob.resubmit"><code class="docutils literal notranslate"><span class="pre">RayJob.resubmit()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.rayjob.RayJob.status"><code class="docutils literal notranslate"><span class="pre">RayJob.status()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.rayjob.RayJob.stop"><code class="docutils literal notranslate"><span class="pre">RayJob.stop()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.rayjob.RayJob.submit"><code class="docutils literal notranslate"><span class="pre">RayJob.submit()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#module-codeflare_sdk.ray.rayjobs.runtime_env">codeflare_sdk.ray.rayjobs.runtime_env module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.runtime_env.create_file_secret"><code class="docutils literal notranslate"><span class="pre">create_file_secret()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.runtime_env.create_secret_from_spec"><code class="docutils literal notranslate"><span class="pre">create_secret_from_spec()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.runtime_env.extract_all_local_files"><code class="docutils literal notranslate"><span class="pre">extract_all_local_files()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.runtime_env.parse_requirements_file"><code class="docutils literal notranslate"><span class="pre">parse_requirements_file()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.runtime_env.process_pip_dependencies"><code class="docutils literal notranslate"><span class="pre">process_pip_dependencies()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.runtime_env.process_runtime_env"><code class="docutils literal notranslate"><span class="pre">process_runtime_env()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#module-codeflare_sdk.ray.rayjobs.status">codeflare_sdk.ray.rayjobs.status module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.status.CodeflareRayJobStatus"><code class="docutils literal notranslate"><span class="pre">CodeflareRayJobStatus</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.status.CodeflareRayJobStatus.COMPLETE"><code class="docutils literal notranslate"><span class="pre">CodeflareRayJobStatus.COMPLETE</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.status.CodeflareRayJobStatus.FAILED"><code class="docutils literal notranslate"><span class="pre">CodeflareRayJobStatus.FAILED</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.status.CodeflareRayJobStatus.RUNNING"><code class="docutils literal notranslate"><span class="pre">CodeflareRayJobStatus.RUNNING</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.status.CodeflareRayJobStatus.SUSPENDED"><code class="docutils literal notranslate"><span class="pre">CodeflareRayJobStatus.SUSPENDED</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.status.CodeflareRayJobStatus.UNKNOWN"><code class="docutils literal notranslate"><span class="pre">CodeflareRayJobStatus.UNKNOWN</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.status.RayJobDeploymentStatus"><code class="docutils literal notranslate"><span class="pre">RayJobDeploymentStatus</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.status.RayJobDeploymentStatus.COMPLETE"><code class="docutils literal notranslate"><span class="pre">RayJobDeploymentStatus.COMPLETE</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.status.RayJobDeploymentStatus.FAILED"><code class="docutils literal notranslate"><span class="pre">RayJobDeploymentStatus.FAILED</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.status.RayJobDeploymentStatus.RUNNING"><code class="docutils literal notranslate"><span class="pre">RayJobDeploymentStatus.RUNNING</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.status.RayJobDeploymentStatus.SUSPENDED"><code class="docutils literal notranslate"><span class="pre">RayJobDeploymentStatus.SUSPENDED</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.status.RayJobDeploymentStatus.UNKNOWN"><code class="docutils literal notranslate"><span class="pre">RayJobDeploymentStatus.UNKNOWN</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.status.RayJobInfo"><code class="docutils literal notranslate"><span class="pre">RayJobInfo</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.status.RayJobInfo.cluster_name"><code class="docutils literal notranslate"><span class="pre">RayJobInfo.cluster_name</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.status.RayJobInfo.end_time"><code class="docutils literal notranslate"><span class="pre">RayJobInfo.end_time</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.status.RayJobInfo.failed_attempts"><code class="docutils literal notranslate"><span class="pre">RayJobInfo.failed_attempts</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.status.RayJobInfo.job_id"><code class="docutils literal notranslate"><span class="pre">RayJobInfo.job_id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.status.RayJobInfo.name"><code class="docutils literal notranslate"><span class="pre">RayJobInfo.name</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.status.RayJobInfo.namespace"><code class="docutils literal notranslate"><span class="pre">RayJobInfo.namespace</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.status.RayJobInfo.start_time"><code class="docutils literal notranslate"><span class="pre">RayJobInfo.start_time</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.status.RayJobInfo.status"><code class="docutils literal notranslate"><span class="pre">RayJobInfo.status</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.status.RayJobInfo.succeeded_attempts"><code class="docutils literal notranslate"><span class="pre">RayJobInfo.succeeded_attempts</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#module-codeflare_sdk.ray.rayjobs">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</section>
+<section id="module-codeflare_sdk.ray">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-codeflare_sdk.ray" title="Link to this heading"></a></h2>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="codeflare_sdk.common.widgets.html" class="btn btn-neutral float-left" title="codeflare_sdk.common.widgets package" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="codeflare_sdk.ray.client.html" class="btn btn-neutral float-right" title="codeflare_sdk.ray.client package" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Project CodeFlare.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,351 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>codeflare_sdk.ray.client package &mdash; CodeFlare SDK 0.35.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=ca1b380b"></script>
+      <script src="_static/doctools.js?v=9a2dae69"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="codeflare_sdk.ray.cluster package" href="codeflare_sdk.ray.cluster.html" />
+    <link rel="prev" title="codeflare_sdk.ray package" href="codeflare_sdk.ray.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            CodeFlare SDK
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Code Documentation:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">codeflare_sdk</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="codeflare_sdk.html">codeflare_sdk package</a><ul class="current">
+<li class="toctree-l3 current"><a class="reference internal" href="codeflare_sdk.html#subpackages">Subpackages</a><ul class="current">
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.common.html">codeflare_sdk.common package</a></li>
+<li class="toctree-l4 current"><a class="reference internal" href="codeflare_sdk.ray.html">codeflare_sdk.ray package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.vendored.html">codeflare_sdk.vendored package</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.html#submodules">Submodules</a></li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.html#codeflare-sdk-conftest-module">codeflare_sdk.conftest module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.html#module-codeflare_sdk">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">User Documentation:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/authentication.html">Authentication via the CodeFlare SDK</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/cluster-configuration.html">Ray Cluster Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/ray-cluster-interaction.html">Ray Cluster Interaction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/rayjob.html">Submitting RayJobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/e2e.html">Running e2e tests locally</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/s3-compatible-storage.html">S3 compatible storage with Ray Train examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/setup-kueue.html">Basic Kueue Resources configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/ui-widgets.html">Jupyter UI Widgets</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">CodeFlare SDK</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="modules.html">codeflare_sdk</a></li>
+          <li class="breadcrumb-item"><a href="codeflare_sdk.html">codeflare_sdk package</a></li>
+          <li class="breadcrumb-item"><a href="codeflare_sdk.ray.html">codeflare_sdk.ray package</a></li>
+      <li class="breadcrumb-item active">codeflare_sdk.ray.client package</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/codeflare_sdk.ray.client.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="codeflare-sdk-ray-client-package">
+<h1>codeflare_sdk.ray.client package<a class="headerlink" href="#codeflare-sdk-ray-client-package" title="Link to this heading"></a></h1>
+<section id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Link to this heading"></a></h2>
+</section>
+<section id="module-codeflare_sdk.ray.client.ray_jobs">
+<span id="codeflare-sdk-ray-client-ray-jobs-module"></span><h2>codeflare_sdk.ray.client.ray_jobs module<a class="headerlink" href="#module-codeflare_sdk.ray.client.ray_jobs" title="Link to this heading"></a></h2>
+<p>The ray_jobs sub-module contains methods needed to submit jobs and connect to Ray Clusters that were not created by CodeFlare.
+The SDK acts as a wrapper for the Ray Job Submission Client.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.client.ray_jobs.RayJobClient">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">codeflare_sdk.ray.client.ray_jobs.</span></span><span class="sig-name descname"><span class="pre">RayJobClient</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">address</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">create_cluster_if_needed</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cookies</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">metadata</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">headers</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verify</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/ray/client/ray_jobs.html#RayJobClient"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.client.ray_jobs.RayJobClient" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>A wrapper class for the Ray Job Submission Client, used for interacting with Ray clusters to manage job
+submissions, deletions, and other job-related information.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><dl class="simple">
+<dt>address (Optional[str]):</dt><dd><p>The Ray cluster’s address, which may be either the Ray Client address, HTTP address
+of the dashboard server on the head node, or “auto” / “localhost:&lt;port&gt;” for a local cluster.
+This is overridden by the RAY_ADDRESS environment variable if set.</p>
+</dd>
+<dt>create_cluster_if_needed (bool):</dt><dd><p>If True, a new cluster will be created if not already running at the
+specified address. By default, Ray requires an existing cluster.</p>
+</dd>
+<dt>cookies (Optional[Dict[str, Any]]):</dt><dd><p>HTTP cookies to send with requests to the job server.</p>
+</dd>
+<dt>metadata (Optional[Dict[str, Any]]):</dt><dd><p>Global metadata to store with all jobs, merged with job-specific
+metadata during job submission.</p>
+</dd>
+<dt>headers (Optional[Dict[str, Any]]):</dt><dd><p>HTTP headers to send with requests to the job server, can be used for
+authentication.</p>
+</dd>
+<dt>verify (Optional[Union[str, bool]]):</dt><dd><p>If True, verifies the server’s TLS certificate. Can also be a path
+to trusted certificates. Default is True.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.client.ray_jobs.RayJobClient.delete_job">
+<span class="sig-name descname"><span class="pre">delete_job</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">job_id:</span> <span class="pre">str)</span> <span class="pre">-&gt;</span> <span class="pre">(&lt;class</span> <span class="pre">'bool'&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">&lt;class</span> <span class="pre">'str'&gt;</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/ray/client/ray_jobs.html#RayJobClient.delete_job"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.client.ray_jobs.RayJobClient.delete_job" title="Link to this definition"></a></dt>
+<dd><p>Deletes a job by job ID.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><dl class="simple">
+<dt>job_id (str):</dt><dd><p>The unique identifier of the job to delete.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><dl class="simple">
+<dt>tuple(bool, str):</dt><dd><p>A tuple with deletion status and a message.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.client.ray_jobs.RayJobClient.get_address">
+<span class="sig-name descname"><span class="pre">get_address</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="reference internal" href="_modules/codeflare_sdk/ray/client/ray_jobs.html#RayJobClient.get_address"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.client.ray_jobs.RayJobClient.get_address" title="Link to this definition"></a></dt>
+<dd><p>Retrieves the address of the connected Ray cluster.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><dl class="simple">
+<dt>str:</dt><dd><p>The Ray cluster’s address.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.client.ray_jobs.RayJobClient.get_job_info">
+<span class="sig-name descname"><span class="pre">get_job_info</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">job_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/ray/client/ray_jobs.html#RayJobClient.get_job_info"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.client.ray_jobs.RayJobClient.get_job_info" title="Link to this definition"></a></dt>
+<dd><p>Fetches information about a job by job ID.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><dl class="simple">
+<dt>job_id (str):</dt><dd><p>The unique identifier of the job.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><dl class="simple">
+<dt>JobInfo:</dt><dd><p>Information about the job’s status, progress, and other details.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.client.ray_jobs.RayJobClient.get_job_logs">
+<span class="sig-name descname"><span class="pre">get_job_logs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">job_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="reference internal" href="_modules/codeflare_sdk/ray/client/ray_jobs.html#RayJobClient.get_job_logs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.client.ray_jobs.RayJobClient.get_job_logs" title="Link to this definition"></a></dt>
+<dd><p>Retrieves the logs for a specific job by job ID.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><dl class="simple">
+<dt>job_id (str):</dt><dd><p>The unique identifier of the job.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><dl class="simple">
+<dt>str:</dt><dd><p>Logs output from the job.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.client.ray_jobs.RayJobClient.get_job_status">
+<span class="sig-name descname"><span class="pre">get_job_status</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">job_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="reference internal" href="_modules/codeflare_sdk/ray/client/ray_jobs.html#RayJobClient.get_job_status"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.client.ray_jobs.RayJobClient.get_job_status" title="Link to this definition"></a></dt>
+<dd><p>Fetches the current status of a job by job ID.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><dl class="simple">
+<dt>job_id (str):</dt><dd><p>The unique identifier of the job.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><dl class="simple">
+<dt>str:</dt><dd><p>The job’s status.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.client.ray_jobs.RayJobClient.list_jobs">
+<span class="sig-name descname"><span class="pre">list_jobs</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">JobDetails</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/codeflare_sdk/ray/client/ray_jobs.html#RayJobClient.list_jobs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.client.ray_jobs.RayJobClient.list_jobs" title="Link to this definition"></a></dt>
+<dd><p>Lists all current jobs in the Ray cluster.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><dl class="simple">
+<dt>List[JobDetails]:</dt><dd><p>A list of job details for each current job in the cluster.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.client.ray_jobs.RayJobClient.stop_job">
+<span class="sig-name descname"><span class="pre">stop_job</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">job_id:</span> <span class="pre">str)</span> <span class="pre">-&gt;</span> <span class="pre">(&lt;class</span> <span class="pre">'bool'&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">&lt;class</span> <span class="pre">'str'&gt;</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/ray/client/ray_jobs.html#RayJobClient.stop_job"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.client.ray_jobs.RayJobClient.stop_job" title="Link to this definition"></a></dt>
+<dd><p>Stops a running job by job ID.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><dl class="simple">
+<dt>job_id (str):</dt><dd><p>The unique identifier of the job to stop.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><dl class="simple">
+<dt>tuple(bool, str):</dt><dd><p>A tuple with the stop status and a message.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.client.ray_jobs.RayJobClient.submit_job">
+<span class="sig-name descname"><span class="pre">submit_job</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">entrypoint</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">job_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">runtime_env</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">metadata</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">submission_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">entrypoint_num_cpus</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">entrypoint_num_gpus</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">entrypoint_memory</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">entrypoint_resources</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="reference internal" href="_modules/codeflare_sdk/ray/client/ray_jobs.html#RayJobClient.submit_job"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.client.ray_jobs.RayJobClient.submit_job" title="Link to this definition"></a></dt>
+<dd><p>Submits a job to the Ray cluster with specified resources and returns the job ID.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><dl class="simple">
+<dt>entrypoint (str):</dt><dd><p>The command to execute for this job.</p>
+</dd>
+<dt>job_id (Optional[str]):</dt><dd><p>Deprecated, use <cite>submission_id</cite>. A unique job identifier.</p>
+</dd>
+<dt>runtime_env (Optional[Dict[str, Any]]):</dt><dd><p>The runtime environment for this job.</p>
+</dd>
+<dt>metadata (Optional[Dict[str, str]]):</dt><dd><p>Metadata associated with the job, merged with global metadata.</p>
+</dd>
+<dt>submission_id (Optional[str]):</dt><dd><p>Unique ID for the job submission.</p>
+</dd>
+<dt>entrypoint_num_cpus (Optional[Union[int, float]]):</dt><dd><p>The quantity of CPU cores to reserve for the execution of the entrypoint command,
+separately from any tasks or actors launched by it. Defaults to 0.</p>
+</dd>
+<dt>entrypoint_num_gpus (Optional[Union[int, float]]):</dt><dd><p>The quantity of GPUs to reserve for the execution of the entrypoint command,
+separately from any tasks or actors launched by it. Defaults to 0.</p>
+</dd>
+<dt>entrypoint_memory (Optional[int]):</dt><dd><p>The quantity of memory to reserve for the execution of the entrypoint command,
+separately from any tasks or actors launched by it. Defaults to 0.</p>
+</dd>
+<dt>entrypoint_resources (Optional[Dict[str, float]]):</dt><dd><p>The quantity of custom resources to reserve for the execution of the entrypoint command,
+separately from any tasks or actors launched by it.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><dl class="simple">
+<dt>str:</dt><dd><p>The unique identifier for the submitted job.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.client.ray_jobs.RayJobClient.tail_job_logs">
+<span class="sig-name descname"><span class="pre">tail_job_logs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">job_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Iterator</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/codeflare_sdk/ray/client/ray_jobs.html#RayJobClient.tail_job_logs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.client.ray_jobs.RayJobClient.tail_job_logs" title="Link to this definition"></a></dt>
+<dd><p>Continuously streams the logs of a job.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><dl class="simple">
+<dt>job_id (str):</dt><dd><p>The unique identifier of the job.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><dl class="simple">
+<dt>Iterator[str]:</dt><dd><p>An iterator that yields log entries in real-time.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-codeflare_sdk.ray.client">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-codeflare_sdk.ray.client" title="Link to this heading"></a></h2>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="codeflare_sdk.ray.html" class="btn btn-neutral float-left" title="codeflare_sdk.ray package" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="codeflare_sdk.ray.cluster.html" class="btn btn-neutral float-right" title="codeflare_sdk.ray.cluster package" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Project CodeFlare.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

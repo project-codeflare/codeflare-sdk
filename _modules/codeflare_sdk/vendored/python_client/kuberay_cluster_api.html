@@ -1,0 +1,447 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>codeflare_sdk.vendored.python_client.kuberay_cluster_api &mdash; CodeFlare SDK 0.35.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../_static/documentation_options.js?v=ca1b380b"></script>
+      <script src="../../../../_static/doctools.js?v=9a2dae69"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            CodeFlare SDK
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Code Documentation:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../modules.html">codeflare_sdk</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">User Documentation:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user-docs/authentication.html">Authentication via the CodeFlare SDK</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user-docs/cluster-configuration.html">Ray Cluster Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user-docs/ray-cluster-interaction.html">Ray Cluster Interaction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user-docs/rayjob.html">Submitting RayJobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user-docs/e2e.html">Running e2e tests locally</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user-docs/s3-compatible-storage.html">S3 compatible storage with Ray Train examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user-docs/setup-kueue.html">Basic Kueue Resources configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user-docs/ui-widgets.html">Jupyter UI Widgets</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">CodeFlare SDK</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">codeflare_sdk.vendored.python_client.kuberay_cluster_api</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for codeflare_sdk.vendored.python_client.kuberay_cluster_api</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Set of APIs to manage rayclusters.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="n">__copyright__</span> <span class="o">=</span> <span class="s2">&quot;Copyright 2021, Microsoft Corp.&quot;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">kubernetes</span><span class="w"> </span><span class="kn">import</span> <span class="n">client</span><span class="p">,</span> <span class="n">config</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">kubernetes.client.rest</span><span class="w"> </span><span class="kn">import</span> <span class="n">ApiException</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Optional</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">codeflare_sdk.vendored.python_client</span><span class="w"> </span><span class="kn">import</span> <span class="n">constants</span>
+
+
+<span class="n">log</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+<span class="k">if</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLevelName</span><span class="p">(</span><span class="n">log</span><span class="o">.</span><span class="n">level</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;NOTSET&quot;</span><span class="p">:</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">basicConfig</span><span class="p">(</span><span class="nb">format</span><span class="o">=</span><span class="s2">&quot;</span><span class="si">%(asctime)s</span><span class="s2"> </span><span class="si">%(message)s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">level</span><span class="o">=</span><span class="n">constants</span><span class="o">.</span><span class="n">LOGLEVEL</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="RayClusterApi">
+<a class="viewcode-back" href="../../../../codeflare_sdk.vendored.python_client.html#codeflare_sdk.vendored.python_client.kuberay_cluster_api.RayClusterApi">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">RayClusterApi</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    RayClusterApi provides APIs to list, get, create, build, update, delete rayclusters.</span>
+
+<span class="sd">    Methods:</span>
+<span class="sd">    - list_ray_clusters(k8s_namespace: str = &quot;default&quot;, async_req: bool = False) -&gt; Any:</span>
+<span class="sd">    - get_ray_cluster(name: str, k8s_namespace: str = &quot;default&quot;) -&gt; Any:</span>
+<span class="sd">    - create_ray_cluster(body: Any, k8s_namespace: str = &quot;default&quot;) -&gt; Any:</span>
+<span class="sd">    - delete_ray_cluster(name: str, k8s_namespace: str = &quot;default&quot;) -&gt; bool:</span>
+<span class="sd">    - patch_ray_cluster(name: str, ray_patch: Any, k8s_namespace: str = &quot;default&quot;) -&gt; Any:</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># initial config to setup the kube client</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># loading the config</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">kube_config</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">load_kube_config</span><span class="p">()</span>
+        <span class="k">except</span> <span class="n">config</span><span class="o">.</span><span class="n">ConfigException</span><span class="p">:</span>
+            <span class="c1"># No kubeconfig found, try in-cluster config</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">kube_config</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">load_incluster_config</span><span class="p">()</span>
+            <span class="k">except</span> <span class="n">config</span><span class="o">.</span><span class="n">ConfigException</span><span class="p">:</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Failed to load both kubeconfig and in-cluster config&quot;</span><span class="p">)</span>
+                <span class="k">raise</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">api</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">CustomObjectsApi</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">core_v1_api</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">CoreV1Api</span><span class="p">()</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__del__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">api</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kube_config</span> <span class="o">=</span> <span class="kc">None</span>
+
+<div class="viewcode-block" id="RayClusterApi.list_ray_clusters">
+<a class="viewcode-back" href="../../../../codeflare_sdk.vendored.python_client.html#codeflare_sdk.vendored.python_client.kuberay_cluster_api.RayClusterApi.list_ray_clusters">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">list_ray_clusters</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">k8s_namespace</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;default&quot;</span><span class="p">,</span>
+        <span class="n">label_selector</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+        <span class="n">async_req</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;List Ray clusters in a given namespace.</span>
+
+<span class="sd">        Parameters:</span>
+<span class="sd">        - k8s_namespace (str, optional): The namespace in which to list the Ray clusters. Defaults to &quot;default&quot;.</span>
+<span class="sd">        - async_req (bool, optional): Whether to make the request asynchronously. Defaults to False.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Any: The custom resource for Ray clusters in the specified namespace, or None if not found.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            ApiException: If there was an error fetching the custom resource.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">resource</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">api</span><span class="o">.</span><span class="n">list_namespaced_custom_object</span><span class="p">(</span>
+                <span class="n">group</span><span class="o">=</span><span class="n">constants</span><span class="o">.</span><span class="n">GROUP</span><span class="p">,</span>
+                <span class="n">version</span><span class="o">=</span><span class="n">constants</span><span class="o">.</span><span class="n">CLUSTER_VERSION</span><span class="p">,</span>
+                <span class="n">plural</span><span class="o">=</span><span class="n">constants</span><span class="o">.</span><span class="n">CLUSTER_PLURAL</span><span class="p">,</span>
+                <span class="n">namespace</span><span class="o">=</span><span class="n">k8s_namespace</span><span class="p">,</span>
+                <span class="n">label_selector</span><span class="o">=</span><span class="n">label_selector</span><span class="p">,</span>
+                <span class="n">async_req</span><span class="o">=</span><span class="n">async_req</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="k">if</span> <span class="s2">&quot;items&quot;</span> <span class="ow">in</span> <span class="n">resource</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">resource</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">except</span> <span class="n">ApiException</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">e</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="mi">404</span><span class="p">:</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;raycluster resource is not found. error = </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+                <span class="k">return</span> <span class="kc">None</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;error fetching custom resource: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+                <span class="k">return</span> <span class="kc">None</span></div>
+
+
+<div class="viewcode-block" id="RayClusterApi.get_ray_cluster">
+<a class="viewcode-back" href="../../../../codeflare_sdk.vendored.python_client.html#codeflare_sdk.vendored.python_client.kuberay_cluster_api.RayClusterApi.get_ray_cluster">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_ray_cluster</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">k8s_namespace</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;default&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get a specific Ray cluster in a given namespace.</span>
+
+<span class="sd">        Parameters:</span>
+<span class="sd">        - name (str): The name of the Ray cluster custom resource. Defaults to &quot;&quot;.</span>
+<span class="sd">        - k8s_namespace (str, optional): The namespace in which to retrieve the Ray cluster. Defaults to &quot;default&quot;.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Any: The custom resource for the specified Ray cluster, or None if not found.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            ApiException: If there was an error fetching the custom resource.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">resource</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">api</span><span class="o">.</span><span class="n">get_namespaced_custom_object</span><span class="p">(</span>
+                <span class="n">group</span><span class="o">=</span><span class="n">constants</span><span class="o">.</span><span class="n">GROUP</span><span class="p">,</span>
+                <span class="n">version</span><span class="o">=</span><span class="n">constants</span><span class="o">.</span><span class="n">CLUSTER_VERSION</span><span class="p">,</span>
+                <span class="n">plural</span><span class="o">=</span><span class="n">constants</span><span class="o">.</span><span class="n">CLUSTER_PLURAL</span><span class="p">,</span>
+                <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span>
+                <span class="n">namespace</span><span class="o">=</span><span class="n">k8s_namespace</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="k">return</span> <span class="n">resource</span>
+        <span class="k">except</span> <span class="n">ApiException</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">e</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="mi">404</span><span class="p">:</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;raycluster resource is not found. error = </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+                <span class="k">return</span> <span class="kc">None</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;error fetching custom resource: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+                <span class="k">return</span> <span class="kc">None</span></div>
+
+
+<div class="viewcode-block" id="RayClusterApi.get_ray_cluster_status">
+<a class="viewcode-back" href="../../../../codeflare_sdk.vendored.python_client.html#codeflare_sdk.vendored.python_client.kuberay_cluster_api.RayClusterApi.get_ray_cluster_status">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_ray_cluster_status</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">k8s_namespace</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;default&quot;</span><span class="p">,</span>
+        <span class="n">timeout</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">60</span><span class="p">,</span>
+        <span class="n">delay_between_attempts</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get a specific Ray cluster status in a given namespace.</span>
+
+<span class="sd">        This method waits until the cluster has a status field populated by the operator.</span>
+
+<span class="sd">        Parameters:</span>
+<span class="sd">        - name (str): The name of the Ray cluster custom resource.</span>
+<span class="sd">        - k8s_namespace (str, optional): The namespace in which to retrieve the Ray cluster. Defaults to &quot;default&quot;.</span>
+<span class="sd">        - timeout (int, optional): The duration in seconds after which we stop trying to get status. Defaults to 60 seconds.</span>
+<span class="sd">        - delay_between_attempts (int, optional): The duration in seconds to wait between attempts. Defaults to 5 seconds.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Any: The custom resource status for the specified Ray cluster, or None if not found or timeout.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">while</span> <span class="n">timeout</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">resource</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">api</span><span class="o">.</span><span class="n">get_namespaced_custom_object_status</span><span class="p">(</span>
+                    <span class="n">group</span><span class="o">=</span><span class="n">constants</span><span class="o">.</span><span class="n">GROUP</span><span class="p">,</span>
+                    <span class="n">version</span><span class="o">=</span><span class="n">constants</span><span class="o">.</span><span class="n">CLUSTER_VERSION</span><span class="p">,</span>
+                    <span class="n">plural</span><span class="o">=</span><span class="n">constants</span><span class="o">.</span><span class="n">CLUSTER_PLURAL</span><span class="p">,</span>
+                    <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span>
+                    <span class="n">namespace</span><span class="o">=</span><span class="n">k8s_namespace</span><span class="p">,</span>
+                <span class="p">)</span>
+            <span class="k">except</span> <span class="n">ApiException</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">e</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="mi">404</span><span class="p">:</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;raycluster resource is not found. error = </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+                    <span class="k">return</span> <span class="kc">None</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;error fetching custom resource: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+                    <span class="k">return</span> <span class="kc">None</span>
+
+            <span class="k">if</span> <span class="n">resource</span> <span class="ow">and</span> <span class="s2">&quot;status&quot;</span> <span class="ow">in</span> <span class="n">resource</span> <span class="ow">and</span> <span class="n">resource</span><span class="p">[</span><span class="s2">&quot;status&quot;</span><span class="p">]:</span>
+                <span class="k">return</span> <span class="n">resource</span><span class="p">[</span><span class="s2">&quot;status&quot;</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;raycluster </span><span class="si">{}</span><span class="s2"> status not set yet, waiting...&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">name</span><span class="p">))</span>
+                <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">delay_between_attempts</span><span class="p">)</span>
+                <span class="n">timeout</span> <span class="o">-=</span> <span class="n">delay_between_attempts</span>
+
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;timed out waiting for raycluster </span><span class="si">{}</span><span class="s2"> status&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">name</span><span class="p">))</span>
+        <span class="k">return</span> <span class="kc">None</span></div>
+
+
+<div class="viewcode-block" id="RayClusterApi.wait_until_ray_cluster_running">
+<a class="viewcode-back" href="../../../../codeflare_sdk.vendored.python_client.html#codeflare_sdk.vendored.python_client.kuberay_cluster_api.RayClusterApi.wait_until_ray_cluster_running">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">wait_until_ray_cluster_running</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">k8s_namespace</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;default&quot;</span><span class="p">,</span>
+        <span class="n">timeout</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">60</span><span class="p">,</span>
+        <span class="n">delay_between_attempts</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Wait until a Ray cluster is in ready state.</span>
+
+<span class="sd">        This method waits for the cluster to have a state field with value &#39;ready&#39;.</span>
+
+<span class="sd">        Parameters:</span>
+<span class="sd">        - name (str): The name of the Ray cluster custom resource.</span>
+<span class="sd">        - k8s_namespace (str, optional): The namespace in which to retrieve the Ray cluster. Defaults to &quot;default&quot;.</span>
+<span class="sd">        - timeout (int, optional): The duration in seconds after which we stop trying. Defaults to 60 seconds.</span>
+<span class="sd">        - delay_between_attempts (int, optional): The duration in seconds to wait between attempts. Defaults to 5 seconds.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            bool: True if the raycluster status is &#39;ready&#39;, False otherwise.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">while</span> <span class="n">timeout</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">status</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_ray_cluster_status</span><span class="p">(</span>
+                <span class="n">name</span><span class="p">,</span> <span class="n">k8s_namespace</span><span class="p">,</span> <span class="n">timeout</span><span class="p">,</span> <span class="n">delay_between_attempts</span>
+            <span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">status</span> <span class="ow">and</span> <span class="s2">&quot;state&quot;</span> <span class="ow">in</span> <span class="n">status</span><span class="p">:</span>
+                <span class="n">current_state</span> <span class="o">=</span> <span class="n">status</span><span class="p">[</span><span class="s2">&quot;state&quot;</span><span class="p">]</span>
+                <span class="k">if</span> <span class="n">current_state</span> <span class="o">==</span> <span class="s2">&quot;ready&quot;</span><span class="p">:</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                        <span class="s2">&quot;raycluster </span><span class="si">{}</span><span class="s2"> is ready with state: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                            <span class="n">name</span><span class="p">,</span> <span class="n">current_state</span>
+                        <span class="p">)</span>
+                    <span class="p">)</span>
+                    <span class="k">return</span> <span class="kc">True</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                        <span class="s2">&quot;raycluster </span><span class="si">{}</span><span class="s2"> is in state: </span><span class="si">{}</span><span class="s2"> (waiting for ready)&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                            <span class="n">name</span><span class="p">,</span> <span class="n">current_state</span>
+                        <span class="p">)</span>
+                    <span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                    <span class="s2">&quot;raycluster </span><span class="si">{}</span><span class="s2"> state field not available yet, waiting...&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                        <span class="n">name</span>
+                    <span class="p">)</span>
+                <span class="p">)</span>
+
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">delay_between_attempts</span><span class="p">)</span>
+            <span class="n">timeout</span> <span class="o">-=</span> <span class="n">delay_between_attempts</span>
+
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;raycluster </span><span class="si">{}</span><span class="s2"> has not become ready before timeout&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">name</span><span class="p">))</span>
+        <span class="k">return</span> <span class="kc">False</span></div>
+
+
+<div class="viewcode-block" id="RayClusterApi.create_ray_cluster">
+<a class="viewcode-back" href="../../../../codeflare_sdk.vendored.python_client.html#codeflare_sdk.vendored.python_client.kuberay_cluster_api.RayClusterApi.create_ray_cluster">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">create_ray_cluster</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">body</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">k8s_namespace</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;default&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create a new Ray cluster custom resource.</span>
+
+<span class="sd">        Parameters:</span>
+<span class="sd">        - body (Any): The data of the custom resource to create.</span>
+<span class="sd">        - k8s_namespace (str, optional): The namespace in which to create the custom resource. Defaults to &quot;default&quot;.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Any: The created custom resource, or None if it already exists or there was an error.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">resource</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">api</span><span class="o">.</span><span class="n">create_namespaced_custom_object</span><span class="p">(</span>
+                <span class="n">group</span><span class="o">=</span><span class="n">constants</span><span class="o">.</span><span class="n">GROUP</span><span class="p">,</span>
+                <span class="n">version</span><span class="o">=</span><span class="n">constants</span><span class="o">.</span><span class="n">CLUSTER_VERSION</span><span class="p">,</span>
+                <span class="n">plural</span><span class="o">=</span><span class="n">constants</span><span class="o">.</span><span class="n">CLUSTER_PLURAL</span><span class="p">,</span>
+                <span class="n">body</span><span class="o">=</span><span class="n">body</span><span class="p">,</span>
+                <span class="n">namespace</span><span class="o">=</span><span class="n">k8s_namespace</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="k">return</span> <span class="n">resource</span>
+        <span class="k">except</span> <span class="n">ApiException</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">e</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="mi">409</span><span class="p">:</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                    <span class="s2">&quot;raycluster resource already exists. error = </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">reason</span><span class="p">)</span>
+                <span class="p">)</span>
+                <span class="k">return</span> <span class="kc">None</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;error creating custom resource: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+                <span class="k">return</span> <span class="kc">None</span></div>
+
+
+<div class="viewcode-block" id="RayClusterApi.delete_ray_cluster">
+<a class="viewcode-back" href="../../../../codeflare_sdk.vendored.python_client.html#codeflare_sdk.vendored.python_client.kuberay_cluster_api.RayClusterApi.delete_ray_cluster">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">delete_ray_cluster</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">k8s_namespace</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;default&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Delete a Ray cluster custom resource.</span>
+
+<span class="sd">        Parameters:</span>
+<span class="sd">        - name (str): The name of the Ray cluster custom resource to delete.</span>
+<span class="sd">        - k8s_namespace (str, optional): The namespace in which the Ray cluster exists. Defaults to &quot;default&quot;.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Any: The deleted custom resource, or None if already deleted or there was an error.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">resource</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">api</span><span class="o">.</span><span class="n">delete_namespaced_custom_object</span><span class="p">(</span>
+                <span class="n">group</span><span class="o">=</span><span class="n">constants</span><span class="o">.</span><span class="n">GROUP</span><span class="p">,</span>
+                <span class="n">version</span><span class="o">=</span><span class="n">constants</span><span class="o">.</span><span class="n">CLUSTER_VERSION</span><span class="p">,</span>
+                <span class="n">plural</span><span class="o">=</span><span class="n">constants</span><span class="o">.</span><span class="n">CLUSTER_PLURAL</span><span class="p">,</span>
+                <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span>
+                <span class="n">namespace</span><span class="o">=</span><span class="n">k8s_namespace</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="k">return</span> <span class="n">resource</span>
+        <span class="k">except</span> <span class="n">ApiException</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">e</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="mi">404</span><span class="p">:</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                    <span class="s2">&quot;raycluster custom resource already deleted. error = </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                        <span class="n">e</span><span class="o">.</span><span class="n">reason</span>
+                    <span class="p">)</span>
+                <span class="p">)</span>
+                <span class="k">return</span> <span class="kc">None</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                    <span class="s2">&quot;error deleting the raycluster custom resource: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">reason</span><span class="p">)</span>
+                <span class="p">)</span>
+                <span class="k">return</span> <span class="kc">None</span></div>
+
+
+<div class="viewcode-block" id="RayClusterApi.patch_ray_cluster">
+<a class="viewcode-back" href="../../../../codeflare_sdk.vendored.python_client.html#codeflare_sdk.vendored.python_client.kuberay_cluster_api.RayClusterApi.patch_ray_cluster">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">patch_ray_cluster</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">ray_patch</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">k8s_namespace</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;default&quot;</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Patch an existing Ray cluster custom resource.</span>
+
+<span class="sd">        Parameters:</span>
+<span class="sd">        - name (str): The name of the Ray cluster custom resource to be patched.</span>
+<span class="sd">        - ray_patch (Any): The patch data for the Ray cluster.</span>
+<span class="sd">        - k8s_namespace (str, optional): The namespace in which the Ray cluster exists. Defaults to &quot;default&quot;.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            bool: True if the patch was successful, False otherwise.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="c1"># we patch the existing raycluster with the new config</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">api</span><span class="o">.</span><span class="n">patch_namespaced_custom_object</span><span class="p">(</span>
+                <span class="n">group</span><span class="o">=</span><span class="n">constants</span><span class="o">.</span><span class="n">GROUP</span><span class="p">,</span>
+                <span class="n">version</span><span class="o">=</span><span class="n">constants</span><span class="o">.</span><span class="n">CLUSTER_VERSION</span><span class="p">,</span>
+                <span class="n">plural</span><span class="o">=</span><span class="n">constants</span><span class="o">.</span><span class="n">CLUSTER_PLURAL</span><span class="p">,</span>
+                <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span>
+                <span class="n">body</span><span class="o">=</span><span class="n">ray_patch</span><span class="p">,</span>
+                <span class="n">namespace</span><span class="o">=</span><span class="n">k8s_namespace</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="k">except</span> <span class="n">ApiException</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;raycluster `</span><span class="si">{}</span><span class="s2">` failed to patch, with error: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">e</span><span class="p">))</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;raycluster `</span><span class="si">%s</span><span class="s2">` is patched successfully&quot;</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="kc">True</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Project CodeFlare.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

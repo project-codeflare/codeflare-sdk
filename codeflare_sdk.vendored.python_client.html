@@ -1,0 +1,448 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>codeflare_sdk.vendored.python_client package &mdash; CodeFlare SDK 0.35.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=ca1b380b"></script>
+      <script src="_static/doctools.js?v=9a2dae69"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="codeflare_sdk.vendored.python_client.utils package" href="codeflare_sdk.vendored.python_client.utils.html" />
+    <link rel="prev" title="codeflare_sdk.vendored package" href="codeflare_sdk.vendored.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            CodeFlare SDK
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Code Documentation:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">codeflare_sdk</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="codeflare_sdk.html">codeflare_sdk package</a><ul class="current">
+<li class="toctree-l3 current"><a class="reference internal" href="codeflare_sdk.html#subpackages">Subpackages</a><ul class="current">
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.common.html">codeflare_sdk.common package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.html">codeflare_sdk.ray package</a></li>
+<li class="toctree-l4 current"><a class="reference internal" href="codeflare_sdk.vendored.html">codeflare_sdk.vendored package</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.html#submodules">Submodules</a></li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.html#codeflare-sdk-conftest-module">codeflare_sdk.conftest module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.html#module-codeflare_sdk">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">User Documentation:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/authentication.html">Authentication via the CodeFlare SDK</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/cluster-configuration.html">Ray Cluster Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/ray-cluster-interaction.html">Ray Cluster Interaction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/rayjob.html">Submitting RayJobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/e2e.html">Running e2e tests locally</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/s3-compatible-storage.html">S3 compatible storage with Ray Train examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/setup-kueue.html">Basic Kueue Resources configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/ui-widgets.html">Jupyter UI Widgets</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">CodeFlare SDK</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="modules.html">codeflare_sdk</a></li>
+          <li class="breadcrumb-item"><a href="codeflare_sdk.html">codeflare_sdk package</a></li>
+          <li class="breadcrumb-item"><a href="codeflare_sdk.vendored.html">codeflare_sdk.vendored package</a></li>
+      <li class="breadcrumb-item active">codeflare_sdk.vendored.python_client package</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/codeflare_sdk.vendored.python_client.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="codeflare-sdk-vendored-python-client-package">
+<h1>codeflare_sdk.vendored.python_client package<a class="headerlink" href="#codeflare-sdk-vendored-python-client-package" title="Link to this heading"></a></h1>
+<section id="subpackages">
+<h2>Subpackages<a class="headerlink" href="#subpackages" title="Link to this heading"></a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="codeflare_sdk.vendored.python_client.utils.html">codeflare_sdk.vendored.python_client.utils package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="codeflare_sdk.vendored.python_client.utils.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="codeflare_sdk.vendored.python_client.utils.html#module-codeflare_sdk.vendored.python_client.utils.kuberay_cluster_builder">codeflare_sdk.vendored.python_client.utils.kuberay_cluster_builder module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.vendored.python_client.utils.html#codeflare_sdk.vendored.python_client.utils.kuberay_cluster_builder.ClusterBuilder"><code class="docutils literal notranslate"><span class="pre">ClusterBuilder</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.vendored.python_client.utils.html#codeflare_sdk.vendored.python_client.utils.kuberay_cluster_builder.ClusterBuilder.build_head"><code class="docutils literal notranslate"><span class="pre">ClusterBuilder.build_head()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.vendored.python_client.utils.html#codeflare_sdk.vendored.python_client.utils.kuberay_cluster_builder.ClusterBuilder.build_meta"><code class="docutils literal notranslate"><span class="pre">ClusterBuilder.build_meta()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.vendored.python_client.utils.html#codeflare_sdk.vendored.python_client.utils.kuberay_cluster_builder.ClusterBuilder.build_worker"><code class="docutils literal notranslate"><span class="pre">ClusterBuilder.build_worker()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.vendored.python_client.utils.html#codeflare_sdk.vendored.python_client.utils.kuberay_cluster_builder.ClusterBuilder.get_cluster"><code class="docutils literal notranslate"><span class="pre">ClusterBuilder.get_cluster()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.vendored.python_client.utils.html#codeflare_sdk.vendored.python_client.utils.kuberay_cluster_builder.Director"><code class="docutils literal notranslate"><span class="pre">Director</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.vendored.python_client.utils.html#codeflare_sdk.vendored.python_client.utils.kuberay_cluster_builder.Director.build_basic_cluster"><code class="docutils literal notranslate"><span class="pre">Director.build_basic_cluster()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.vendored.python_client.utils.html#codeflare_sdk.vendored.python_client.utils.kuberay_cluster_builder.Director.build_large_cluster"><code class="docutils literal notranslate"><span class="pre">Director.build_large_cluster()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.vendored.python_client.utils.html#codeflare_sdk.vendored.python_client.utils.kuberay_cluster_builder.Director.build_medium_cluster"><code class="docutils literal notranslate"><span class="pre">Director.build_medium_cluster()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.vendored.python_client.utils.html#codeflare_sdk.vendored.python_client.utils.kuberay_cluster_builder.Director.build_small_cluster"><code class="docutils literal notranslate"><span class="pre">Director.build_small_cluster()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.vendored.python_client.utils.html#codeflare_sdk.vendored.python_client.utils.kuberay_cluster_builder.IClusterBuilder"><code class="docutils literal notranslate"><span class="pre">IClusterBuilder</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.vendored.python_client.utils.html#codeflare_sdk.vendored.python_client.utils.kuberay_cluster_builder.IClusterBuilder.build_head"><code class="docutils literal notranslate"><span class="pre">IClusterBuilder.build_head()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.vendored.python_client.utils.html#codeflare_sdk.vendored.python_client.utils.kuberay_cluster_builder.IClusterBuilder.build_meta"><code class="docutils literal notranslate"><span class="pre">IClusterBuilder.build_meta()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.vendored.python_client.utils.html#codeflare_sdk.vendored.python_client.utils.kuberay_cluster_builder.IClusterBuilder.build_worker"><code class="docutils literal notranslate"><span class="pre">IClusterBuilder.build_worker()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.vendored.python_client.utils.html#codeflare_sdk.vendored.python_client.utils.kuberay_cluster_builder.IClusterBuilder.get_cluster"><code class="docutils literal notranslate"><span class="pre">IClusterBuilder.get_cluster()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="codeflare_sdk.vendored.python_client.utils.html#module-codeflare_sdk.vendored.python_client.utils.kuberay_cluster_utils">codeflare_sdk.vendored.python_client.utils.kuberay_cluster_utils module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.vendored.python_client.utils.html#codeflare_sdk.vendored.python_client.utils.kuberay_cluster_utils.ClusterUtils"><code class="docutils literal notranslate"><span class="pre">ClusterUtils</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.vendored.python_client.utils.html#codeflare_sdk.vendored.python_client.utils.kuberay_cluster_utils.ClusterUtils.delete_worker_group"><code class="docutils literal notranslate"><span class="pre">ClusterUtils.delete_worker_group()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.vendored.python_client.utils.html#codeflare_sdk.vendored.python_client.utils.kuberay_cluster_utils.ClusterUtils.duplicate_worker_group"><code class="docutils literal notranslate"><span class="pre">ClusterUtils.duplicate_worker_group()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.vendored.python_client.utils.html#codeflare_sdk.vendored.python_client.utils.kuberay_cluster_utils.ClusterUtils.is_valid_label"><code class="docutils literal notranslate"><span class="pre">ClusterUtils.is_valid_label()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.vendored.python_client.utils.html#codeflare_sdk.vendored.python_client.utils.kuberay_cluster_utils.ClusterUtils.is_valid_name"><code class="docutils literal notranslate"><span class="pre">ClusterUtils.is_valid_name()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.vendored.python_client.utils.html#codeflare_sdk.vendored.python_client.utils.kuberay_cluster_utils.ClusterUtils.populate_meta"><code class="docutils literal notranslate"><span class="pre">ClusterUtils.populate_meta()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.vendored.python_client.utils.html#codeflare_sdk.vendored.python_client.utils.kuberay_cluster_utils.ClusterUtils.populate_ray_head"><code class="docutils literal notranslate"><span class="pre">ClusterUtils.populate_ray_head()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.vendored.python_client.utils.html#codeflare_sdk.vendored.python_client.utils.kuberay_cluster_utils.ClusterUtils.populate_worker_group"><code class="docutils literal notranslate"><span class="pre">ClusterUtils.populate_worker_group()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.vendored.python_client.utils.html#codeflare_sdk.vendored.python_client.utils.kuberay_cluster_utils.ClusterUtils.update_worker_group_replicas"><code class="docutils literal notranslate"><span class="pre">ClusterUtils.update_worker_group_replicas()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.vendored.python_client.utils.html#codeflare_sdk.vendored.python_client.utils.kuberay_cluster_utils.ClusterUtils.update_worker_group_resources"><code class="docutils literal notranslate"><span class="pre">ClusterUtils.update_worker_group_resources()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="codeflare_sdk.vendored.python_client.utils.html#module-codeflare_sdk.vendored.python_client.utils">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</section>
+<section id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Link to this heading"></a></h2>
+</section>
+<section id="module-codeflare_sdk.vendored.python_client.constants">
+<span id="codeflare-sdk-vendored-python-client-constants-module"></span><h2>codeflare_sdk.vendored.python_client.constants module<a class="headerlink" href="#module-codeflare_sdk.vendored.python_client.constants" title="Link to this heading"></a></h2>
+</section>
+<section id="module-codeflare_sdk.vendored.python_client.kuberay_cluster_api">
+<span id="codeflare-sdk-vendored-python-client-kuberay-cluster-api-module"></span><h2>codeflare_sdk.vendored.python_client.kuberay_cluster_api module<a class="headerlink" href="#module-codeflare_sdk.vendored.python_client.kuberay_cluster_api" title="Link to this heading"></a></h2>
+<p>Set of APIs to manage rayclusters.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="codeflare_sdk.vendored.python_client.kuberay_cluster_api.RayClusterApi">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">codeflare_sdk.vendored.python_client.kuberay_cluster_api.</span></span><span class="sig-name descname"><span class="pre">RayClusterApi</span></span><a class="reference internal" href="_modules/codeflare_sdk/vendored/python_client/kuberay_cluster_api.html#RayClusterApi"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.vendored.python_client.kuberay_cluster_api.RayClusterApi" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>RayClusterApi provides APIs to list, get, create, build, update, delete rayclusters.</p>
+<p>Methods:
+- list_ray_clusters(k8s_namespace: str = “default”, async_req: bool = False) -&gt; Any:
+- get_ray_cluster(name: str, k8s_namespace: str = “default”) -&gt; Any:
+- create_ray_cluster(body: Any, k8s_namespace: str = “default”) -&gt; Any:
+- delete_ray_cluster(name: str, k8s_namespace: str = “default”) -&gt; bool:
+- patch_ray_cluster(name: str, ray_patch: Any, k8s_namespace: str = “default”) -&gt; Any:</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.vendored.python_client.kuberay_cluster_api.RayClusterApi.create_ray_cluster">
+<span class="sig-name descname"><span class="pre">create_ray_cluster</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">body</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">k8s_namespace</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'default'</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Any</span></span></span><a class="reference internal" href="_modules/codeflare_sdk/vendored/python_client/kuberay_cluster_api.html#RayClusterApi.create_ray_cluster"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.vendored.python_client.kuberay_cluster_api.RayClusterApi.create_ray_cluster" title="Link to this definition"></a></dt>
+<dd><p>Create a new Ray cluster custom resource.</p>
+<p>Parameters:
+- body (Any): The data of the custom resource to create.
+- k8s_namespace (str, optional): The namespace in which to create the custom resource. Defaults to “default”.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>Any: The created custom resource, or None if it already exists or there was an error.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.vendored.python_client.kuberay_cluster_api.RayClusterApi.delete_ray_cluster">
+<span class="sig-name descname"><span class="pre">delete_ray_cluster</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">k8s_namespace</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'default'</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="reference internal" href="_modules/codeflare_sdk/vendored/python_client/kuberay_cluster_api.html#RayClusterApi.delete_ray_cluster"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.vendored.python_client.kuberay_cluster_api.RayClusterApi.delete_ray_cluster" title="Link to this definition"></a></dt>
+<dd><p>Delete a Ray cluster custom resource.</p>
+<p>Parameters:
+- name (str): The name of the Ray cluster custom resource to delete.
+- k8s_namespace (str, optional): The namespace in which the Ray cluster exists. Defaults to “default”.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>Any: The deleted custom resource, or None if already deleted or there was an error.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.vendored.python_client.kuberay_cluster_api.RayClusterApi.get_ray_cluster">
+<span class="sig-name descname"><span class="pre">get_ray_cluster</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">k8s_namespace</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'default'</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Any</span></span></span><a class="reference internal" href="_modules/codeflare_sdk/vendored/python_client/kuberay_cluster_api.html#RayClusterApi.get_ray_cluster"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.vendored.python_client.kuberay_cluster_api.RayClusterApi.get_ray_cluster" title="Link to this definition"></a></dt>
+<dd><p>Get a specific Ray cluster in a given namespace.</p>
+<p>Parameters:
+- name (str): The name of the Ray cluster custom resource. Defaults to “”.
+- k8s_namespace (str, optional): The namespace in which to retrieve the Ray cluster. Defaults to “default”.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>Any: The custom resource for the specified Ray cluster, or None if not found.</p>
+</dd>
+<dt>Raises:</dt><dd><p>ApiException: If there was an error fetching the custom resource.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.vendored.python_client.kuberay_cluster_api.RayClusterApi.get_ray_cluster_status">
+<span class="sig-name descname"><span class="pre">get_ray_cluster_status</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">k8s_namespace</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'default'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timeout</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">60</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">delay_between_attempts</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">5</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Any</span></span></span><a class="reference internal" href="_modules/codeflare_sdk/vendored/python_client/kuberay_cluster_api.html#RayClusterApi.get_ray_cluster_status"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.vendored.python_client.kuberay_cluster_api.RayClusterApi.get_ray_cluster_status" title="Link to this definition"></a></dt>
+<dd><p>Get a specific Ray cluster status in a given namespace.</p>
+<p>This method waits until the cluster has a status field populated by the operator.</p>
+<p>Parameters:
+- name (str): The name of the Ray cluster custom resource.
+- k8s_namespace (str, optional): The namespace in which to retrieve the Ray cluster. Defaults to “default”.
+- timeout (int, optional): The duration in seconds after which we stop trying to get status. Defaults to 60 seconds.
+- delay_between_attempts (int, optional): The duration in seconds to wait between attempts. Defaults to 5 seconds.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>Any: The custom resource status for the specified Ray cluster, or None if not found or timeout.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.vendored.python_client.kuberay_cluster_api.RayClusterApi.list_ray_clusters">
+<span class="sig-name descname"><span class="pre">list_ray_clusters</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">k8s_namespace</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'default'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">label_selector</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">async_req</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Any</span></span></span><a class="reference internal" href="_modules/codeflare_sdk/vendored/python_client/kuberay_cluster_api.html#RayClusterApi.list_ray_clusters"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.vendored.python_client.kuberay_cluster_api.RayClusterApi.list_ray_clusters" title="Link to this definition"></a></dt>
+<dd><p>List Ray clusters in a given namespace.</p>
+<p>Parameters:
+- k8s_namespace (str, optional): The namespace in which to list the Ray clusters. Defaults to “default”.
+- async_req (bool, optional): Whether to make the request asynchronously. Defaults to False.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>Any: The custom resource for Ray clusters in the specified namespace, or None if not found.</p>
+</dd>
+<dt>Raises:</dt><dd><p>ApiException: If there was an error fetching the custom resource.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.vendored.python_client.kuberay_cluster_api.RayClusterApi.patch_ray_cluster">
+<span class="sig-name descname"><span class="pre">patch_ray_cluster</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ray_patch</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">k8s_namespace</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'default'</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Any</span></span></span><a class="reference internal" href="_modules/codeflare_sdk/vendored/python_client/kuberay_cluster_api.html#RayClusterApi.patch_ray_cluster"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.vendored.python_client.kuberay_cluster_api.RayClusterApi.patch_ray_cluster" title="Link to this definition"></a></dt>
+<dd><p>Patch an existing Ray cluster custom resource.</p>
+<p>Parameters:
+- name (str): The name of the Ray cluster custom resource to be patched.
+- ray_patch (Any): The patch data for the Ray cluster.
+- k8s_namespace (str, optional): The namespace in which the Ray cluster exists. Defaults to “default”.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>bool: True if the patch was successful, False otherwise.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.vendored.python_client.kuberay_cluster_api.RayClusterApi.wait_until_ray_cluster_running">
+<span class="sig-name descname"><span class="pre">wait_until_ray_cluster_running</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">k8s_namespace</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'default'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timeout</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">60</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">delay_between_attempts</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">5</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="reference internal" href="_modules/codeflare_sdk/vendored/python_client/kuberay_cluster_api.html#RayClusterApi.wait_until_ray_cluster_running"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.vendored.python_client.kuberay_cluster_api.RayClusterApi.wait_until_ray_cluster_running" title="Link to this definition"></a></dt>
+<dd><p>Wait until a Ray cluster is in ready state.</p>
+<p>This method waits for the cluster to have a state field with value ‘ready’.</p>
+<p>Parameters:
+- name (str): The name of the Ray cluster custom resource.
+- k8s_namespace (str, optional): The namespace in which to retrieve the Ray cluster. Defaults to “default”.
+- timeout (int, optional): The duration in seconds after which we stop trying. Defaults to 60 seconds.
+- delay_between_attempts (int, optional): The duration in seconds to wait between attempts. Defaults to 5 seconds.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>bool: True if the raycluster status is ‘ready’, False otherwise.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-codeflare_sdk.vendored.python_client.kuberay_job_api">
+<span id="codeflare-sdk-vendored-python-client-kuberay-job-api-module"></span><h2>codeflare_sdk.vendored.python_client.kuberay_job_api module<a class="headerlink" href="#module-codeflare_sdk.vendored.python_client.kuberay_job_api" title="Link to this heading"></a></h2>
+<p>Set of APIs to manage rayjobs.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="codeflare_sdk.vendored.python_client.kuberay_job_api.RayjobApi">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">codeflare_sdk.vendored.python_client.kuberay_job_api.</span></span><span class="sig-name descname"><span class="pre">RayjobApi</span></span><a class="reference internal" href="_modules/codeflare_sdk/vendored/python_client/kuberay_job_api.html#RayjobApi"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.vendored.python_client.kuberay_job_api.RayjobApi" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>RayjobApi provides APIs to list, get, create, build, update, delete rayjobs.
+Methods:
+- submit_job(k8s_namespace: str, job: Any) -&gt; Any: Submit and execute a job asynchronously.
+- suspend_job(name: str, k8s_namespace: str) -&gt; bool: Stop a job by suspending it.
+- resubmit_job(name: str, k8s_namespace: str) -&gt; bool: Resubmit a job that has been suspended.
+- get_job(name: str, k8s_namespace: str) -&gt; Any: Get a job.
+- list_jobs(k8s_namespace: str) -&gt; Any: List all jobs.
+- get_job_status(name: str, k8s_namespace: str, timeout: int, delay_between_attempts: int) -&gt; Any: Get the most recent status of a job.
+- wait_until_job_finished(name: str, k8s_namespace: str, timeout: int, delay_between_attempts: int) -&gt; bool: Wait until a job is completed.
+- wait_until_job_running(name: str, k8s_namespace: str, timeout: int, delay_between_attempts: int) -&gt; bool: Wait until a job reaches running state.
+- delete_job(name: str, k8s_namespace: str) -&gt; bool: Delete a job and all of its associated data.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.vendored.python_client.kuberay_job_api.RayjobApi.delete_job">
+<span class="sig-name descname"><span class="pre">delete_job</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">k8s_namespace</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'default'</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="reference internal" href="_modules/codeflare_sdk/vendored/python_client/kuberay_job_api.html#RayjobApi.delete_job"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.vendored.python_client.kuberay_job_api.RayjobApi.delete_job" title="Link to this definition"></a></dt>
+<dd><p>Delete a Ray job and all of its associated data.</p>
+<p>Parameters:
+- name (str): The name of the Ray job custom resource.
+- k8s_namespace (str, optional): The namespace in which to delete the Ray job. Defaults to “default”.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>bool: True if the job was successfully deleted, False otherwise.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.vendored.python_client.kuberay_job_api.RayjobApi.get_job">
+<span class="sig-name descname"><span class="pre">get_job</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">k8s_namespace</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'default'</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Any</span></span></span><a class="reference internal" href="_modules/codeflare_sdk/vendored/python_client/kuberay_job_api.html#RayjobApi.get_job"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.vendored.python_client.kuberay_job_api.RayjobApi.get_job" title="Link to this definition"></a></dt>
+<dd><p>Get a Ray job in a given namespace.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.vendored.python_client.kuberay_job_api.RayjobApi.get_job_status">
+<span class="sig-name descname"><span class="pre">get_job_status</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">k8s_namespace</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'default'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timeout</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">60</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">delay_between_attempts</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">5</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Any</span></span></span><a class="reference internal" href="_modules/codeflare_sdk/vendored/python_client/kuberay_job_api.html#RayjobApi.get_job_status"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.vendored.python_client.kuberay_job_api.RayjobApi.get_job_status" title="Link to this definition"></a></dt>
+<dd><p>Get a specific Ray job status in a given namespace.</p>
+<p>This method waits until the job has a status field populated by the operator.</p>
+<p>Parameters:
+- name (str): The name of the Ray job custom resource.
+- k8s_namespace (str, optional): The namespace in which to retrieve the Ray job. Defaults to “default”.
+- timeout (int, optional): The duration in seconds after which we stop trying to get status. Defaults to 60 seconds.
+- delay_between_attempts (int, optional): The duration in seconds to wait between attempts. Defaults to 5 seconds.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>Any: The custom resource status for the specified Ray job, or None if not found or timeout.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.vendored.python_client.kuberay_job_api.RayjobApi.list_jobs">
+<span class="sig-name descname"><span class="pre">list_jobs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">k8s_namespace</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'default'</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Any</span></span></span><a class="reference internal" href="_modules/codeflare_sdk/vendored/python_client/kuberay_job_api.html#RayjobApi.list_jobs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.vendored.python_client.kuberay_job_api.RayjobApi.list_jobs" title="Link to this definition"></a></dt>
+<dd><p>List all Ray jobs in a given namespace.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.vendored.python_client.kuberay_job_api.RayjobApi.resubmit_job">
+<span class="sig-name descname"><span class="pre">resubmit_job</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">k8s_namespace</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'default'</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="reference internal" href="_modules/codeflare_sdk/vendored/python_client/kuberay_job_api.html#RayjobApi.resubmit_job"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.vendored.python_client.kuberay_job_api.RayjobApi.resubmit_job" title="Link to this definition"></a></dt>
+<dd><p>Resubmit a suspended Ray job by setting the suspend field to False.</p>
+<p>This will create a new RayCluster and resubmit the job.
+Only works on jobs in ‘Suspended’ status.</p>
+<p>Parameters:
+- name (str): The name of the Ray job custom resource.
+- k8s_namespace (str, optional): The namespace in which to resubmit the Ray job. Defaults to “default”.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>bool: True if the job was successfully resubmitted, False otherwise.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.vendored.python_client.kuberay_job_api.RayjobApi.submit_job">
+<span class="sig-name descname"><span class="pre">submit_job</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">k8s_namespace</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'default'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">job</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Any</span></span></span><a class="reference internal" href="_modules/codeflare_sdk/vendored/python_client/kuberay_job_api.html#RayjobApi.submit_job"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.vendored.python_client.kuberay_job_api.RayjobApi.submit_job" title="Link to this definition"></a></dt>
+<dd><p>Submit a Ray job to a given namespace.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.vendored.python_client.kuberay_job_api.RayjobApi.suspend_job">
+<span class="sig-name descname"><span class="pre">suspend_job</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">k8s_namespace</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'default'</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="reference internal" href="_modules/codeflare_sdk/vendored/python_client/kuberay_job_api.html#RayjobApi.suspend_job"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.vendored.python_client.kuberay_job_api.RayjobApi.suspend_job" title="Link to this definition"></a></dt>
+<dd><p>Stop a Ray job by setting the suspend field to True.</p>
+<p>This will delete the associated RayCluster and transition the job to ‘Suspended’ status.
+Only works on jobs in ‘Running’ or ‘Initializing’ status.</p>
+<p>Parameters:
+- name (str): The name of the Ray job custom resource.
+- k8s_namespace (str, optional): The namespace in which to stop the Ray job. Defaults to “default”.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>bool: True if the job was successfully suspended, False otherwise.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.vendored.python_client.kuberay_job_api.RayjobApi.wait_until_job_finished">
+<span class="sig-name descname"><span class="pre">wait_until_job_finished</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">k8s_namespace</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'default'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timeout</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">60</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">delay_between_attempts</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">5</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="reference internal" href="_modules/codeflare_sdk/vendored/python_client/kuberay_job_api.html#RayjobApi.wait_until_job_finished"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.vendored.python_client.kuberay_job_api.RayjobApi.wait_until_job_finished" title="Link to this definition"></a></dt>
+<dd><p>Wait until a Ray job reaches a terminal status.</p>
+<p>This method waits for the job to reach a terminal state by checking both jobStatus
+(STOPPED, SUCCEEDED, FAILED) and jobDeploymentStatus (Complete, Failed).</p>
+<p>Parameters:
+- name (str): The name of the Ray job custom resource.
+- k8s_namespace (str, optional): The namespace in which to retrieve the Ray job. Defaults to “default”.
+- timeout (int, optional): The duration in seconds after which we stop trying. Defaults to 60 seconds.
+- delay_between_attempts (int, optional): The duration in seconds to wait between attempts. Defaults to 5 seconds.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>bool: True if the rayjob reaches a terminal status, False otherwise.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.vendored.python_client.kuberay_job_api.RayjobApi.wait_until_job_running">
+<span class="sig-name descname"><span class="pre">wait_until_job_running</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">k8s_namespace</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'default'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timeout</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">60</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">delay_between_attempts</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">5</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="reference internal" href="_modules/codeflare_sdk/vendored/python_client/kuberay_job_api.html#RayjobApi.wait_until_job_running"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.vendored.python_client.kuberay_job_api.RayjobApi.wait_until_job_running" title="Link to this definition"></a></dt>
+<dd><p>Wait until a Ray job reaches Running state.</p>
+<p>This method waits for the job’s jobDeploymentStatus to reach “Running”.
+Useful for confirming a job has started after submission or resubmission.</p>
+<p>Parameters:
+- name (str): The name of the Ray job custom resource.
+- k8s_namespace (str, optional): The namespace in which to retrieve the Ray job. Defaults to “default”.
+- timeout (int, optional): The duration in seconds after which we stop trying. Defaults to 60 seconds.
+- delay_between_attempts (int, optional): The duration in seconds to wait between attempts. Defaults to 5 seconds.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>bool: True if the rayjob reaches Running status, False otherwise.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-codeflare_sdk.vendored.python_client">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-codeflare_sdk.vendored.python_client" title="Link to this heading"></a></h2>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="codeflare_sdk.vendored.html" class="btn btn-neutral float-left" title="codeflare_sdk.vendored package" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="codeflare_sdk.vendored.python_client.utils.html" class="btn btn-neutral float-right" title="codeflare_sdk.vendored.python_client.utils package" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Project CodeFlare.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

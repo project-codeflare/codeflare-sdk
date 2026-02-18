@@ -1,0 +1,610 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>codeflare_sdk.common.kubernetes_cluster package &mdash; CodeFlare SDK 0.35.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=ca1b380b"></script>
+      <script src="_static/doctools.js?v=9a2dae69"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="codeflare_sdk.common.kueue package" href="codeflare_sdk.common.kueue.html" />
+    <link rel="prev" title="codeflare_sdk.common package" href="codeflare_sdk.common.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            CodeFlare SDK
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Code Documentation:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">codeflare_sdk</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="codeflare_sdk.html">codeflare_sdk package</a><ul class="current">
+<li class="toctree-l3 current"><a class="reference internal" href="codeflare_sdk.html#subpackages">Subpackages</a><ul class="current">
+<li class="toctree-l4 current"><a class="reference internal" href="codeflare_sdk.common.html">codeflare_sdk.common package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.html">codeflare_sdk.ray package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.vendored.html">codeflare_sdk.vendored package</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.html#submodules">Submodules</a></li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.html#codeflare-sdk-conftest-module">codeflare_sdk.conftest module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.html#module-codeflare_sdk">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">User Documentation:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/authentication.html">Authentication via the CodeFlare SDK</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/cluster-configuration.html">Ray Cluster Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/ray-cluster-interaction.html">Ray Cluster Interaction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/rayjob.html">Submitting RayJobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/e2e.html">Running e2e tests locally</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/s3-compatible-storage.html">S3 compatible storage with Ray Train examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/setup-kueue.html">Basic Kueue Resources configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/ui-widgets.html">Jupyter UI Widgets</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">CodeFlare SDK</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="modules.html">codeflare_sdk</a></li>
+          <li class="breadcrumb-item"><a href="codeflare_sdk.html">codeflare_sdk package</a></li>
+          <li class="breadcrumb-item"><a href="codeflare_sdk.common.html">codeflare_sdk.common package</a></li>
+      <li class="breadcrumb-item active">codeflare_sdk.common.kubernetes_cluster package</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/codeflare_sdk.common.kubernetes_cluster.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="codeflare-sdk-common-kubernetes-cluster-package">
+<h1>codeflare_sdk.common.kubernetes_cluster package<a class="headerlink" href="#codeflare-sdk-common-kubernetes-cluster-package" title="Link to this heading"></a></h1>
+<section id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Link to this heading"></a></h2>
+</section>
+<section id="module-codeflare_sdk.common.kubernetes_cluster.auth">
+<span id="codeflare-sdk-common-kubernetes-cluster-auth-module"></span><h2>codeflare_sdk.common.kubernetes_cluster.auth module<a class="headerlink" href="#module-codeflare_sdk.common.kubernetes_cluster.auth" title="Link to this heading"></a></h2>
+<p>The auth sub-module contains authentication methods for Kubernetes clusters.</p>
+<p>Recommended: Use kube-authkit’s AuthConfig directly for new code.
+Legacy: TokenAuthentication and KubeConfigFileAuthentication are deprecated but still supported.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="codeflare_sdk.common.kubernetes_cluster.auth.Authentication">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">codeflare_sdk.common.kubernetes_cluster.auth.</span></span><span class="sig-name descname"><span class="pre">Authentication</span></span><a class="reference internal" href="_modules/codeflare_sdk/common/kubernetes_cluster/auth.html#Authentication"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.common.kubernetes_cluster.auth.Authentication" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>An abstract class that defines the necessary methods for authenticating to a remote environment.
+Specifically, this class defines the need for a <cite>login()</cite> and a <cite>logout()</cite> function.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.common.kubernetes_cluster.auth.Authentication.login">
+<span class="sig-name descname"><span class="pre">login</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/common/kubernetes_cluster/auth.html#Authentication.login"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.common.kubernetes_cluster.auth.Authentication.login" title="Link to this definition"></a></dt>
+<dd><p>Method for logging in to a remote cluster.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.common.kubernetes_cluster.auth.Authentication.logout">
+<span class="sig-name descname"><span class="pre">logout</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/common/kubernetes_cluster/auth.html#Authentication.logout"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.common.kubernetes_cluster.auth.Authentication.logout" title="Link to this definition"></a></dt>
+<dd><p>Method for logging out of the remote cluster.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="codeflare_sdk.common.kubernetes_cluster.auth.KubeConfigFileAuthentication">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">codeflare_sdk.common.kubernetes_cluster.auth.</span></span><span class="sig-name descname"><span class="pre">KubeConfigFileAuthentication</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">kube_config_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/common/kubernetes_cluster/auth.html#KubeConfigFileAuthentication"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.common.kubernetes_cluster.auth.KubeConfigFileAuthentication" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#codeflare_sdk.common.kubernetes_cluster.auth.KubeConfiguration" title="codeflare_sdk.common.kubernetes_cluster.auth.KubeConfiguration"><code class="xref py py-class docutils literal notranslate"><span class="pre">KubeConfiguration</span></code></a></p>
+<p>DEPRECATED: Use kube_authkit.AuthConfig with kubeconfig strategy instead.</p>
+<p>A class that defines the necessary methods for passing a user’s own Kubernetes config file.
+Specifically this class defines the <cite>load_kube_config()</cite> and <cite>config_check()</cite> functions.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.common.kubernetes_cluster.auth.KubeConfigFileAuthentication.load_kube_config">
+<span class="sig-name descname"><span class="pre">load_kube_config</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/common/kubernetes_cluster/auth.html#KubeConfigFileAuthentication.load_kube_config"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.common.kubernetes_cluster.auth.KubeConfigFileAuthentication.load_kube_config" title="Link to this definition"></a></dt>
+<dd><p>Function for loading a user’s own predefined Kubernetes config file.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="codeflare_sdk.common.kubernetes_cluster.auth.KubeConfiguration">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">codeflare_sdk.common.kubernetes_cluster.auth.</span></span><span class="sig-name descname"><span class="pre">KubeConfiguration</span></span><a class="reference internal" href="_modules/codeflare_sdk/common/kubernetes_cluster/auth.html#KubeConfiguration"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.common.kubernetes_cluster.auth.KubeConfiguration" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>An abstract class that defines the method for loading a user defined config file using the <cite>load_kube_config()</cite> function</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.common.kubernetes_cluster.auth.KubeConfiguration.load_kube_config">
+<span class="sig-name descname"><span class="pre">load_kube_config</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/common/kubernetes_cluster/auth.html#KubeConfiguration.load_kube_config"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.common.kubernetes_cluster.auth.KubeConfiguration.load_kube_config" title="Link to this definition"></a></dt>
+<dd><p>Method for setting your Kubernetes configuration to a certain file</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.common.kubernetes_cluster.auth.KubeConfiguration.logout">
+<span class="sig-name descname"><span class="pre">logout</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/common/kubernetes_cluster/auth.html#KubeConfiguration.logout"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.common.kubernetes_cluster.auth.KubeConfiguration.logout" title="Link to this definition"></a></dt>
+<dd><p>Method for logging out of the remote cluster</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="codeflare_sdk.common.kubernetes_cluster.auth.TokenAuthentication">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">codeflare_sdk.common.kubernetes_cluster.auth.</span></span><span class="sig-name descname"><span class="pre">TokenAuthentication</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/common/kubernetes_cluster/auth.html#TokenAuthentication"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.common.kubernetes_cluster.auth.TokenAuthentication" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#codeflare_sdk.common.kubernetes_cluster.auth.Authentication" title="codeflare_sdk.common.kubernetes_cluster.auth.Authentication"><code class="xref py py-class docutils literal notranslate"><span class="pre">Authentication</span></code></a></p>
+<p>DEPRECATED: Use kube_authkit.AuthConfig with token strategy instead.</p>
+<p><cite>TokenAuthentication</cite> is a subclass of <cite>Authentication</cite>. It can be used to authenticate to a Kubernetes
+cluster when the user has an API token and the API server address.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.common.kubernetes_cluster.auth.TokenAuthentication.login">
+<span class="sig-name descname"><span class="pre">login</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="reference internal" href="_modules/codeflare_sdk/common/kubernetes_cluster/auth.html#TokenAuthentication.login"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.common.kubernetes_cluster.auth.TokenAuthentication.login" title="Link to this definition"></a></dt>
+<dd><p>This function is used to log in to a Kubernetes cluster using the user’s API token and API server address.
+Depending on the cluster, a user can choose to login in with <cite>–insecure-skip-tls-verify</cite> by setting <cite>skip_tls</cite>
+to <cite>True</cite> or <cite>–certificate-authority</cite> by setting <cite>skip_tls</cite> to False and providing a path to a ca bundle with <cite>ca_cert_path</cite>.</p>
+<p>Note: kube-authkit does not support direct token authentication via AuthConfig,
+so this uses the legacy implementation.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.common.kubernetes_cluster.auth.TokenAuthentication.logout">
+<span class="sig-name descname"><span class="pre">logout</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="reference internal" href="_modules/codeflare_sdk/common/kubernetes_cluster/auth.html#TokenAuthentication.logout"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.common.kubernetes_cluster.auth.TokenAuthentication.logout" title="Link to this definition"></a></dt>
+<dd><p>This function is used to logout of a Kubernetes cluster.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="codeflare_sdk.common.kubernetes_cluster.auth.config_check">
+<span class="sig-prename descclassname"><span class="pre">codeflare_sdk.common.kubernetes_cluster.auth.</span></span><span class="sig-name descname"><span class="pre">config_check</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="reference internal" href="_modules/codeflare_sdk/common/kubernetes_cluster/auth.html#config_check"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.common.kubernetes_cluster.auth.config_check" title="Link to this definition"></a></dt>
+<dd><p>Check and load the Kubernetes config from the default location.</p>
+<p>Uses kube-authkit’s auto-detection when available, falls back to legacy method.</p>
+<p>This function checks if a Kubernetes config file exists at the default path
+(<cite>~/.kube/config</cite>). If none is provided, it tries to load in-cluster config.
+If the <cite>config_path</cite> global variable is set by an external module (e.g., <cite>auth.py</cite>),
+this path will be used directly.</p>
+<p>Priority:
+1. Existing global api_client (already authenticated)
+2. kube-authkit auto-detection (kubeconfig, in-cluster, etc.)
+3. Legacy method (kubeconfig or in-cluster)</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><dl class="simple">
+<dt>str:</dt><dd><p>The loaded config path if successful.</p>
+</dd>
+</dl>
+</dd>
+<dt>Raises:</dt><dd><dl class="simple">
+<dt>PermissionError:</dt><dd><p>If no valid credentials or config file is found.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="codeflare_sdk.common.kubernetes_cluster.auth.get_api_client">
+<span class="sig-prename descclassname"><span class="pre">codeflare_sdk.common.kubernetes_cluster.auth.</span></span><span class="sig-name descname"><span class="pre">get_api_client</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">ApiClient</span></span></span><a class="reference internal" href="_modules/codeflare_sdk/common/kubernetes_cluster/auth.html#get_api_client"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.common.kubernetes_cluster.auth.get_api_client" title="Link to this definition"></a></dt>
+<dd><p>Retrieve the Kubernetes API client with the default configuration.</p>
+<p>This function returns the current API client instance if already loaded,
+or creates a new API client with the default configuration.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><dl class="simple">
+<dt>client.ApiClient:</dt><dd><p>The Kubernetes API client object.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="codeflare_sdk.common.kubernetes_cluster.auth.set_api_client">
+<span class="sig-prename descclassname"><span class="pre">codeflare_sdk.common.kubernetes_cluster.auth.</span></span><span class="sig-name descname"><span class="pre">set_api_client</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">new_client</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ApiClient</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/common/kubernetes_cluster/auth.html#set_api_client"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.common.kubernetes_cluster.auth.set_api_client" title="Link to this definition"></a></dt>
+<dd><p>Set a custom Kubernetes API client for the SDK to use.</p>
+<p>This is useful when you want to use kube-authkit or other authentication
+methods to create an API client and register it with the CodeFlare SDK.</p>
+<dl>
+<dt>Example:</dt><dd><div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">kube_authkit</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_k8s_client</span><span class="p">,</span> <span class="n">AuthConfig</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">codeflare_sdk.common.kubernetes_cluster.auth</span><span class="w"> </span><span class="kn">import</span> <span class="n">set_api_client</span>
+<span class="gp">&gt;&gt;&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">auth_config</span> <span class="o">=</span> <span class="n">AuthConfig</span><span class="p">(</span><span class="n">k8s_api_host</span><span class="o">=</span><span class="s2">&quot;...&quot;</span><span class="p">,</span> <span class="n">token</span><span class="o">=</span><span class="s2">&quot;...&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">api_client</span> <span class="o">=</span> <span class="n">get_k8s_client</span><span class="p">(</span><span class="n">config</span><span class="o">=</span><span class="n">auth_config</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">set_api_client</span><span class="p">(</span><span class="n">api_client</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd>
+<dt>Args:</dt><dd><p>new_client: The Kubernetes API client instance to use.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="module-codeflare_sdk.common.kubernetes_cluster.kube_api_helpers">
+<span id="codeflare-sdk-common-kubernetes-cluster-kube-api-helpers-module"></span><h2>codeflare_sdk.common.kubernetes_cluster.kube_api_helpers module<a class="headerlink" href="#module-codeflare_sdk.common.kubernetes_cluster.kube_api_helpers" title="Link to this heading"></a></h2>
+<p>This sub-module exists primarily to be used internally for any Kubernetes
+API error handling or wrapping.</p>
+</section>
+<section id="module-codeflare_sdk.common.kubernetes_cluster">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-codeflare_sdk.common.kubernetes_cluster" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="codeflare_sdk.common.kubernetes_cluster.AuthConfig">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">codeflare_sdk.common.kubernetes_cluster.</span></span><span class="sig-name descname"><span class="pre">AuthConfig</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">method:</span> <span class="pre">str</span> <span class="pre">|</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">k8s_api_host:</span> <span class="pre">str</span> <span class="pre">|</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">oidc_issuer:</span> <span class="pre">str</span> <span class="pre">|</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">client_id:</span> <span class="pre">str</span> <span class="pre">|</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">client_secret:</span> <span class="pre">str</span> <span class="pre">|</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">token:</span> <span class="pre">str</span> <span class="pre">|</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scopes:</span> <span class="pre">list[str]</span> <span class="pre">=</span> <span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_device_flow:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_keyring:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">oidc_callback_port:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">8080</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ca_cert:</span> <span class="pre">str</span> <span class="pre">|</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verify_ssl:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kubeconfig_path:</span> <span class="pre">str</span> <span class="pre">|</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/kube_authkit/config.html#AuthConfig"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.common.kubernetes_cluster.AuthConfig" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Configuration for Kubernetes/OpenShift authentication.</p>
+<p>This dataclass holds all configuration options for authenticating to
+a Kubernetes or OpenShift cluster. It supports multiple authentication
+methods and can be configured explicitly or through environment variables.</p>
+<dl>
+<dt>Args:</dt><dd><dl class="simple">
+<dt>method: Authentication method to use. Must be specified. Options:</dt><dd><ul class="simple">
+<li><p>“auto”: Auto-detect best method by probing the environment</p></li>
+<li><p>“kubeconfig”: Use ~/.kube/config or KUBECONFIG</p></li>
+<li><p>“incluster”: Use in-cluster service account</p></li>
+<li><p>“oidc”: Use OpenID Connect</p></li>
+<li><p>“openshift”: Use OpenShift OAuth</p></li>
+<li><p>None (default): Raises ConfigurationError; caller must choose</p></li>
+</ul>
+</dd>
+</dl>
+<p>k8s_api_host: Kubernetes API server URL (auto-detected if None)
+oidc_issuer: OIDC issuer URL (required for OIDC)
+client_id: OIDC client ID (required for OIDC)
+client_secret: OIDC client secret (for confidential clients)
+token: Bearer token for authentication (optional, for OIDC/OpenShift)
+scopes: OIDC scopes to request
+use_device_flow: Use Device Code Flow instead of Authorization Code
+use_keyring: Store refresh tokens in system keyring
+oidc_callback_port: Port for OAuth callback server (default: 8080)
+ca_cert: Path to custom CA certificate bundle
+verify_ssl: Verify SSL certificates (WARNING: only disable for development)
+kubeconfig_path: Path to kubeconfig file (overrides KUBECONFIG env var)</p>
+</dd>
+<dt>Example:</dt><dd><div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="c1"># Explicit OIDC with device flow</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">config</span> <span class="o">=</span> <span class="n">AuthConfig</span><span class="p">(</span>
+<span class="gp">... </span>    <span class="n">method</span><span class="o">=</span><span class="s2">&quot;oidc&quot;</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">oidc_issuer</span><span class="o">=</span><span class="s2">&quot;https://keycloak.example.com/auth/realms/myrealm&quot;</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">client_id</span><span class="o">=</span><span class="s2">&quot;my-client&quot;</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">use_device_flow</span><span class="o">=</span><span class="kc">True</span>
+<span class="gp">... </span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># Auto-detection (opt-in)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">config</span> <span class="o">=</span> <span class="n">AuthConfig</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s2">&quot;auto&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.common.kubernetes_cluster.AuthConfig.ca_cert">
+<span class="sig-name descname"><span class="pre">ca_cert</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#codeflare_sdk.common.kubernetes_cluster.AuthConfig.ca_cert" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.common.kubernetes_cluster.AuthConfig.client_id">
+<span class="sig-name descname"><span class="pre">client_id</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#codeflare_sdk.common.kubernetes_cluster.AuthConfig.client_id" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.common.kubernetes_cluster.AuthConfig.client_secret">
+<span class="sig-name descname"><span class="pre">client_secret</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#codeflare_sdk.common.kubernetes_cluster.AuthConfig.client_secret" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.common.kubernetes_cluster.AuthConfig.from_dict">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">from_dict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config_dict</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#codeflare_sdk.common.kubernetes_cluster.AuthConfig" title="kube_authkit.config.AuthConfig"><span class="pre">AuthConfig</span></a></span></span><a class="reference internal" href="_modules/kube_authkit/config.html#AuthConfig.from_dict"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.common.kubernetes_cluster.AuthConfig.from_dict" title="Link to this definition"></a></dt>
+<dd><p>Create AuthConfig from dictionary.</p>
+<p>This is useful for loading configuration from JSON or YAML files.</p>
+<dl>
+<dt>Args:</dt><dd><p>config_dict: Dictionary containing configuration parameters</p>
+</dd>
+<dt>Returns:</dt><dd><p>AuthConfig instance</p>
+</dd>
+<dt>Example:</dt><dd><div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">config_data</span> <span class="o">=</span> <span class="p">{</span>
+<span class="gp">... </span>    <span class="s2">&quot;method&quot;</span><span class="p">:</span> <span class="s2">&quot;oidc&quot;</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="s2">&quot;oidc_issuer&quot;</span><span class="p">:</span> <span class="s2">&quot;https://keycloak.example.com&quot;</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="s2">&quot;client_id&quot;</span><span class="p">:</span> <span class="s2">&quot;my-client&quot;</span>
+<span class="gp">... </span><span class="p">}</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">config</span> <span class="o">=</span> <span class="n">AuthConfig</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">config_data</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.common.kubernetes_cluster.AuthConfig.k8s_api_host">
+<span class="sig-name descname"><span class="pre">k8s_api_host</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#codeflare_sdk.common.kubernetes_cluster.AuthConfig.k8s_api_host" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.common.kubernetes_cluster.AuthConfig.kubeconfig_path">
+<span class="sig-name descname"><span class="pre">kubeconfig_path</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#codeflare_sdk.common.kubernetes_cluster.AuthConfig.kubeconfig_path" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.common.kubernetes_cluster.AuthConfig.method">
+<span class="sig-name descname"><span class="pre">method</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#codeflare_sdk.common.kubernetes_cluster.AuthConfig.method" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.common.kubernetes_cluster.AuthConfig.oidc_callback_port">
+<span class="sig-name descname"><span class="pre">oidc_callback_port</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">8080</span></em><a class="headerlink" href="#codeflare_sdk.common.kubernetes_cluster.AuthConfig.oidc_callback_port" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.common.kubernetes_cluster.AuthConfig.oidc_issuer">
+<span class="sig-name descname"><span class="pre">oidc_issuer</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#codeflare_sdk.common.kubernetes_cluster.AuthConfig.oidc_issuer" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.common.kubernetes_cluster.AuthConfig.scopes">
+<span class="sig-name descname"><span class="pre">scopes</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#codeflare_sdk.common.kubernetes_cluster.AuthConfig.scopes" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.common.kubernetes_cluster.AuthConfig.token">
+<span class="sig-name descname"><span class="pre">token</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#codeflare_sdk.common.kubernetes_cluster.AuthConfig.token" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.common.kubernetes_cluster.AuthConfig.use_device_flow">
+<span class="sig-name descname"><span class="pre">use_device_flow</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">False</span></em><a class="headerlink" href="#codeflare_sdk.common.kubernetes_cluster.AuthConfig.use_device_flow" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.common.kubernetes_cluster.AuthConfig.use_keyring">
+<span class="sig-name descname"><span class="pre">use_keyring</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">False</span></em><a class="headerlink" href="#codeflare_sdk.common.kubernetes_cluster.AuthConfig.use_keyring" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.common.kubernetes_cluster.AuthConfig.verify_ssl">
+<span class="sig-name descname"><span class="pre">verify_ssl</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">True</span></em><a class="headerlink" href="#codeflare_sdk.common.kubernetes_cluster.AuthConfig.verify_ssl" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="codeflare_sdk.common.kubernetes_cluster.Authentication">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">codeflare_sdk.common.kubernetes_cluster.</span></span><span class="sig-name descname"><span class="pre">Authentication</span></span><a class="reference internal" href="_modules/codeflare_sdk/common/kubernetes_cluster/auth.html#Authentication"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.common.kubernetes_cluster.Authentication" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>An abstract class that defines the necessary methods for authenticating to a remote environment.
+Specifically, this class defines the need for a <cite>login()</cite> and a <cite>logout()</cite> function.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.common.kubernetes_cluster.Authentication.login">
+<span class="sig-name descname"><span class="pre">login</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/common/kubernetes_cluster/auth.html#Authentication.login"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.common.kubernetes_cluster.Authentication.login" title="Link to this definition"></a></dt>
+<dd><p>Method for logging in to a remote cluster.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.common.kubernetes_cluster.Authentication.logout">
+<span class="sig-name descname"><span class="pre">logout</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/common/kubernetes_cluster/auth.html#Authentication.logout"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.common.kubernetes_cluster.Authentication.logout" title="Link to this definition"></a></dt>
+<dd><p>Method for logging out of the remote cluster.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="codeflare_sdk.common.kubernetes_cluster.KubeConfigFileAuthentication">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">codeflare_sdk.common.kubernetes_cluster.</span></span><span class="sig-name descname"><span class="pre">KubeConfigFileAuthentication</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">kube_config_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/common/kubernetes_cluster/auth.html#KubeConfigFileAuthentication"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.common.kubernetes_cluster.KubeConfigFileAuthentication" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#codeflare_sdk.common.kubernetes_cluster.auth.KubeConfiguration" title="codeflare_sdk.common.kubernetes_cluster.auth.KubeConfiguration"><code class="xref py py-class docutils literal notranslate"><span class="pre">KubeConfiguration</span></code></a></p>
+<p>DEPRECATED: Use kube_authkit.AuthConfig with kubeconfig strategy instead.</p>
+<p>A class that defines the necessary methods for passing a user’s own Kubernetes config file.
+Specifically this class defines the <cite>load_kube_config()</cite> and <cite>config_check()</cite> functions.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.common.kubernetes_cluster.KubeConfigFileAuthentication.load_kube_config">
+<span class="sig-name descname"><span class="pre">load_kube_config</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/common/kubernetes_cluster/auth.html#KubeConfigFileAuthentication.load_kube_config"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.common.kubernetes_cluster.KubeConfigFileAuthentication.load_kube_config" title="Link to this definition"></a></dt>
+<dd><p>Function for loading a user’s own predefined Kubernetes config file.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="codeflare_sdk.common.kubernetes_cluster.KubeConfiguration">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">codeflare_sdk.common.kubernetes_cluster.</span></span><span class="sig-name descname"><span class="pre">KubeConfiguration</span></span><a class="reference internal" href="_modules/codeflare_sdk/common/kubernetes_cluster/auth.html#KubeConfiguration"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.common.kubernetes_cluster.KubeConfiguration" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>An abstract class that defines the method for loading a user defined config file using the <cite>load_kube_config()</cite> function</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.common.kubernetes_cluster.KubeConfiguration.load_kube_config">
+<span class="sig-name descname"><span class="pre">load_kube_config</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/common/kubernetes_cluster/auth.html#KubeConfiguration.load_kube_config"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.common.kubernetes_cluster.KubeConfiguration.load_kube_config" title="Link to this definition"></a></dt>
+<dd><p>Method for setting your Kubernetes configuration to a certain file</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.common.kubernetes_cluster.KubeConfiguration.logout">
+<span class="sig-name descname"><span class="pre">logout</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/common/kubernetes_cluster/auth.html#KubeConfiguration.logout"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.common.kubernetes_cluster.KubeConfiguration.logout" title="Link to this definition"></a></dt>
+<dd><p>Method for logging out of the remote cluster</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="codeflare_sdk.common.kubernetes_cluster.TokenAuthentication">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">codeflare_sdk.common.kubernetes_cluster.</span></span><span class="sig-name descname"><span class="pre">TokenAuthentication</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/common/kubernetes_cluster/auth.html#TokenAuthentication"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.common.kubernetes_cluster.TokenAuthentication" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#codeflare_sdk.common.kubernetes_cluster.auth.Authentication" title="codeflare_sdk.common.kubernetes_cluster.auth.Authentication"><code class="xref py py-class docutils literal notranslate"><span class="pre">Authentication</span></code></a></p>
+<p>DEPRECATED: Use kube_authkit.AuthConfig with token strategy instead.</p>
+<p><cite>TokenAuthentication</cite> is a subclass of <cite>Authentication</cite>. It can be used to authenticate to a Kubernetes
+cluster when the user has an API token and the API server address.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.common.kubernetes_cluster.TokenAuthentication.login">
+<span class="sig-name descname"><span class="pre">login</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="reference internal" href="_modules/codeflare_sdk/common/kubernetes_cluster/auth.html#TokenAuthentication.login"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.common.kubernetes_cluster.TokenAuthentication.login" title="Link to this definition"></a></dt>
+<dd><p>This function is used to log in to a Kubernetes cluster using the user’s API token and API server address.
+Depending on the cluster, a user can choose to login in with <cite>–insecure-skip-tls-verify</cite> by setting <cite>skip_tls</cite>
+to <cite>True</cite> or <cite>–certificate-authority</cite> by setting <cite>skip_tls</cite> to False and providing a path to a ca bundle with <cite>ca_cert_path</cite>.</p>
+<p>Note: kube-authkit does not support direct token authentication via AuthConfig,
+so this uses the legacy implementation.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.common.kubernetes_cluster.TokenAuthentication.logout">
+<span class="sig-name descname"><span class="pre">logout</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="reference internal" href="_modules/codeflare_sdk/common/kubernetes_cluster/auth.html#TokenAuthentication.logout"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.common.kubernetes_cluster.TokenAuthentication.logout" title="Link to this definition"></a></dt>
+<dd><p>This function is used to logout of a Kubernetes cluster.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="codeflare_sdk.common.kubernetes_cluster.config_check">
+<span class="sig-prename descclassname"><span class="pre">codeflare_sdk.common.kubernetes_cluster.</span></span><span class="sig-name descname"><span class="pre">config_check</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="reference internal" href="_modules/codeflare_sdk/common/kubernetes_cluster/auth.html#config_check"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.common.kubernetes_cluster.config_check" title="Link to this definition"></a></dt>
+<dd><p>Check and load the Kubernetes config from the default location.</p>
+<p>Uses kube-authkit’s auto-detection when available, falls back to legacy method.</p>
+<p>This function checks if a Kubernetes config file exists at the default path
+(<cite>~/.kube/config</cite>). If none is provided, it tries to load in-cluster config.
+If the <cite>config_path</cite> global variable is set by an external module (e.g., <cite>auth.py</cite>),
+this path will be used directly.</p>
+<p>Priority:
+1. Existing global api_client (already authenticated)
+2. kube-authkit auto-detection (kubeconfig, in-cluster, etc.)
+3. Legacy method (kubeconfig or in-cluster)</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><dl class="simple">
+<dt>str:</dt><dd><p>The loaded config path if successful.</p>
+</dd>
+</dl>
+</dd>
+<dt>Raises:</dt><dd><dl class="simple">
+<dt>PermissionError:</dt><dd><p>If no valid credentials or config file is found.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="codeflare_sdk.common.kubernetes_cluster.get_api_client">
+<span class="sig-prename descclassname"><span class="pre">codeflare_sdk.common.kubernetes_cluster.</span></span><span class="sig-name descname"><span class="pre">get_api_client</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">ApiClient</span></span></span><a class="reference internal" href="_modules/codeflare_sdk/common/kubernetes_cluster/auth.html#get_api_client"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.common.kubernetes_cluster.get_api_client" title="Link to this definition"></a></dt>
+<dd><p>Retrieve the Kubernetes API client with the default configuration.</p>
+<p>This function returns the current API client instance if already loaded,
+or creates a new API client with the default configuration.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><dl class="simple">
+<dt>client.ApiClient:</dt><dd><p>The Kubernetes API client object.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="codeflare_sdk.common.kubernetes_cluster.get_k8s_client">
+<span class="sig-prename descclassname"><span class="pre">codeflare_sdk.common.kubernetes_cluster.</span></span><span class="sig-name descname"><span class="pre">get_k8s_client</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#codeflare_sdk.common.kubernetes_cluster.AuthConfig" title="kube_authkit.config.AuthConfig"><span class="pre">AuthConfig</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">ApiClient</span></span></span><a class="reference internal" href="_modules/kube_authkit/factory.html#get_k8s_client"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.common.kubernetes_cluster.get_k8s_client" title="Link to this definition"></a></dt>
+<dd><p>Get authenticated Kubernetes API client.</p>
+<p>This is the main entry point for the library. It automatically detects
+the best authentication method based on the environment and configuration,
+then returns a ready-to-use Kubernetes ApiClient.</p>
+<dl>
+<dt>Args:</dt><dd><dl class="simple">
+<dt>config: AuthConfig instance. Must specify a method.</dt><dd><p>If None, raises ConfigurationError.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><p>Configured Kubernetes ApiClient ready to make API calls</p>
+</dd>
+<dt>Raises:</dt><dd><p>ConfigurationError: If configuration is invalid or method not specified
+AuthenticationError: If authentication fails
+StrategyNotAvailableError: If requested method is not available</p>
+</dd>
+<dt>Example:</dt><dd><div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="c1"># Explicit configuration</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">config</span> <span class="o">=</span> <span class="n">AuthConfig</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s2">&quot;oidc&quot;</span><span class="p">,</span> <span class="n">oidc_issuer</span><span class="o">=</span><span class="s2">&quot;...&quot;</span><span class="p">,</span> <span class="n">client_id</span><span class="o">=</span><span class="s2">&quot;...&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">api_client</span> <span class="o">=</span> <span class="n">get_k8s_client</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">v1</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">CoreV1Api</span><span class="p">(</span><span class="n">api_client</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># Auto-detection (opt-in)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">api_client</span> <span class="o">=</span> <span class="n">get_k8s_client</span><span class="p">(</span><span class="n">AuthConfig</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s2">&quot;auto&quot;</span><span class="p">))</span>
+</pre></div>
+</div>
+</dd>
+<dt>Note:</dt><dd><p>This is a convenience wrapper around get_k8s_config(). If you need to
+customize the configuration before creating the client, use get_k8s_config()
+instead.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="codeflare_sdk.common.kubernetes_cluster.set_api_client">
+<span class="sig-prename descclassname"><span class="pre">codeflare_sdk.common.kubernetes_cluster.</span></span><span class="sig-name descname"><span class="pre">set_api_client</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">new_client</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ApiClient</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/common/kubernetes_cluster/auth.html#set_api_client"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.common.kubernetes_cluster.set_api_client" title="Link to this definition"></a></dt>
+<dd><p>Set a custom Kubernetes API client for the SDK to use.</p>
+<p>This is useful when you want to use kube-authkit or other authentication
+methods to create an API client and register it with the CodeFlare SDK.</p>
+<dl>
+<dt>Example:</dt><dd><div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">kube_authkit</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_k8s_client</span><span class="p">,</span> <span class="n">AuthConfig</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">codeflare_sdk.common.kubernetes_cluster.auth</span><span class="w"> </span><span class="kn">import</span> <span class="n">set_api_client</span>
+<span class="gp">&gt;&gt;&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">auth_config</span> <span class="o">=</span> <span class="n">AuthConfig</span><span class="p">(</span><span class="n">k8s_api_host</span><span class="o">=</span><span class="s2">&quot;...&quot;</span><span class="p">,</span> <span class="n">token</span><span class="o">=</span><span class="s2">&quot;...&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">api_client</span> <span class="o">=</span> <span class="n">get_k8s_client</span><span class="p">(</span><span class="n">config</span><span class="o">=</span><span class="n">auth_config</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">set_api_client</span><span class="p">(</span><span class="n">api_client</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd>
+<dt>Args:</dt><dd><p>new_client: The Kubernetes API client instance to use.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="codeflare_sdk.common.html" class="btn btn-neutral float-left" title="codeflare_sdk.common package" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="codeflare_sdk.common.kueue.html" class="btn btn-neutral float-right" title="codeflare_sdk.common.kueue package" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Project CodeFlare.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,222 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ray Cluster Interaction &mdash; CodeFlare SDK 0.35.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=ca1b380b"></script>
+      <script src="../_static/doctools.js?v=9a2dae69"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Submitting RayJobs" href="rayjob.html" />
+    <link rel="prev" title="Ray Cluster Configuration" href="cluster-configuration.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            CodeFlare SDK
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Code Documentation:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../modules.html">codeflare_sdk</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">User Documentation:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="authentication.html">Authentication via the CodeFlare SDK</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cluster-configuration.html">Ray Cluster Configuration</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Ray Cluster Interaction</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#get-cluster">get_cluster()</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#list-all-queued">list_all_queued()</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#list-all-clusters">list_all_clusters()</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#cluster-apply">cluster.apply()</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#cluster-down">cluster.down()</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#cluster-status">cluster.status()</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#cluster-details">cluster.details()</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#cluster-wait-ready">cluster.wait_ready()</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="rayjob.html">Submitting RayJobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="e2e.html">Running e2e tests locally</a></li>
+<li class="toctree-l1"><a class="reference internal" href="s3-compatible-storage.html">S3 compatible storage with Ray Train examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="setup-kueue.html">Basic Kueue Resources configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ui-widgets.html">Jupyter UI Widgets</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">CodeFlare SDK</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Ray Cluster Interaction</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/user-docs/ray-cluster-interaction.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="ray-cluster-interaction">
+<h1>Ray Cluster Interaction<a class="headerlink" href="#ray-cluster-interaction" title="Link to this heading"></a></h1>
+<p>The CodeFlare SDK offers multiple ways to interact with Ray Clusters
+including the below methods. For submitting batch jobs that create or
+use a Ray cluster, see <a class="reference internal" href="rayjob.html"><span class="doc">Submitting RayJobs</span></a>.</p>
+<section id="get-cluster">
+<h2>get_cluster()<a class="headerlink" href="#get-cluster" title="Link to this heading"></a></h2>
+<p>The <code class="docutils literal notranslate"><span class="pre">get_cluster()</span></code> function is used to initialise a <code class="docutils literal notranslate"><span class="pre">Cluster</span></code>
+object from a pre-existing Ray Cluster. Below is an example
+of it’s usage:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>from codeflare_sdk import get_cluster
+cluster = get_cluster(cluster_name=&quot;raytest&quot;, namespace=&quot;example&quot;, write_to_file=False)
+-&gt; output: Yaml resources loaded for raytest
+cluster.status()
+-&gt; output:
+                    🚀 CodeFlare Cluster Status 🚀
+ ╭─────────────────────────────────────────────────────────────────╮
+ │   Name                                                          │
+ │   raytest                                           Active ✅   │
+ │                                                                 │
+ │   URI: ray://raytest-head-svc.example.svc:10001                 │
+ │                                                                 │
+ │   Dashboard🔗                                                   │
+ │                                                                 │
+ ╰─────────────────────────────────────────────────────────────────╯
+(&lt;CodeFlareClusterStatus.READY: 1&gt;, True)
+cluster.down()
+cluster.apply() # This function will create an exact copy of the retrieved Ray Cluster only if the Ray Cluster has been previously deleted.
+</pre></div>
+</div>
+<div class="line-block">
+<div class="line">These are the parameters the <code class="docutils literal notranslate"><span class="pre">get_cluster()</span></code> function accepts:</div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">cluster_name:</span> <span class="pre">str</span> <span class="pre">#</span> <span class="pre">Required</span></code> -&gt; The name of the Ray Cluster.</div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">namespace:</span> <span class="pre">str</span> <span class="pre">#</span> <span class="pre">Default:</span> <span class="pre">&quot;default&quot;</span></code> -&gt; The namespace of the Ray Cluster.</div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">write_to_file:</span> <span class="pre">bool</span> <span class="pre">#</span> <span class="pre">Default:</span> <span class="pre">False</span></code> -&gt; When set to <code class="docutils literal notranslate"><span class="pre">True</span></code> the Ray Cluster will be written to a file similar to how it is done in <code class="docutils literal notranslate"><span class="pre">ClusterConfiguration</span></code>.</div>
+</div>
+</section>
+<section id="list-all-queued">
+<h2>list_all_queued()<a class="headerlink" href="#list-all-queued" title="Link to this heading"></a></h2>
+<div class="line-block">
+<div class="line">The <code class="docutils literal notranslate"><span class="pre">list_all_queued()</span></code> function returns (and prints by default) a list of all currently queued-up Ray Clusters in a given namespace.</div>
+<div class="line">It accepts the following parameters:</div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">namespace:</span> <span class="pre">str</span> <span class="pre">#</span> <span class="pre">Required</span></code> -&gt; The namespace you want to retrieve the list from.</div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">print_to_console:</span> <span class="pre">bool</span> <span class="pre">#</span> <span class="pre">Default:</span> <span class="pre">True</span></code> -&gt; Allows the user to print the list to their console.</div>
+</div>
+</section>
+<section id="list-all-clusters">
+<h2>list_all_clusters()<a class="headerlink" href="#list-all-clusters" title="Link to this heading"></a></h2>
+<div class="line-block">
+<div class="line">The <code class="docutils literal notranslate"><span class="pre">list_all_clusters()</span></code> function will return a list of detailed descriptions of Ray Clusters to the console by default.</div>
+<div class="line">It accepts the following parameters:</div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">namespace:</span> <span class="pre">str</span> <span class="pre">#</span> <span class="pre">Required</span></code> -&gt; The namespace you want to retrieve the list from.</div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">print_to_console:</span> <span class="pre">bool</span> <span class="pre">#</span> <span class="pre">Default:</span> <span class="pre">True</span></code> -&gt; A boolean that allows the user to print the list to their console.</div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The following methods require a <code class="docutils literal notranslate"><span class="pre">Cluster</span></code> object to be
+initialized. See <a class="reference internal" href="cluster-configuration.html"><span class="doc">Ray Cluster Configuration</span></a></p>
+</div>
+</section>
+<section id="cluster-apply">
+<h2>cluster.apply()<a class="headerlink" href="#cluster-apply" title="Link to this heading"></a></h2>
+<div class="line-block">
+<div class="line">The <code class="docutils literal notranslate"><span class="pre">cluster.apply()</span></code> function applies a Ray Cluster in the given namespace. If the cluster already exists, it is updated.</div>
+<div class="line">If it does not exist it is created.</div>
+</div>
+</section>
+<section id="cluster-down">
+<h2>cluster.down()<a class="headerlink" href="#cluster-down" title="Link to this heading"></a></h2>
+<div class="line-block">
+<div class="line">The <code class="docutils literal notranslate"><span class="pre">cluster.down()</span></code> function deletes the Ray Cluster in the given namespace.</div>
+</div>
+</section>
+<section id="cluster-status">
+<h2>cluster.status()<a class="headerlink" href="#cluster-status" title="Link to this heading"></a></h2>
+<div class="line-block">
+<div class="line">The <code class="docutils literal notranslate"><span class="pre">cluster.status()</span></code> function prints out the status of the Ray Cluster’s state with a link to the Ray Dashboard.</div>
+</div>
+</section>
+<section id="cluster-details">
+<h2>cluster.details()<a class="headerlink" href="#cluster-details" title="Link to this heading"></a></h2>
+<div class="line-block">
+<div class="line">The <code class="docutils literal notranslate"><span class="pre">cluster.details()</span></code> function prints out a detailed description of the Ray Cluster’s status, worker resources and a link to the Ray Dashboard.</div>
+</div>
+</section>
+<section id="cluster-wait-ready">
+<h2>cluster.wait_ready()<a class="headerlink" href="#cluster-wait-ready" title="Link to this heading"></a></h2>
+<div class="line-block">
+<div class="line">The <code class="docutils literal notranslate"><span class="pre">cluster.wait_ready()</span></code> function waits for the requested cluster to be ready, up to an optional timeout and checks every 5 seconds.</div>
+<div class="line">It accepts the following parameters:</div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">timeout:</span> <span class="pre">Optional[int]</span> <span class="pre">#</span> <span class="pre">Default:</span> <span class="pre">None</span></code> -&gt; Allows the user to define a timeout for the <code class="docutils literal notranslate"><span class="pre">wait_ready()</span></code> function.</div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">dashboard_check:</span> <span class="pre">bool</span> <span class="pre">#</span> <span class="pre">Default:</span> <span class="pre">True</span></code> -&gt; If enabled the <code class="docutils literal notranslate"><span class="pre">wait_ready()</span></code> function will wait until the Ray Dashboard is ready too.</div>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="cluster-configuration.html" class="btn btn-neutral float-left" title="Ray Cluster Configuration" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="rayjob.html" class="btn btn-neutral float-right" title="Submitting RayJobs" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Project CodeFlare.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

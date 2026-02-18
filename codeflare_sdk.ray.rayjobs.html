@@ -1,0 +1,612 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>codeflare_sdk.ray.rayjobs package &mdash; CodeFlare SDK 0.35.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=ca1b380b"></script>
+      <script src="_static/doctools.js?v=9a2dae69"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="codeflare_sdk.vendored package" href="codeflare_sdk.vendored.html" />
+    <link rel="prev" title="codeflare_sdk.ray.cluster package" href="codeflare_sdk.ray.cluster.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            CodeFlare SDK
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Code Documentation:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">codeflare_sdk</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="codeflare_sdk.html">codeflare_sdk package</a><ul class="current">
+<li class="toctree-l3 current"><a class="reference internal" href="codeflare_sdk.html#subpackages">Subpackages</a><ul class="current">
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.common.html">codeflare_sdk.common package</a></li>
+<li class="toctree-l4 current"><a class="reference internal" href="codeflare_sdk.ray.html">codeflare_sdk.ray package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.vendored.html">codeflare_sdk.vendored package</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.html#submodules">Submodules</a></li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.html#codeflare-sdk-conftest-module">codeflare_sdk.conftest module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.html#module-codeflare_sdk">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">User Documentation:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/authentication.html">Authentication via the CodeFlare SDK</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/cluster-configuration.html">Ray Cluster Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/ray-cluster-interaction.html">Ray Cluster Interaction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/rayjob.html">Submitting RayJobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/e2e.html">Running e2e tests locally</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/s3-compatible-storage.html">S3 compatible storage with Ray Train examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/setup-kueue.html">Basic Kueue Resources configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/ui-widgets.html">Jupyter UI Widgets</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">CodeFlare SDK</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="modules.html">codeflare_sdk</a></li>
+          <li class="breadcrumb-item"><a href="codeflare_sdk.html">codeflare_sdk package</a></li>
+          <li class="breadcrumb-item"><a href="codeflare_sdk.ray.html">codeflare_sdk.ray package</a></li>
+      <li class="breadcrumb-item active">codeflare_sdk.ray.rayjobs package</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/codeflare_sdk.ray.rayjobs.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="codeflare-sdk-ray-rayjobs-package">
+<h1>codeflare_sdk.ray.rayjobs package<a class="headerlink" href="#codeflare-sdk-ray-rayjobs-package" title="Link to this heading"></a></h1>
+<section id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Link to this heading"></a></h2>
+</section>
+<section id="module-codeflare_sdk.ray.rayjobs.config">
+<span id="codeflare-sdk-ray-rayjobs-config-module"></span><h2>codeflare_sdk.ray.rayjobs.config module<a class="headerlink" href="#module-codeflare_sdk.ray.rayjobs.config" title="Link to this heading"></a></h2>
+<p>The config sub-module contains the definition of the ManagedClusterConfig dataclass,
+which is used to specify resource requirements and other details when creating a
+Cluster object.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">codeflare_sdk.ray.rayjobs.config.</span></span><span class="sig-name descname"><span class="pre">ManagedClusterConfig</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">head_cpu_requests:</span> <span class="pre">int</span> <span class="pre">|</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">head_cpu_limits:</span> <span class="pre">int</span> <span class="pre">|</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">head_memory_requests:</span> <span class="pre">int</span> <span class="pre">|</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">8</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">head_memory_limits:</span> <span class="pre">int</span> <span class="pre">|</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">8</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">head_accelerators:</span> <span class="pre">~typing.Dict[str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">str</span> <span class="pre">|</span> <span class="pre">int]</span> <span class="pre">=</span> <span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">head_tolerations:</span> <span class="pre">~typing.List[~kubernetes.client.models.v1_toleration.V1Toleration]</span> <span class="pre">|</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">worker_cpu_requests:</span> <span class="pre">int</span> <span class="pre">|</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">worker_cpu_limits:</span> <span class="pre">int</span> <span class="pre">|</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_workers:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">worker_memory_requests:</span> <span class="pre">int</span> <span class="pre">|</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">worker_memory_limits:</span> <span class="pre">int</span> <span class="pre">|</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">worker_tolerations:</span> <span class="pre">~typing.List[~kubernetes.client.models.v1_toleration.V1Toleration]</span> <span class="pre">|</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">envs:</span> <span class="pre">~typing.Dict[str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">str]</span> <span class="pre">=</span> <span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">image:</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">image_pull_secrets:</span> <span class="pre">~typing.List[str]</span> <span class="pre">=</span> <span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">labels:</span> <span class="pre">~typing.Dict[str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">str]</span> <span class="pre">=</span> <span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">worker_accelerators:</span> <span class="pre">~typing.Dict[str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">str</span> <span class="pre">|</span> <span class="pre">int]</span> <span class="pre">=</span> <span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">accelerator_configs:</span> <span class="pre">~typing.Dict[str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">str]</span> <span class="pre">=</span> <span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">annotations:</span> <span class="pre">~typing.Dict[str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">str]</span> <span class="pre">=</span> <span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">volumes:</span> <span class="pre">list[~kubernetes.client.models.v1_volume.V1Volume]</span> <span class="pre">=</span> <span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">volume_mounts:</span> <span class="pre">list[~kubernetes.client.models.v1_volume_mount.V1VolumeMount]</span> <span class="pre">=</span> <span class="pre">&lt;factory&gt;</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/ray/rayjobs/config.html#ManagedClusterConfig"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>This dataclass is used to specify resource requirements and other details for RayJobs.
+The cluster name and namespace are automatically derived from the RayJob configuration.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><dl class="simple">
+<dt>head_accelerators:</dt><dd><p>A dictionary of extended resource requests for the head node. ex: {“nvidia.com/gpu”: 1}</p>
+</dd>
+<dt>head_tolerations:</dt><dd><p>List of tolerations for head nodes.</p>
+</dd>
+<dt>num_workers:</dt><dd><p>The number of workers to create.</p>
+</dd>
+<dt>worker_tolerations:</dt><dd><p>List of tolerations for worker nodes.</p>
+</dd>
+<dt>envs:</dt><dd><p>A dictionary of environment variables to set for the cluster.</p>
+</dd>
+<dt>image:</dt><dd><p>The image to use for the cluster.</p>
+</dd>
+<dt>image_pull_secrets:</dt><dd><p>A list of image pull secrets to use for the cluster.</p>
+</dd>
+<dt>labels:</dt><dd><p>A dictionary of labels to apply to the cluster.</p>
+</dd>
+<dt>worker_accelerators:</dt><dd><p>A dictionary of extended resource requests for each worker. ex: {“nvidia.com/gpu”: 1}</p>
+</dd>
+<dt>accelerator_configs:</dt><dd><p>A dictionary of custom resource mappings to map extended resource requests to RayCluster resource names.
+Defaults to DEFAULT_ACCELERATORS but can be overridden with custom mappings.</p>
+</dd>
+<dt>annotations:</dt><dd><p>A dictionary of annotations to apply to the Job.</p>
+</dd>
+<dt>volumes:</dt><dd><p>A list of V1Volume objects to add to the Cluster</p>
+</dd>
+<dt>volume_mounts:</dt><dd><p>A list of V1VolumeMount objects to add to the Cluster</p>
+</dd>
+</dl>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.accelerator_configs">
+<span class="sig-name descname"><span class="pre">accelerator_configs</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.accelerator_configs" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.add_file_volumes">
+<span class="sig-name descname"><span class="pre">add_file_volumes</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">secret_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mount_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'/home/ray/files'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/ray/rayjobs/config.html#ManagedClusterConfig.add_file_volumes"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.add_file_volumes" title="Link to this definition"></a></dt>
+<dd><p>Add file volume and mount references to cluster configuration.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><p>secret_name: Name of the Secret containing files
+mount_path: Where to mount files in containers (default: /home/ray/scripts)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.annotations">
+<span class="sig-name descname"><span class="pre">annotations</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.annotations" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.build_file_secret_spec">
+<span class="sig-name descname"><span class="pre">build_file_secret_spec</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">job_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">namespace</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">files</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/codeflare_sdk/ray/rayjobs/config.html#ManagedClusterConfig.build_file_secret_spec"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.build_file_secret_spec" title="Link to this definition"></a></dt>
+<dd><p>Build Secret specification for files</p>
+<dl class="simple">
+<dt>Args:</dt><dd><p>job_name: Name of the RayJob (used for Secret naming)
+namespace: Kubernetes namespace
+files: Dictionary of file_name -&gt; file_content</p>
+</dd>
+<dt>Returns:</dt><dd><p>Dict: Secret specification ready for Kubernetes API</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.build_file_volume_specs">
+<span class="sig-name descname"><span class="pre">build_file_volume_specs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">secret_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mount_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'/home/ray/files'</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/codeflare_sdk/ray/rayjobs/config.html#ManagedClusterConfig.build_file_volume_specs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.build_file_volume_specs" title="Link to this definition"></a></dt>
+<dd><p>Build volume and mount specifications for files</p>
+<dl class="simple">
+<dt>Args:</dt><dd><p>secret_name: Name of the Secret containing files
+mount_path: Where to mount files in containers</p>
+</dd>
+<dt>Returns:</dt><dd><p>Tuple of (volume_spec, mount_spec) as dictionaries</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.build_ray_cluster_spec">
+<span class="sig-name descname"><span class="pre">build_ray_cluster_spec</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cluster_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/codeflare_sdk/ray/rayjobs/config.html#ManagedClusterConfig.build_ray_cluster_spec"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.build_ray_cluster_spec" title="Link to this definition"></a></dt>
+<dd><p>Build the RayCluster spec from ManagedClusterConfig for embedding in RayJob.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><p>self: The cluster configuration object (ManagedClusterConfig)
+cluster_name: The name for the cluster (derived from RayJob name)</p>
+</dd>
+<dt>Returns:</dt><dd><p>Dict containing the RayCluster spec for embedding in RayJob</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.envs">
+<span class="sig-name descname"><span class="pre">envs</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.envs" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.head_accelerators">
+<span class="sig-name descname"><span class="pre">head_accelerators</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.head_accelerators" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.head_cpu_limits">
+<span class="sig-name descname"><span class="pre">head_cpu_limits</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">2</span></em><a class="headerlink" href="#codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.head_cpu_limits" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.head_cpu_requests">
+<span class="sig-name descname"><span class="pre">head_cpu_requests</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">2</span></em><a class="headerlink" href="#codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.head_cpu_requests" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.head_memory_limits">
+<span class="sig-name descname"><span class="pre">head_memory_limits</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">8</span></em><a class="headerlink" href="#codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.head_memory_limits" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.head_memory_requests">
+<span class="sig-name descname"><span class="pre">head_memory_requests</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">8</span></em><a class="headerlink" href="#codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.head_memory_requests" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.head_tolerations">
+<span class="sig-name descname"><span class="pre">head_tolerations</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">V1Toleration</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.head_tolerations" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.image">
+<span class="sig-name descname"><span class="pre">image</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">''</span></em><a class="headerlink" href="#codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.image" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.image_pull_secrets">
+<span class="sig-name descname"><span class="pre">image_pull_secrets</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.image_pull_secrets" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.labels">
+<span class="sig-name descname"><span class="pre">labels</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.labels" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.num_workers">
+<span class="sig-name descname"><span class="pre">num_workers</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">1</span></em><a class="headerlink" href="#codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.num_workers" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.validate_secret_size">
+<span class="sig-name descname"><span class="pre">validate_secret_size</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">files</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="_modules/codeflare_sdk/ray/rayjobs/config.html#ManagedClusterConfig.validate_secret_size"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.validate_secret_size" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.volume_mounts">
+<span class="sig-name descname"><span class="pre">volume_mounts</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">V1VolumeMount</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.volume_mounts" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.volumes">
+<span class="sig-name descname"><span class="pre">volumes</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">V1Volume</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.volumes" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.worker_accelerators">
+<span class="sig-name descname"><span class="pre">worker_accelerators</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.worker_accelerators" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.worker_cpu_limits">
+<span class="sig-name descname"><span class="pre">worker_cpu_limits</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">1</span></em><a class="headerlink" href="#codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.worker_cpu_limits" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.worker_cpu_requests">
+<span class="sig-name descname"><span class="pre">worker_cpu_requests</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">1</span></em><a class="headerlink" href="#codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.worker_cpu_requests" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.worker_memory_limits">
+<span class="sig-name descname"><span class="pre">worker_memory_limits</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">2</span></em><a class="headerlink" href="#codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.worker_memory_limits" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.worker_memory_requests">
+<span class="sig-name descname"><span class="pre">worker_memory_requests</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">2</span></em><a class="headerlink" href="#codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.worker_memory_requests" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.worker_tolerations">
+<span class="sig-name descname"><span class="pre">worker_tolerations</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">V1Toleration</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.worker_tolerations" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-codeflare_sdk.ray.rayjobs.pretty_print">
+<span id="codeflare-sdk-ray-rayjobs-pretty-print-module"></span><h2>codeflare_sdk.ray.rayjobs.pretty_print module<a class="headerlink" href="#module-codeflare_sdk.ray.rayjobs.pretty_print" title="Link to this heading"></a></h2>
+<p>This sub-module exists primarily to be used internally by the RayJob object
+(in the rayjob sub-module) for pretty-printing job status and details.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.rayjobs.pretty_print.print_job_status">
+<span class="sig-prename descclassname"><span class="pre">codeflare_sdk.ray.rayjobs.pretty_print.</span></span><span class="sig-name descname"><span class="pre">print_job_status</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">job_info</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#codeflare_sdk.ray.rayjobs.status.RayJobInfo" title="codeflare_sdk.ray.rayjobs.status.RayJobInfo"><span class="pre">RayJobInfo</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/ray/rayjobs/pretty_print.html#print_job_status"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.rayjobs.pretty_print.print_job_status" title="Link to this definition"></a></dt>
+<dd><p>Pretty print the job status in a format similar to cluster status.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.rayjobs.pretty_print.print_no_job_found">
+<span class="sig-prename descclassname"><span class="pre">codeflare_sdk.ray.rayjobs.pretty_print.</span></span><span class="sig-name descname"><span class="pre">print_no_job_found</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">job_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">namespace</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/ray/rayjobs/pretty_print.html#print_no_job_found"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.rayjobs.pretty_print.print_no_job_found" title="Link to this definition"></a></dt>
+<dd><p>Print a message when no job is found.</p>
+</dd></dl>
+
+</section>
+<section id="module-codeflare_sdk.ray.rayjobs.rayjob">
+<span id="codeflare-sdk-ray-rayjobs-rayjob-module"></span><h2>codeflare_sdk.ray.rayjobs.rayjob module<a class="headerlink" href="#module-codeflare_sdk.ray.rayjobs.rayjob" title="Link to this heading"></a></h2>
+<p>RayJob client for submitting and managing Ray jobs using the kuberay python client.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.rayjobs.rayjob.RayJob">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">codeflare_sdk.ray.rayjobs.rayjob.</span></span><span class="sig-name descname"><span class="pre">RayJob</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">job_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">entrypoint</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cluster_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cluster_config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig" title="codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig"><span class="pre">ManagedClusterConfig</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">namespace</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">runtime_env</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">RuntimeEnv</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ttl_seconds_after_finished</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">active_deadline_seconds</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">local_queue</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">priority_class</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/ray/rayjobs/rayjob.html#RayJob"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.rayjobs.rayjob.RayJob" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>A client for managing Ray jobs using the KubeRay operator.</p>
+<p>This class provides a simplified interface for submitting and managing
+RayJob CRs (using the KubeRay RayJob python client).</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.rayjobs.rayjob.RayJob.delete">
+<span class="sig-name descname"><span class="pre">delete</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/ray/rayjobs/rayjob.html#RayJob.delete"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.rayjobs.rayjob.RayJob.delete" title="Link to this definition"></a></dt>
+<dd><p>Delete the Ray job.
+Returns True if deleted successfully or if already deleted.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.rayjobs.rayjob.RayJob.resubmit">
+<span class="sig-name descname"><span class="pre">resubmit</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/ray/rayjobs/rayjob.html#RayJob.resubmit"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.rayjobs.rayjob.RayJob.resubmit" title="Link to this definition"></a></dt>
+<dd><p>Resubmit the Ray job.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.rayjobs.rayjob.RayJob.status">
+<span class="sig-name descname"><span class="pre">status</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">print_to_console</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#codeflare_sdk.ray.rayjobs.status.CodeflareRayJobStatus" title="codeflare_sdk.ray.rayjobs.status.CodeflareRayJobStatus"><span class="pre">CodeflareRayJobStatus</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">bool</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/codeflare_sdk/ray/rayjobs/rayjob.html#RayJob.status"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.rayjobs.rayjob.RayJob.status" title="Link to this definition"></a></dt>
+<dd><p>Get the status of the Ray job.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><p>print_to_console (bool): Whether to print formatted status to console (default: True)</p>
+</dd>
+<dt>Returns:</dt><dd><p>Tuple of (CodeflareRayJobStatus, ready: bool) where ready indicates job completion</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.rayjobs.rayjob.RayJob.stop">
+<span class="sig-name descname"><span class="pre">stop</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/ray/rayjobs/rayjob.html#RayJob.stop"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.rayjobs.rayjob.RayJob.stop" title="Link to this definition"></a></dt>
+<dd><p>Suspend the Ray job.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.rayjobs.rayjob.RayJob.submit">
+<span class="sig-name descname"><span class="pre">submit</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="reference internal" href="_modules/codeflare_sdk/ray/rayjobs/rayjob.html#RayJob.submit"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.rayjobs.rayjob.RayJob.submit" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-codeflare_sdk.ray.rayjobs.runtime_env">
+<span id="codeflare-sdk-ray-rayjobs-runtime-env-module"></span><h2>codeflare_sdk.ray.rayjobs.runtime_env module<a class="headerlink" href="#module-codeflare_sdk.ray.rayjobs.runtime_env" title="Link to this heading"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.rayjobs.runtime_env.create_file_secret">
+<span class="sig-prename descclassname"><span class="pre">codeflare_sdk.ray.rayjobs.runtime_env.</span></span><span class="sig-name descname"><span class="pre">create_file_secret</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">job</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#codeflare_sdk.ray.rayjobs.rayjob.RayJob" title="codeflare_sdk.ray.rayjobs.rayjob.RayJob"><span class="pre">RayJob</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">files</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rayjob_result</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/ray/rayjobs/runtime_env.html#create_file_secret"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.rayjobs.runtime_env.create_file_secret" title="Link to this definition"></a></dt>
+<dd><p>Create Secret with owner reference for local files.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.rayjobs.runtime_env.create_secret_from_spec">
+<span class="sig-prename descclassname"><span class="pre">codeflare_sdk.ray.rayjobs.runtime_env.</span></span><span class="sig-name descname"><span class="pre">create_secret_from_spec</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">job</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#codeflare_sdk.ray.rayjobs.rayjob.RayJob" title="codeflare_sdk.ray.rayjobs.rayjob.RayJob"><span class="pre">RayJob</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">secret_spec</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rayjob_result</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="reference internal" href="_modules/codeflare_sdk/ray/rayjobs/runtime_env.html#create_secret_from_spec"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.rayjobs.runtime_env.create_secret_from_spec" title="Link to this definition"></a></dt>
+<dd><p>Create Secret from specification via Kubernetes API.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><p>secret_spec: Secret specification dictionary
+rayjob_result: The result from RayJob creation containing UID</p>
+</dd>
+<dt>Returns:</dt><dd><p>str: Name of the created Secret</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.rayjobs.runtime_env.extract_all_local_files">
+<span class="sig-prename descclassname"><span class="pre">codeflare_sdk.ray.rayjobs.runtime_env.</span></span><span class="sig-name descname"><span class="pre">extract_all_local_files</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">job</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#codeflare_sdk.ray.rayjobs.rayjob.RayJob" title="codeflare_sdk.ray.rayjobs.rayjob.RayJob"><span class="pre">RayJob</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><a class="reference internal" href="_modules/codeflare_sdk/ray/rayjobs/runtime_env.html#extract_all_local_files"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.rayjobs.runtime_env.extract_all_local_files" title="Link to this definition"></a></dt>
+<dd><p>Prepare local files for Secret upload.</p>
+<ul class="simple">
+<li><p>If runtime_env has local working_dir: zip entire directory into single file</p></li>
+<li><p>If single entrypoint file (no working_dir): extract that file</p></li>
+<li><p>If remote working_dir URL: return None (pass through to Ray)</p></li>
+</ul>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>Dict with either:
+- {“working_dir.zip”: &lt;base64_encoded_zip&gt;} for zipped directories
+- {“script.py”: &lt;file_content&gt;} for single files
+- None for remote working_dir or no files</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.rayjobs.runtime_env.parse_requirements_file">
+<span class="sig-prename descclassname"><span class="pre">codeflare_sdk.ray.rayjobs.runtime_env.</span></span><span class="sig-name descname"><span class="pre">parse_requirements_file</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">requirements_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><a class="reference internal" href="_modules/codeflare_sdk/ray/rayjobs/runtime_env.html#parse_requirements_file"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.rayjobs.runtime_env.parse_requirements_file" title="Link to this definition"></a></dt>
+<dd><p>Parse a requirements.txt file and return list of dependencies.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><p>requirements_path: Path to requirements.txt file</p>
+</dd>
+<dt>Returns:</dt><dd><p>List of pip dependencies</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.rayjobs.runtime_env.process_pip_dependencies">
+<span class="sig-prename descclassname"><span class="pre">codeflare_sdk.ray.rayjobs.runtime_env.</span></span><span class="sig-name descname"><span class="pre">process_pip_dependencies</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">job</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#codeflare_sdk.ray.rayjobs.rayjob.RayJob" title="codeflare_sdk.ray.rayjobs.rayjob.RayJob"><span class="pre">RayJob</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">pip_spec</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><a class="reference internal" href="_modules/codeflare_sdk/ray/rayjobs/runtime_env.html#process_pip_dependencies"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.rayjobs.runtime_env.process_pip_dependencies" title="Link to this definition"></a></dt>
+<dd><p>Process pip dependencies from runtime_env.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><p>pip_spec: Can be a list of packages, a string path to requirements.txt, or dict</p>
+</dd>
+<dt>Returns:</dt><dd><p>List of pip dependencies</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.rayjobs.runtime_env.process_runtime_env">
+<span class="sig-prename descclassname"><span class="pre">codeflare_sdk.ray.rayjobs.runtime_env.</span></span><span class="sig-name descname"><span class="pre">process_runtime_env</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">job</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#codeflare_sdk.ray.rayjobs.rayjob.RayJob" title="codeflare_sdk.ray.rayjobs.rayjob.RayJob"><span class="pre">RayJob</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">files</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><a class="reference internal" href="_modules/codeflare_sdk/ray/rayjobs/runtime_env.html#process_runtime_env"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.rayjobs.runtime_env.process_runtime_env" title="Link to this definition"></a></dt>
+<dd><p>Process runtime_env field to handle env_vars, pip dependencies, and working_dir.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>Processed runtime environment as YAML string, or None if no processing needed</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="module-codeflare_sdk.ray.rayjobs.status">
+<span id="codeflare-sdk-ray-rayjobs-status-module"></span><h2>codeflare_sdk.ray.rayjobs.status module<a class="headerlink" href="#module-codeflare_sdk.ray.rayjobs.status" title="Link to this heading"></a></h2>
+<p>The status sub-module defines Enums containing information for Ray job
+deployment states and CodeFlare job states, as well as
+dataclasses to store information for Ray jobs.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.rayjobs.status.CodeflareRayJobStatus">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">codeflare_sdk.ray.rayjobs.status.</span></span><span class="sig-name descname"><span class="pre">CodeflareRayJobStatus</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">names=&lt;not</span> <span class="pre">given&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">*values</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">module=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">qualname=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">type=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">start=1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">boundary=None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/ray/rayjobs/status.html#CodeflareRayJobStatus"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.rayjobs.status.CodeflareRayJobStatus" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Enum</span></code></p>
+<p>Defines the possible reportable states of a CodeFlare Ray job.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.rayjobs.status.CodeflareRayJobStatus.COMPLETE">
+<span class="sig-name descname"><span class="pre">COMPLETE</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">1</span></em><a class="headerlink" href="#codeflare_sdk.ray.rayjobs.status.CodeflareRayJobStatus.COMPLETE" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.rayjobs.status.CodeflareRayJobStatus.FAILED">
+<span class="sig-name descname"><span class="pre">FAILED</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">3</span></em><a class="headerlink" href="#codeflare_sdk.ray.rayjobs.status.CodeflareRayJobStatus.FAILED" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.rayjobs.status.CodeflareRayJobStatus.RUNNING">
+<span class="sig-name descname"><span class="pre">RUNNING</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">2</span></em><a class="headerlink" href="#codeflare_sdk.ray.rayjobs.status.CodeflareRayJobStatus.RUNNING" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.rayjobs.status.CodeflareRayJobStatus.SUSPENDED">
+<span class="sig-name descname"><span class="pre">SUSPENDED</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">4</span></em><a class="headerlink" href="#codeflare_sdk.ray.rayjobs.status.CodeflareRayJobStatus.SUSPENDED" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.rayjobs.status.CodeflareRayJobStatus.UNKNOWN">
+<span class="sig-name descname"><span class="pre">UNKNOWN</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">5</span></em><a class="headerlink" href="#codeflare_sdk.ray.rayjobs.status.CodeflareRayJobStatus.UNKNOWN" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.rayjobs.status.RayJobDeploymentStatus">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">codeflare_sdk.ray.rayjobs.status.</span></span><span class="sig-name descname"><span class="pre">RayJobDeploymentStatus</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">names=&lt;not</span> <span class="pre">given&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">*values</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">module=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">qualname=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">type=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">start=1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">boundary=None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/ray/rayjobs/status.html#RayJobDeploymentStatus"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.rayjobs.status.RayJobDeploymentStatus" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Enum</span></code></p>
+<p>Defines the possible deployment states of a Ray job (from the KubeRay RayJob API).</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.rayjobs.status.RayJobDeploymentStatus.COMPLETE">
+<span class="sig-name descname"><span class="pre">COMPLETE</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'Complete'</span></em><a class="headerlink" href="#codeflare_sdk.ray.rayjobs.status.RayJobDeploymentStatus.COMPLETE" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.rayjobs.status.RayJobDeploymentStatus.FAILED">
+<span class="sig-name descname"><span class="pre">FAILED</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'Failed'</span></em><a class="headerlink" href="#codeflare_sdk.ray.rayjobs.status.RayJobDeploymentStatus.FAILED" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.rayjobs.status.RayJobDeploymentStatus.RUNNING">
+<span class="sig-name descname"><span class="pre">RUNNING</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'Running'</span></em><a class="headerlink" href="#codeflare_sdk.ray.rayjobs.status.RayJobDeploymentStatus.RUNNING" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.rayjobs.status.RayJobDeploymentStatus.SUSPENDED">
+<span class="sig-name descname"><span class="pre">SUSPENDED</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'Suspended'</span></em><a class="headerlink" href="#codeflare_sdk.ray.rayjobs.status.RayJobDeploymentStatus.SUSPENDED" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.rayjobs.status.RayJobDeploymentStatus.UNKNOWN">
+<span class="sig-name descname"><span class="pre">UNKNOWN</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'Unknown'</span></em><a class="headerlink" href="#codeflare_sdk.ray.rayjobs.status.RayJobDeploymentStatus.UNKNOWN" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.rayjobs.status.RayJobInfo">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">codeflare_sdk.ray.rayjobs.status.</span></span><span class="sig-name descname"><span class="pre">RayJobInfo</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">job_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">status</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#codeflare_sdk.ray.rayjobs.status.RayJobDeploymentStatus" title="codeflare_sdk.ray.rayjobs.status.RayJobDeploymentStatus"><span class="pre">RayJobDeploymentStatus</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">namespace</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cluster_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">start_time</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">end_time</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">failed_attempts</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">succeeded_attempts</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/ray/rayjobs/status.html#RayJobInfo"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.rayjobs.status.RayJobInfo" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>For storing information about a Ray job.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.rayjobs.status.RayJobInfo.cluster_name">
+<span class="sig-name descname"><span class="pre">cluster_name</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#codeflare_sdk.ray.rayjobs.status.RayJobInfo.cluster_name" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.rayjobs.status.RayJobInfo.end_time">
+<span class="sig-name descname"><span class="pre">end_time</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#codeflare_sdk.ray.rayjobs.status.RayJobInfo.end_time" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.rayjobs.status.RayJobInfo.failed_attempts">
+<span class="sig-name descname"><span class="pre">failed_attempts</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0</span></em><a class="headerlink" href="#codeflare_sdk.ray.rayjobs.status.RayJobInfo.failed_attempts" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.rayjobs.status.RayJobInfo.job_id">
+<span class="sig-name descname"><span class="pre">job_id</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#codeflare_sdk.ray.rayjobs.status.RayJobInfo.job_id" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.rayjobs.status.RayJobInfo.name">
+<span class="sig-name descname"><span class="pre">name</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#codeflare_sdk.ray.rayjobs.status.RayJobInfo.name" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.rayjobs.status.RayJobInfo.namespace">
+<span class="sig-name descname"><span class="pre">namespace</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#codeflare_sdk.ray.rayjobs.status.RayJobInfo.namespace" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.rayjobs.status.RayJobInfo.start_time">
+<span class="sig-name descname"><span class="pre">start_time</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#codeflare_sdk.ray.rayjobs.status.RayJobInfo.start_time" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.rayjobs.status.RayJobInfo.status">
+<span class="sig-name descname"><span class="pre">status</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#codeflare_sdk.ray.rayjobs.status.RayJobDeploymentStatus" title="codeflare_sdk.ray.rayjobs.status.RayJobDeploymentStatus"><span class="pre">RayJobDeploymentStatus</span></a></em><a class="headerlink" href="#codeflare_sdk.ray.rayjobs.status.RayJobInfo.status" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.rayjobs.status.RayJobInfo.succeeded_attempts">
+<span class="sig-name descname"><span class="pre">succeeded_attempts</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0</span></em><a class="headerlink" href="#codeflare_sdk.ray.rayjobs.status.RayJobInfo.succeeded_attempts" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-codeflare_sdk.ray.rayjobs">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-codeflare_sdk.ray.rayjobs" title="Link to this heading"></a></h2>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="codeflare_sdk.ray.cluster.html" class="btn btn-neutral float-left" title="codeflare_sdk.ray.cluster package" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="codeflare_sdk.vendored.html" class="btn btn-neutral float-right" title="codeflare_sdk.vendored package" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Project CodeFlare.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

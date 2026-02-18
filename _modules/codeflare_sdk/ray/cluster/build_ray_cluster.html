@@ -1,0 +1,756 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>codeflare_sdk.ray.cluster.build_ray_cluster &mdash; CodeFlare SDK 0.35.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../_static/documentation_options.js?v=ca1b380b"></script>
+      <script src="../../../../_static/doctools.js?v=9a2dae69"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            CodeFlare SDK
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Code Documentation:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../modules.html">codeflare_sdk</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">User Documentation:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user-docs/authentication.html">Authentication via the CodeFlare SDK</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user-docs/cluster-configuration.html">Ray Cluster Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user-docs/ray-cluster-interaction.html">Ray Cluster Interaction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user-docs/rayjob.html">Submitting RayJobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user-docs/e2e.html">Running e2e tests locally</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user-docs/s3-compatible-storage.html">S3 compatible storage with Ray Train examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user-docs/setup-kueue.html">Basic Kueue Resources configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user-docs/ui-widgets.html">Jupyter UI Widgets</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">CodeFlare SDK</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">codeflare_sdk.ray.cluster.build_ray_cluster</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for codeflare_sdk.ray.cluster.build_ray_cluster</h1><div class="highlight"><pre>
+<span></span><span class="c1"># Copyright 2024 IBM, Red Hat</span>
+<span class="c1">#</span>
+<span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="c1"># you may not use this file except in compliance with the License.</span>
+<span class="c1"># You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#      http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">This sub-module exists primarily to be used internally by the Cluster object</span>
+<span class="sd">    (in the cluster sub-module) for RayCluster generation.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">List</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Dict</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">...common</span><span class="w"> </span><span class="kn">import</span> <span class="n">_kube_api_error_handling</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">...common.kubernetes_cluster</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_api_client</span><span class="p">,</span> <span class="n">config_check</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">kubernetes.client.exceptions</span><span class="w"> </span><span class="kn">import</span> <span class="n">ApiException</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">...common.utils.constants</span><span class="w"> </span><span class="kn">import</span> <span class="n">RAY_VERSION</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">...common.utils.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">update_image</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">codeflare_sdk</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">kubernetes</span><span class="w"> </span><span class="kn">import</span> <span class="n">client</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">kubernetes.client</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">V1ObjectMeta</span><span class="p">,</span>
+    <span class="n">V1KeyToPath</span><span class="p">,</span>
+    <span class="n">V1ConfigMapVolumeSource</span><span class="p">,</span>
+    <span class="n">V1Volume</span><span class="p">,</span>
+    <span class="n">V1VolumeMount</span><span class="p">,</span>
+    <span class="n">V1ResourceRequirements</span><span class="p">,</span>
+    <span class="n">V1Container</span><span class="p">,</span>
+    <span class="n">V1ContainerPort</span><span class="p">,</span>
+    <span class="n">V1Lifecycle</span><span class="p">,</span>
+    <span class="n">V1ExecAction</span><span class="p">,</span>
+    <span class="n">V1LifecycleHandler</span><span class="p">,</span>
+    <span class="n">V1EnvVar</span><span class="p">,</span>
+    <span class="n">V1PodTemplateSpec</span><span class="p">,</span>
+    <span class="n">V1PodSpec</span><span class="p">,</span>
+    <span class="n">V1LocalObjectReference</span><span class="p">,</span>
+    <span class="n">V1Toleration</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">yaml</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">uuid</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">codeflare_sdk.common.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">constants</span>
+
+<span class="n">FORBIDDEN_CUSTOM_RESOURCE_TYPES</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;GPU&quot;</span><span class="p">,</span> <span class="s2">&quot;CPU&quot;</span><span class="p">,</span> <span class="s2">&quot;memory&quot;</span><span class="p">]</span>
+<span class="n">VOLUME_MOUNTS</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="n">V1VolumeMount</span><span class="p">(</span>
+        <span class="n">mount_path</span><span class="o">=</span><span class="s2">&quot;/etc/pki/tls/certs/odh-trusted-ca-bundle.crt&quot;</span><span class="p">,</span>
+        <span class="n">name</span><span class="o">=</span><span class="s2">&quot;odh-trusted-ca-cert&quot;</span><span class="p">,</span>
+        <span class="n">sub_path</span><span class="o">=</span><span class="s2">&quot;odh-trusted-ca-bundle.crt&quot;</span><span class="p">,</span>
+    <span class="p">),</span>
+    <span class="n">V1VolumeMount</span><span class="p">(</span>
+        <span class="n">mount_path</span><span class="o">=</span><span class="s2">&quot;/etc/ssl/certs/odh-trusted-ca-bundle.crt&quot;</span><span class="p">,</span>
+        <span class="n">name</span><span class="o">=</span><span class="s2">&quot;odh-trusted-ca-cert&quot;</span><span class="p">,</span>
+        <span class="n">sub_path</span><span class="o">=</span><span class="s2">&quot;odh-trusted-ca-bundle.crt&quot;</span><span class="p">,</span>
+    <span class="p">),</span>
+    <span class="n">V1VolumeMount</span><span class="p">(</span>
+        <span class="n">mount_path</span><span class="o">=</span><span class="s2">&quot;/etc/pki/tls/certs/odh-ca-bundle.crt&quot;</span><span class="p">,</span>
+        <span class="n">name</span><span class="o">=</span><span class="s2">&quot;odh-ca-cert&quot;</span><span class="p">,</span>
+        <span class="n">sub_path</span><span class="o">=</span><span class="s2">&quot;odh-ca-bundle.crt&quot;</span><span class="p">,</span>
+    <span class="p">),</span>
+    <span class="n">V1VolumeMount</span><span class="p">(</span>
+        <span class="n">mount_path</span><span class="o">=</span><span class="s2">&quot;/etc/ssl/certs/odh-ca-bundle.crt&quot;</span><span class="p">,</span>
+        <span class="n">name</span><span class="o">=</span><span class="s2">&quot;odh-ca-cert&quot;</span><span class="p">,</span>
+        <span class="n">sub_path</span><span class="o">=</span><span class="s2">&quot;odh-ca-bundle.crt&quot;</span><span class="p">,</span>
+    <span class="p">),</span>
+<span class="p">]</span>
+
+<span class="n">VOLUMES</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="n">V1Volume</span><span class="p">(</span>
+        <span class="n">name</span><span class="o">=</span><span class="s2">&quot;odh-trusted-ca-cert&quot;</span><span class="p">,</span>
+        <span class="n">config_map</span><span class="o">=</span><span class="n">V1ConfigMapVolumeSource</span><span class="p">(</span>
+            <span class="n">name</span><span class="o">=</span><span class="s2">&quot;odh-trusted-ca-bundle&quot;</span><span class="p">,</span>
+            <span class="n">items</span><span class="o">=</span><span class="p">[</span><span class="n">V1KeyToPath</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="s2">&quot;ca-bundle.crt&quot;</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="s2">&quot;odh-trusted-ca-bundle.crt&quot;</span><span class="p">)],</span>
+            <span class="n">optional</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="p">),</span>
+    <span class="p">),</span>
+    <span class="n">V1Volume</span><span class="p">(</span>
+        <span class="n">name</span><span class="o">=</span><span class="s2">&quot;odh-ca-cert&quot;</span><span class="p">,</span>
+        <span class="n">config_map</span><span class="o">=</span><span class="n">V1ConfigMapVolumeSource</span><span class="p">(</span>
+            <span class="n">name</span><span class="o">=</span><span class="s2">&quot;odh-trusted-ca-bundle&quot;</span><span class="p">,</span>
+            <span class="n">items</span><span class="o">=</span><span class="p">[</span><span class="n">V1KeyToPath</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="s2">&quot;odh-ca-bundle.crt&quot;</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="s2">&quot;odh-ca-bundle.crt&quot;</span><span class="p">)],</span>
+            <span class="n">optional</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="p">),</span>
+    <span class="p">),</span>
+<span class="p">]</span>
+
+
+<span class="c1"># RayCluster builder function</span>
+<div class="viewcode-block" id="build_ray_cluster">
+<a class="viewcode-back" href="../../../../codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.build_ray_cluster.build_ray_cluster">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">build_ray_cluster</span><span class="p">(</span><span class="n">cluster</span><span class="p">:</span> <span class="s2">&quot;codeflare_sdk.ray.cluster.Cluster&quot;</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;build_ray_cluster is used for creating a Ray Cluster dict</span>
+
+<span class="sd">    The resource is a dict template which uses Kubernetes Objects for creating metadata, resource requests,</span>
+<span class="sd">    specs and containers. The result is sanitised and returned either as a dict or written as a yaml file.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># GPU related variables</span>
+    <span class="n">head_gpu_count</span><span class="p">,</span> <span class="n">worker_gpu_count</span> <span class="o">=</span> <span class="n">head_worker_gpu_count_from_cluster</span><span class="p">(</span><span class="n">cluster</span><span class="p">)</span>
+    <span class="n">head_resources</span><span class="p">,</span> <span class="n">worker_resources</span> <span class="o">=</span> <span class="n">head_worker_extended_resources_from_cluster</span><span class="p">(</span>
+        <span class="n">cluster</span>
+    <span class="p">)</span>
+    <span class="n">head_resources</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">head_resources</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;&quot;&#39;</span><span class="p">,</span> <span class="s1">&#39;</span><span class="se">\\</span><span class="s1">&quot;&#39;</span><span class="p">)</span>
+    <span class="n">head_resources</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;&quot;</span><span class="si">{</span><span class="n">head_resources</span><span class="si">}</span><span class="s1">&quot;&#39;</span>
+    <span class="n">worker_resources</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">worker_resources</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;&quot;&#39;</span><span class="p">,</span> <span class="s1">&#39;</span><span class="se">\\</span><span class="s1">&quot;&#39;</span><span class="p">)</span>
+    <span class="n">worker_resources</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;&quot;</span><span class="si">{</span><span class="n">worker_resources</span><span class="si">}</span><span class="s1">&quot;&#39;</span>
+
+    <span class="c1"># Create the Ray Cluster using the V1RayCluster Object</span>
+    <span class="n">resource</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;apiVersion&quot;</span><span class="p">:</span> <span class="s2">&quot;ray.io/v1&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;kind&quot;</span><span class="p">:</span> <span class="s2">&quot;RayCluster&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;metadata&quot;</span><span class="p">:</span> <span class="n">get_metadata</span><span class="p">(</span><span class="n">cluster</span><span class="p">),</span>
+        <span class="s2">&quot;spec&quot;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">&quot;rayVersion&quot;</span><span class="p">:</span> <span class="n">RAY_VERSION</span><span class="p">,</span>
+            <span class="s2">&quot;enableInTreeAutoscaling&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+            <span class="s2">&quot;autoscalerOptions&quot;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s2">&quot;upscalingMode&quot;</span><span class="p">:</span> <span class="s2">&quot;Default&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;idleTimeoutSeconds&quot;</span><span class="p">:</span> <span class="mi">60</span><span class="p">,</span>
+                <span class="s2">&quot;resources&quot;</span><span class="p">:</span> <span class="n">get_resources</span><span class="p">(</span><span class="s2">&quot;500m&quot;</span><span class="p">,</span> <span class="s2">&quot;500m&quot;</span><span class="p">,</span> <span class="s2">&quot;512Mi&quot;</span><span class="p">,</span> <span class="s2">&quot;512Mi&quot;</span><span class="p">),</span>
+            <span class="p">},</span>
+            <span class="s2">&quot;headGroupSpec&quot;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s2">&quot;serviceType&quot;</span><span class="p">:</span> <span class="s2">&quot;ClusterIP&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;enableIngress&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+                <span class="s2">&quot;rayStartParams&quot;</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="s2">&quot;dashboard-host&quot;</span><span class="p">:</span> <span class="s2">&quot;0.0.0.0&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;block&quot;</span><span class="p">:</span> <span class="s2">&quot;true&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;num-gpus&quot;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">head_gpu_count</span><span class="p">),</span>
+                    <span class="s2">&quot;resources&quot;</span><span class="p">:</span> <span class="n">head_resources</span><span class="p">,</span>
+                <span class="p">},</span>
+                <span class="s2">&quot;template&quot;</span><span class="p">:</span> <span class="n">V1PodTemplateSpec</span><span class="p">(</span>
+                    <span class="n">metadata</span><span class="o">=</span><span class="p">(</span>
+                        <span class="n">V1ObjectMeta</span><span class="p">(</span><span class="n">cluster</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">annotations</span><span class="p">)</span>
+                        <span class="k">if</span> <span class="n">cluster</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">annotations</span>
+                        <span class="k">else</span> <span class="kc">None</span>
+                    <span class="p">),</span>
+                    <span class="n">spec</span><span class="o">=</span><span class="n">get_pod_spec</span><span class="p">(</span>
+                        <span class="n">cluster</span><span class="p">,</span>
+                        <span class="p">[</span><span class="n">get_head_container_spec</span><span class="p">(</span><span class="n">cluster</span><span class="p">)],</span>
+                        <span class="n">cluster</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">head_tolerations</span><span class="p">,</span>
+                    <span class="p">),</span>
+                <span class="p">),</span>
+            <span class="p">},</span>
+            <span class="s2">&quot;workerGroupSpecs&quot;</span><span class="p">:</span> <span class="p">[</span>
+                <span class="p">{</span>
+                    <span class="s2">&quot;replicas&quot;</span><span class="p">:</span> <span class="n">cluster</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">num_workers</span><span class="p">,</span>
+                    <span class="s2">&quot;minReplicas&quot;</span><span class="p">:</span> <span class="n">cluster</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">num_workers</span><span class="p">,</span>
+                    <span class="s2">&quot;maxReplicas&quot;</span><span class="p">:</span> <span class="n">cluster</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">num_workers</span><span class="p">,</span>
+                    <span class="s2">&quot;groupName&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;small-group-</span><span class="si">{</span><span class="n">cluster</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;rayStartParams&quot;</span><span class="p">:</span> <span class="p">{</span>
+                        <span class="s2">&quot;block&quot;</span><span class="p">:</span> <span class="s2">&quot;true&quot;</span><span class="p">,</span>
+                        <span class="s2">&quot;num-gpus&quot;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">worker_gpu_count</span><span class="p">),</span>
+                        <span class="s2">&quot;resources&quot;</span><span class="p">:</span> <span class="n">worker_resources</span><span class="p">,</span>
+                    <span class="p">},</span>
+                    <span class="s2">&quot;template&quot;</span><span class="p">:</span> <span class="n">V1PodTemplateSpec</span><span class="p">(</span>
+                        <span class="n">metadata</span><span class="o">=</span><span class="p">(</span>
+                            <span class="n">V1ObjectMeta</span><span class="p">(</span><span class="n">cluster</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">annotations</span><span class="p">)</span>
+                            <span class="k">if</span> <span class="n">cluster</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">annotations</span>
+                            <span class="k">else</span> <span class="kc">None</span>
+                        <span class="p">),</span>
+                        <span class="n">spec</span><span class="o">=</span><span class="n">get_pod_spec</span><span class="p">(</span>
+                            <span class="n">cluster</span><span class="p">,</span>
+                            <span class="p">[</span><span class="n">get_worker_container_spec</span><span class="p">(</span><span class="n">cluster</span><span class="p">)],</span>
+                            <span class="n">cluster</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">worker_tolerations</span><span class="p">,</span>
+                        <span class="p">),</span>
+                    <span class="p">),</span>
+                <span class="p">}</span>
+            <span class="p">],</span>
+        <span class="p">},</span>
+    <span class="p">}</span>
+
+    <span class="k">if</span> <span class="n">cluster</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">enable_gcs_ft</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">cluster</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">redis_address</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;redis_address must be provided when enable_gcs_ft is True&quot;</span>
+            <span class="p">)</span>
+
+        <span class="n">gcs_ft_options</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;redisAddress&quot;</span><span class="p">:</span> <span class="n">cluster</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">redis_address</span><span class="p">}</span>
+
+        <span class="k">if</span> <span class="n">cluster</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">external_storage_namespace</span><span class="p">:</span>
+            <span class="n">gcs_ft_options</span><span class="p">[</span>
+                <span class="s2">&quot;externalStorageNamespace&quot;</span>
+            <span class="p">]</span> <span class="o">=</span> <span class="n">cluster</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">external_storage_namespace</span>
+
+        <span class="k">if</span> <span class="n">cluster</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">redis_password_secret</span><span class="p">:</span>
+            <span class="n">gcs_ft_options</span><span class="p">[</span><span class="s2">&quot;redisPassword&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s2">&quot;valueFrom&quot;</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="s2">&quot;secretKeyRef&quot;</span><span class="p">:</span> <span class="p">{</span>
+                        <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="n">cluster</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">redis_password_secret</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">],</span>
+                        <span class="s2">&quot;key&quot;</span><span class="p">:</span> <span class="n">cluster</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">redis_password_secret</span><span class="p">[</span><span class="s2">&quot;key&quot;</span><span class="p">],</span>
+                    <span class="p">}</span>
+                <span class="p">}</span>
+            <span class="p">}</span>
+
+        <span class="n">resource</span><span class="p">[</span><span class="s2">&quot;spec&quot;</span><span class="p">][</span><span class="s2">&quot;gcsFaultToleranceOptions&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">gcs_ft_options</span>
+
+    <span class="n">config_check</span><span class="p">()</span>
+    <span class="n">k8s_client</span> <span class="o">=</span> <span class="n">get_api_client</span><span class="p">()</span> <span class="ow">or</span> <span class="n">client</span><span class="o">.</span><span class="n">ApiClient</span><span class="p">()</span>
+
+    <span class="n">resource</span> <span class="o">=</span> <span class="n">k8s_client</span><span class="o">.</span><span class="n">sanitize_for_serialization</span><span class="p">(</span><span class="n">resource</span><span class="p">)</span>
+
+    <span class="c1"># write_to_file functionality</span>
+    <span class="k">if</span> <span class="n">cluster</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">write_to_file</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">write_to_file</span><span class="p">(</span><span class="n">cluster</span><span class="p">,</span> <span class="n">resource</span><span class="p">)</span>  <span class="c1"># Writes the file and returns its name</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Yaml resources loaded for </span><span class="si">{</span><span class="n">cluster</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">resource</span>  <span class="c1"># Returns the Resource as a dict</span></div>
+
+
+
+<span class="c1"># Metadata related functions</span>
+<div class="viewcode-block" id="get_metadata">
+<a class="viewcode-back" href="../../../../codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.build_ray_cluster.get_metadata">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_metadata</span><span class="p">(</span><span class="n">cluster</span><span class="p">:</span> <span class="s2">&quot;codeflare_sdk.ray.cluster.Cluster&quot;</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    The get_metadata() function builds and returns a V1ObjectMeta Object using cluster configuration parameters</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">object_meta</span> <span class="o">=</span> <span class="n">V1ObjectMeta</span><span class="p">(</span>
+        <span class="n">name</span><span class="o">=</span><span class="n">cluster</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+        <span class="n">namespace</span><span class="o">=</span><span class="n">cluster</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">namespace</span><span class="p">,</span>
+        <span class="n">labels</span><span class="o">=</span><span class="n">get_labels</span><span class="p">(</span><span class="n">cluster</span><span class="p">),</span>
+    <span class="p">)</span>
+
+    <span class="c1"># Get the NB annotation if it exists - could be useful in future for a &quot;annotations&quot; parameter.</span>
+    <span class="n">annotations</span> <span class="o">=</span> <span class="n">with_nb_annotations</span><span class="p">(</span><span class="n">cluster</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">annotations</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">annotations</span> <span class="o">!=</span> <span class="p">{}:</span>
+        <span class="n">object_meta</span><span class="o">.</span><span class="n">annotations</span> <span class="o">=</span> <span class="n">annotations</span>  <span class="c1"># As annotations are not a guarantee they are appended to the metadata after creation.</span>
+
+    <span class="k">return</span> <span class="n">object_meta</span></div>
+
+
+
+<div class="viewcode-block" id="get_labels">
+<a class="viewcode-back" href="../../../../codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.build_ray_cluster.get_labels">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_labels</span><span class="p">(</span><span class="n">cluster</span><span class="p">:</span> <span class="s2">&quot;codeflare_sdk.ray.cluster.Cluster&quot;</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    The get_labels() function generates a dict &quot;labels&quot; which includes the base label, local queue label and user defined labels</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">labels</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;controller-tools.k8s.io&quot;</span><span class="p">:</span> <span class="s2">&quot;1.0&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;ray.io/cluster&quot;</span><span class="p">:</span> <span class="n">cluster</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>  <span class="c1"># Enforced label always present</span>
+    <span class="p">}</span>
+    <span class="k">if</span> <span class="n">cluster</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">labels</span> <span class="o">!=</span> <span class="p">{}:</span>
+        <span class="n">labels</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">cluster</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">labels</span><span class="p">)</span>
+
+    <span class="n">add_queue_label</span><span class="p">(</span><span class="n">cluster</span><span class="p">,</span> <span class="n">labels</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">labels</span></div>
+
+
+
+<div class="viewcode-block" id="with_nb_annotations">
+<a class="viewcode-back" href="../../../../codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.build_ray_cluster.with_nb_annotations">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">with_nb_annotations</span><span class="p">(</span><span class="n">annotations</span><span class="p">:</span> <span class="nb">dict</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    The with_nb_annotations() function generates the annotation for NB Prefix if the SDK is running in a notebook and appends any user set annotations</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># Notebook annotation</span>
+    <span class="n">nb_prefix</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;NB_PREFIX&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">nb_prefix</span><span class="p">:</span>
+        <span class="n">annotations</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s2">&quot;app.kubernetes.io/managed-by&quot;</span><span class="p">:</span> <span class="n">nb_prefix</span><span class="p">})</span>
+
+    <span class="k">return</span> <span class="n">annotations</span></div>
+
+
+
+<span class="c1"># Head/Worker container related functions</span>
+<div class="viewcode-block" id="get_pod_spec">
+<a class="viewcode-back" href="../../../../codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.build_ray_cluster.get_pod_spec">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_pod_spec</span><span class="p">(</span>
+    <span class="n">cluster</span><span class="p">:</span> <span class="s2">&quot;codeflare_sdk.ray.cluster.Cluster&quot;</span><span class="p">,</span>
+    <span class="n">containers</span><span class="p">:</span> <span class="n">List</span><span class="p">,</span>
+    <span class="n">tolerations</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">V1Toleration</span><span class="p">],</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">V1PodSpec</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    The get_pod_spec() function generates a V1PodSpec for the head/worker containers</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">pod_spec</span> <span class="o">=</span> <span class="n">V1PodSpec</span><span class="p">(</span>
+        <span class="n">containers</span><span class="o">=</span><span class="n">containers</span><span class="p">,</span>
+        <span class="n">volumes</span><span class="o">=</span><span class="n">generate_custom_storage</span><span class="p">(</span><span class="n">cluster</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">volumes</span><span class="p">,</span> <span class="n">VOLUMES</span><span class="p">),</span>
+        <span class="n">tolerations</span><span class="o">=</span><span class="n">tolerations</span> <span class="ow">or</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">cluster</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">image_pull_secrets</span> <span class="o">!=</span> <span class="p">[]:</span>
+        <span class="n">pod_spec</span><span class="o">.</span><span class="n">image_pull_secrets</span> <span class="o">=</span> <span class="n">generate_image_pull_secrets</span><span class="p">(</span><span class="n">cluster</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">pod_spec</span></div>
+
+
+
+<div class="viewcode-block" id="generate_image_pull_secrets">
+<a class="viewcode-back" href="../../../../codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.build_ray_cluster.generate_image_pull_secrets">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">generate_image_pull_secrets</span><span class="p">(</span><span class="n">cluster</span><span class="p">:</span> <span class="s2">&quot;codeflare_sdk.ray.cluster.Cluster&quot;</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    The generate_image_pull_secrets() methods generates a list of V1LocalObjectReference including each of the specified image pull secrets</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">pull_secrets</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">pull_secret</span> <span class="ow">in</span> <span class="n">cluster</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">image_pull_secrets</span><span class="p">:</span>
+        <span class="n">pull_secrets</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">V1LocalObjectReference</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">pull_secret</span><span class="p">))</span>
+
+    <span class="k">return</span> <span class="n">pull_secrets</span></div>
+
+
+
+<div class="viewcode-block" id="get_head_container_spec">
+<a class="viewcode-back" href="../../../../codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.build_ray_cluster.get_head_container_spec">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_head_container_spec</span><span class="p">(</span>
+    <span class="n">cluster</span><span class="p">:</span> <span class="s2">&quot;codeflare_sdk.ray.cluster.Cluster&quot;</span><span class="p">,</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    The get_head_container_spec() function builds and returns a V1Container object including user defined resource requests/limits</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">head_container</span> <span class="o">=</span> <span class="n">V1Container</span><span class="p">(</span>
+        <span class="n">name</span><span class="o">=</span><span class="s2">&quot;ray-head&quot;</span><span class="p">,</span>
+        <span class="n">image</span><span class="o">=</span><span class="n">update_image</span><span class="p">(</span><span class="n">cluster</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">image</span><span class="p">),</span>
+        <span class="n">image_pull_policy</span><span class="o">=</span><span class="s2">&quot;Always&quot;</span><span class="p">,</span>
+        <span class="n">ports</span><span class="o">=</span><span class="p">[</span>
+            <span class="n">V1ContainerPort</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;gcs&quot;</span><span class="p">,</span> <span class="n">container_port</span><span class="o">=</span><span class="mi">6379</span><span class="p">),</span>
+            <span class="n">V1ContainerPort</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;dashboard&quot;</span><span class="p">,</span> <span class="n">container_port</span><span class="o">=</span><span class="mi">8265</span><span class="p">),</span>
+            <span class="n">V1ContainerPort</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;client&quot;</span><span class="p">,</span> <span class="n">container_port</span><span class="o">=</span><span class="mi">10001</span><span class="p">),</span>
+        <span class="p">],</span>
+        <span class="n">lifecycle</span><span class="o">=</span><span class="n">V1Lifecycle</span><span class="p">(</span>
+            <span class="n">pre_stop</span><span class="o">=</span><span class="n">V1LifecycleHandler</span><span class="p">(</span>
+                <span class="n">_exec</span><span class="o">=</span><span class="n">V1ExecAction</span><span class="p">([</span><span class="s2">&quot;/bin/sh&quot;</span><span class="p">,</span> <span class="s2">&quot;-c&quot;</span><span class="p">,</span> <span class="s2">&quot;ray stop&quot;</span><span class="p">])</span>
+            <span class="p">)</span>
+        <span class="p">),</span>
+        <span class="n">resources</span><span class="o">=</span><span class="n">get_resources</span><span class="p">(</span>
+            <span class="n">cluster</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">head_cpu_requests</span><span class="p">,</span>
+            <span class="n">cluster</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">head_cpu_limits</span><span class="p">,</span>
+            <span class="n">cluster</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">head_memory_requests</span><span class="p">,</span>
+            <span class="n">cluster</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">head_memory_limits</span><span class="p">,</span>
+            <span class="n">cluster</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">head_extended_resource_requests</span><span class="p">,</span>
+        <span class="p">),</span>
+        <span class="n">volume_mounts</span><span class="o">=</span><span class="n">generate_custom_storage</span><span class="p">(</span>
+            <span class="n">cluster</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">volume_mounts</span><span class="p">,</span> <span class="n">VOLUME_MOUNTS</span>
+        <span class="p">),</span>
+    <span class="p">)</span>
+    <span class="k">if</span> <span class="n">cluster</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">envs</span> <span class="o">!=</span> <span class="p">{}:</span>
+        <span class="n">head_container</span><span class="o">.</span><span class="n">env</span> <span class="o">=</span> <span class="n">generate_env_vars</span><span class="p">(</span><span class="n">cluster</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">head_container</span></div>
+
+
+
+<div class="viewcode-block" id="generate_env_vars">
+<a class="viewcode-back" href="../../../../codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.build_ray_cluster.generate_env_vars">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">generate_env_vars</span><span class="p">(</span><span class="n">cluster</span><span class="p">:</span> <span class="s2">&quot;codeflare_sdk.ray.cluster.Cluster&quot;</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    The generate_env_vars() builds and returns a V1EnvVar object which is populated by user specified environment variables</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">envs</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">cluster</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">envs</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="n">env_var</span> <span class="o">=</span> <span class="n">V1EnvVar</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">value</span><span class="p">)</span>
+        <span class="n">envs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">env_var</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">envs</span></div>
+
+
+
+<div class="viewcode-block" id="get_worker_container_spec">
+<a class="viewcode-back" href="../../../../codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.build_ray_cluster.get_worker_container_spec">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_worker_container_spec</span><span class="p">(</span>
+    <span class="n">cluster</span><span class="p">:</span> <span class="s2">&quot;codeflare_sdk.ray.cluster.Cluster&quot;</span><span class="p">,</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    The get_worker_container_spec() function builds and returns a V1Container object including user defined resource requests/limits</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">worker_container</span> <span class="o">=</span> <span class="n">V1Container</span><span class="p">(</span>
+        <span class="n">name</span><span class="o">=</span><span class="s2">&quot;machine-learning&quot;</span><span class="p">,</span>
+        <span class="n">image</span><span class="o">=</span><span class="n">update_image</span><span class="p">(</span><span class="n">cluster</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">image</span><span class="p">),</span>
+        <span class="n">image_pull_policy</span><span class="o">=</span><span class="s2">&quot;Always&quot;</span><span class="p">,</span>
+        <span class="n">lifecycle</span><span class="o">=</span><span class="n">V1Lifecycle</span><span class="p">(</span>
+            <span class="n">pre_stop</span><span class="o">=</span><span class="n">V1LifecycleHandler</span><span class="p">(</span>
+                <span class="n">_exec</span><span class="o">=</span><span class="n">V1ExecAction</span><span class="p">([</span><span class="s2">&quot;/bin/sh&quot;</span><span class="p">,</span> <span class="s2">&quot;-c&quot;</span><span class="p">,</span> <span class="s2">&quot;ray stop&quot;</span><span class="p">])</span>
+            <span class="p">)</span>
+        <span class="p">),</span>
+        <span class="n">resources</span><span class="o">=</span><span class="n">get_resources</span><span class="p">(</span>
+            <span class="n">cluster</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">worker_cpu_requests</span><span class="p">,</span>
+            <span class="n">cluster</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">worker_cpu_limits</span><span class="p">,</span>
+            <span class="n">cluster</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">worker_memory_requests</span><span class="p">,</span>
+            <span class="n">cluster</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">worker_memory_limits</span><span class="p">,</span>
+            <span class="n">cluster</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">worker_extended_resource_requests</span><span class="p">,</span>
+        <span class="p">),</span>
+        <span class="n">volume_mounts</span><span class="o">=</span><span class="n">generate_custom_storage</span><span class="p">(</span>
+            <span class="n">cluster</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">volume_mounts</span><span class="p">,</span> <span class="n">VOLUME_MOUNTS</span>
+        <span class="p">),</span>
+    <span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">cluster</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">envs</span> <span class="o">!=</span> <span class="p">{}:</span>
+        <span class="n">worker_container</span><span class="o">.</span><span class="n">env</span> <span class="o">=</span> <span class="n">generate_env_vars</span><span class="p">(</span><span class="n">cluster</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">worker_container</span></div>
+
+
+
+<div class="viewcode-block" id="get_resources">
+<a class="viewcode-back" href="../../../../codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.build_ray_cluster.get_resources">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_resources</span><span class="p">(</span>
+    <span class="n">cpu_requests</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
+    <span class="n">cpu_limits</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
+    <span class="n">memory_requests</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
+    <span class="n">memory_limits</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
+    <span class="n">custom_extended_resource_requests</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    The get_resources() function generates a V1ResourceRequirements object for cpu/memory request/limits and GPU resources</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">resource_requirements</span> <span class="o">=</span> <span class="n">V1ResourceRequirements</span><span class="p">(</span>
+        <span class="n">requests</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;cpu&quot;</span><span class="p">:</span> <span class="n">cpu_requests</span><span class="p">,</span> <span class="s2">&quot;memory&quot;</span><span class="p">:</span> <span class="n">memory_requests</span><span class="p">},</span>
+        <span class="n">limits</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;cpu&quot;</span><span class="p">:</span> <span class="n">cpu_limits</span><span class="p">,</span> <span class="s2">&quot;memory&quot;</span><span class="p">:</span> <span class="n">memory_limits</span><span class="p">},</span>
+    <span class="p">)</span>
+
+    <span class="c1"># Append the resource/limit requests with custom extended resources</span>
+    <span class="k">if</span> <span class="n">custom_extended_resource_requests</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">custom_extended_resource_requests</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="n">resource_requirements</span><span class="o">.</span><span class="n">limits</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">custom_extended_resource_requests</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+            <span class="n">resource_requirements</span><span class="o">.</span><span class="n">requests</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">custom_extended_resource_requests</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+
+    <span class="k">return</span> <span class="n">resource_requirements</span></div>
+
+
+
+<span class="c1"># GPU related functions</span>
+<div class="viewcode-block" id="head_worker_gpu_count_from_cluster">
+<a class="viewcode-back" href="../../../../codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.build_ray_cluster.head_worker_gpu_count_from_cluster">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">head_worker_gpu_count_from_cluster</span><span class="p">(</span>
+    <span class="n">cluster</span><span class="p">:</span> <span class="s2">&quot;codeflare_sdk.ray.cluster.Cluster&quot;</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    The head_worker_gpu_count_from_cluster() function returns the total number of requested GPUs for the head and worker separately</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">head_gpus</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">worker_gpus</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">cluster</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">head_extended_resource_requests</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+        <span class="n">resource_type</span> <span class="o">=</span> <span class="n">cluster</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">extended_resource_mapping</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">resource_type</span> <span class="o">==</span> <span class="s2">&quot;GPU&quot;</span><span class="p">:</span>
+            <span class="n">head_gpus</span> <span class="o">+=</span> <span class="nb">int</span><span class="p">(</span><span class="n">cluster</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">head_extended_resource_requests</span><span class="p">[</span><span class="n">k</span><span class="p">])</span>
+    <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">cluster</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">worker_extended_resource_requests</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+        <span class="n">resource_type</span> <span class="o">=</span> <span class="n">cluster</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">extended_resource_mapping</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">resource_type</span> <span class="o">==</span> <span class="s2">&quot;GPU&quot;</span><span class="p">:</span>
+            <span class="n">worker_gpus</span> <span class="o">+=</span> <span class="nb">int</span><span class="p">(</span><span class="n">cluster</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">worker_extended_resource_requests</span><span class="p">[</span><span class="n">k</span><span class="p">])</span>
+
+    <span class="k">return</span> <span class="n">head_gpus</span><span class="p">,</span> <span class="n">worker_gpus</span></div>
+
+
+
+<div class="viewcode-block" id="head_worker_extended_resources_from_cluster">
+<a class="viewcode-back" href="../../../../codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.build_ray_cluster.head_worker_extended_resources_from_cluster">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">head_worker_extended_resources_from_cluster</span><span class="p">(</span>
+    <span class="n">cluster</span><span class="p">:</span> <span class="s2">&quot;codeflare_sdk.ray.cluster.Cluster&quot;</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">dict</span><span class="p">,</span> <span class="nb">dict</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    The head_worker_extended_resources_from_cluster() function returns 2 dicts for head/worker respectively populated by the GPU type requested by the user</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">head_worker_extended_resources</span> <span class="o">=</span> <span class="p">{},</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">cluster</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">head_extended_resource_requests</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+        <span class="n">resource_type</span> <span class="o">=</span> <span class="n">cluster</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">extended_resource_mapping</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">resource_type</span> <span class="ow">in</span> <span class="n">FORBIDDEN_CUSTOM_RESOURCE_TYPES</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="n">head_worker_extended_resources</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span>
+            <span class="n">resource_type</span>
+        <span class="p">]</span> <span class="o">=</span> <span class="n">cluster</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">head_extended_resource_requests</span><span class="p">[</span>
+            <span class="n">k</span>
+        <span class="p">]</span> <span class="o">+</span> <span class="n">head_worker_extended_resources</span><span class="p">[</span>
+            <span class="mi">0</span>
+        <span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+            <span class="n">resource_type</span><span class="p">,</span> <span class="mi">0</span>
+        <span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">cluster</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">worker_extended_resource_requests</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+        <span class="n">resource_type</span> <span class="o">=</span> <span class="n">cluster</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">extended_resource_mapping</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">resource_type</span> <span class="ow">in</span> <span class="n">FORBIDDEN_CUSTOM_RESOURCE_TYPES</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="n">head_worker_extended_resources</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span>
+            <span class="n">resource_type</span>
+        <span class="p">]</span> <span class="o">=</span> <span class="n">cluster</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">worker_extended_resource_requests</span><span class="p">[</span>
+            <span class="n">k</span>
+        <span class="p">]</span> <span class="o">+</span> <span class="n">head_worker_extended_resources</span><span class="p">[</span>
+            <span class="mi">1</span>
+        <span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+            <span class="n">resource_type</span><span class="p">,</span> <span class="mi">0</span>
+        <span class="p">)</span>
+    <span class="k">return</span> <span class="n">head_worker_extended_resources</span></div>
+
+
+
+<span class="c1"># Local Queue related functions</span>
+<div class="viewcode-block" id="add_queue_label">
+<a class="viewcode-back" href="../../../../codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.build_ray_cluster.add_queue_label">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">add_queue_label</span><span class="p">(</span><span class="n">cluster</span><span class="p">:</span> <span class="s2">&quot;codeflare_sdk.ray.cluster.Cluster&quot;</span><span class="p">,</span> <span class="n">labels</span><span class="p">:</span> <span class="nb">dict</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    The add_queue_label() function updates the given base labels with the local queue label if Kueue exists on the Cluster</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">lq_name</span> <span class="o">=</span> <span class="n">cluster</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">local_queue</span> <span class="ow">or</span> <span class="n">get_default_local_queue</span><span class="p">(</span><span class="n">cluster</span><span class="p">,</span> <span class="n">labels</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">lq_name</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span>
+    <span class="k">elif</span> <span class="ow">not</span> <span class="n">local_queue_exists</span><span class="p">(</span><span class="n">cluster</span><span class="p">):</span>
+        <span class="c1"># ValueError removed to pass validation to validating admission policy</span>
+        <span class="nb">print</span><span class="p">(</span>
+            <span class="s2">&quot;local_queue provided does not exist or is not in this namespace. Please provide the correct local_queue name in Cluster Configuration&quot;</span>
+        <span class="p">)</span>
+        <span class="k">return</span>
+    <span class="n">labels</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s2">&quot;kueue.x-k8s.io/queue-name&quot;</span><span class="p">:</span> <span class="n">lq_name</span><span class="p">})</span></div>
+
+
+
+<div class="viewcode-block" id="local_queue_exists">
+<a class="viewcode-back" href="../../../../codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.build_ray_cluster.local_queue_exists">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">local_queue_exists</span><span class="p">(</span><span class="n">cluster</span><span class="p">:</span> <span class="s2">&quot;codeflare_sdk.ray.cluster.Cluster&quot;</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    The local_queue_exists() checks if the user inputted local_queue exists in the given namespace and returns a bool</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># get all local queues in the namespace</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">config_check</span><span class="p">()</span>
+        <span class="n">api_instance</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">CustomObjectsApi</span><span class="p">(</span><span class="n">get_api_client</span><span class="p">())</span>
+        <span class="n">local_queues</span> <span class="o">=</span> <span class="n">api_instance</span><span class="o">.</span><span class="n">list_namespaced_custom_object</span><span class="p">(</span>
+            <span class="n">group</span><span class="o">=</span><span class="s2">&quot;kueue.x-k8s.io&quot;</span><span class="p">,</span>
+            <span class="n">version</span><span class="o">=</span><span class="s2">&quot;v1beta1&quot;</span><span class="p">,</span>
+            <span class="n">namespace</span><span class="o">=</span><span class="n">cluster</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">namespace</span><span class="p">,</span>
+            <span class="n">plural</span><span class="o">=</span><span class="s2">&quot;localqueues&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
+        <span class="k">return</span> <span class="n">_kube_api_error_handling</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+    <span class="c1"># check if local queue with the name provided in cluster config exists</span>
+    <span class="k">for</span> <span class="n">lq</span> <span class="ow">in</span> <span class="n">local_queues</span><span class="p">[</span><span class="s2">&quot;items&quot;</span><span class="p">]:</span>
+        <span class="k">if</span> <span class="n">lq</span><span class="p">[</span><span class="s2">&quot;metadata&quot;</span><span class="p">][</span><span class="s2">&quot;name&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">cluster</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">local_queue</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">True</span>
+    <span class="k">return</span> <span class="kc">False</span></div>
+
+
+
+<div class="viewcode-block" id="get_default_local_queue">
+<a class="viewcode-back" href="../../../../codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.build_ray_cluster.get_default_local_queue">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_default_local_queue</span><span class="p">(</span><span class="n">cluster</span><span class="p">:</span> <span class="s2">&quot;codeflare_sdk.ray.cluster.Cluster&quot;</span><span class="p">,</span> <span class="n">labels</span><span class="p">:</span> <span class="nb">dict</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    The get_default_local_queue() function attempts to find a local queue with the default label == true, if that is the case the labels variable is updated with that local queue</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="c1"># Try to get the default local queue if it exists and append the label list</span>
+        <span class="n">config_check</span><span class="p">()</span>
+        <span class="n">api_instance</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">CustomObjectsApi</span><span class="p">(</span><span class="n">get_api_client</span><span class="p">())</span>
+        <span class="n">local_queues</span> <span class="o">=</span> <span class="n">api_instance</span><span class="o">.</span><span class="n">list_namespaced_custom_object</span><span class="p">(</span>
+            <span class="n">group</span><span class="o">=</span><span class="s2">&quot;kueue.x-k8s.io&quot;</span><span class="p">,</span>
+            <span class="n">version</span><span class="o">=</span><span class="s2">&quot;v1beta1&quot;</span><span class="p">,</span>
+            <span class="n">namespace</span><span class="o">=</span><span class="n">cluster</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">namespace</span><span class="p">,</span>
+            <span class="n">plural</span><span class="o">=</span><span class="s2">&quot;localqueues&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
+    <span class="k">except</span> <span class="n">ApiException</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
+        <span class="k">if</span> <span class="n">e</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="mi">404</span> <span class="ow">or</span> <span class="n">e</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="mi">403</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">_kube_api_error_handling</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">lq</span> <span class="ow">in</span> <span class="n">local_queues</span><span class="p">[</span><span class="s2">&quot;items&quot;</span><span class="p">]:</span>
+        <span class="k">if</span> <span class="p">(</span>
+            <span class="s2">&quot;annotations&quot;</span> <span class="ow">in</span> <span class="n">lq</span><span class="p">[</span><span class="s2">&quot;metadata&quot;</span><span class="p">]</span>
+            <span class="ow">and</span> <span class="s2">&quot;kueue.x-k8s.io/default-queue&quot;</span> <span class="ow">in</span> <span class="n">lq</span><span class="p">[</span><span class="s2">&quot;metadata&quot;</span><span class="p">][</span><span class="s2">&quot;annotations&quot;</span><span class="p">]</span>
+            <span class="ow">and</span> <span class="n">lq</span><span class="p">[</span><span class="s2">&quot;metadata&quot;</span><span class="p">][</span><span class="s2">&quot;annotations&quot;</span><span class="p">][</span><span class="s2">&quot;kueue.x-k8s.io/default-queue&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+            <span class="o">==</span> <span class="s2">&quot;true&quot;</span>
+        <span class="p">):</span>
+            <span class="n">labels</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s2">&quot;kueue.x-k8s.io/queue-name&quot;</span><span class="p">:</span> <span class="n">lq</span><span class="p">[</span><span class="s2">&quot;metadata&quot;</span><span class="p">][</span><span class="s2">&quot;name&quot;</span><span class="p">]})</span></div>
+
+
+
+<span class="c1"># Etc.</span>
+<div class="viewcode-block" id="generate_custom_storage">
+<a class="viewcode-back" href="../../../../codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.build_ray_cluster.generate_custom_storage">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">generate_custom_storage</span><span class="p">(</span><span class="n">provided_storage</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span> <span class="n">default_storage</span><span class="p">:</span> <span class="nb">list</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    The generate_custom_storage function updates the volumes/volume mounts configs with the default volumes/volume mounts.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">storage_list</span> <span class="o">=</span> <span class="n">provided_storage</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+    <span class="k">if</span> <span class="n">storage_list</span> <span class="o">==</span> <span class="p">[]:</span>
+        <span class="n">storage_list</span> <span class="o">=</span> <span class="n">default_storage</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># We append the list of volumes/volume mounts with the defaults and return the full list</span>
+        <span class="k">for</span> <span class="n">storage</span> <span class="ow">in</span> <span class="n">default_storage</span><span class="p">:</span>
+            <span class="n">storage_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">storage</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">storage_list</span></div>
+
+
+
+<div class="viewcode-block" id="write_to_file">
+<a class="viewcode-back" href="../../../../codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.build_ray_cluster.write_to_file">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">write_to_file</span><span class="p">(</span><span class="n">cluster</span><span class="p">:</span> <span class="s2">&quot;codeflare_sdk.ray.cluster.Cluster&quot;</span><span class="p">,</span> <span class="n">resource</span><span class="p">:</span> <span class="nb">dict</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    The write_to_file function writes the built Ray Cluster dict as a yaml file in the .codeflare folder</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">directory_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">expanduser</span><span class="p">(</span><span class="s2">&quot;~/.codeflare/resources/&quot;</span><span class="p">)</span>
+    <span class="n">output_file_name</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">directory_path</span><span class="p">,</span> <span class="n">cluster</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s2">&quot;.yaml&quot;</span><span class="p">)</span>
+
+    <span class="n">directory_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">output_file_name</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">directory_path</span><span class="p">):</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">directory_path</span><span class="p">)</span>
+
+    <span class="c1"># Convert resource to JSON and back to sanitize Pydantic undefined values</span>
+    <span class="c1"># This is a workaround for PyYAML not being able to serialize Pydantic v2 models</span>
+    <span class="c1"># used by Kubernetes client v33+</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+
+        <span class="n">resource_json</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">resource</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="nb">str</span><span class="p">)</span>
+        <span class="n">sanitized_resource</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">resource_json</span><span class="p">)</span>
+    <span class="k">except</span> <span class="p">(</span><span class="ne">TypeError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">):</span>
+        <span class="c1"># If JSON serialization fails, use the resource as-is</span>
+        <span class="n">sanitized_resource</span> <span class="o">=</span> <span class="n">resource</span>
+
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">output_file_name</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">outfile</span><span class="p">:</span>
+        <span class="n">yaml</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">sanitized_resource</span><span class="p">,</span> <span class="n">outfile</span><span class="p">,</span> <span class="n">default_flow_style</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Written to: </span><span class="si">{</span><span class="n">output_file_name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">output_file_name</span></div>
+
+
+
+<div class="viewcode-block" id="gen_names">
+<a class="viewcode-back" href="../../../../codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.build_ray_cluster.gen_names">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">gen_names</span><span class="p">(</span><span class="n">name</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Generates a unique name for the Ray Cluster</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">name</span><span class="p">:</span>
+        <span class="n">gen_id</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">uuid</span><span class="o">.</span><span class="n">uuid4</span><span class="p">())</span>
+        <span class="n">cluster_name</span> <span class="o">=</span> <span class="s2">&quot;cluster-&quot;</span> <span class="o">+</span> <span class="n">gen_id</span>
+        <span class="k">return</span> <span class="n">cluster_name</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">name</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Project CodeFlare.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,195 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>S3 compatible storage with Ray Train examples &mdash; CodeFlare SDK 0.35.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=ca1b380b"></script>
+      <script src="../_static/doctools.js?v=9a2dae69"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Basic Kueue Resources configuration" href="setup-kueue.html" />
+    <link rel="prev" title="Running e2e tests locally" href="e2e.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            CodeFlare SDK
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Code Documentation:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../modules.html">codeflare_sdk</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">User Documentation:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="authentication.html">Authentication via the CodeFlare SDK</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cluster-configuration.html">Ray Cluster Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ray-cluster-interaction.html">Ray Cluster Interaction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="rayjob.html">Submitting RayJobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="e2e.html">Running e2e tests locally</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">S3 compatible storage with Ray Train examples</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#s3-bucket">S3 Bucket</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#minio-bucket">Minio Bucket</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="setup-kueue.html">Basic Kueue Resources configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ui-widgets.html">Jupyter UI Widgets</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">CodeFlare SDK</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">S3 compatible storage with Ray Train examples</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/user-docs/s3-compatible-storage.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="s3-compatible-storage-with-ray-train-examples">
+<h1>S3 compatible storage with Ray Train examples<a class="headerlink" href="#s3-compatible-storage-with-ray-train-examples" title="Link to this heading"></a></h1>
+<p>Some of our distributed training examples require an external storage
+solution so that all nodes can access the same data. The following are
+examples for configuring S3 or Minio storage for your Ray Train script
+or interactive session.</p>
+<section id="s3-bucket">
+<h2>S3 Bucket<a class="headerlink" href="#s3-bucket" title="Link to this heading"></a></h2>
+<p>In your Python Script add the following environment variables:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;AWS_ACCESS_KEY_ID&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;XXXXXXXX&quot;</span>
+<span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;AWS_SECRET_ACCESS_KEY&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;XXXXXXXX&quot;</span>
+<span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;AWS_DEFAULT_REGION&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;XXXXXXXX&quot;</span>
+</pre></div>
+</div>
+<p>Alternatively you can specify these variables in your runtime
+environment on Job Submission.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">submission_id</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">submit_job</span><span class="p">(</span>
+    <span class="n">entrypoint</span><span class="o">=...</span><span class="p">,</span>
+    <span class="n">runtime_env</span><span class="o">=</span><span class="p">{</span>
+        <span class="s2">&quot;env_vars&quot;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">&quot;AWS_ACCESS_KEY_ID&quot;</span><span class="p">:</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;AWS_ACCESS_KEY_ID&#39;</span><span class="p">),</span>
+            <span class="s2">&quot;AWS_SECRET_ACCESS_KEY&quot;</span><span class="p">:</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;AWS_SECRET_ACCESS_KEY&#39;</span><span class="p">),</span>
+            <span class="s2">&quot;AWS_DEFAULT_REGION&quot;</span><span class="p">:</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;AWS_DEFAULT_REGION&#39;</span><span class="p">)</span>
+        <span class="p">},</span>
+    <span class="p">}</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p>In your Trainer configuration you can specify a <code class="docutils literal notranslate"><span class="pre">run_config</span></code> which
+will utilise your external storage.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">trainer</span> <span class="o">=</span> <span class="n">TorchTrainer</span><span class="p">(</span>
+    <span class="n">train_func_distributed</span><span class="p">,</span>
+    <span class="n">scaling_config</span><span class="o">=</span><span class="n">scaling_config</span><span class="p">,</span>
+    <span class="n">run_config</span> <span class="o">=</span> <span class="n">ray</span><span class="o">.</span><span class="n">train</span><span class="o">.</span><span class="n">RunConfig</span><span class="p">(</span><span class="n">storage_path</span><span class="o">=</span><span class="s2">&quot;s3://BUCKET_NAME/SUB_PATH/&quot;</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;unique_run_name&quot;</span><span class="p">)</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p>To learn more about Amazon S3 Storage you can find information
+<a class="reference external" href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/creating-bucket.html">here</a>.</p>
+</section>
+<section id="minio-bucket">
+<h2>Minio Bucket<a class="headerlink" href="#minio-bucket" title="Link to this heading"></a></h2>
+<p>In your Python Script add the following function for configuring your
+run_config:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">s3fs</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pyarrow</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">get_minio_run_config</span><span class="p">():</span>
+   <span class="n">s3_fs</span> <span class="o">=</span> <span class="n">s3fs</span><span class="o">.</span><span class="n">S3FileSystem</span><span class="p">(</span>
+       <span class="n">key</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s1">&#39;MINIO_ACCESS_KEY&#39;</span><span class="p">,</span> <span class="s2">&quot;XXXXX&quot;</span><span class="p">),</span>
+       <span class="n">secret</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s1">&#39;MINIO_SECRET_ACCESS_KEY&#39;</span><span class="p">,</span> <span class="s2">&quot;XXXXX&quot;</span><span class="p">),</span>
+       <span class="n">endpoint_url</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s1">&#39;MINIO_URL&#39;</span><span class="p">,</span> <span class="s2">&quot;XXXXX&quot;</span><span class="p">)</span>
+   <span class="p">)</span>
+   <span class="n">custom_fs</span> <span class="o">=</span> <span class="n">pyarrow</span><span class="o">.</span><span class="n">fs</span><span class="o">.</span><span class="n">PyFileSystem</span><span class="p">(</span><span class="n">pyarrow</span><span class="o">.</span><span class="n">fs</span><span class="o">.</span><span class="n">FSSpecHandler</span><span class="p">(</span><span class="n">s3_fs</span><span class="p">))</span>
+   <span class="n">run_config</span> <span class="o">=</span> <span class="n">ray</span><span class="o">.</span><span class="n">train</span><span class="o">.</span><span class="n">RunConfig</span><span class="p">(</span><span class="n">storage_path</span><span class="o">=</span><span class="s1">&#39;training&#39;</span><span class="p">,</span> <span class="n">storage_filesystem</span><span class="o">=</span><span class="n">custom_fs</span><span class="p">)</span>
+   <span class="k">return</span> <span class="n">run_config</span>
+</pre></div>
+</div>
+<p>You can update the <code class="docutils literal notranslate"><span class="pre">run_config</span></code> to further suit your needs above.
+Lastly the new <code class="docutils literal notranslate"><span class="pre">run_config</span></code> must be added to the Trainer:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">trainer</span> <span class="o">=</span> <span class="n">TorchTrainer</span><span class="p">(</span>
+    <span class="n">train_func_distributed</span><span class="p">,</span>
+    <span class="n">scaling_config</span><span class="o">=</span><span class="n">scaling_config</span><span class="p">,</span>
+    <span class="n">run_config</span> <span class="o">=</span> <span class="n">get_minio_run_config</span><span class="p">()</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p>To find more information on creating a Minio Bucket compatible with
+RHOAI you can refer to this
+<a class="reference external" href="https://ai-on-openshift.io/tools-and-applications/minio/minio/">documentation</a>.
+Note: You must have <code class="docutils literal notranslate"><span class="pre">s3fs</span></code> and <code class="docutils literal notranslate"><span class="pre">pyarrow</span></code> installed in your
+environment for this method.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="e2e.html" class="btn btn-neutral float-left" title="Running e2e tests locally" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="setup-kueue.html" class="btn btn-neutral float-right" title="Basic Kueue Resources configuration" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Project CodeFlare.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

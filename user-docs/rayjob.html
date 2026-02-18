@@ -1,0 +1,224 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Submitting RayJobs &mdash; CodeFlare SDK 0.35.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=ca1b380b"></script>
+      <script src="../_static/doctools.js?v=9a2dae69"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Running e2e tests locally" href="e2e.html" />
+    <link rel="prev" title="Ray Cluster Interaction" href="ray-cluster-interaction.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            CodeFlare SDK
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Code Documentation:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../modules.html">codeflare_sdk</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">User Documentation:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="authentication.html">Authentication via the CodeFlare SDK</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cluster-configuration.html">Ray Cluster Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ray-cluster-interaction.html">Ray Cluster Interaction</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Submitting RayJobs</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#submitting-a-job-with-a-new-cluster-managedclusterconfig">Submitting a job with a new cluster (ManagedClusterConfig)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#submitting-a-job-to-an-existing-cluster">Submitting a job to an existing cluster</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#rayjob-methods">RayJob methods</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#runtime-environment">Runtime environment</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#kueue-integration">Kueue integration</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="e2e.html">Running e2e tests locally</a></li>
+<li class="toctree-l1"><a class="reference internal" href="s3-compatible-storage.html">S3 compatible storage with Ray Train examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="setup-kueue.html">Basic Kueue Resources configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ui-widgets.html">Jupyter UI Widgets</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">CodeFlare SDK</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Submitting RayJobs</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/user-docs/rayjob.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="submitting-rayjobs">
+<h1>Submitting RayJobs<a class="headerlink" href="#submitting-rayjobs" title="Link to this heading"></a></h1>
+<p>The CodeFlare SDK provides a <code class="docutils literal notranslate"><span class="pre">RayJob</span></code> interface for submitting and
+managing Ray jobs via the KubeRay operator (RayJob custom resource).
+You can either create a short-lived Ray cluster for the job (managed by
+the operator and cleaned up after the job finishes) or run the job on an
+existing Ray cluster.</p>
+<p>Import the following to use RayJob:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">codeflare_sdk</span><span class="w"> </span><span class="kn">import</span> <span class="n">RayJob</span><span class="p">,</span> <span class="n">ManagedClusterConfig</span>
+</pre></div>
+</div>
+<section id="submitting-a-job-with-a-new-cluster-managedclusterconfig">
+<h2>Submitting a job with a new cluster (ManagedClusterConfig)<a class="headerlink" href="#submitting-a-job-with-a-new-cluster-managedclusterconfig" title="Link to this heading"></a></h2>
+<p>When you provide <code class="docutils literal notranslate"><span class="pre">cluster_config</span></code>, the KubeRay operator creates a
+Ray cluster for the job and tears it down after the job completes. You
+do not need to manage the cluster lifecycle yourself.</p>
+<div class="line-block">
+<div class="line">Required: <code class="docutils literal notranslate"><span class="pre">job_name</span></code> (str), <code class="docutils literal notranslate"><span class="pre">entrypoint</span></code> (str), <code class="docutils literal notranslate"><span class="pre">cluster_config</span></code> (ManagedClusterConfig).</div>
+<div class="line">Optional: <code class="docutils literal notranslate"><span class="pre">namespace</span></code>, <code class="docutils literal notranslate"><span class="pre">runtime_env</span></code>, <code class="docutils literal notranslate"><span class="pre">ttl_seconds_after_finished</span></code>, <code class="docutils literal notranslate"><span class="pre">active_deadline_seconds</span></code>, <code class="docutils literal notranslate"><span class="pre">local_queue</span></code>, <code class="docutils literal notranslate"><span class="pre">priority_class</span></code>.</div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">codeflare_sdk</span><span class="w"> </span><span class="kn">import</span> <span class="n">RayJob</span><span class="p">,</span> <span class="n">ManagedClusterConfig</span>
+
+<span class="n">cluster_config</span> <span class="o">=</span> <span class="n">ManagedClusterConfig</span><span class="p">(</span>
+    <span class="n">head_memory_requests</span><span class="o">=</span><span class="mi">6</span><span class="p">,</span>
+    <span class="n">head_memory_limits</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span>
+    <span class="n">num_workers</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+    <span class="n">worker_cpu_requests</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+    <span class="n">worker_cpu_limits</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+    <span class="n">worker_memory_requests</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span>
+    <span class="n">worker_memory_limits</span><span class="o">=</span><span class="mi">6</span><span class="p">,</span>
+    <span class="n">head_accelerators</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;nvidia.com/gpu&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">},</span>
+    <span class="n">worker_accelerators</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;nvidia.com/gpu&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">},</span>
+<span class="p">)</span>
+
+<span class="n">job</span> <span class="o">=</span> <span class="n">RayJob</span><span class="p">(</span>
+    <span class="n">job_name</span><span class="o">=</span><span class="s2">&quot;my-rayjob&quot;</span><span class="p">,</span>
+    <span class="n">entrypoint</span><span class="o">=</span><span class="s2">&quot;python -c &#39;print(</span><span class="se">\&quot;</span><span class="s2">Hello from RayJob!</span><span class="se">\&quot;</span><span class="s2">)&#39;&quot;</span><span class="p">,</span>
+    <span class="n">cluster_config</span><span class="o">=</span><span class="n">cluster_config</span><span class="p">,</span>
+    <span class="n">namespace</span><span class="o">=</span><span class="s2">&quot;default&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">job</span><span class="o">.</span><span class="n">submit</span><span class="p">()</span>
+</pre></div>
+</div>
+</section>
+<section id="submitting-a-job-to-an-existing-cluster">
+<h2>Submitting a job to an existing cluster<a class="headerlink" href="#submitting-a-job-to-an-existing-cluster" title="Link to this heading"></a></h2>
+<p>When you provide <code class="docutils literal notranslate"><span class="pre">cluster_name</span></code>, the job runs on an existing Ray
+cluster. The cluster is not shut down when the job finishes.</p>
+<div class="line-block">
+<div class="line">Required: <code class="docutils literal notranslate"><span class="pre">job_name</span></code> (str), <code class="docutils literal notranslate"><span class="pre">entrypoint</span></code> (str), <code class="docutils literal notranslate"><span class="pre">cluster_name</span></code> (str).</div>
+<div class="line">Optional: <code class="docutils literal notranslate"><span class="pre">namespace</span></code>, <code class="docutils literal notranslate"><span class="pre">runtime_env</span></code>, <code class="docutils literal notranslate"><span class="pre">active_deadline_seconds</span></code>, <code class="docutils literal notranslate"><span class="pre">local_queue</span></code>, <code class="docutils literal notranslate"><span class="pre">priority_class</span></code>.</div>
+<div class="line">Note: <code class="docutils literal notranslate"><span class="pre">ttl_seconds_after_finished</span></code> cannot be set when using an existing cluster.</div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">codeflare_sdk</span><span class="w"> </span><span class="kn">import</span> <span class="n">RayJob</span>
+
+<span class="n">job</span> <span class="o">=</span> <span class="n">RayJob</span><span class="p">(</span>
+    <span class="n">job_name</span><span class="o">=</span><span class="s2">&quot;my-rayjob&quot;</span><span class="p">,</span>
+    <span class="n">entrypoint</span><span class="o">=</span><span class="s2">&quot;python my_script.py&quot;</span><span class="p">,</span>
+    <span class="n">cluster_name</span><span class="o">=</span><span class="s2">&quot;my-existing-cluster&quot;</span><span class="p">,</span>
+    <span class="n">namespace</span><span class="o">=</span><span class="s2">&quot;default&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">job</span><span class="o">.</span><span class="n">submit</span><span class="p">()</span>
+</pre></div>
+</div>
+</section>
+<section id="rayjob-methods">
+<h2>RayJob methods<a class="headerlink" href="#rayjob-methods" title="Link to this heading"></a></h2>
+<div class="line-block">
+<div class="line"><code class="docutils literal notranslate"><span class="pre">job.submit()</span></code> — Submits the RayJob to the KubeRay operator. Returns the job name on success. When using <code class="docutils literal notranslate"><span class="pre">cluster_config</span></code>, the operator creates the cluster and runs the job; when using <code class="docutils literal notranslate"><span class="pre">cluster_name</span></code>, the job is submitted to the specified cluster.</div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">job.status(print_to_console=True)</span></code> — Returns the job status (e.g. RUNNING, COMPLETE, FAILED) and a ready flag; optionally prints a formatted status to the console.</div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">job.stop()</span></code> — Suspends the Ray job.</div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">job.resubmit()</span></code> — Resubmits the Ray job.</div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">job.delete()</span></code> — Deletes the RayJob custom resource (and the cluster if it was created by this RayJob).</div>
+</div>
+</section>
+<section id="runtime-environment">
+<h2>Runtime environment<a class="headerlink" href="#runtime-environment" title="Link to this heading"></a></h2>
+<p>You can pass <code class="docutils literal notranslate"><span class="pre">runtime_env</span></code> when creating a <code class="docutils literal notranslate"><span class="pre">RayJob</span></code> to set the Ray
+runtime environment (e.g. working directory, pip packages, environment
+variables). It can be a Ray <code class="docutils literal notranslate"><span class="pre">RuntimeEnv</span></code> object from <code class="docutils literal notranslate"><span class="pre">ray.runtime_env</span></code>
+or a dict with keys such as <code class="docutils literal notranslate"><span class="pre">working_dir</span></code>, <code class="docutils literal notranslate"><span class="pre">pip</span></code>, <code class="docutils literal notranslate"><span class="pre">env_vars</span></code>. For
+example: <code class="docutils literal notranslate"><span class="pre">runtime_env={&quot;working_dir&quot;:</span> <span class="pre">&quot;./my-scripts&quot;,</span> <span class="pre">&quot;pip&quot;:</span> <span class="pre">[&quot;requests&quot;]}</span></code>.
+See the Ray documentation for runtime environment options.</p>
+</section>
+<section id="kueue-integration">
+<h2>Kueue integration<a class="headerlink" href="#kueue-integration" title="Link to this heading"></a></h2>
+<p>When Kueue is installed, you can set <code class="docutils literal notranslate"><span class="pre">local_queue</span></code> to the name of a
+Kueue LocalQueue and <code class="docutils literal notranslate"><span class="pre">priority_class</span></code> to a WorkloadPriorityClass name
+for preemption control. These apply to both new clusters (<code class="docutils literal notranslate"><span class="pre">cluster_config</span></code>)
+and existing clusters (<code class="docutils literal notranslate"><span class="pre">cluster_name</span></code>). For Kueue setup, see <a class="reference internal" href="setup-kueue.html"><span class="doc">Basic Kueue Resources configuration</span></a>.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p><code class="docutils literal notranslate"><span class="pre">RayJob</span></code> is used for the <strong>RayJob custom resource</strong> (batch job
+lifecycle managed by the KubeRay operator). For submitting jobs
+interactively to an already-running cluster via the Ray dashboard API,
+the SDK exposes <code class="docutils literal notranslate"><span class="pre">RayJobClient</span></code>; see the Code Documentation (modules)
+for the API reference.</p>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="ray-cluster-interaction.html" class="btn btn-neutral float-left" title="Ray Cluster Interaction" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="e2e.html" class="btn btn-neutral float-right" title="Running e2e tests locally" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Project CodeFlare.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

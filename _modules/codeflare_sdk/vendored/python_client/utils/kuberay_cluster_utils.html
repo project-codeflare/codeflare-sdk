@@ -1,0 +1,615 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>codeflare_sdk.vendored.python_client.utils.kuberay_cluster_utils &mdash; CodeFlare SDK 0.35.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../../_static/documentation_options.js?v=ca1b380b"></script>
+      <script src="../../../../../_static/doctools.js?v=9a2dae69"></script>
+      <script src="../../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../../index.html" class="icon icon-home">
+            CodeFlare SDK
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Code Documentation:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../modules.html">codeflare_sdk</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">User Documentation:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../user-docs/authentication.html">Authentication via the CodeFlare SDK</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../user-docs/cluster-configuration.html">Ray Cluster Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../user-docs/ray-cluster-interaction.html">Ray Cluster Interaction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../user-docs/rayjob.html">Submitting RayJobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../user-docs/e2e.html">Running e2e tests locally</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../user-docs/s3-compatible-storage.html">S3 compatible storage with Ray Train examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../user-docs/setup-kueue.html">Basic Kueue Resources configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../user-docs/ui-widgets.html">Jupyter UI Widgets</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../../index.html">CodeFlare SDK</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">codeflare_sdk.vendored.python_client.utils.kuberay_cluster_utils</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for codeflare_sdk.vendored.python_client.utils.kuberay_cluster_utils</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Set of helper methods to manage rayclusters. Requires Python 3.6 and higher</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">copy</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">re</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Tuple</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">codeflare_sdk.vendored.python_client</span><span class="w"> </span><span class="kn">import</span> <span class="n">constants</span>
+
+
+<span class="n">log</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+<span class="k">if</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLevelName</span><span class="p">(</span><span class="n">log</span><span class="o">.</span><span class="n">level</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;NOTSET&quot;</span><span class="p">:</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">basicConfig</span><span class="p">(</span><span class="nb">format</span><span class="o">=</span><span class="s2">&quot;</span><span class="si">%(asctime)s</span><span class="s2"> </span><span class="si">%(message)s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">level</span><span class="o">=</span><span class="n">constants</span><span class="o">.</span><span class="n">LOGLEVEL</span><span class="p">)</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">ClusterUtils contains methods to facilitate modifying/populating the config of a raycluster</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+
+<div class="viewcode-block" id="ClusterUtils">
+<a class="viewcode-back" href="../../../../../codeflare_sdk.vendored.python_client.utils.html#codeflare_sdk.vendored.python_client.utils.kuberay_cluster_utils.ClusterUtils">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">ClusterUtils</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    ClusterUtils - Utility class for populating cluster information</span>
+
+<span class="sd">    Methods:</span>
+<span class="sd">    - populate_meta(cluster: dict, name: str, k8s_namespace: str, labels: dict, ray_version: str) -&gt; dict:</span>
+<span class="sd">    - populate_ray_head(cluster: dict, ray_image: str,service_type: str, cpu_requests: str, memory_requests: str, cpu_limits: str, memory_limits: str, ray_start_params: dict) -&gt; Tuple[dict, bool]:</span>
+<span class="sd">    - populate_worker_group(cluster: dict, group_name: str, ray_image: str, ray_command: Any, init_image: str, cpu_requests: str, memory_requests: str, cpu_limits: str, memory_limits: str, replicas: int, min_replicas: int, max_replicas: int, ray_start_params: dict) -&gt; Tuple[dict, bool]:</span>
+<span class="sd">    - update_worker_group_replicas(cluster: dict, group_name: str, max_replicas: int, min_replicas: int, replicas: int) -&gt; Tuple[dict, bool]:</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="ClusterUtils.populate_meta">
+<a class="viewcode-back" href="../../../../../codeflare_sdk.vendored.python_client.utils.html#codeflare_sdk.vendored.python_client.utils.kuberay_cluster_utils.ClusterUtils.populate_meta">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">populate_meta</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">cluster</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">k8s_namespace</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">labels</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span>
+        <span class="n">ray_version</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Populate the metadata and ray version of the cluster.</span>
+
+<span class="sd">        Parameters:</span>
+<span class="sd">        - cluster (dict): A dictionary representing a cluster.</span>
+<span class="sd">        - name (str): The name of the cluster.</span>
+<span class="sd">        - k8s_namespace (str): The namespace of the cluster.</span>
+<span class="sd">        - labels (dict): A dictionary of labels to be applied to the cluster.</span>
+<span class="sd">        - ray_version (str): The version of Ray to use in the cluster.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            dict: The updated cluster dictionary with metadata and ray version populated.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_valid_name</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+
+        <span class="n">cluster</span><span class="p">[</span><span class="s2">&quot;apiVersion&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{group}</span><span class="s2">/</span><span class="si">{version}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="n">group</span><span class="o">=</span><span class="n">constants</span><span class="o">.</span><span class="n">GROUP</span><span class="p">,</span> <span class="n">version</span><span class="o">=</span><span class="n">constants</span><span class="o">.</span><span class="n">CLUSTER_VERSION</span>
+        <span class="p">)</span>
+        <span class="n">cluster</span><span class="p">[</span><span class="s2">&quot;kind&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">constants</span><span class="o">.</span><span class="n">CLUSTER_KIND</span>
+        <span class="n">cluster</span><span class="p">[</span><span class="s2">&quot;metadata&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="n">name</span><span class="p">,</span>
+            <span class="s2">&quot;namespace&quot;</span><span class="p">:</span> <span class="n">k8s_namespace</span><span class="p">,</span>
+            <span class="s2">&quot;labels&quot;</span><span class="p">:</span> <span class="n">labels</span><span class="p">,</span>
+        <span class="p">}</span>
+        <span class="n">cluster</span><span class="p">[</span><span class="s2">&quot;spec&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;rayVersion&quot;</span><span class="p">:</span> <span class="n">ray_version</span><span class="p">}</span>
+        <span class="k">return</span> <span class="n">cluster</span></div>
+
+
+<div class="viewcode-block" id="ClusterUtils.populate_ray_head">
+<a class="viewcode-back" href="../../../../../codeflare_sdk.vendored.python_client.utils.html#codeflare_sdk.vendored.python_client.utils.kuberay_cluster_utils.ClusterUtils.populate_ray_head">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">populate_ray_head</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">cluster</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span>
+        <span class="n">ray_image</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">service_type</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">cpu_requests</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">memory_requests</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">cpu_limits</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">memory_limits</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">ray_start_params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">dict</span><span class="p">,</span> <span class="nb">bool</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Populate the ray head specs of the cluster</span>
+<span class="sd">        Parameters:</span>
+<span class="sd">        - cluster (dict): The dictionary representation of the cluster.</span>
+<span class="sd">        - ray_image (str): The name of the ray image to use for the head node.</span>
+<span class="sd">        - service_type (str): The type of service to run for the head node.</span>
+<span class="sd">        - cpu_requests (str): The CPU resource requests for the head node.</span>
+<span class="sd">        - memory_requests (str): The memory resource requests for the head node.</span>
+<span class="sd">        - cpu_limits (str): The CPU resource limits for the head node.</span>
+<span class="sd">        - memory_limits (str): The memory resource limits for the head node.</span>
+<span class="sd">        - ray_start_params (dict): The parameters for starting the Ray cluster.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">        - Tuple (dict, bool): The updated cluster, and a boolean indicating whether the update was successful.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># validate arguments</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">arguments</span> <span class="o">=</span> <span class="nb">locals</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">arguments</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">assert</span> <span class="n">v</span>
+        <span class="k">except</span> <span class="ne">AssertionError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                <span class="s2">&quot;error creating ray head, the parameters are not fully defined. </span><span class="si">{}</span><span class="s2"> = </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">k</span><span class="p">,</span> <span class="n">v</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+            <span class="k">return</span> <span class="n">cluster</span><span class="p">,</span> <span class="kc">False</span>
+
+        <span class="c1"># make sure metadata exists</span>
+        <span class="k">if</span> <span class="s2">&quot;spec&quot;</span> <span class="ow">in</span> <span class="n">cluster</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="k">if</span> <span class="s2">&quot;headGroupSpec&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">cluster</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                    <span class="s2">&quot;setting the headGroupSpec for cluster </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                        <span class="n">cluster</span><span class="p">[</span><span class="s2">&quot;metadata&quot;</span><span class="p">][</span><span class="s2">&quot;name&quot;</span><span class="p">]</span>
+                    <span class="p">)</span>
+                <span class="p">)</span>
+                <span class="n">cluster</span><span class="p">[</span><span class="s2">&quot;spec&quot;</span><span class="p">][</span><span class="s2">&quot;headGroupSpec&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;error creating ray head, the spec and/or metadata is not define&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">cluster</span><span class="p">,</span> <span class="kc">False</span>
+
+        <span class="c1"># populate headGroupSpec</span>
+        <span class="n">cluster</span><span class="p">[</span><span class="s2">&quot;spec&quot;</span><span class="p">][</span><span class="s2">&quot;headGroupSpec&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;serviceType&quot;</span><span class="p">:</span> <span class="n">service_type</span><span class="p">,</span>
+            <span class="s2">&quot;rayStartParams&quot;</span><span class="p">:</span> <span class="n">ray_start_params</span><span class="p">,</span>
+            <span class="s2">&quot;template&quot;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s2">&quot;spec&quot;</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="s2">&quot;containers&quot;</span><span class="p">:</span> <span class="p">[</span>
+                        <span class="p">{</span>
+                            <span class="s2">&quot;image&quot;</span><span class="p">:</span> <span class="n">ray_image</span><span class="p">,</span>
+                            <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;ray-head&quot;</span><span class="p">,</span>
+                            <span class="s2">&quot;ports&quot;</span><span class="p">:</span> <span class="p">[</span>
+                                <span class="p">{</span>
+                                    <span class="s2">&quot;containerPort&quot;</span><span class="p">:</span> <span class="mi">6379</span><span class="p">,</span>
+                                    <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;gcs-server&quot;</span><span class="p">,</span>
+                                    <span class="s2">&quot;protocol&quot;</span><span class="p">:</span> <span class="s2">&quot;TCP&quot;</span><span class="p">,</span>
+                                <span class="p">},</span>
+                                <span class="p">{</span>
+                                    <span class="s2">&quot;containerPort&quot;</span><span class="p">:</span> <span class="mi">8265</span><span class="p">,</span>
+                                    <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;dashboard&quot;</span><span class="p">,</span>
+                                    <span class="s2">&quot;protocol&quot;</span><span class="p">:</span> <span class="s2">&quot;TCP&quot;</span><span class="p">,</span>
+                                <span class="p">},</span>
+                                <span class="p">{</span>
+                                    <span class="s2">&quot;containerPort&quot;</span><span class="p">:</span> <span class="mi">10001</span><span class="p">,</span>
+                                    <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;client&quot;</span><span class="p">,</span>
+                                    <span class="s2">&quot;protocol&quot;</span><span class="p">:</span> <span class="s2">&quot;TCP&quot;</span><span class="p">,</span>
+                                <span class="p">},</span>
+                            <span class="p">],</span>
+                            <span class="s2">&quot;resources&quot;</span><span class="p">:</span> <span class="p">{</span>
+                                <span class="s2">&quot;requests&quot;</span><span class="p">:</span> <span class="p">{</span>
+                                    <span class="s2">&quot;cpu&quot;</span><span class="p">:</span> <span class="n">cpu_requests</span><span class="p">,</span>
+                                    <span class="s2">&quot;memory&quot;</span><span class="p">:</span> <span class="n">memory_requests</span><span class="p">,</span>
+                                <span class="p">},</span>
+                                <span class="s2">&quot;limits&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;cpu&quot;</span><span class="p">:</span> <span class="n">cpu_limits</span><span class="p">,</span> <span class="s2">&quot;memory&quot;</span><span class="p">:</span> <span class="n">memory_limits</span><span class="p">},</span>
+                            <span class="p">},</span>
+                            <span class="s2">&quot;volumeMounts&quot;</span><span class="p">:</span> <span class="p">[</span>
+                                <span class="p">{</span><span class="s2">&quot;mountPath&quot;</span><span class="p">:</span> <span class="s2">&quot;/tmp/ray&quot;</span><span class="p">,</span> <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;ray-logs&quot;</span><span class="p">}</span>
+                            <span class="p">],</span>
+                        <span class="p">}</span>
+                    <span class="p">],</span>
+                    <span class="s2">&quot;volumes&quot;</span><span class="p">:</span> <span class="p">[{</span><span class="s2">&quot;emptyDir&quot;</span><span class="p">:</span> <span class="p">{},</span> <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;ray-logs&quot;</span><span class="p">}],</span>
+                <span class="p">}</span>
+            <span class="p">},</span>
+        <span class="p">}</span>
+
+        <span class="k">return</span> <span class="n">cluster</span><span class="p">,</span> <span class="kc">True</span></div>
+
+
+<div class="viewcode-block" id="ClusterUtils.populate_worker_group">
+<a class="viewcode-back" href="../../../../../codeflare_sdk.vendored.python_client.utils.html#codeflare_sdk.vendored.python_client.utils.kuberay_cluster_utils.ClusterUtils.populate_worker_group">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">populate_worker_group</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">group_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">ray_image</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">ray_command</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
+        <span class="n">init_image</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">cpu_requests</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">memory_requests</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">cpu_limits</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">memory_limits</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">replicas</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">min_replicas</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">max_replicas</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">ray_start_params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">dict</span><span class="p">,</span> <span class="nb">bool</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Populate the worker group specification in the cluster dictionary.</span>
+
+<span class="sd">        Parameters:</span>
+<span class="sd">        - cluster (dict): Dictionary representing the cluster spec.</span>
+<span class="sd">        - group_name (str): The name of the worker group.</span>
+<span class="sd">        - ray_image (str): The image to use for the Ray worker containers.</span>
+<span class="sd">        - ray_command (Any): The command to run in the Ray worker containers.</span>
+<span class="sd">        - init_image (str): The init container image to use.</span>
+<span class="sd">        - cpu_requests (str): The requested CPU resources for the worker containers.</span>
+<span class="sd">        - memory_requests (str): The requested memory resources for the worker containers.</span>
+<span class="sd">        - cpu_limits (str): The limit on CPU resources for the worker containers.</span>
+<span class="sd">        - memory_limits (str): The limit on memory resources for the worker containers.</span>
+<span class="sd">        - replicas (int): The desired number of replicas for the worker group.</span>
+<span class="sd">        - min_replicas (int): The minimum number of replicas for the worker group.</span>
+<span class="sd">        - max_replicas (int): The maximum number of replicas for the worker group.</span>
+<span class="sd">        - ray_start_params (dict): The parameters to pass to the Ray worker start command.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">        - Tuple[dict, bool]: A tuple of the cluster specification and a boolean indicating</span>
+<span class="sd">            whether the worker group was successfully populated.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># validate arguments</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">arguments</span> <span class="o">=</span> <span class="nb">locals</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">arguments</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">if</span> <span class="n">k</span> <span class="o">!=</span> <span class="s2">&quot;min_replicas&quot;</span> <span class="ow">and</span> <span class="n">k</span> <span class="o">!=</span> <span class="s2">&quot;ray_start_params&quot;</span><span class="p">:</span>
+                    <span class="k">assert</span> <span class="n">v</span>
+        <span class="k">except</span> <span class="ne">AssertionError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                <span class="s2">&quot;error populating worker group, the parameters are not fully defined. </span><span class="si">{}</span><span class="s2"> = </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">k</span><span class="p">,</span> <span class="n">v</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+            <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">False</span>
+
+        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_valid_name</span><span class="p">(</span><span class="n">group_name</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="n">max_replicas</span> <span class="o">&gt;=</span> <span class="n">min_replicas</span>
+
+        <span class="n">worker_group</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;groupName&quot;</span><span class="p">:</span> <span class="n">group_name</span><span class="p">,</span>
+            <span class="s2">&quot;maxReplicas&quot;</span><span class="p">:</span> <span class="n">max_replicas</span><span class="p">,</span>
+            <span class="s2">&quot;minReplicas&quot;</span><span class="p">:</span> <span class="n">min_replicas</span><span class="p">,</span>
+            <span class="s2">&quot;rayStartParams&quot;</span><span class="p">:</span> <span class="n">ray_start_params</span><span class="p">,</span>
+            <span class="s2">&quot;replicas&quot;</span><span class="p">:</span> <span class="n">replicas</span><span class="p">,</span>
+            <span class="s2">&quot;template&quot;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s2">&quot;spec&quot;</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="s2">&quot;containers&quot;</span><span class="p">:</span> <span class="p">[</span>
+                        <span class="p">{</span>
+                            <span class="s2">&quot;image&quot;</span><span class="p">:</span> <span class="n">ray_image</span><span class="p">,</span>
+                            <span class="s2">&quot;command&quot;</span><span class="p">:</span> <span class="n">ray_command</span><span class="p">,</span>
+                            <span class="s2">&quot;lifecycle&quot;</span><span class="p">:</span> <span class="p">{</span>
+                                <span class="s2">&quot;preStop&quot;</span><span class="p">:</span> <span class="p">{</span>
+                                    <span class="s2">&quot;exec&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;command&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;/bin/sh&quot;</span><span class="p">,</span> <span class="s2">&quot;-c&quot;</span><span class="p">,</span> <span class="s2">&quot;ray stop&quot;</span><span class="p">]}</span>
+                                <span class="p">}</span>
+                            <span class="p">},</span>
+                            <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;ray-worker&quot;</span><span class="p">,</span>
+                            <span class="s2">&quot;resources&quot;</span><span class="p">:</span> <span class="p">{</span>
+                                <span class="s2">&quot;requests&quot;</span><span class="p">:</span> <span class="p">{</span>
+                                    <span class="s2">&quot;cpu&quot;</span><span class="p">:</span> <span class="n">cpu_requests</span><span class="p">,</span>
+                                    <span class="s2">&quot;memory&quot;</span><span class="p">:</span> <span class="n">memory_requests</span><span class="p">,</span>
+                                <span class="p">},</span>
+                                <span class="s2">&quot;limits&quot;</span><span class="p">:</span> <span class="p">{</span>
+                                    <span class="s2">&quot;cpu&quot;</span><span class="p">:</span> <span class="n">cpu_limits</span><span class="p">,</span>
+                                    <span class="s2">&quot;memory&quot;</span><span class="p">:</span> <span class="n">memory_limits</span><span class="p">,</span>
+                                <span class="p">},</span>
+                            <span class="p">},</span>
+                            <span class="s2">&quot;volumeMounts&quot;</span><span class="p">:</span> <span class="p">[</span>
+                                <span class="p">{</span><span class="s2">&quot;mountPath&quot;</span><span class="p">:</span> <span class="s2">&quot;/tmp/ray&quot;</span><span class="p">,</span> <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;ray-logs&quot;</span><span class="p">}</span>
+                            <span class="p">],</span>
+                        <span class="p">}</span>
+                    <span class="p">],</span>
+                    <span class="s2">&quot;volumes&quot;</span><span class="p">:</span> <span class="p">[{</span><span class="s2">&quot;emptyDir&quot;</span><span class="p">:</span> <span class="p">{},</span> <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;ray-logs&quot;</span><span class="p">}],</span>
+                <span class="p">}</span>
+            <span class="p">},</span>
+        <span class="p">}</span>
+
+        <span class="k">return</span> <span class="n">worker_group</span><span class="p">,</span> <span class="kc">True</span></div>
+
+
+<div class="viewcode-block" id="ClusterUtils.update_worker_group_replicas">
+<a class="viewcode-back" href="../../../../../codeflare_sdk.vendored.python_client.utils.html#codeflare_sdk.vendored.python_client.utils.kuberay_cluster_utils.ClusterUtils.update_worker_group_replicas">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">update_worker_group_replicas</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">cluster</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span>
+        <span class="n">group_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">max_replicas</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">min_replicas</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">replicas</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">dict</span><span class="p">,</span> <span class="nb">bool</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Update the number of replicas for a worker group in the cluster.</span>
+
+<span class="sd">        Parameters:</span>
+<span class="sd">        - cluster (dict): The cluster to update.</span>
+<span class="sd">        - group_name (str): The name of the worker group to update.</span>
+<span class="sd">        - max_replicas (int): The maximum number of replicas for the worker group.</span>
+<span class="sd">        - min_replicas (int): The minimum number of replicas for the worker group.</span>
+<span class="sd">        - replicas (int): The desired number of replicas for the worker group.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">        Tuple[dict, bool]: A tuple containing the updated cluster and a flag indicating whether the update was successful.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">arguments</span> <span class="o">=</span> <span class="nb">locals</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">arguments</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">if</span> <span class="n">k</span> <span class="o">!=</span> <span class="s2">&quot;min_replicas&quot;</span><span class="p">:</span>
+                    <span class="k">assert</span> <span class="n">v</span>
+        <span class="k">except</span> <span class="ne">AssertionError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                <span class="s2">&quot;error updating worker group, the parameters are not fully defined. </span><span class="si">{}</span><span class="s2"> = </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">k</span><span class="p">,</span> <span class="n">v</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+            <span class="k">return</span> <span class="n">cluster</span><span class="p">,</span> <span class="kc">False</span>
+
+        <span class="k">assert</span> <span class="n">cluster</span><span class="p">[</span><span class="s2">&quot;spec&quot;</span><span class="p">][</span><span class="s2">&quot;workerGroupSpecs&quot;</span><span class="p">]</span>
+        <span class="k">assert</span> <span class="n">max_replicas</span> <span class="o">&gt;=</span> <span class="n">min_replicas</span>
+
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">cluster</span><span class="p">[</span><span class="s2">&quot;spec&quot;</span><span class="p">][</span><span class="s2">&quot;workerGroupSpecs&quot;</span><span class="p">])):</span>
+            <span class="k">if</span> <span class="n">cluster</span><span class="p">[</span><span class="s2">&quot;spec&quot;</span><span class="p">][</span><span class="s2">&quot;workerGroupSpecs&quot;</span><span class="p">][</span><span class="n">i</span><span class="p">][</span><span class="s2">&quot;groupName&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">group_name</span><span class="p">:</span>
+                <span class="n">cluster</span><span class="p">[</span><span class="s2">&quot;spec&quot;</span><span class="p">][</span><span class="s2">&quot;workerGroupSpecs&quot;</span><span class="p">][</span><span class="n">i</span><span class="p">][</span><span class="s2">&quot;maxReplicas&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">max_replicas</span>
+                <span class="n">cluster</span><span class="p">[</span><span class="s2">&quot;spec&quot;</span><span class="p">][</span><span class="s2">&quot;workerGroupSpecs&quot;</span><span class="p">][</span><span class="n">i</span><span class="p">][</span><span class="s2">&quot;minReplicas&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">min_replicas</span>
+                <span class="n">cluster</span><span class="p">[</span><span class="s2">&quot;spec&quot;</span><span class="p">][</span><span class="s2">&quot;workerGroupSpecs&quot;</span><span class="p">][</span><span class="n">i</span><span class="p">][</span><span class="s2">&quot;replicas&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">replicas</span>
+                <span class="k">return</span> <span class="n">cluster</span><span class="p">,</span> <span class="kc">True</span>
+
+        <span class="k">return</span> <span class="n">cluster</span><span class="p">,</span> <span class="kc">False</span></div>
+
+
+<div class="viewcode-block" id="ClusterUtils.update_worker_group_resources">
+<a class="viewcode-back" href="../../../../../codeflare_sdk.vendored.python_client.utils.html#codeflare_sdk.vendored.python_client.utils.kuberay_cluster_utils.ClusterUtils.update_worker_group_resources">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">update_worker_group_resources</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">cluster</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span>
+        <span class="n">group_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">cpu_requests</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">memory_requests</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">cpu_limits</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">memory_limits</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">container_name</span><span class="o">=</span><span class="s2">&quot;unspecified&quot;</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">dict</span><span class="p">,</span> <span class="nb">bool</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Update the resources for a worker group pods in the cluster.</span>
+
+<span class="sd">        Parameters:</span>
+<span class="sd">        - cluster (dict): The cluster to update.</span>
+<span class="sd">        - group_name (str): The name of the worker group to update.</span>
+<span class="sd">        - cpu_requests (str): CPU requests for the worker pods.</span>
+<span class="sd">        - memory_requests (str): Memory requests for the worker pods.</span>
+<span class="sd">        - cpu_limits (str): CPU limits for the worker pods.</span>
+<span class="sd">        - memory_limits (str): Memory limits for the worker pods.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">        Tuple[dict, bool]: A tuple containing the updated cluster and a flag indicating whether the update was successful.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">arguments</span> <span class="o">=</span> <span class="nb">locals</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">arguments</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">if</span> <span class="n">k</span> <span class="o">!=</span> <span class="s2">&quot;min_replicas&quot;</span><span class="p">:</span>
+                    <span class="k">assert</span> <span class="n">v</span>
+        <span class="k">except</span> <span class="ne">AssertionError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                <span class="s2">&quot;error updating worker group, the parameters are not fully defined. </span><span class="si">{}</span><span class="s2"> = </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">k</span><span class="p">,</span> <span class="n">v</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+            <span class="k">return</span> <span class="n">cluster</span><span class="p">,</span> <span class="kc">False</span>
+
+        <span class="k">assert</span> <span class="n">cluster</span><span class="p">[</span><span class="s2">&quot;spec&quot;</span><span class="p">][</span><span class="s2">&quot;workerGroupSpecs&quot;</span><span class="p">]</span>
+
+        <span class="n">worker_groups</span> <span class="o">=</span> <span class="n">cluster</span><span class="p">[</span><span class="s2">&quot;spec&quot;</span><span class="p">][</span><span class="s2">&quot;workerGroupSpecs&quot;</span><span class="p">]</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">add_values</span><span class="p">(</span><span class="n">group_index</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">container_index</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+            <span class="n">worker_groups</span><span class="p">[</span><span class="n">group_index</span><span class="p">][</span><span class="s2">&quot;template&quot;</span><span class="p">][</span><span class="s2">&quot;spec&quot;</span><span class="p">][</span><span class="s2">&quot;containers&quot;</span><span class="p">][</span>
+                <span class="n">container_index</span>
+            <span class="p">][</span><span class="s2">&quot;resources&quot;</span><span class="p">][</span><span class="s2">&quot;requests&quot;</span><span class="p">][</span><span class="s2">&quot;cpu&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">cpu_requests</span>
+            <span class="n">worker_groups</span><span class="p">[</span><span class="n">group_index</span><span class="p">][</span><span class="s2">&quot;template&quot;</span><span class="p">][</span><span class="s2">&quot;spec&quot;</span><span class="p">][</span><span class="s2">&quot;containers&quot;</span><span class="p">][</span>
+                <span class="n">container_index</span>
+            <span class="p">][</span><span class="s2">&quot;resources&quot;</span><span class="p">][</span><span class="s2">&quot;requests&quot;</span><span class="p">][</span><span class="s2">&quot;memory&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">memory_requests</span>
+            <span class="n">worker_groups</span><span class="p">[</span><span class="n">group_index</span><span class="p">][</span><span class="s2">&quot;template&quot;</span><span class="p">][</span><span class="s2">&quot;spec&quot;</span><span class="p">][</span><span class="s2">&quot;containers&quot;</span><span class="p">][</span>
+                <span class="n">container_index</span>
+            <span class="p">][</span><span class="s2">&quot;resources&quot;</span><span class="p">][</span><span class="s2">&quot;limits&quot;</span><span class="p">][</span><span class="s2">&quot;cpu&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">cpu_limits</span>
+            <span class="n">worker_groups</span><span class="p">[</span><span class="n">group_index</span><span class="p">][</span><span class="s2">&quot;template&quot;</span><span class="p">][</span><span class="s2">&quot;spec&quot;</span><span class="p">][</span><span class="s2">&quot;containers&quot;</span><span class="p">][</span>
+                <span class="n">container_index</span>
+            <span class="p">][</span><span class="s2">&quot;resources&quot;</span><span class="p">][</span><span class="s2">&quot;limits&quot;</span><span class="p">][</span><span class="s2">&quot;memory&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">memory_limits</span>
+
+        <span class="k">for</span> <span class="n">group_index</span><span class="p">,</span> <span class="n">worker_group</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">worker_groups</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">worker_group</span><span class="p">[</span><span class="s2">&quot;groupName&quot;</span><span class="p">]</span> <span class="o">!=</span> <span class="n">group_name</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="n">containers</span> <span class="o">=</span> <span class="n">worker_group</span><span class="p">[</span><span class="s2">&quot;template&quot;</span><span class="p">][</span><span class="s2">&quot;spec&quot;</span><span class="p">][</span><span class="s2">&quot;containers&quot;</span><span class="p">]</span>
+            <span class="n">container_names</span> <span class="o">=</span> <span class="p">[</span><span class="n">container</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">container</span> <span class="ow">in</span> <span class="n">containers</span><span class="p">]</span>
+
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">containers</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;error updating container resources, the worker group </span><span class="si">{</span><span class="n">group_name</span><span class="si">}</span><span class="s2"> has no containers&quot;</span>
+                <span class="p">)</span>
+                <span class="k">return</span> <span class="n">cluster</span><span class="p">,</span> <span class="kc">False</span>
+
+            <span class="k">if</span> <span class="n">container_name</span> <span class="o">==</span> <span class="s2">&quot;unspecified&quot;</span><span class="p">:</span>
+                <span class="n">add_values</span><span class="p">(</span><span class="n">group_index</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">cluster</span><span class="p">,</span> <span class="kc">True</span>
+            <span class="k">elif</span> <span class="n">container_name</span> <span class="o">==</span> <span class="s2">&quot;all_containers&quot;</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">container_index</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">containers</span><span class="p">)):</span>
+                    <span class="n">add_values</span><span class="p">(</span><span class="n">group_index</span><span class="p">,</span> <span class="n">container_index</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">cluster</span><span class="p">,</span> <span class="kc">True</span>
+            <span class="k">elif</span> <span class="n">container_name</span> <span class="ow">in</span> <span class="n">container_names</span><span class="p">:</span>
+                <span class="n">container_index</span> <span class="o">=</span> <span class="n">container_names</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">container_name</span><span class="p">)</span>
+                <span class="n">add_values</span><span class="p">(</span><span class="n">group_index</span><span class="p">,</span> <span class="n">container_index</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">cluster</span><span class="p">,</span> <span class="kc">True</span>
+
+        <span class="k">return</span> <span class="n">cluster</span><span class="p">,</span> <span class="kc">False</span></div>
+
+
+<div class="viewcode-block" id="ClusterUtils.duplicate_worker_group">
+<a class="viewcode-back" href="../../../../../codeflare_sdk.vendored.python_client.utils.html#codeflare_sdk.vendored.python_client.utils.kuberay_cluster_utils.ClusterUtils.duplicate_worker_group">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">duplicate_worker_group</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">cluster</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span>
+        <span class="n">group_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">new_group_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">dict</span><span class="p">,</span> <span class="nb">bool</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Duplicate a worker group in the cluster.</span>
+
+<span class="sd">        Parameters:</span>
+<span class="sd">        - cluster (dict): The cluster definition.</span>
+<span class="sd">        - group_name (str): The name of the worker group to be duplicated.</span>
+<span class="sd">        - new_group_name (str): The name for the duplicated worker group.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">        Tuple[dict, bool]: A tuple containing the updated cluster definition and a boolean indicating the success of the operation.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">arguments</span> <span class="o">=</span> <span class="nb">locals</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">arguments</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">assert</span> <span class="n">v</span>
+        <span class="k">except</span> <span class="ne">AssertionError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;error duplicating worker group, the parameters are not fully defined. </span><span class="si">{</span><span class="n">k</span><span class="si">}</span><span class="s2"> = </span><span class="si">{</span><span class="n">v</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span>
+            <span class="k">return</span> <span class="n">cluster</span><span class="p">,</span> <span class="kc">False</span>
+        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_valid_name</span><span class="p">(</span><span class="n">new_group_name</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="n">cluster</span><span class="p">[</span><span class="s2">&quot;spec&quot;</span><span class="p">][</span><span class="s2">&quot;workerGroupSpecs&quot;</span><span class="p">]</span>
+
+        <span class="n">worker_groups</span> <span class="o">=</span> <span class="n">cluster</span><span class="p">[</span><span class="s2">&quot;spec&quot;</span><span class="p">][</span><span class="s2">&quot;workerGroupSpecs&quot;</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">worker_group</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">worker_groups</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">worker_group</span><span class="p">[</span><span class="s2">&quot;groupName&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">group_name</span><span class="p">:</span>
+                <span class="n">duplicate_group</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">worker_group</span><span class="p">)</span>
+                <span class="n">duplicate_group</span><span class="p">[</span><span class="s2">&quot;groupName&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">new_group_name</span>
+                <span class="n">worker_groups</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">duplicate_group</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">cluster</span><span class="p">,</span> <span class="kc">True</span>
+
+        <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;error duplicating worker group, no match was found for </span><span class="si">{</span><span class="n">group_name</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">cluster</span><span class="p">,</span> <span class="kc">False</span></div>
+
+
+<div class="viewcode-block" id="ClusterUtils.delete_worker_group">
+<a class="viewcode-back" href="../../../../../codeflare_sdk.vendored.python_client.utils.html#codeflare_sdk.vendored.python_client.utils.kuberay_cluster_utils.ClusterUtils.delete_worker_group">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">delete_worker_group</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">cluster</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span>
+        <span class="n">group_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">dict</span><span class="p">,</span> <span class="nb">bool</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Deletes a worker group in the cluster.</span>
+
+<span class="sd">        Parameters:</span>
+<span class="sd">        - cluster (dict): The cluster definition.</span>
+<span class="sd">        - group_name (str): The name of the worker group to be duplicated.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">        Tuple[dict, bool]: A tuple containing the updated cluster definition and a boolean indicating the success of the operation.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">arguments</span> <span class="o">=</span> <span class="nb">locals</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">arguments</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">assert</span> <span class="n">v</span>
+        <span class="k">except</span> <span class="ne">AssertionError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;error creating ray head, the parameters are not fully defined. </span><span class="si">{</span><span class="n">k</span><span class="si">}</span><span class="s2"> = </span><span class="si">{</span><span class="n">v</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span>
+            <span class="k">return</span> <span class="n">cluster</span><span class="p">,</span> <span class="kc">False</span>
+
+        <span class="k">assert</span> <span class="n">cluster</span><span class="p">[</span><span class="s2">&quot;spec&quot;</span><span class="p">][</span><span class="s2">&quot;workerGroupSpecs&quot;</span><span class="p">]</span>
+
+        <span class="n">worker_groups</span> <span class="o">=</span> <span class="n">cluster</span><span class="p">[</span><span class="s2">&quot;spec&quot;</span><span class="p">][</span><span class="s2">&quot;workerGroupSpecs&quot;</span><span class="p">]</span>
+        <span class="n">first_or_none</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span>
+            <span class="p">(</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">worker_groups</span> <span class="k">if</span> <span class="n">x</span><span class="p">[</span><span class="s2">&quot;groupName&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">group_name</span><span class="p">),</span> <span class="kc">None</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="n">first_or_none</span><span class="p">:</span>
+            <span class="n">worker_groups</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">first_or_none</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">cluster</span><span class="p">,</span> <span class="kc">True</span>
+
+        <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;error removing worker group, no match was found for </span><span class="si">{</span><span class="n">group_name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">cluster</span><span class="p">,</span> <span class="kc">False</span></div>
+
+
+<div class="viewcode-block" id="ClusterUtils.is_valid_name">
+<a class="viewcode-back" href="../../../../../codeflare_sdk.vendored.python_client.utils.html#codeflare_sdk.vendored.python_client.utils.kuberay_cluster_utils.ClusterUtils.is_valid_name">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">is_valid_name</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="s2">&quot;The name must be 63 characters or less, begin and end with an alphanumeric character, and contain only dashes, dots, and alphanumerics.&quot;</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">name</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">63</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">bool</span><span class="p">(</span><span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="s2">&quot;^[a-z0-9]([-.]*[a-z0-9])+$&quot;</span><span class="p">,</span> <span class="n">name</span><span class="p">)):</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="k">return</span> <span class="kc">True</span></div>
+
+
+<div class="viewcode-block" id="ClusterUtils.is_valid_label">
+<a class="viewcode-back" href="../../../../../codeflare_sdk.vendored.python_client.utils.html#codeflare_sdk.vendored.python_client.utils.kuberay_cluster_utils.ClusterUtils.is_valid_label">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">is_valid_label</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="s2">&quot;The label name must be 63 characters or less, begin and end with an alphanumeric character, and contain only dashes, underscores, dots, and alphanumerics.&quot;</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">name</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">63</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">bool</span><span class="p">(</span><span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="s2">&quot;^[a-z0-9]([-._]*[a-z0-9])+$&quot;</span><span class="p">,</span> <span class="n">name</span><span class="p">)):</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="k">return</span> <span class="kc">True</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Project CodeFlare.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

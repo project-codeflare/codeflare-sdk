@@ -1,0 +1,632 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>codeflare_sdk.ray.rayjobs.config &mdash; CodeFlare SDK 0.35.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../_static/documentation_options.js?v=ca1b380b"></script>
+      <script src="../../../../_static/doctools.js?v=9a2dae69"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            CodeFlare SDK
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Code Documentation:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../modules.html">codeflare_sdk</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">User Documentation:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user-docs/authentication.html">Authentication via the CodeFlare SDK</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user-docs/cluster-configuration.html">Ray Cluster Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user-docs/ray-cluster-interaction.html">Ray Cluster Interaction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user-docs/rayjob.html">Submitting RayJobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user-docs/e2e.html">Running e2e tests locally</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user-docs/s3-compatible-storage.html">S3 compatible storage with Ray Train examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user-docs/setup-kueue.html">Basic Kueue Resources configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user-docs/ui-widgets.html">Jupyter UI Widgets</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">CodeFlare SDK</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">codeflare_sdk.ray.rayjobs.config</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for codeflare_sdk.ray.rayjobs.config</h1><div class="highlight"><pre>
+<span></span><span class="c1"># Copyright 2022 IBM, Red Hat</span>
+<span class="c1">#</span>
+<span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="c1"># you may not use this file except in compliance with the License.</span>
+<span class="c1"># You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#      http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">The config sub-module contains the definition of the ManagedClusterConfig dataclass,</span>
+<span class="sd">which is used to specify resource requirements and other details when creating a</span>
+<span class="sd">Cluster object.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">pathlib</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span><span class="p">,</span> <span class="n">field</span><span class="p">,</span> <span class="n">fields</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">get_args</span><span class="p">,</span> <span class="n">get_origin</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Tuple</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">kubernetes.client</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">V1LocalObjectReference</span><span class="p">,</span>
+    <span class="n">V1SecretVolumeSource</span><span class="p">,</span>
+    <span class="n">V1Toleration</span><span class="p">,</span>
+    <span class="n">V1Volume</span><span class="p">,</span>
+    <span class="n">V1VolumeMount</span><span class="p">,</span>
+    <span class="n">V1ObjectMeta</span><span class="p">,</span>
+    <span class="n">V1Container</span><span class="p">,</span>
+    <span class="n">V1ContainerPort</span><span class="p">,</span>
+    <span class="n">V1Lifecycle</span><span class="p">,</span>
+    <span class="n">V1ExecAction</span><span class="p">,</span>
+    <span class="n">V1LifecycleHandler</span><span class="p">,</span>
+    <span class="n">V1EnvVar</span><span class="p">,</span>
+    <span class="n">V1PodTemplateSpec</span><span class="p">,</span>
+    <span class="n">V1PodSpec</span><span class="p">,</span>
+    <span class="n">V1ResourceRequirements</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">...common.utils.constants</span><span class="w"> </span><span class="kn">import</span> <span class="n">MOUNT_PATH</span><span class="p">,</span> <span class="n">RAY_VERSION</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">...common.utils.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">update_image</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+<span class="nb">dir</span> <span class="o">=</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">(</span><span class="vm">__file__</span><span class="p">)</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span>
+
+<span class="c1"># https://docs.ray.io/en/latest/ray-core/scheduling/accelerators.html</span>
+<span class="n">DEFAULT_ACCELERATORS</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;nvidia.com/gpu&quot;</span><span class="p">:</span> <span class="s2">&quot;GPU&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;intel.com/gpu&quot;</span><span class="p">:</span> <span class="s2">&quot;GPU&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;amd.com/gpu&quot;</span><span class="p">:</span> <span class="s2">&quot;GPU&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;aws.amazon.com/neuroncore&quot;</span><span class="p">:</span> <span class="s2">&quot;neuron_cores&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;google.com/tpu&quot;</span><span class="p">:</span> <span class="s2">&quot;TPU&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;habana.ai/gaudi&quot;</span><span class="p">:</span> <span class="s2">&quot;HPU&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;huawei.com/Ascend910&quot;</span><span class="p">:</span> <span class="s2">&quot;NPU&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;huawei.com/Ascend310&quot;</span><span class="p">:</span> <span class="s2">&quot;NPU&quot;</span><span class="p">,</span>
+<span class="p">}</span>
+
+
+<div class="viewcode-block" id="ManagedClusterConfig">
+<a class="viewcode-back" href="../../../../codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">ManagedClusterConfig</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This dataclass is used to specify resource requirements and other details for RayJobs.</span>
+<span class="sd">    The cluster name and namespace are automatically derived from the RayJob configuration.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        head_accelerators:</span>
+<span class="sd">            A dictionary of extended resource requests for the head node. ex: {&quot;nvidia.com/gpu&quot;: 1}</span>
+<span class="sd">        head_tolerations:</span>
+<span class="sd">            List of tolerations for head nodes.</span>
+<span class="sd">        num_workers:</span>
+<span class="sd">            The number of workers to create.</span>
+<span class="sd">        worker_tolerations:</span>
+<span class="sd">            List of tolerations for worker nodes.</span>
+<span class="sd">        envs:</span>
+<span class="sd">            A dictionary of environment variables to set for the cluster.</span>
+<span class="sd">        image:</span>
+<span class="sd">            The image to use for the cluster.</span>
+<span class="sd">        image_pull_secrets:</span>
+<span class="sd">            A list of image pull secrets to use for the cluster.</span>
+<span class="sd">        labels:</span>
+<span class="sd">            A dictionary of labels to apply to the cluster.</span>
+<span class="sd">        worker_accelerators:</span>
+<span class="sd">            A dictionary of extended resource requests for each worker. ex: {&quot;nvidia.com/gpu&quot;: 1}</span>
+<span class="sd">        accelerator_configs:</span>
+<span class="sd">            A dictionary of custom resource mappings to map extended resource requests to RayCluster resource names.</span>
+<span class="sd">            Defaults to DEFAULT_ACCELERATORS but can be overridden with custom mappings.</span>
+<span class="sd">        annotations:</span>
+<span class="sd">            A dictionary of annotations to apply to the Job.</span>
+<span class="sd">        volumes:</span>
+<span class="sd">            A list of V1Volume objects to add to the Cluster</span>
+<span class="sd">        volume_mounts:</span>
+<span class="sd">            A list of V1VolumeMount objects to add to the Cluster</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">head_cpu_requests</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="mi">2</span>
+    <span class="n">head_cpu_limits</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="mi">2</span>
+    <span class="n">head_memory_requests</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="mi">8</span>
+    <span class="n">head_memory_limits</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="mi">8</span>
+    <span class="n">head_accelerators</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">dict</span><span class="p">)</span>
+    <span class="n">head_tolerations</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">V1Toleration</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">worker_cpu_requests</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">worker_cpu_limits</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">num_workers</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">worker_memory_requests</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="mi">2</span>
+    <span class="n">worker_memory_limits</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="mi">2</span>
+    <span class="n">worker_tolerations</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">V1Toleration</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">envs</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">dict</span><span class="p">)</span>
+    <span class="n">image</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="n">image_pull_secrets</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
+    <span class="n">labels</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">dict</span><span class="p">)</span>
+    <span class="n">worker_accelerators</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">dict</span><span class="p">)</span>
+    <span class="n">accelerator_configs</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span>
+        <span class="n">default_factory</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">DEFAULT_ACCELERATORS</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="p">)</span>
+    <span class="n">annotations</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">dict</span><span class="p">)</span>
+    <span class="n">volumes</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">V1Volume</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
+    <span class="n">volume_mounts</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">V1VolumeMount</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">envs</span><span class="p">[</span><span class="s2">&quot;RAY_USAGE_STATS_ENABLED&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;0&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_validate_types</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_memory_to_string</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_validate_gpu_config</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">head_accelerators</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_validate_gpu_config</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">worker_accelerators</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_validate_gpu_config</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">gpu_config</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]):</span>
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">gpu_config</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">k</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">accelerator_configs</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;GPU configuration &#39;</span><span class="si">{</span><span class="n">k</span><span class="si">}</span><span class="s2">&#39; not found in accelerator_configs, available resources are </span><span class="si">{</span><span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">accelerator_configs</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span><span class="si">}</span><span class="s2">, to add more supported resources use accelerator_configs. i.e. accelerator_configs = </span><span class="se">{{</span><span class="s2">&#39;</span><span class="si">{</span><span class="n">k</span><span class="si">}</span><span class="s2">&#39;: &#39;FOO_BAR&#39;</span><span class="se">}}</span><span class="s2">&quot;</span>
+                <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_memory_to_string</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">head_memory_requests</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">head_memory_requests</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">head_memory_requests</span><span class="si">}</span><span class="s2">G&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">head_memory_limits</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">head_memory_limits</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">head_memory_limits</span><span class="si">}</span><span class="s2">G&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">worker_memory_requests</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">worker_memory_requests</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">worker_memory_requests</span><span class="si">}</span><span class="s2">G&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">worker_memory_limits</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">worker_memory_limits</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">worker_memory_limits</span><span class="si">}</span><span class="s2">G&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_validate_types</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Validate the types of all fields in the ManagedClusterConfig dataclass.&quot;&quot;&quot;</span>
+        <span class="n">errors</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">field_info</span> <span class="ow">in</span> <span class="n">fields</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">field_info</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+            <span class="n">expected_type</span> <span class="o">=</span> <span class="n">field_info</span><span class="o">.</span><span class="n">type</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_type</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">expected_type</span><span class="p">):</span>
+                <span class="n">errors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;&#39;</span><span class="si">{</span><span class="n">field_info</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&#39; should be of type </span><span class="si">{</span><span class="n">expected_type</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">errors</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;Type validation failed:</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">errors</span><span class="p">))</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_is_type</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">expected_type</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check if the value matches the expected type.&quot;&quot;&quot;</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">check_type</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">expected_type</span><span class="p">):</span>
+            <span class="n">origin_type</span> <span class="o">=</span> <span class="n">get_origin</span><span class="p">(</span><span class="n">expected_type</span><span class="p">)</span>
+            <span class="n">args</span> <span class="o">=</span> <span class="n">get_args</span><span class="p">(</span><span class="n">expected_type</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">origin_type</span> <span class="ow">is</span> <span class="n">Union</span><span class="p">:</span>
+                <span class="k">return</span> <span class="nb">any</span><span class="p">(</span><span class="n">check_type</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">union_type</span><span class="p">)</span> <span class="k">for</span> <span class="n">union_type</span> <span class="ow">in</span> <span class="n">args</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">origin_type</span> <span class="ow">is</span> <span class="nb">list</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="nb">all</span><span class="p">(</span><span class="n">check_type</span><span class="p">(</span><span class="n">elem</span><span class="p">,</span> <span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="k">for</span> <span class="n">elem</span> <span class="ow">in</span> <span class="p">(</span><span class="n">value</span> <span class="ow">or</span> <span class="p">[]))</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="kc">True</span>
+            <span class="k">if</span> <span class="n">origin_type</span> <span class="ow">is</span> <span class="nb">dict</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="nb">all</span><span class="p">(</span>
+                        <span class="n">check_type</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="ow">and</span> <span class="n">check_type</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+                        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">value</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+                    <span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="kc">True</span>
+            <span class="k">if</span> <span class="n">origin_type</span> <span class="ow">is</span> <span class="nb">tuple</span><span class="p">:</span>
+                <span class="k">return</span> <span class="nb">all</span><span class="p">(</span><span class="n">check_type</span><span class="p">(</span><span class="n">elem</span><span class="p">,</span> <span class="n">etype</span><span class="p">)</span> <span class="k">for</span> <span class="n">elem</span><span class="p">,</span> <span class="n">etype</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">args</span><span class="p">))</span>
+            <span class="k">if</span> <span class="n">expected_type</span> <span class="ow">is</span> <span class="nb">int</span><span class="p">:</span>
+                <span class="k">return</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">bool</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">expected_type</span> <span class="ow">is</span> <span class="nb">bool</span><span class="p">:</span>
+                <span class="k">return</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">bool</span><span class="p">)</span>
+            <span class="k">return</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">expected_type</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">check_type</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">expected_type</span><span class="p">)</span>
+
+<div class="viewcode-block" id="ManagedClusterConfig.build_ray_cluster_spec">
+<a class="viewcode-back" href="../../../../codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.build_ray_cluster_spec">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">build_ray_cluster_spec</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cluster_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Build the RayCluster spec from ManagedClusterConfig for embedding in RayJob.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            self: The cluster configuration object (ManagedClusterConfig)</span>
+<span class="sd">            cluster_name: The name for the cluster (derived from RayJob name)</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Dict containing the RayCluster spec for embedding in RayJob</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">ray_cluster_spec</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;rayVersion&quot;</span><span class="p">:</span> <span class="n">RAY_VERSION</span><span class="p">,</span>
+            <span class="s2">&quot;enableInTreeAutoscaling&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>  <span class="c1"># Required for Kueue-managed jobs</span>
+            <span class="s2">&quot;headGroupSpec&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_head_group_spec</span><span class="p">(),</span>
+            <span class="s2">&quot;workerGroupSpecs&quot;</span><span class="p">:</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_build_worker_group_spec</span><span class="p">(</span><span class="n">cluster_name</span><span class="p">)],</span>
+        <span class="p">}</span>
+
+        <span class="k">return</span> <span class="n">ray_cluster_spec</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_build_head_group_spec</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Build the head group specification.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;serviceType&quot;</span><span class="p">:</span> <span class="s2">&quot;ClusterIP&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;enableIngress&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+            <span class="s2">&quot;rayStartParams&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_head_ray_params</span><span class="p">(),</span>
+            <span class="s2">&quot;template&quot;</span><span class="p">:</span> <span class="n">V1PodTemplateSpec</span><span class="p">(</span>
+                <span class="n">metadata</span><span class="o">=</span><span class="n">V1ObjectMeta</span><span class="p">(</span><span class="n">annotations</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">annotations</span><span class="p">),</span>
+                <span class="n">spec</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_build_pod_spec</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_build_head_container</span><span class="p">(),</span> <span class="n">is_head</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+            <span class="p">),</span>
+        <span class="p">}</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_build_worker_group_spec</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cluster_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Build the worker group specification.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;replicas&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_workers</span><span class="p">,</span>
+            <span class="s2">&quot;minReplicas&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_workers</span><span class="p">,</span>
+            <span class="s2">&quot;maxReplicas&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_workers</span><span class="p">,</span>
+            <span class="s2">&quot;groupName&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;worker-group-</span><span class="si">{</span><span class="n">cluster_name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;rayStartParams&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_worker_ray_params</span><span class="p">(),</span>
+            <span class="s2">&quot;template&quot;</span><span class="p">:</span> <span class="n">V1PodTemplateSpec</span><span class="p">(</span>
+                <span class="n">metadata</span><span class="o">=</span><span class="n">V1ObjectMeta</span><span class="p">(</span><span class="n">annotations</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">annotations</span><span class="p">),</span>
+                <span class="n">spec</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_build_pod_spec</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_build_worker_container</span><span class="p">(),</span>
+                    <span class="n">is_head</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                <span class="p">),</span>
+            <span class="p">),</span>
+        <span class="p">}</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_build_head_ray_params</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Build Ray start parameters for head node.&quot;&quot;&quot;</span>
+        <span class="n">params</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;dashboard-host&quot;</span><span class="p">:</span> <span class="s2">&quot;0.0.0.0&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;block&quot;</span><span class="p">:</span> <span class="s2">&quot;true&quot;</span><span class="p">,</span>
+        <span class="p">}</span>
+
+        <span class="c1"># Add GPU count if specified</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">head_accelerators</span><span class="p">:</span>
+            <span class="n">gpu_count</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span>
+                <span class="n">count</span>
+                <span class="k">for</span> <span class="n">resource_type</span><span class="p">,</span> <span class="n">count</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">head_accelerators</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+                <span class="k">if</span> <span class="s2">&quot;gpu&quot;</span> <span class="ow">in</span> <span class="n">resource_type</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+            <span class="p">)</span>
+            <span class="k">if</span> <span class="n">gpu_count</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">params</span><span class="p">[</span><span class="s2">&quot;num-gpus&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">gpu_count</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">params</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_build_worker_ray_params</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Build Ray start parameters for worker nodes.&quot;&quot;&quot;</span>
+        <span class="n">params</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;block&quot;</span><span class="p">:</span> <span class="s2">&quot;true&quot;</span><span class="p">,</span>
+        <span class="p">}</span>
+
+        <span class="c1"># Add GPU count if specified</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">worker_accelerators</span><span class="p">:</span>
+            <span class="n">gpu_count</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span>
+                <span class="n">count</span>
+                <span class="k">for</span> <span class="n">resource_type</span><span class="p">,</span> <span class="n">count</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">worker_accelerators</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+                <span class="k">if</span> <span class="s2">&quot;gpu&quot;</span> <span class="ow">in</span> <span class="n">resource_type</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+            <span class="p">)</span>
+            <span class="k">if</span> <span class="n">gpu_count</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">params</span><span class="p">[</span><span class="s2">&quot;num-gpus&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">gpu_count</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">params</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_build_head_container</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">V1Container</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Build the head container specification.&quot;&quot;&quot;</span>
+        <span class="n">container</span> <span class="o">=</span> <span class="n">V1Container</span><span class="p">(</span>
+            <span class="n">name</span><span class="o">=</span><span class="s2">&quot;ray-head&quot;</span><span class="p">,</span>
+            <span class="n">image</span><span class="o">=</span><span class="n">update_image</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">image</span><span class="p">),</span>
+            <span class="n">image_pull_policy</span><span class="o">=</span><span class="s2">&quot;IfNotPresent&quot;</span><span class="p">,</span>  <span class="c1"># Always IfNotPresent for RayJobs</span>
+            <span class="n">ports</span><span class="o">=</span><span class="p">[</span>
+                <span class="n">V1ContainerPort</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;gcs&quot;</span><span class="p">,</span> <span class="n">container_port</span><span class="o">=</span><span class="mi">6379</span><span class="p">),</span>
+                <span class="n">V1ContainerPort</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;dashboard&quot;</span><span class="p">,</span> <span class="n">container_port</span><span class="o">=</span><span class="mi">8265</span><span class="p">),</span>
+                <span class="n">V1ContainerPort</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;client&quot;</span><span class="p">,</span> <span class="n">container_port</span><span class="o">=</span><span class="mi">10001</span><span class="p">),</span>
+            <span class="p">],</span>
+            <span class="n">lifecycle</span><span class="o">=</span><span class="n">V1Lifecycle</span><span class="p">(</span>
+                <span class="n">pre_stop</span><span class="o">=</span><span class="n">V1LifecycleHandler</span><span class="p">(</span>
+                    <span class="n">_exec</span><span class="o">=</span><span class="n">V1ExecAction</span><span class="p">(</span><span class="n">command</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;/bin/sh&quot;</span><span class="p">,</span> <span class="s2">&quot;-c&quot;</span><span class="p">,</span> <span class="s2">&quot;ray stop&quot;</span><span class="p">])</span>
+                <span class="p">)</span>
+            <span class="p">),</span>
+            <span class="n">resources</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_build_resource_requirements</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">head_cpu_requests</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">head_cpu_limits</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">head_memory_requests</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">head_memory_limits</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">head_accelerators</span><span class="p">,</span>
+            <span class="p">),</span>
+            <span class="n">volume_mounts</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_generate_volume_mounts</span><span class="p">(),</span>
+            <span class="n">env</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_build_env_vars</span><span class="p">()</span> <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;envs&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">envs</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">container</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_build_worker_container</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">V1Container</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Build the worker container specification.&quot;&quot;&quot;</span>
+        <span class="n">container</span> <span class="o">=</span> <span class="n">V1Container</span><span class="p">(</span>
+            <span class="n">name</span><span class="o">=</span><span class="s2">&quot;ray-worker&quot;</span><span class="p">,</span>
+            <span class="n">image</span><span class="o">=</span><span class="n">update_image</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">image</span><span class="p">),</span>
+            <span class="n">image_pull_policy</span><span class="o">=</span><span class="s2">&quot;IfNotPresent&quot;</span><span class="p">,</span>  <span class="c1"># Always IfNotPresent for RayJobs</span>
+            <span class="n">lifecycle</span><span class="o">=</span><span class="n">V1Lifecycle</span><span class="p">(</span>
+                <span class="n">pre_stop</span><span class="o">=</span><span class="n">V1LifecycleHandler</span><span class="p">(</span>
+                    <span class="n">_exec</span><span class="o">=</span><span class="n">V1ExecAction</span><span class="p">(</span><span class="n">command</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;/bin/sh&quot;</span><span class="p">,</span> <span class="s2">&quot;-c&quot;</span><span class="p">,</span> <span class="s2">&quot;ray stop&quot;</span><span class="p">])</span>
+                <span class="p">)</span>
+            <span class="p">),</span>
+            <span class="n">resources</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_build_resource_requirements</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">worker_cpu_requests</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">worker_cpu_limits</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">worker_memory_requests</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">worker_memory_limits</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">worker_accelerators</span><span class="p">,</span>
+            <span class="p">),</span>
+            <span class="n">volume_mounts</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_generate_volume_mounts</span><span class="p">(),</span>
+            <span class="n">env</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_build_env_vars</span><span class="p">()</span> <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;envs&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">envs</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">container</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_build_resource_requirements</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">cpu_requests</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
+        <span class="n">cpu_limits</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
+        <span class="n">memory_requests</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
+        <span class="n">memory_limits</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
+        <span class="n">extended_resource_requests</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">V1ResourceRequirements</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Build Kubernetes resource requirements.&quot;&quot;&quot;</span>
+        <span class="n">resource_requirements</span> <span class="o">=</span> <span class="n">V1ResourceRequirements</span><span class="p">(</span>
+            <span class="n">requests</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;cpu&quot;</span><span class="p">:</span> <span class="n">cpu_requests</span><span class="p">,</span> <span class="s2">&quot;memory&quot;</span><span class="p">:</span> <span class="n">memory_requests</span><span class="p">},</span>
+            <span class="n">limits</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;cpu&quot;</span><span class="p">:</span> <span class="n">cpu_limits</span><span class="p">,</span> <span class="s2">&quot;memory&quot;</span><span class="p">:</span> <span class="n">memory_limits</span><span class="p">},</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Add extended resources (e.g., GPUs)</span>
+        <span class="k">if</span> <span class="n">extended_resource_requests</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">resource_type</span><span class="p">,</span> <span class="n">amount</span> <span class="ow">in</span> <span class="n">extended_resource_requests</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="n">resource_requirements</span><span class="o">.</span><span class="n">limits</span><span class="p">[</span><span class="n">resource_type</span><span class="p">]</span> <span class="o">=</span> <span class="n">amount</span>
+                <span class="n">resource_requirements</span><span class="o">.</span><span class="n">requests</span><span class="p">[</span><span class="n">resource_type</span><span class="p">]</span> <span class="o">=</span> <span class="n">amount</span>
+
+        <span class="k">return</span> <span class="n">resource_requirements</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_build_pod_spec</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">container</span><span class="p">:</span> <span class="n">V1Container</span><span class="p">,</span> <span class="n">is_head</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">V1PodSpec</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Build the pod specification.&quot;&quot;&quot;</span>
+        <span class="n">pod_spec</span> <span class="o">=</span> <span class="n">V1PodSpec</span><span class="p">(</span>
+            <span class="n">containers</span><span class="o">=</span><span class="p">[</span><span class="n">container</span><span class="p">],</span>
+            <span class="n">volumes</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_generate_volumes</span><span class="p">(),</span>
+            <span class="n">restart_policy</span><span class="o">=</span><span class="s2">&quot;Never&quot;</span><span class="p">,</span>  <span class="c1"># RayJobs should not restart</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Add tolerations if specified</span>
+        <span class="k">if</span> <span class="n">is_head</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;head_tolerations&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">head_tolerations</span><span class="p">:</span>
+            <span class="n">pod_spec</span><span class="o">.</span><span class="n">tolerations</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">head_tolerations</span>
+        <span class="k">elif</span> <span class="p">(</span>
+            <span class="ow">not</span> <span class="n">is_head</span>
+            <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;worker_tolerations&quot;</span><span class="p">)</span>
+            <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">worker_tolerations</span>
+        <span class="p">):</span>
+            <span class="n">pod_spec</span><span class="o">.</span><span class="n">tolerations</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">worker_tolerations</span>
+
+        <span class="c1"># Add image pull secrets if specified</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;image_pull_secrets&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">image_pull_secrets</span><span class="p">:</span>
+            <span class="n">pod_spec</span><span class="o">.</span><span class="n">image_pull_secrets</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="n">V1LocalObjectReference</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">secret</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">secret</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">image_pull_secrets</span>
+            <span class="p">]</span>
+
+        <span class="k">return</span> <span class="n">pod_spec</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_generate_volume_mounts</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Generate volume mounts for the container.&quot;&quot;&quot;</span>
+        <span class="n">volume_mounts</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="c1"># Add custom volume mounts if specified</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;volume_mounts&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">volume_mounts</span><span class="p">:</span>
+            <span class="n">volume_mounts</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">volume_mounts</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">volume_mounts</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_generate_volumes</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Generate volumes for the pod.&quot;&quot;&quot;</span>
+        <span class="n">volumes</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="c1"># Add custom volumes if specified</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;volumes&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">volumes</span><span class="p">:</span>
+            <span class="n">volumes</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">volumes</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">volumes</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_build_env_vars</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Build environment variables list.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">V1EnvVar</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">value</span><span class="p">)</span> <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">envs</span><span class="o">.</span><span class="n">items</span><span class="p">()]</span>
+
+<div class="viewcode-block" id="ManagedClusterConfig.add_file_volumes">
+<a class="viewcode-back" href="../../../../codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.add_file_volumes">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">add_file_volumes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">secret_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">mount_path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">MOUNT_PATH</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Add file volume and mount references to cluster configuration.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            secret_name: Name of the Secret containing files</span>
+<span class="sd">            mount_path: Where to mount files in containers (default: /home/ray/scripts)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Check if file volume already exists</span>
+        <span class="n">volume_name</span> <span class="o">=</span> <span class="s2">&quot;ray-job-files&quot;</span>
+        <span class="n">existing_volume</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span>
+            <span class="p">(</span><span class="n">v</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">volumes</span> <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="s2">&quot;name&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="o">==</span> <span class="n">volume_name</span><span class="p">),</span> <span class="kc">None</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="n">existing_volume</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;File volume &#39;</span><span class="si">{</span><span class="n">volume_name</span><span class="si">}</span><span class="s2">&#39; already exists, skipping...&quot;</span><span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="c1"># Check if file mount already exists</span>
+        <span class="n">existing_mount</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span>
+            <span class="p">(</span><span class="n">m</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">volume_mounts</span> <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">m</span><span class="p">,</span> <span class="s2">&quot;name&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="o">==</span> <span class="n">volume_name</span><span class="p">),</span>
+            <span class="kc">None</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="n">existing_mount</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;File volume mount &#39;</span><span class="si">{</span><span class="n">volume_name</span><span class="si">}</span><span class="s2">&#39; already exists, skipping...&quot;</span>
+            <span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="c1"># Add file volume to cluster configuration</span>
+        <span class="n">file_volume</span> <span class="o">=</span> <span class="n">V1Volume</span><span class="p">(</span>
+            <span class="n">name</span><span class="o">=</span><span class="n">volume_name</span><span class="p">,</span> <span class="n">secret</span><span class="o">=</span><span class="n">V1SecretVolumeSource</span><span class="p">(</span><span class="n">secret_name</span><span class="o">=</span><span class="n">secret_name</span><span class="p">)</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">volumes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">file_volume</span><span class="p">)</span>
+
+        <span class="c1"># Add file volume mount to cluster configuration</span>
+        <span class="n">file_mount</span> <span class="o">=</span> <span class="n">V1VolumeMount</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">volume_name</span><span class="p">,</span> <span class="n">mount_path</span><span class="o">=</span><span class="n">mount_path</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">volume_mounts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">file_mount</span><span class="p">)</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;Added file volume &#39;</span><span class="si">{</span><span class="n">secret_name</span><span class="si">}</span><span class="s2">&#39; to cluster config: mount_path=</span><span class="si">{</span><span class="n">mount_path</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="ManagedClusterConfig.validate_secret_size">
+<a class="viewcode-back" href="../../../../codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.validate_secret_size">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">validate_secret_size</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">files</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">total_size</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">content</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s2">&quot;utf-8&quot;</span><span class="p">))</span> <span class="k">for</span> <span class="n">content</span> <span class="ow">in</span> <span class="n">files</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+        <span class="k">if</span> <span class="n">total_size</span> <span class="o">&gt;</span> <span class="mi">1024</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">:</span>  <span class="c1"># 1MB</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Secret size exceeds 1MB limit. Total size: </span><span class="si">{</span><span class="n">total_size</span><span class="si">}</span><span class="s2"> bytes&quot;</span>
+            <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="ManagedClusterConfig.build_file_secret_spec">
+<a class="viewcode-back" href="../../../../codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.build_file_secret_spec">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">build_file_secret_spec</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">job_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">namespace</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">files</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Build Secret specification for files</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            job_name: Name of the RayJob (used for Secret naming)</span>
+<span class="sd">            namespace: Kubernetes namespace</span>
+<span class="sd">            files: Dictionary of file_name -&gt; file_content</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Dict: Secret specification ready for Kubernetes API</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">secret_name</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">job_name</span><span class="si">}</span><span class="s2">-files&quot;</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;apiVersion&quot;</span><span class="p">:</span> <span class="s2">&quot;v1&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;kind&quot;</span><span class="p">:</span> <span class="s2">&quot;Secret&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;Opaque&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;metadata&quot;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="n">secret_name</span><span class="p">,</span>
+                <span class="s2">&quot;namespace&quot;</span><span class="p">:</span> <span class="n">namespace</span><span class="p">,</span>
+                <span class="s2">&quot;labels&quot;</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="s2">&quot;ray.io/job-name&quot;</span><span class="p">:</span> <span class="n">job_name</span><span class="p">,</span>
+                    <span class="s2">&quot;app.kubernetes.io/managed-by&quot;</span><span class="p">:</span> <span class="s2">&quot;codeflare-sdk&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;app.kubernetes.io/component&quot;</span><span class="p">:</span> <span class="s2">&quot;rayjob-files&quot;</span><span class="p">,</span>
+                <span class="p">},</span>
+            <span class="p">},</span>
+            <span class="s2">&quot;data&quot;</span><span class="p">:</span> <span class="n">files</span><span class="p">,</span>
+        <span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="ManagedClusterConfig.build_file_volume_specs">
+<a class="viewcode-back" href="../../../../codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.config.ManagedClusterConfig.build_file_volume_specs">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">build_file_volume_specs</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">secret_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">mount_path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">MOUNT_PATH</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Build volume and mount specifications for files</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            secret_name: Name of the Secret containing files</span>
+<span class="sd">            mount_path: Where to mount files in containers</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Tuple of (volume_spec, mount_spec) as dictionaries</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">volume_spec</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;ray-job-files&quot;</span><span class="p">,</span> <span class="s2">&quot;secret&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;secretName&quot;</span><span class="p">:</span> <span class="n">secret_name</span><span class="p">}}</span>
+
+        <span class="n">mount_spec</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;ray-job-files&quot;</span><span class="p">,</span> <span class="s2">&quot;mountPath&quot;</span><span class="p">:</span> <span class="n">mount_path</span><span class="p">}</span>
+
+        <span class="k">return</span> <span class="n">volume_spec</span><span class="p">,</span> <span class="n">mount_spec</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Project CodeFlare.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

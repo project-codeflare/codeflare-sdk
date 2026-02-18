@@ -1,0 +1,280 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ray Cluster Configuration &mdash; CodeFlare SDK 0.35.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=ca1b380b"></script>
+      <script src="../_static/doctools.js?v=9a2dae69"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Ray Cluster Interaction" href="ray-cluster-interaction.html" />
+    <link rel="prev" title="Authentication via the CodeFlare SDK" href="authentication.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            CodeFlare SDK
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Code Documentation:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../modules.html">codeflare_sdk</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">User Documentation:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="authentication.html">Authentication via the CodeFlare SDK</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Ray Cluster Configuration</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#ray-usage-statistics">Ray Usage Statistics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#custom-volumes-volume-mounts">Custom Volumes/Volume Mounts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#gcs-fault-tolerance">GCS Fault Tolerance</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="ray-cluster-interaction.html">Ray Cluster Interaction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="rayjob.html">Submitting RayJobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="e2e.html">Running e2e tests locally</a></li>
+<li class="toctree-l1"><a class="reference internal" href="s3-compatible-storage.html">S3 compatible storage with Ray Train examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="setup-kueue.html">Basic Kueue Resources configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ui-widgets.html">Jupyter UI Widgets</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">CodeFlare SDK</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Ray Cluster Configuration</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/user-docs/cluster-configuration.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="ray-cluster-configuration">
+<h1>Ray Cluster Configuration<a class="headerlink" href="#ray-cluster-configuration" title="Link to this heading"></a></h1>
+<p>To create Ray Clusters using the CodeFlare SDK a cluster configuration
+needs to be created first. This is what a typical cluster configuration
+would look like; Note: The values for CPU and Memory are at the minimum
+requirements for creating the Ray Cluster.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">codeflare_sdk</span><span class="w"> </span><span class="kn">import</span> <span class="n">Cluster</span><span class="p">,</span> <span class="n">ClusterConfiguration</span>
+
+<span class="n">cluster</span> <span class="o">=</span> <span class="n">Cluster</span><span class="p">(</span><span class="n">ClusterConfiguration</span><span class="p">(</span>
+    <span class="n">name</span><span class="o">=</span><span class="s1">&#39;ray-example&#39;</span><span class="p">,</span> <span class="c1"># Mandatory Field</span>
+    <span class="n">namespace</span><span class="o">=</span><span class="s1">&#39;default&#39;</span><span class="p">,</span> <span class="c1"># Default None</span>
+    <span class="n">head_cpu_requests</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="c1"># Default 2</span>
+    <span class="n">head_cpu_limits</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="c1"># Default 2</span>
+    <span class="n">head_memory_requests</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="c1"># Default 8</span>
+    <span class="n">head_memory_limits</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="c1"># Default 8</span>
+    <span class="n">head_extended_resource_requests</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;nvidia.com/gpu&#39;</span><span class="p">:</span><span class="mi">0</span><span class="p">},</span> <span class="c1"># Default 0</span>
+    <span class="n">worker_extended_resource_requests</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;nvidia.com/gpu&#39;</span><span class="p">:</span><span class="mi">0</span><span class="p">},</span> <span class="c1"># Default 0</span>
+    <span class="n">num_workers</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="c1"># Default 1</span>
+    <span class="n">worker_cpu_requests</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="c1"># Default 1</span>
+    <span class="n">worker_cpu_limits</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="c1"># Default 1</span>
+    <span class="n">worker_memory_requests</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="c1"># Default 2</span>
+    <span class="n">worker_memory_limits</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="c1"># Default 2</span>
+    <span class="c1"># image=&quot;&quot;, # Optional Field</span>
+    <span class="n">labels</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;exampleLabel&quot;</span><span class="p">:</span> <span class="s2">&quot;example&quot;</span><span class="p">,</span> <span class="s2">&quot;secondLabel&quot;</span><span class="p">:</span> <span class="s2">&quot;example&quot;</span><span class="p">},</span>
+    <span class="n">annotations</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;key1&quot;</span><span class="p">:</span><span class="s2">&quot;value1&quot;</span><span class="p">,</span> <span class="s2">&quot;key2&quot;</span><span class="p">:</span><span class="s2">&quot;value2&quot;</span><span class="p">},</span>
+    <span class="n">volumes</span><span class="o">=</span><span class="p">[],</span> <span class="c1"># See Custom Volumes/Volume Mounts</span>
+    <span class="n">volume_mounts</span><span class="o">=</span><span class="p">[],</span> <span class="c1"># See Custom Volumes/Volume Mounts</span>
+<span class="p">))</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The default images used by the CodeFlare SDK for creating
+a RayCluster resource depend on the installed Python version:</p>
+<ul class="simple">
+<li><p>For Python 3.11: <cite>quay.io/modh/ray:2.52.1-py311-cu121</cite></p></li>
+</ul>
+<p>If you prefer to use a custom Ray image that better suits your
+needs, you can specify it in the image field to override the default.
+If you are using ROCm compatible GPUs you
+can use <cite>quay.io/modh/ray:2.52.1-py311-rocm62</cite>. You can also find
+documentation on building a custom image
+<a class="reference external" href="https://github.com/opendatahub-io/distributed-workloads/tree/main/images/runtime/examples">here</a>.</p>
+</div>
+<section id="ray-usage-statistics">
+<h2>Ray Usage Statistics<a class="headerlink" href="#ray-usage-statistics" title="Link to this heading"></a></h2>
+<p>By default, Ray usage statistics collection is <strong>disabled</strong> in Ray Clusters created with the Codeflare SDK. This prevents statistics from being captured and sent externally. If you want to enable usage statistics collection, you can simply set the <code class="docutils literal notranslate"><span class="pre">enable_usage_stats</span></code> parameter to <code class="docutils literal notranslate"><span class="pre">True</span></code> in your cluster configuration:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">codeflare_sdk</span><span class="w"> </span><span class="kn">import</span> <span class="n">Cluster</span><span class="p">,</span> <span class="n">ClusterConfiguration</span>
+
+<span class="n">cluster</span> <span class="o">=</span> <span class="n">Cluster</span><span class="p">(</span><span class="n">ClusterConfiguration</span><span class="p">(</span>
+    <span class="n">name</span><span class="o">=</span><span class="s1">&#39;ray-example&#39;</span><span class="p">,</span>
+    <span class="n">namespace</span><span class="o">=</span><span class="s1">&#39;default&#39;</span><span class="p">,</span>
+    <span class="n">enable_usage_stats</span><span class="o">=</span><span class="kc">True</span>
+<span class="p">))</span>
+</pre></div>
+</div>
+<p>This will automatically set the <code class="docutils literal notranslate"><span class="pre">RAY_USAGE_STATS_ENABLED</span></code> environment variable to <code class="docutils literal notranslate"><span class="pre">1</span></code> for all Ray pods in the cluster. If you do not set this parameter, usage statistics will remain disabled (<code class="docutils literal notranslate"><span class="pre">RAY_USAGE_STATS_ENABLED=0</span></code>).</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">labels={&quot;exampleLabel&quot;:</span> <span class="pre">&quot;example&quot;}</span></code> parameter can be used to
+apply additional labels to the RayCluster resource.</p>
+<p>After creating their <code class="docutils literal notranslate"><span class="pre">cluster</span></code>, a user can call <code class="docutils literal notranslate"><span class="pre">cluster.apply()</span></code> and
+<code class="docutils literal notranslate"><span class="pre">cluster.down()</span></code> to respectively create or remove the Ray Cluster.</p>
+</section>
+<section id="custom-volumes-volume-mounts">
+<h2>Custom Volumes/Volume Mounts<a class="headerlink" href="#custom-volumes-volume-mounts" title="Link to this heading"></a></h2>
+<div class="line-block">
+<div class="line">To add custom Volumes and Volume Mounts to your Ray Cluster you need to create two lists <code class="docutils literal notranslate"><span class="pre">volumes</span></code> and <code class="docutils literal notranslate"><span class="pre">volume_mounts</span></code>. The lists consist of <code class="docutils literal notranslate"><span class="pre">V1Volume</span></code> and <code class="docutils literal notranslate"><span class="pre">V1VolumeMount</span></code> objects respectively.</div>
+<div class="line">Populating these parameters will create Volumes and Volume Mounts for the head and each worker pod.</div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">kubernetes.client</span><span class="w"> </span><span class="kn">import</span> <span class="n">V1Volume</span><span class="p">,</span> <span class="n">V1VolumeMount</span><span class="p">,</span> <span class="n">V1EmptyDirVolumeSource</span><span class="p">,</span> <span class="n">V1ConfigMapVolumeSource</span><span class="p">,</span> <span class="n">V1KeyToPath</span><span class="p">,</span> <span class="n">V1SecretVolumeSource</span>
+<span class="c1"># In this example we are using the Config Map, EmptyDir and Secret Volume types</span>
+<span class="n">volume_mounts_list</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="n">V1VolumeMount</span><span class="p">(</span>
+        <span class="n">mount_path</span><span class="o">=</span><span class="s2">&quot;/home/ray/test1&quot;</span><span class="p">,</span>
+        <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;test&quot;</span>
+    <span class="p">),</span>
+    <span class="n">V1VolumeMount</span><span class="p">(</span>
+        <span class="n">mount_path</span> <span class="o">=</span> <span class="s2">&quot;/home/ray/test2&quot;</span><span class="p">,</span>
+        <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;test2&quot;</span><span class="p">,</span>
+    <span class="p">),</span>
+    <span class="n">V1VolumeMount</span><span class="p">(</span>
+        <span class="n">mount_path</span> <span class="o">=</span> <span class="s2">&quot;/home/ray/test3&quot;</span><span class="p">,</span>
+        <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;test3&quot;</span><span class="p">,</span>
+    <span class="p">)</span>
+<span class="p">]</span>
+
+<span class="n">volumes_list</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="n">V1Volume</span><span class="p">(</span>
+        <span class="n">name</span><span class="o">=</span><span class="s2">&quot;test&quot;</span><span class="p">,</span>
+        <span class="n">empty_dir</span><span class="o">=</span><span class="n">V1EmptyDirVolumeSource</span><span class="p">(</span><span class="n">size_limit</span><span class="o">=</span><span class="s2">&quot;2Gi&quot;</span><span class="p">),</span>
+    <span class="p">),</span>
+    <span class="n">V1Volume</span><span class="p">(</span>
+        <span class="n">name</span><span class="o">=</span><span class="s2">&quot;test2&quot;</span><span class="p">,</span>
+        <span class="n">config_map</span><span class="o">=</span><span class="n">V1ConfigMapVolumeSource</span><span class="p">(</span>
+            <span class="n">name</span><span class="o">=</span><span class="s2">&quot;test-config-map&quot;</span><span class="p">,</span>
+            <span class="n">items</span><span class="o">=</span><span class="p">[</span><span class="n">V1KeyToPath</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="s2">&quot;test&quot;</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="s2">&quot;data.txt&quot;</span><span class="p">)]</span>
+        <span class="p">)</span>
+    <span class="p">),</span>
+    <span class="n">V1Volume</span><span class="p">(</span>
+        <span class="n">name</span><span class="o">=</span><span class="s2">&quot;test3&quot;</span><span class="p">,</span>
+        <span class="n">secret</span><span class="o">=</span><span class="n">V1SecretVolumeSource</span><span class="p">(</span>
+            <span class="n">secret_name</span><span class="o">=</span><span class="s2">&quot;test-secret&quot;</span>
+        <span class="p">)</span>
+    <span class="p">)</span>
+<span class="p">]</span>
+</pre></div>
+</div>
+<div class="line-block">
+<div class="line">For more information on creating Volumes and Volume Mounts with Python check out the Python Kubernetes docs (<a class="reference external" href="https://github.com/kubernetes-client/python/blob/master/kubernetes/docs/V1Volume.md">Volumes</a>, <a class="reference external" href="https://github.com/kubernetes-client/python/blob/master/kubernetes/docs/V1VolumeMount.md">Volume Mounts</a>).</div>
+<div class="line">You can also find further information on Volumes and Volume Mounts by visiting the Kubernetes <a class="reference external" href="https://kubernetes.io/docs/concepts/storage/volumes/">documentation</a>.</div>
+</div>
+</section>
+<section id="gcs-fault-tolerance">
+<h2>GCS Fault Tolerance<a class="headerlink" href="#gcs-fault-tolerance" title="Link to this heading"></a></h2>
+<p>By default, the state of the Ray cluster is transient to the head Pod. Whatever triggers a restart of the head Pod results in losing that state, including Ray Cluster history. To make Ray cluster state persistent you can enable Global Control Service (GCS) fault tolerance with an external Redis storage.</p>
+<p>To configure GCS fault tolerance you need to set the following parameters:</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Parameter</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">enable_gcs_ft</span></code></p></td>
+<td><p>Boolean to enable GCS fault tolerance</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">redis_address</span></code></p></td>
+<td><p>Address of the external Redis service, ex: “redis:6379”</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">redis_password_secret</span></code></p></td>
+<td><p>Dictionary with ‘name’ and ‘key’ fields specifying the Kubernetes secret for Redis password</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">external_storage_namespace</span></code></p></td>
+<td><p>Custom storage namespace for GCS fault tolerance (by default, KubeRay sets it to the RayCluster’s UID)</p></td>
+</tr>
+</tbody>
+</table>
+<p>Example configuration:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">codeflare_sdk</span><span class="w"> </span><span class="kn">import</span> <span class="n">Cluster</span><span class="p">,</span> <span class="n">ClusterConfiguration</span>
+
+<span class="n">cluster</span> <span class="o">=</span> <span class="n">Cluster</span><span class="p">(</span><span class="n">ClusterConfiguration</span><span class="p">(</span>
+    <span class="n">name</span><span class="o">=</span><span class="s1">&#39;ray-cluster-with-persistence&#39;</span><span class="p">,</span>
+    <span class="n">num_workers</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+    <span class="n">enable_gcs_ft</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">redis_address</span><span class="o">=</span><span class="s2">&quot;redis:6379&quot;</span><span class="p">,</span>
+    <span class="n">redis_password_secret</span><span class="o">=</span><span class="p">{</span>
+        <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;redis-password-secret&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;key&quot;</span><span class="p">:</span> <span class="s2">&quot;password&quot;</span>
+    <span class="p">},</span>
+    <span class="c1"># external_storage_namespace=&quot;my-custom-namespace&quot; # Optional: Custom namespace for GCS data in Redis</span>
+<span class="p">))</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>You need to have a Redis instance deployed in your Kubernetes cluster before using this feature.</p>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="authentication.html" class="btn btn-neutral float-left" title="Authentication via the CodeFlare SDK" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="ray-cluster-interaction.html" class="btn btn-neutral float-right" title="Ray Cluster Interaction" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Project CodeFlare.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

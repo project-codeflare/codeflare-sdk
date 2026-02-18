@@ -1,0 +1,432 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>codeflare_sdk.vendored.python_client.utils package &mdash; CodeFlare SDK 0.35.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=ca1b380b"></script>
+      <script src="_static/doctools.js?v=9a2dae69"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Authentication via the CodeFlare SDK" href="user-docs/authentication.html" />
+    <link rel="prev" title="codeflare_sdk.vendored.python_client package" href="codeflare_sdk.vendored.python_client.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            CodeFlare SDK
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Code Documentation:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">codeflare_sdk</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="codeflare_sdk.html">codeflare_sdk package</a><ul class="current">
+<li class="toctree-l3 current"><a class="reference internal" href="codeflare_sdk.html#subpackages">Subpackages</a><ul class="current">
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.common.html">codeflare_sdk.common package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.html">codeflare_sdk.ray package</a></li>
+<li class="toctree-l4 current"><a class="reference internal" href="codeflare_sdk.vendored.html">codeflare_sdk.vendored package</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.html#submodules">Submodules</a></li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.html#codeflare-sdk-conftest-module">codeflare_sdk.conftest module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.html#module-codeflare_sdk">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">User Documentation:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/authentication.html">Authentication via the CodeFlare SDK</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/cluster-configuration.html">Ray Cluster Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/ray-cluster-interaction.html">Ray Cluster Interaction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/rayjob.html">Submitting RayJobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/e2e.html">Running e2e tests locally</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/s3-compatible-storage.html">S3 compatible storage with Ray Train examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/setup-kueue.html">Basic Kueue Resources configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/ui-widgets.html">Jupyter UI Widgets</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">CodeFlare SDK</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="modules.html">codeflare_sdk</a></li>
+          <li class="breadcrumb-item"><a href="codeflare_sdk.html">codeflare_sdk package</a></li>
+          <li class="breadcrumb-item"><a href="codeflare_sdk.vendored.html">codeflare_sdk.vendored package</a></li>
+          <li class="breadcrumb-item"><a href="codeflare_sdk.vendored.python_client.html">codeflare_sdk.vendored.python_client package</a></li>
+      <li class="breadcrumb-item active">codeflare_sdk.vendored.python_client.utils package</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/codeflare_sdk.vendored.python_client.utils.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="codeflare-sdk-vendored-python-client-utils-package">
+<h1>codeflare_sdk.vendored.python_client.utils package<a class="headerlink" href="#codeflare-sdk-vendored-python-client-utils-package" title="Link to this heading"></a></h1>
+<section id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Link to this heading"></a></h2>
+</section>
+<section id="module-codeflare_sdk.vendored.python_client.utils.kuberay_cluster_builder">
+<span id="codeflare-sdk-vendored-python-client-utils-kuberay-cluster-builder-module"></span><h2>codeflare_sdk.vendored.python_client.utils.kuberay_cluster_builder module<a class="headerlink" href="#module-codeflare_sdk.vendored.python_client.utils.kuberay_cluster_builder" title="Link to this heading"></a></h2>
+<p>Set of helper methods to manage rayclusters. Requires Python 3.9 and higher</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="codeflare_sdk.vendored.python_client.utils.kuberay_cluster_builder.ClusterBuilder">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">codeflare_sdk.vendored.python_client.utils.kuberay_cluster_builder.</span></span><span class="sig-name descname"><span class="pre">ClusterBuilder</span></span><a class="reference internal" href="_modules/codeflare_sdk/vendored/python_client/utils/kuberay_cluster_builder.html#ClusterBuilder"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.vendored.python_client.utils.kuberay_cluster_builder.ClusterBuilder" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#codeflare_sdk.vendored.python_client.utils.kuberay_cluster_builder.IClusterBuilder" title="codeflare_sdk.vendored.python_client.utils.kuberay_cluster_builder.IClusterBuilder"><code class="xref py py-class docutils literal notranslate"><span class="pre">IClusterBuilder</span></code></a></p>
+<p>ClusterBuilder implements the abstract methods of IClusterBuilder to build a cluster.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.vendored.python_client.utils.kuberay_cluster_builder.ClusterBuilder.build_head">
+<span class="sig-name descname"><span class="pre">build_head</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ray_image</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'rayproject/ray:2.46.0'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">service_type</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'ClusterIP'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cpu_requests</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'2'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">memory_requests</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'3G'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cpu_limits</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'2'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">memory_limits</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'3G'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ray_start_params</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">{'dashboard-host':</span> <span class="pre">'0.0.0.0'}</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/vendored/python_client/utils/kuberay_cluster_builder.html#ClusterBuilder.build_head"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.vendored.python_client.utils.kuberay_cluster_builder.ClusterBuilder.build_head" title="Link to this definition"></a></dt>
+<dd><p>Build head node of the ray cluster.</p>
+<p>Parameters:
+- ray_image (str): Docker image for the head node. Default value is “rayproject/ray:2.46.0”.
+- service_type (str): Service type of the head node. Default value is “ClusterIP”, which creates a headless ClusterIP service.
+- cpu_requests (str): CPU requests for the head node. Default value is “2”.
+- memory_requests (str): Memory requests for the head node. Default value is “3G”.
+- cpu_limits (str): CPU limits for the head node. Default value is “2”.
+- memory_limits (str): Memory limits for the head node. Default value is “3G”.
+- ray_start_params (dict): Dictionary of start parameters for the head node.
+Default values is “dashboard-host”: “0.0.0.0”.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.vendored.python_client.utils.kuberay_cluster_builder.ClusterBuilder.build_meta">
+<span class="sig-name descname"><span class="pre">build_meta</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">k8s_namespace</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'default'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">labels</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ray_version</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'2.46.0'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/vendored/python_client/utils/kuberay_cluster_builder.html#ClusterBuilder.build_meta"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.vendored.python_client.utils.kuberay_cluster_builder.ClusterBuilder.build_meta" title="Link to this definition"></a></dt>
+<dd><p>Builds the metadata and ray version of the cluster.</p>
+<p>Parameters:
+- name (str): The name of the cluster.
+- k8s_namespace (str, optional): The namespace in which the Ray cluster exists. Defaults to “default”.
+- labels (dict, optional): A dictionary of key-value pairs to add as labels to the cluster. Defaults to None.
+- ray_version (str, optional): The version of Ray to use for the cluster. Defaults to “2.46.0”.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.vendored.python_client.utils.kuberay_cluster_builder.ClusterBuilder.build_worker">
+<span class="sig-name descname"><span class="pre">build_worker</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">group_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ray_image</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'rayproject/ray:2.46.0'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ray_command</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">['/bin/bash',</span> <span class="pre">'-lc']</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">init_image</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'busybox:1.28'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cpu_requests</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'1'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">memory_requests</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'1G'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cpu_limits</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'2'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">memory_limits</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'2G'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">replicas</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_replicas</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">-1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_replicas</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">-1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ray_start_params</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">{}</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/vendored/python_client/utils/kuberay_cluster_builder.html#ClusterBuilder.build_worker"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.vendored.python_client.utils.kuberay_cluster_builder.ClusterBuilder.build_worker" title="Link to this definition"></a></dt>
+<dd><p>Build worker specifications of the cluster.</p>
+<p>This function sets the worker configuration of the cluster, including the Docker image, CPU and memory requirements, number of replicas, and other parameters.</p>
+<p>Parameters:
+- group_name (str): name of the worker group.
+- ray_image (str, optional): Docker image for the Ray process. Default is “rayproject/ray:2.46.0”.
+- ray_command (Any, optional): Command to run in the Docker container. Default is [“/bin/bash”, “-lc”].
+- init_image (str, optional): Docker image for the init container. Default is “busybox:1.28”.
+- cpu_requests (str, optional): CPU requests for the worker pods. Default is “1”.
+- memory_requests (str, optional): Memory requests for the worker pods. Default is “1G”.
+- cpu_limits (str, optional): CPU limits for the worker pods. Default is “2”.
+- memory_limits (str, optional): Memory limits for the worker pods. Default is “2G”.
+- replicas (int, optional): Number of worker pods to run. Default is 1.
+- min_replicas (int, optional): Minimum number of worker pods to run. Default is -1.
+- max_replicas (int, optional): Maximum number of worker pods to run. Default is -1.
+- ray_start_params (dict, optional): Additional parameters to pass to the ray start command. Default is {}.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.vendored.python_client.utils.kuberay_cluster_builder.ClusterBuilder.get_cluster">
+<span class="sig-name descname"><span class="pre">get_cluster</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/vendored/python_client/utils/kuberay_cluster_builder.html#ClusterBuilder.get_cluster"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.vendored.python_client.utils.kuberay_cluster_builder.ClusterBuilder.get_cluster" title="Link to this definition"></a></dt>
+<dd><p>Returns the built cluster</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="codeflare_sdk.vendored.python_client.utils.kuberay_cluster_builder.Director">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">codeflare_sdk.vendored.python_client.utils.kuberay_cluster_builder.</span></span><span class="sig-name descname"><span class="pre">Director</span></span><a class="reference internal" href="_modules/codeflare_sdk/vendored/python_client/utils/kuberay_cluster_builder.html#Director"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.vendored.python_client.utils.kuberay_cluster_builder.Director" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.vendored.python_client.utils.kuberay_cluster_builder.Director.build_basic_cluster">
+<span class="sig-name descname"><span class="pre">build_basic_cluster</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">k8s_namespace</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'default'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">labels</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span></span></span><a class="reference internal" href="_modules/codeflare_sdk/vendored/python_client/utils/kuberay_cluster_builder.html#Director.build_basic_cluster"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.vendored.python_client.utils.kuberay_cluster_builder.Director.build_basic_cluster" title="Link to this definition"></a></dt>
+<dd><p>Builds a basic cluster with the given name and k8s_namespace parameters.</p>
+<p>Parameters:
+- name (str): The name of the cluster.
+- k8s_namespace (str, optional): The kubernetes namespace for the cluster, with a default value of “default”.</p>
+<p>Returns:
+dict: The basic cluster as a dictionary.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.vendored.python_client.utils.kuberay_cluster_builder.Director.build_large_cluster">
+<span class="sig-name descname"><span class="pre">build_large_cluster</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">k8s_namespace</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'default'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">labels</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span></span></span><a class="reference internal" href="_modules/codeflare_sdk/vendored/python_client/utils/kuberay_cluster_builder.html#Director.build_large_cluster"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.vendored.python_client.utils.kuberay_cluster_builder.Director.build_large_cluster" title="Link to this definition"></a></dt>
+<dd><p>Builds a medium cluster with the given name and k8s_namespace parameters. with 1 workergroup,
+the workgroup has 6 replicas with 6 cpu and 6G memory limits</p>
+<blockquote>
+<div><p>Parameters:
+- name (str): The name of the cluster.
+- k8s_namespace (str, optional): The kubernetes namespace for the cluster, with a default value of “default”.</p>
+<p>Returns:
+dict: The small cluster as a dictionary.</p>
+</div></blockquote>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.vendored.python_client.utils.kuberay_cluster_builder.Director.build_medium_cluster">
+<span class="sig-name descname"><span class="pre">build_medium_cluster</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">k8s_namespace</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'default'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">labels</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span></span></span><a class="reference internal" href="_modules/codeflare_sdk/vendored/python_client/utils/kuberay_cluster_builder.html#Director.build_medium_cluster"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.vendored.python_client.utils.kuberay_cluster_builder.Director.build_medium_cluster" title="Link to this definition"></a></dt>
+<dd><p>Builds a medium cluster with the given name and k8s_namespace parameters with 1 workergroup,
+the workgroup has 3 replicas with 4 cpu and 4G memory limits</p>
+<blockquote>
+<div><p>Parameters:
+- name (str): The name of the cluster.
+- k8s_namespace (str, optional): The kubernetes namespace for the cluster, with a default value of “default”.</p>
+<p>Returns:
+dict: The small cluster as a dictionary.</p>
+</div></blockquote>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.vendored.python_client.utils.kuberay_cluster_builder.Director.build_small_cluster">
+<span class="sig-name descname"><span class="pre">build_small_cluster</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">k8s_namespace</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'default'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">labels</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span></span></span><a class="reference internal" href="_modules/codeflare_sdk/vendored/python_client/utils/kuberay_cluster_builder.html#Director.build_small_cluster"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.vendored.python_client.utils.kuberay_cluster_builder.Director.build_small_cluster" title="Link to this definition"></a></dt>
+<dd><p>Builds a small cluster with the given name and k8s_namespace parameters with 1 workergroup,
+the workgroup has 1 replica with 2 cpu and 2G memory limits</p>
+<p>Parameters:
+- name (str): The name of the cluster.
+- k8s_namespace (str, optional): The kubernetes namespace for the cluster, with a default value of “default”.</p>
+<p>Returns:
+dict: The small cluster as a dictionary.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="codeflare_sdk.vendored.python_client.utils.kuberay_cluster_builder.IClusterBuilder">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">codeflare_sdk.vendored.python_client.utils.kuberay_cluster_builder.</span></span><span class="sig-name descname"><span class="pre">IClusterBuilder</span></span><a class="reference internal" href="_modules/codeflare_sdk/vendored/python_client/utils/kuberay_cluster_builder.html#IClusterBuilder"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.vendored.python_client.utils.kuberay_cluster_builder.IClusterBuilder" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>IClusterBuilder is an interface for building a cluster.</p>
+<p>The class defines abstract methods for building the metadata, head pod, worker groups, and retrieving the built cluster.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.vendored.python_client.utils.kuberay_cluster_builder.IClusterBuilder.build_head">
+<em class="property"><span class="pre">abstract</span><span class="w"> </span><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">build_head</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/vendored/python_client/utils/kuberay_cluster_builder.html#IClusterBuilder.build_head"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.vendored.python_client.utils.kuberay_cluster_builder.IClusterBuilder.build_head" title="Link to this definition"></a></dt>
+<dd><p>builds the head pod</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.vendored.python_client.utils.kuberay_cluster_builder.IClusterBuilder.build_meta">
+<em class="property"><span class="pre">abstract</span><span class="w"> </span><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">build_meta</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/vendored/python_client/utils/kuberay_cluster_builder.html#IClusterBuilder.build_meta"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.vendored.python_client.utils.kuberay_cluster_builder.IClusterBuilder.build_meta" title="Link to this definition"></a></dt>
+<dd><p>builds the cluster metadata</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.vendored.python_client.utils.kuberay_cluster_builder.IClusterBuilder.build_worker">
+<em class="property"><span class="pre">abstract</span><span class="w"> </span><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">build_worker</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/vendored/python_client/utils/kuberay_cluster_builder.html#IClusterBuilder.build_worker"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.vendored.python_client.utils.kuberay_cluster_builder.IClusterBuilder.build_worker" title="Link to this definition"></a></dt>
+<dd><p>builds a worker group</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.vendored.python_client.utils.kuberay_cluster_builder.IClusterBuilder.get_cluster">
+<em class="property"><span class="pre">abstract</span><span class="w"> </span><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">get_cluster</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/vendored/python_client/utils/kuberay_cluster_builder.html#IClusterBuilder.get_cluster"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.vendored.python_client.utils.kuberay_cluster_builder.IClusterBuilder.get_cluster" title="Link to this definition"></a></dt>
+<dd><p>Returns the built cluster</p>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-codeflare_sdk.vendored.python_client.utils.kuberay_cluster_utils">
+<span id="codeflare-sdk-vendored-python-client-utils-kuberay-cluster-utils-module"></span><h2>codeflare_sdk.vendored.python_client.utils.kuberay_cluster_utils module<a class="headerlink" href="#module-codeflare_sdk.vendored.python_client.utils.kuberay_cluster_utils" title="Link to this heading"></a></h2>
+<p>Set of helper methods to manage rayclusters. Requires Python 3.6 and higher</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="codeflare_sdk.vendored.python_client.utils.kuberay_cluster_utils.ClusterUtils">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">codeflare_sdk.vendored.python_client.utils.kuberay_cluster_utils.</span></span><span class="sig-name descname"><span class="pre">ClusterUtils</span></span><a class="reference internal" href="_modules/codeflare_sdk/vendored/python_client/utils/kuberay_cluster_utils.html#ClusterUtils"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.vendored.python_client.utils.kuberay_cluster_utils.ClusterUtils" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>ClusterUtils - Utility class for populating cluster information</p>
+<p>Methods:
+- populate_meta(cluster: dict, name: str, k8s_namespace: str, labels: dict, ray_version: str) -&gt; dict:
+- populate_ray_head(cluster: dict, ray_image: str,service_type: str, cpu_requests: str, memory_requests: str, cpu_limits: str, memory_limits: str, ray_start_params: dict) -&gt; Tuple[dict, bool]:
+- populate_worker_group(cluster: dict, group_name: str, ray_image: str, ray_command: Any, init_image: str, cpu_requests: str, memory_requests: str, cpu_limits: str, memory_limits: str, replicas: int, min_replicas: int, max_replicas: int, ray_start_params: dict) -&gt; Tuple[dict, bool]:
+- update_worker_group_replicas(cluster: dict, group_name: str, max_replicas: int, min_replicas: int, replicas: int) -&gt; Tuple[dict, bool]:</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.vendored.python_client.utils.kuberay_cluster_utils.ClusterUtils.delete_worker_group">
+<span class="sig-name descname"><span class="pre">delete_worker_group</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cluster</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">group_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">dict</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">bool</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/codeflare_sdk/vendored/python_client/utils/kuberay_cluster_utils.html#ClusterUtils.delete_worker_group"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.vendored.python_client.utils.kuberay_cluster_utils.ClusterUtils.delete_worker_group" title="Link to this definition"></a></dt>
+<dd><p>Deletes a worker group in the cluster.</p>
+<p>Parameters:
+- cluster (dict): The cluster definition.
+- group_name (str): The name of the worker group to be duplicated.</p>
+<p>Returns:
+Tuple[dict, bool]: A tuple containing the updated cluster definition and a boolean indicating the success of the operation.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.vendored.python_client.utils.kuberay_cluster_utils.ClusterUtils.duplicate_worker_group">
+<span class="sig-name descname"><span class="pre">duplicate_worker_group</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cluster</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">group_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">new_group_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">dict</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">bool</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/codeflare_sdk/vendored/python_client/utils/kuberay_cluster_utils.html#ClusterUtils.duplicate_worker_group"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.vendored.python_client.utils.kuberay_cluster_utils.ClusterUtils.duplicate_worker_group" title="Link to this definition"></a></dt>
+<dd><p>Duplicate a worker group in the cluster.</p>
+<p>Parameters:
+- cluster (dict): The cluster definition.
+- group_name (str): The name of the worker group to be duplicated.
+- new_group_name (str): The name for the duplicated worker group.</p>
+<p>Returns:
+Tuple[dict, bool]: A tuple containing the updated cluster definition and a boolean indicating the success of the operation.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.vendored.python_client.utils.kuberay_cluster_utils.ClusterUtils.is_valid_label">
+<span class="sig-name descname"><span class="pre">is_valid_label</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="reference internal" href="_modules/codeflare_sdk/vendored/python_client/utils/kuberay_cluster_utils.html#ClusterUtils.is_valid_label"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.vendored.python_client.utils.kuberay_cluster_utils.ClusterUtils.is_valid_label" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.vendored.python_client.utils.kuberay_cluster_utils.ClusterUtils.is_valid_name">
+<span class="sig-name descname"><span class="pre">is_valid_name</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="reference internal" href="_modules/codeflare_sdk/vendored/python_client/utils/kuberay_cluster_utils.html#ClusterUtils.is_valid_name"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.vendored.python_client.utils.kuberay_cluster_utils.ClusterUtils.is_valid_name" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.vendored.python_client.utils.kuberay_cluster_utils.ClusterUtils.populate_meta">
+<span class="sig-name descname"><span class="pre">populate_meta</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cluster</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">k8s_namespace</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">labels</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ray_version</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span></span></span><a class="reference internal" href="_modules/codeflare_sdk/vendored/python_client/utils/kuberay_cluster_utils.html#ClusterUtils.populate_meta"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.vendored.python_client.utils.kuberay_cluster_utils.ClusterUtils.populate_meta" title="Link to this definition"></a></dt>
+<dd><p>Populate the metadata and ray version of the cluster.</p>
+<p>Parameters:
+- cluster (dict): A dictionary representing a cluster.
+- name (str): The name of the cluster.
+- k8s_namespace (str): The namespace of the cluster.
+- labels (dict): A dictionary of labels to be applied to the cluster.
+- ray_version (str): The version of Ray to use in the cluster.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>dict: The updated cluster dictionary with metadata and ray version populated.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.vendored.python_client.utils.kuberay_cluster_utils.ClusterUtils.populate_ray_head">
+<span class="sig-name descname"><span class="pre">populate_ray_head</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cluster</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ray_image</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">service_type</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cpu_requests</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">memory_requests</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cpu_limits</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">memory_limits</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ray_start_params</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">dict</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">bool</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/codeflare_sdk/vendored/python_client/utils/kuberay_cluster_utils.html#ClusterUtils.populate_ray_head"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.vendored.python_client.utils.kuberay_cluster_utils.ClusterUtils.populate_ray_head" title="Link to this definition"></a></dt>
+<dd><p>Populate the ray head specs of the cluster
+Parameters:
+- cluster (dict): The dictionary representation of the cluster.
+- ray_image (str): The name of the ray image to use for the head node.
+- service_type (str): The type of service to run for the head node.
+- cpu_requests (str): The CPU resource requests for the head node.
+- memory_requests (str): The memory resource requests for the head node.
+- cpu_limits (str): The CPU resource limits for the head node.
+- memory_limits (str): The memory resource limits for the head node.
+- ray_start_params (dict): The parameters for starting the Ray cluster.</p>
+<p>Returns:
+- Tuple (dict, bool): The updated cluster, and a boolean indicating whether the update was successful.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.vendored.python_client.utils.kuberay_cluster_utils.ClusterUtils.populate_worker_group">
+<span class="sig-name descname"><span class="pre">populate_worker_group</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">group_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ray_image</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ray_command</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">init_image</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cpu_requests</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">memory_requests</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cpu_limits</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">memory_limits</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">replicas</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_replicas</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_replicas</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ray_start_params</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">dict</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">bool</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/codeflare_sdk/vendored/python_client/utils/kuberay_cluster_utils.html#ClusterUtils.populate_worker_group"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.vendored.python_client.utils.kuberay_cluster_utils.ClusterUtils.populate_worker_group" title="Link to this definition"></a></dt>
+<dd><p>Populate the worker group specification in the cluster dictionary.</p>
+<p>Parameters:
+- cluster (dict): Dictionary representing the cluster spec.
+- group_name (str): The name of the worker group.
+- ray_image (str): The image to use for the Ray worker containers.
+- ray_command (Any): The command to run in the Ray worker containers.
+- init_image (str): The init container image to use.
+- cpu_requests (str): The requested CPU resources for the worker containers.
+- memory_requests (str): The requested memory resources for the worker containers.
+- cpu_limits (str): The limit on CPU resources for the worker containers.
+- memory_limits (str): The limit on memory resources for the worker containers.
+- replicas (int): The desired number of replicas for the worker group.
+- min_replicas (int): The minimum number of replicas for the worker group.
+- max_replicas (int): The maximum number of replicas for the worker group.
+- ray_start_params (dict): The parameters to pass to the Ray worker start command.</p>
+<p>Returns:
+- Tuple[dict, bool]: A tuple of the cluster specification and a boolean indicating</p>
+<blockquote>
+<div><p>whether the worker group was successfully populated.</p>
+</div></blockquote>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.vendored.python_client.utils.kuberay_cluster_utils.ClusterUtils.update_worker_group_replicas">
+<span class="sig-name descname"><span class="pre">update_worker_group_replicas</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cluster</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">group_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_replicas</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_replicas</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">replicas</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">dict</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">bool</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/codeflare_sdk/vendored/python_client/utils/kuberay_cluster_utils.html#ClusterUtils.update_worker_group_replicas"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.vendored.python_client.utils.kuberay_cluster_utils.ClusterUtils.update_worker_group_replicas" title="Link to this definition"></a></dt>
+<dd><p>Update the number of replicas for a worker group in the cluster.</p>
+<p>Parameters:
+- cluster (dict): The cluster to update.
+- group_name (str): The name of the worker group to update.
+- max_replicas (int): The maximum number of replicas for the worker group.
+- min_replicas (int): The minimum number of replicas for the worker group.
+- replicas (int): The desired number of replicas for the worker group.</p>
+<p>Returns:
+Tuple[dict, bool]: A tuple containing the updated cluster and a flag indicating whether the update was successful.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.vendored.python_client.utils.kuberay_cluster_utils.ClusterUtils.update_worker_group_resources">
+<span class="sig-name descname"><span class="pre">update_worker_group_resources</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cluster</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">group_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cpu_requests</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">memory_requests</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cpu_limits</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">memory_limits</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">container_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'unspecified'</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">dict</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">bool</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/codeflare_sdk/vendored/python_client/utils/kuberay_cluster_utils.html#ClusterUtils.update_worker_group_resources"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.vendored.python_client.utils.kuberay_cluster_utils.ClusterUtils.update_worker_group_resources" title="Link to this definition"></a></dt>
+<dd><p>Update the resources for a worker group pods in the cluster.</p>
+<p>Parameters:
+- cluster (dict): The cluster to update.
+- group_name (str): The name of the worker group to update.
+- cpu_requests (str): CPU requests for the worker pods.
+- memory_requests (str): Memory requests for the worker pods.
+- cpu_limits (str): CPU limits for the worker pods.
+- memory_limits (str): Memory limits for the worker pods.</p>
+<p>Returns:
+Tuple[dict, bool]: A tuple containing the updated cluster and a flag indicating whether the update was successful.</p>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-codeflare_sdk.vendored.python_client.utils">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-codeflare_sdk.vendored.python_client.utils" title="Link to this heading"></a></h2>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="codeflare_sdk.vendored.python_client.html" class="btn btn-neutral float-left" title="codeflare_sdk.vendored.python_client package" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="user-docs/authentication.html" class="btn btn-neutral float-right" title="Authentication via the CodeFlare SDK" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Project CodeFlare.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

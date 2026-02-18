@@ -1,0 +1,514 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>codeflare_sdk.common.kubernetes_cluster.auth &mdash; CodeFlare SDK 0.35.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../_static/documentation_options.js?v=ca1b380b"></script>
+      <script src="../../../../_static/doctools.js?v=9a2dae69"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            CodeFlare SDK
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Code Documentation:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../modules.html">codeflare_sdk</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">User Documentation:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user-docs/authentication.html">Authentication via the CodeFlare SDK</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user-docs/cluster-configuration.html">Ray Cluster Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user-docs/ray-cluster-interaction.html">Ray Cluster Interaction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user-docs/rayjob.html">Submitting RayJobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user-docs/e2e.html">Running e2e tests locally</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user-docs/s3-compatible-storage.html">S3 compatible storage with Ray Train examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user-docs/setup-kueue.html">Basic Kueue Resources configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user-docs/ui-widgets.html">Jupyter UI Widgets</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">CodeFlare SDK</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">codeflare_sdk.common.kubernetes_cluster.auth</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for codeflare_sdk.common.kubernetes_cluster.auth</h1><div class="highlight"><pre>
+<span></span><span class="c1"># Copyright 2022 IBM, Red Hat</span>
+<span class="c1">#</span>
+<span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="c1"># you may not use this file except in compliance with the License.</span>
+<span class="c1"># You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#      http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">The auth sub-module contains authentication methods for Kubernetes clusters.</span>
+
+<span class="sd">Recommended: Use kube-authkit&#39;s AuthConfig directly for new code.</span>
+<span class="sd">Legacy: TokenAuthentication and KubeConfigFileAuthentication are deprecated but still supported.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">abc</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Optional</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">urllib3</span>
+
+<span class="c1"># Import kube-authkit (mandatory dependency)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">kube_authkit</span><span class="w"> </span><span class="kn">import</span> <span class="n">AuthConfig</span><span class="p">,</span> <span class="n">get_k8s_client</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">kubernetes</span><span class="w"> </span><span class="kn">import</span> <span class="n">client</span><span class="p">,</span> <span class="n">config</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">.kube_api_helpers</span><span class="w"> </span><span class="kn">import</span> <span class="n">_kube_api_error_handling</span>
+
+<span class="k">global</span> <span class="n">api_client</span>
+<span class="n">api_client</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="k">global</span> <span class="n">config_path</span>
+<span class="n">config_path</span> <span class="o">=</span> <span class="kc">None</span>
+
+<span class="n">WORKBENCH_CA_CERT_PATH</span> <span class="o">=</span> <span class="s2">&quot;/etc/pki/tls/custom-certs/ca-bundle.crt&quot;</span>
+
+<span class="c1"># Deprecation message template</span>
+<span class="n">_DEPRECATION_MSG</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="s2">&quot;</span><span class="si">{cls_name}</span><span class="s2"> is deprecated and will be removed in a future version. &quot;</span>
+    <span class="s2">&quot;Please use kube-authkit&#39;s AuthConfig directly. &quot;</span>
+    <span class="s2">&quot;See: https://github.com/opendatahub-io/kube-authkit&quot;</span>
+<span class="p">)</span>
+
+
+<div class="viewcode-block" id="Authentication">
+<a class="viewcode-back" href="../../../../codeflare_sdk.common.kubernetes_cluster.html#codeflare_sdk.common.kubernetes_cluster.auth.Authentication">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">Authentication</span><span class="p">(</span><span class="n">metaclass</span><span class="o">=</span><span class="n">abc</span><span class="o">.</span><span class="n">ABCMeta</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    An abstract class that defines the necessary methods for authenticating to a remote environment.</span>
+<span class="sd">    Specifically, this class defines the need for a `login()` and a `logout()` function.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="Authentication.login">
+<a class="viewcode-back" href="../../../../codeflare_sdk.common.kubernetes_cluster.html#codeflare_sdk.common.kubernetes_cluster.auth.Authentication.login">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">login</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Method for logging in to a remote cluster.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span></div>
+
+
+<div class="viewcode-block" id="Authentication.logout">
+<a class="viewcode-back" href="../../../../codeflare_sdk.common.kubernetes_cluster.html#codeflare_sdk.common.kubernetes_cluster.auth.Authentication.logout">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">logout</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Method for logging out of the remote cluster.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="KubeConfiguration">
+<a class="viewcode-back" href="../../../../codeflare_sdk.common.kubernetes_cluster.html#codeflare_sdk.common.kubernetes_cluster.auth.KubeConfiguration">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">KubeConfiguration</span><span class="p">(</span><span class="n">metaclass</span><span class="o">=</span><span class="n">abc</span><span class="o">.</span><span class="n">ABCMeta</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    An abstract class that defines the method for loading a user defined config file using the `load_kube_config()` function</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="KubeConfiguration.load_kube_config">
+<a class="viewcode-back" href="../../../../codeflare_sdk.common.kubernetes_cluster.html#codeflare_sdk.common.kubernetes_cluster.auth.KubeConfiguration.load_kube_config">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_kube_config</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Method for setting your Kubernetes configuration to a certain file</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span></div>
+
+
+<div class="viewcode-block" id="KubeConfiguration.logout">
+<a class="viewcode-back" href="../../../../codeflare_sdk.common.kubernetes_cluster.html#codeflare_sdk.common.kubernetes_cluster.auth.KubeConfiguration.logout">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">logout</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Method for logging out of the remote cluster</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span></div>
+</div>
+
+
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing_extensions</span><span class="w"> </span><span class="kn">import</span> <span class="n">deprecated</span>
+
+
+<div class="viewcode-block" id="TokenAuthentication">
+<a class="viewcode-back" href="../../../../codeflare_sdk.common.kubernetes_cluster.html#codeflare_sdk.common.kubernetes_cluster.auth.TokenAuthentication">[docs]</a>
+<span class="nd">@deprecated</span><span class="p">(</span><span class="s2">&quot;Use kube_authkit.AuthConfig with token strategy instead.&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">TokenAuthentication</span><span class="p">(</span><span class="n">Authentication</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    DEPRECATED: Use kube_authkit.AuthConfig with token strategy instead.</span>
+
+<span class="sd">    `TokenAuthentication` is a subclass of `Authentication`. It can be used to authenticate to a Kubernetes</span>
+<span class="sd">    cluster when the user has an API token and the API server address.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">token</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">server</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">skip_tls</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">ca_cert_path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Initialize a TokenAuthentication object that requires a value for `token`, the API Token</span>
+<span class="sd">        and `server`, the API server address for authenticating to a Kubernetes cluster.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+            <span class="n">_DEPRECATION_MSG</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">cls_name</span><span class="o">=</span><span class="s2">&quot;TokenAuthentication&quot;</span><span class="p">),</span>
+            <span class="ne">DeprecationWarning</span><span class="p">,</span>
+            <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">token</span> <span class="o">=</span> <span class="n">token</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">server</span> <span class="o">=</span> <span class="n">server</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">skip_tls</span> <span class="o">=</span> <span class="n">skip_tls</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ca_cert_path</span> <span class="o">=</span> <span class="n">_gen_ca_cert_path</span><span class="p">(</span><span class="n">ca_cert_path</span><span class="p">)</span>
+
+<div class="viewcode-block" id="TokenAuthentication.login">
+<a class="viewcode-back" href="../../../../codeflare_sdk.common.kubernetes_cluster.html#codeflare_sdk.common.kubernetes_cluster.auth.TokenAuthentication.login">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">login</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        This function is used to log in to a Kubernetes cluster using the user&#39;s API token and API server address.</span>
+<span class="sd">        Depending on the cluster, a user can choose to login in with `--insecure-skip-tls-verify` by setting `skip_tls`</span>
+<span class="sd">        to `True` or `--certificate-authority` by setting `skip_tls` to False and providing a path to a ca bundle with `ca_cert_path`.</span>
+
+<span class="sd">        Note: kube-authkit does not support direct token authentication via AuthConfig,</span>
+<span class="sd">        so this uses the legacy implementation.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">global</span> <span class="n">config_path</span>
+        <span class="k">global</span> <span class="n">api_client</span>
+
+        <span class="c1"># Legacy implementation (kube-authkit doesn&#39;t support direct token auth)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">configuration</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">Configuration</span><span class="p">()</span>
+            <span class="n">configuration</span><span class="o">.</span><span class="n">api_key_prefix</span><span class="p">[</span><span class="s2">&quot;authorization&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;Bearer&quot;</span>
+            <span class="n">configuration</span><span class="o">.</span><span class="n">host</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">server</span>
+            <span class="n">configuration</span><span class="o">.</span><span class="n">api_key</span><span class="p">[</span><span class="s2">&quot;authorization&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">token</span>
+
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">skip_tls</span><span class="p">:</span>
+                <span class="n">urllib3</span><span class="o">.</span><span class="n">disable_warnings</span><span class="p">(</span><span class="n">urllib3</span><span class="o">.</span><span class="n">exceptions</span><span class="o">.</span><span class="n">InsecureRequestWarning</span><span class="p">)</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Insecure request warnings have been disabled&quot;</span><span class="p">)</span>
+                <span class="n">configuration</span><span class="o">.</span><span class="n">verify_ssl</span> <span class="o">=</span> <span class="kc">False</span>
+
+            <span class="n">api_client</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">ApiClient</span><span class="p">(</span><span class="n">configuration</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">skip_tls</span><span class="p">:</span>
+                <span class="n">_client_with_cert</span><span class="p">(</span><span class="n">api_client</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">ca_cert_path</span><span class="p">)</span>
+
+            <span class="n">client</span><span class="o">.</span><span class="n">AuthenticationApi</span><span class="p">(</span><span class="n">api_client</span><span class="p">)</span><span class="o">.</span><span class="n">get_api_group</span><span class="p">()</span>
+            <span class="n">config_path</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">return</span> <span class="s2">&quot;Logged into </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">server</span>
+        <span class="k">except</span> <span class="n">client</span><span class="o">.</span><span class="n">ApiException</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">_kube_api_error_handling</span><span class="p">(</span><span class="n">e</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="TokenAuthentication.logout">
+<a class="viewcode-back" href="../../../../codeflare_sdk.common.kubernetes_cluster.html#codeflare_sdk.common.kubernetes_cluster.auth.TokenAuthentication.logout">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">logout</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        This function is used to logout of a Kubernetes cluster.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">global</span> <span class="n">config_path</span>
+        <span class="n">config_path</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">global</span> <span class="n">api_client</span>
+        <span class="n">api_client</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">return</span> <span class="s2">&quot;Successfully logged out of </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">server</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="KubeConfigFileAuthentication">
+<a class="viewcode-back" href="../../../../codeflare_sdk.common.kubernetes_cluster.html#codeflare_sdk.common.kubernetes_cluster.auth.KubeConfigFileAuthentication">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">KubeConfigFileAuthentication</span><span class="p">(</span><span class="n">KubeConfiguration</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    DEPRECATED: Use kube_authkit.AuthConfig with kubeconfig strategy instead.</span>
+
+<span class="sd">    A class that defines the necessary methods for passing a user&#39;s own Kubernetes config file.</span>
+<span class="sd">    Specifically this class defines the `load_kube_config()` and `config_check()` functions.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">kube_config_path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+            <span class="n">_DEPRECATION_MSG</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">cls_name</span><span class="o">=</span><span class="s2">&quot;KubeConfigFileAuthentication&quot;</span><span class="p">),</span>
+            <span class="ne">DeprecationWarning</span><span class="p">,</span>
+            <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kube_config_path</span> <span class="o">=</span> <span class="n">kube_config_path</span>
+
+<div class="viewcode-block" id="KubeConfigFileAuthentication.load_kube_config">
+<a class="viewcode-back" href="../../../../codeflare_sdk.common.kubernetes_cluster.html#codeflare_sdk.common.kubernetes_cluster.auth.KubeConfigFileAuthentication.load_kube_config">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_kube_config</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Function for loading a user&#39;s own predefined Kubernetes config file.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">global</span> <span class="n">config_path</span>
+        <span class="k">global</span> <span class="n">api_client</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">kube_config_path</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s2">&quot;Please specify a config file path&quot;</span>
+
+        <span class="c1"># Try kube-authkit first</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">auth_config</span> <span class="o">=</span> <span class="n">AuthConfig</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s2">&quot;kubeconfig&quot;</span><span class="p">)</span>
+            <span class="c1"># kube-authkit auto-detects kubeconfig location, but we need to set it</span>
+            <span class="c1"># This may need adjustment based on actual kube-authkit API</span>
+            <span class="n">api_client</span> <span class="o">=</span> <span class="n">get_k8s_client</span><span class="p">(</span><span class="n">config</span><span class="o">=</span><span class="n">auth_config</span><span class="p">)</span>
+            <span class="n">config_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">kube_config_path</span>
+            <span class="k">return</span> <span class="s2">&quot;Loaded user config file at path </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">kube_config_path</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;kube-authkit failed, using legacy method: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="ne">RuntimeWarning</span>
+            <span class="p">)</span>
+            <span class="c1"># Reset for legacy implementation</span>
+            <span class="n">api_client</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="c1"># Legacy implementation</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">config_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">kube_config_path</span>
+            <span class="n">api_client</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="n">config</span><span class="o">.</span><span class="n">load_kube_config</span><span class="p">(</span><span class="n">config_path</span><span class="p">)</span>
+            <span class="n">response</span> <span class="o">=</span> <span class="s2">&quot;Loaded user config file at path </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">kube_config_path</span>
+        <span class="k">except</span> <span class="n">config</span><span class="o">.</span><span class="n">ConfigException</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
+            <span class="n">config_path</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Please specify a config file path&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">response</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="config_check">
+<a class="viewcode-back" href="../../../../codeflare_sdk.common.kubernetes_cluster.html#codeflare_sdk.common.kubernetes_cluster.auth.config_check">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">config_check</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Check and load the Kubernetes config from the default location.</span>
+
+<span class="sd">    Uses kube-authkit&#39;s auto-detection when available, falls back to legacy method.</span>
+
+<span class="sd">    This function checks if a Kubernetes config file exists at the default path</span>
+<span class="sd">    (`~/.kube/config`). If none is provided, it tries to load in-cluster config.</span>
+<span class="sd">    If the `config_path` global variable is set by an external module (e.g., `auth.py`),</span>
+<span class="sd">    this path will be used directly.</span>
+
+<span class="sd">    Priority:</span>
+<span class="sd">    1. Existing global api_client (already authenticated)</span>
+<span class="sd">    2. kube-authkit auto-detection (kubeconfig, in-cluster, etc.)</span>
+<span class="sd">    3. Legacy method (kubeconfig or in-cluster)</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        str:</span>
+<span class="sd">            The loaded config path if successful.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        PermissionError:</span>
+<span class="sd">            If no valid credentials or config file is found.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">global</span> <span class="n">config_path</span>
+    <span class="k">global</span> <span class="n">api_client</span>
+
+    <span class="c1"># If already configured, return early</span>
+    <span class="k">if</span> <span class="n">api_client</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">config_path</span>
+
+    <span class="c1"># Try kube-authkit auto-detection</span>
+    <span class="k">if</span> <span class="n">config_path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="c1"># Auto-detect authentication method (kubeconfig or in-cluster)</span>
+            <span class="n">auth_config</span> <span class="o">=</span> <span class="n">AuthConfig</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s2">&quot;auto&quot;</span><span class="p">)</span>
+            <span class="n">api_client</span> <span class="o">=</span> <span class="n">get_k8s_client</span><span class="p">(</span><span class="n">config</span><span class="o">=</span><span class="n">auth_config</span><span class="p">)</span>
+            <span class="c1"># Verify connection</span>
+            <span class="n">client</span><span class="o">.</span><span class="n">AuthenticationApi</span><span class="p">(</span><span class="n">api_client</span><span class="p">)</span><span class="o">.</span><span class="n">get_api_group</span><span class="p">()</span>
+            <span class="k">return</span> <span class="n">config_path</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="c1"># Fall through to legacy method</span>
+            <span class="n">api_client</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="c1"># Don&#39;t warn - auto-detection failure is expected when no auth is configured</span>
+            <span class="k">pass</span>
+
+    <span class="c1"># Legacy implementation</span>
+    <span class="n">home_directory</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">expanduser</span><span class="p">(</span><span class="s2">&quot;~&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">config_path</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">api_client</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2">/.kube/config&quot;</span> <span class="o">%</span> <span class="n">home_directory</span><span class="p">):</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">config</span><span class="o">.</span><span class="n">load_kube_config</span><span class="p">()</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
+                <span class="n">_kube_api_error_handling</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="s2">&quot;KUBERNETES_PORT&quot;</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">config</span><span class="o">.</span><span class="n">load_incluster_config</span><span class="p">()</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
+                <span class="n">_kube_api_error_handling</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">PermissionError</span><span class="p">(</span>
+                <span class="s2">&quot;Action not permitted, have you put in correct/up-to-date auth credentials?&quot;</span>
+            <span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">config_path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">api_client</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">config_path</span></div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_client_with_cert</span><span class="p">(</span><span class="n">api_client</span><span class="p">:</span> <span class="n">client</span><span class="o">.</span><span class="n">ApiClient</span><span class="p">,</span> <span class="n">ca_cert_path</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Configure SSL certificate verification for a Kubernetes API client.</span>
+
+<span class="sd">    If a custom CA cert path is provided or configured via environment variable,</span>
+<span class="sd">    it will be used. Otherwise, the existing ssl_ca_cert configuration from the</span>
+<span class="sd">    kubeconfig (which may include embedded certificates) is preserved.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        api_client: The Kubernetes API client to configure.</span>
+<span class="sd">        ca_cert_path: Optional path to a custom CA certificate file.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">api_client</span><span class="o">.</span><span class="n">configuration</span><span class="o">.</span><span class="n">verify_ssl</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="n">cert_path</span> <span class="o">=</span> <span class="n">_gen_ca_cert_path</span><span class="p">(</span><span class="n">ca_cert_path</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">cert_path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">cert_path</span><span class="p">):</span>
+            <span class="n">api_client</span><span class="o">.</span><span class="n">configuration</span><span class="o">.</span><span class="n">ssl_ca_cert</span> <span class="o">=</span> <span class="n">cert_path</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Certificate file not found at </span><span class="si">{</span><span class="n">cert_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="c1"># If cert_path is None, preserve the existing ssl_ca_cert from kubeconfig</span>
+    <span class="c1"># (which may contain embedded certificate data from certificate-authority-data)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_gen_ca_cert_path</span><span class="p">(</span><span class="n">ca_cert_path</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Gets the path to the default CA certificate file either through env config or default path&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">ca_cert_path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">ca_cert_path</span>
+    <span class="k">elif</span> <span class="s2">&quot;CF_SDK_CA_CERT_PATH&quot;</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;CF_SDK_CA_CERT_PATH&quot;</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">WORKBENCH_CA_CERT_PATH</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">WORKBENCH_CA_CERT_PATH</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+
+
+<div class="viewcode-block" id="get_api_client">
+<a class="viewcode-back" href="../../../../codeflare_sdk.common.kubernetes_cluster.html#codeflare_sdk.common.kubernetes_cluster.auth.get_api_client">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_api_client</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">client</span><span class="o">.</span><span class="n">ApiClient</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Retrieve the Kubernetes API client with the default configuration.</span>
+
+<span class="sd">    This function returns the current API client instance if already loaded,</span>
+<span class="sd">    or creates a new API client with the default configuration.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        client.ApiClient:</span>
+<span class="sd">            The Kubernetes API client object.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">api_client</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">api_client</span>
+    <span class="n">to_return</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">ApiClient</span><span class="p">()</span>
+    <span class="n">_client_with_cert</span><span class="p">(</span><span class="n">to_return</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">to_return</span></div>
+
+
+
+<div class="viewcode-block" id="set_api_client">
+<a class="viewcode-back" href="../../../../codeflare_sdk.common.kubernetes_cluster.html#codeflare_sdk.common.kubernetes_cluster.auth.set_api_client">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">set_api_client</span><span class="p">(</span><span class="n">new_client</span><span class="p">:</span> <span class="n">client</span><span class="o">.</span><span class="n">ApiClient</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Set a custom Kubernetes API client for the SDK to use.</span>
+
+<span class="sd">    This is useful when you want to use kube-authkit or other authentication</span>
+<span class="sd">    methods to create an API client and register it with the CodeFlare SDK.</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        &gt;&gt;&gt; from kube_authkit import get_k8s_client, AuthConfig</span>
+<span class="sd">        &gt;&gt;&gt; from codeflare_sdk.common.kubernetes_cluster.auth import set_api_client</span>
+<span class="sd">        &gt;&gt;&gt;</span>
+<span class="sd">        &gt;&gt;&gt; auth_config = AuthConfig(k8s_api_host=&quot;...&quot;, token=&quot;...&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; api_client = get_k8s_client(config=auth_config)</span>
+<span class="sd">        &gt;&gt;&gt; set_api_client(api_client)</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        new_client: The Kubernetes API client instance to use.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">global</span> <span class="n">api_client</span><span class="p">,</span> <span class="n">config_path</span>
+    <span class="n">api_client</span> <span class="o">=</span> <span class="n">new_client</span>
+    <span class="n">config_path</span> <span class="o">=</span> <span class="s2">&quot;custom&quot;</span>  <span class="c1"># Mark as configured with custom client</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Project CodeFlare.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,302 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>codeflare_sdk.ray.cluster.pretty_print &mdash; CodeFlare SDK 0.35.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../_static/documentation_options.js?v=ca1b380b"></script>
+      <script src="../../../../_static/doctools.js?v=9a2dae69"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            CodeFlare SDK
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Code Documentation:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../modules.html">codeflare_sdk</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">User Documentation:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user-docs/authentication.html">Authentication via the CodeFlare SDK</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user-docs/cluster-configuration.html">Ray Cluster Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user-docs/ray-cluster-interaction.html">Ray Cluster Interaction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user-docs/rayjob.html">Submitting RayJobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user-docs/e2e.html">Running e2e tests locally</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user-docs/s3-compatible-storage.html">S3 compatible storage with Ray Train examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user-docs/setup-kueue.html">Basic Kueue Resources configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user-docs/ui-widgets.html">Jupyter UI Widgets</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">CodeFlare SDK</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">codeflare_sdk.ray.cluster.pretty_print</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for codeflare_sdk.ray.cluster.pretty_print</h1><div class="highlight"><pre>
+<span></span><span class="c1"># Copyright 2022 IBM, Red Hat</span>
+<span class="c1">#</span>
+<span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="c1"># you may not use this file except in compliance with the License.</span>
+<span class="c1"># You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#      http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">This sub-module exists primarily to be used internally by the Cluster object</span>
+<span class="sd">(in the cluster sub-module) for pretty-printing cluster status and details.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">rich.table</span><span class="w"> </span><span class="kn">import</span> <span class="n">Table</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">rich.console</span><span class="w"> </span><span class="kn">import</span> <span class="n">Console</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">rich.panel</span><span class="w"> </span><span class="kn">import</span> <span class="n">Panel</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">rich</span><span class="w"> </span><span class="kn">import</span> <span class="n">box</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">List</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.status</span><span class="w"> </span><span class="kn">import</span> <span class="n">RayCluster</span><span class="p">,</span> <span class="n">RayClusterStatus</span>
+
+
+<div class="viewcode-block" id="print_no_resources_found">
+<a class="viewcode-back" href="../../../../codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.pretty_print.print_no_resources_found">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">print_no_resources_found</span><span class="p">():</span>
+    <span class="n">console</span> <span class="o">=</span> <span class="n">Console</span><span class="p">()</span>
+    <span class="n">console</span><span class="o">.</span><span class="n">print</span><span class="p">(</span>
+        <span class="n">Panel</span><span class="p">(</span>
+            <span class="s2">&quot;[red]No resources found, have you run cluster.apply() yet? Run cluster.details() to check if it&#39;s ready.&quot;</span>
+        <span class="p">)</span>
+    <span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="print_ray_clusters_status">
+<a class="viewcode-back" href="../../../../codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.pretty_print.print_ray_clusters_status">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">print_ray_clusters_status</span><span class="p">(</span><span class="n">clusters</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">RayCluster</span><span class="p">],</span> <span class="n">starting</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">clusters</span><span class="p">:</span>
+        <span class="n">print_no_resources_found</span><span class="p">()</span>
+        <span class="k">return</span>  <span class="c1"># shortcircuit</span>
+
+    <span class="n">console</span> <span class="o">=</span> <span class="n">Console</span><span class="p">()</span>
+    <span class="n">table</span> <span class="o">=</span> <span class="n">Table</span><span class="p">(</span>
+        <span class="n">box</span><span class="o">=</span><span class="n">box</span><span class="o">.</span><span class="n">ASCII_DOUBLE_HEAD</span><span class="p">,</span>
+        <span class="n">title</span><span class="o">=</span><span class="s2">&quot;[bold] :rocket: Cluster Queue Status :rocket:&quot;</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">table</span><span class="o">.</span><span class="n">add_column</span><span class="p">(</span><span class="s2">&quot;Name&quot;</span><span class="p">,</span> <span class="n">style</span><span class="o">=</span><span class="s2">&quot;cyan&quot;</span><span class="p">,</span> <span class="n">no_wrap</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">table</span><span class="o">.</span><span class="n">add_column</span><span class="p">(</span><span class="s2">&quot;Status&quot;</span><span class="p">,</span> <span class="n">style</span><span class="o">=</span><span class="s2">&quot;magenta&quot;</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">cluster</span> <span class="ow">in</span> <span class="n">clusters</span><span class="p">:</span>
+        <span class="n">name</span> <span class="o">=</span> <span class="n">cluster</span><span class="o">.</span><span class="n">name</span>
+        <span class="n">status</span> <span class="o">=</span> <span class="n">cluster</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">value</span>
+        <span class="k">if</span> <span class="n">starting</span><span class="p">:</span>
+            <span class="n">status</span> <span class="o">+=</span> <span class="s2">&quot; (starting)&quot;</span>
+        <span class="n">table</span><span class="o">.</span><span class="n">add_row</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">status</span><span class="p">)</span>
+        <span class="n">table</span><span class="o">.</span><span class="n">add_row</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>  <span class="c1"># empty row for spacing</span>
+
+    <span class="n">console</span><span class="o">.</span><span class="n">print</span><span class="p">(</span><span class="n">Panel</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">table</span><span class="p">))</span></div>
+
+
+
+<div class="viewcode-block" id="print_cluster_status">
+<a class="viewcode-back" href="../../../../codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.pretty_print.print_cluster_status">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">print_cluster_status</span><span class="p">(</span><span class="n">cluster</span><span class="p">:</span> <span class="n">RayCluster</span><span class="p">):</span>
+    <span class="s2">&quot;Pretty prints the status of a passed-in cluster&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">cluster</span><span class="p">:</span>
+        <span class="n">print_no_resources_found</span><span class="p">()</span>
+        <span class="k">return</span>
+
+    <span class="n">console</span> <span class="o">=</span> <span class="n">Console</span><span class="p">()</span>
+    <span class="n">status</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="s2">&quot;Active :white_heavy_check_mark:&quot;</span>
+        <span class="k">if</span> <span class="n">cluster</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="n">RayClusterStatus</span><span class="o">.</span><span class="n">READY</span>
+        <span class="k">else</span> <span class="s2">&quot;Inactive :x:&quot;</span>
+    <span class="p">)</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="n">cluster</span><span class="o">.</span><span class="n">name</span>
+    <span class="n">dashboard</span> <span class="o">=</span> <span class="n">cluster</span><span class="o">.</span><span class="n">dashboard</span>
+
+    <span class="c1">#&#39;table0&#39; to display the cluster name, status, url, and dashboard link</span>
+    <span class="n">table0</span> <span class="o">=</span> <span class="n">Table</span><span class="p">(</span><span class="n">box</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">show_header</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="n">table0</span><span class="o">.</span><span class="n">add_row</span><span class="p">(</span><span class="s2">&quot;[white on green][bold]Name&quot;</span><span class="p">)</span>
+    <span class="n">table0</span><span class="o">.</span><span class="n">add_row</span><span class="p">(</span><span class="s2">&quot;[bold underline]&quot;</span> <span class="o">+</span> <span class="n">name</span><span class="p">,</span> <span class="n">status</span><span class="p">)</span>
+    <span class="n">table0</span><span class="o">.</span><span class="n">add_row</span><span class="p">()</span>
+    <span class="c1"># fixme harcded to default for now</span>
+    <span class="n">table0</span><span class="o">.</span><span class="n">add_row</span><span class="p">(</span>
+        <span class="sa">f</span><span class="s2">&quot;[bold]URI:[/bold] ray://</span><span class="si">{</span><span class="n">cluster</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">-head-svc.</span><span class="si">{</span><span class="n">cluster</span><span class="o">.</span><span class="n">namespace</span><span class="si">}</span><span class="s2">.svc:10001&quot;</span>
+    <span class="p">)</span>  <span class="c1"># format that is used to generate the name of the service</span>
+    <span class="n">table0</span><span class="o">.</span><span class="n">add_row</span><span class="p">()</span>
+    <span class="n">table0</span><span class="o">.</span><span class="n">add_row</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[link=</span><span class="si">{</span><span class="n">dashboard</span><span class="si">}</span><span class="s2"> blue underline]Dashboard:link:[/link]&quot;</span><span class="p">)</span>
+    <span class="n">table0</span><span class="o">.</span><span class="n">add_row</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>  <span class="c1"># empty row for spacing</span>
+
+    <span class="c1"># table4 to display table0 and table3, one below the other</span>
+    <span class="n">table4</span> <span class="o">=</span> <span class="n">Table</span><span class="p">(</span><span class="n">box</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">show_header</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">table4</span><span class="o">.</span><span class="n">add_row</span><span class="p">(</span><span class="n">table0</span><span class="p">)</span>
+
+    <span class="c1"># Encompass all details of the cluster in a single panel</span>
+    <span class="n">table5</span> <span class="o">=</span> <span class="n">Table</span><span class="p">(</span><span class="n">box</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s2">&quot;[bold] :rocket: CodeFlare Cluster Status :rocket:&quot;</span><span class="p">)</span>
+    <span class="n">table5</span><span class="o">.</span><span class="n">add_row</span><span class="p">(</span><span class="n">Panel</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">table4</span><span class="p">))</span>
+    <span class="n">console</span><span class="o">.</span><span class="n">print</span><span class="p">(</span><span class="n">table5</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="print_clusters">
+<a class="viewcode-back" href="../../../../codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.pretty_print.print_clusters">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">print_clusters</span><span class="p">(</span><span class="n">clusters</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">RayCluster</span><span class="p">]):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">clusters</span><span class="p">:</span>
+        <span class="n">print_no_resources_found</span><span class="p">()</span>
+        <span class="k">return</span>  <span class="c1"># shortcircuit</span>
+
+    <span class="n">console</span> <span class="o">=</span> <span class="n">Console</span><span class="p">()</span>
+    <span class="n">title_printed</span> <span class="o">=</span> <span class="kc">False</span>
+
+    <span class="k">for</span> <span class="n">cluster</span> <span class="ow">in</span> <span class="n">clusters</span><span class="p">:</span>
+        <span class="n">status</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="s2">&quot;Active :white_heavy_check_mark:&quot;</span>
+            <span class="k">if</span> <span class="n">cluster</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="n">RayClusterStatus</span><span class="o">.</span><span class="n">READY</span>
+            <span class="k">else</span> <span class="s2">&quot;Inactive :x:&quot;</span>
+        <span class="p">)</span>
+        <span class="n">name</span> <span class="o">=</span> <span class="n">cluster</span><span class="o">.</span><span class="n">name</span>
+        <span class="n">dashboard</span> <span class="o">=</span> <span class="n">cluster</span><span class="o">.</span><span class="n">dashboard</span>
+        <span class="n">workers</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">cluster</span><span class="o">.</span><span class="n">num_workers</span><span class="p">)</span>
+        <span class="n">memory</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">cluster</span><span class="o">.</span><span class="n">worker_mem_requests</span><span class="si">}</span><span class="s2">~</span><span class="si">{</span><span class="n">cluster</span><span class="o">.</span><span class="n">worker_mem_limits</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="n">cpu</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">cluster</span><span class="o">.</span><span class="n">worker_cpu_requests</span><span class="si">}</span><span class="s2">~</span><span class="si">{</span><span class="n">cluster</span><span class="o">.</span><span class="n">worker_cpu_limits</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="n">gpu</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">cluster</span><span class="o">.</span><span class="n">worker_extended_resources</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;nvidia.com/gpu&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+
+        <span class="c1">#&#39;table0&#39; to display the cluster name, status, url, and dashboard link</span>
+        <span class="n">table0</span> <span class="o">=</span> <span class="n">Table</span><span class="p">(</span><span class="n">box</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">show_header</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+        <span class="n">table0</span><span class="o">.</span><span class="n">add_row</span><span class="p">(</span><span class="s2">&quot;[white on green][bold]Name&quot;</span><span class="p">)</span>
+        <span class="n">table0</span><span class="o">.</span><span class="n">add_row</span><span class="p">(</span><span class="s2">&quot;[bold underline]&quot;</span> <span class="o">+</span> <span class="n">name</span><span class="p">,</span> <span class="n">status</span><span class="p">)</span>
+        <span class="n">table0</span><span class="o">.</span><span class="n">add_row</span><span class="p">()</span>
+        <span class="c1"># fixme harcded to default for now</span>
+        <span class="n">table0</span><span class="o">.</span><span class="n">add_row</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;[bold]URI:[/bold] ray://</span><span class="si">{</span><span class="n">cluster</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">-head-svc.</span><span class="si">{</span><span class="n">cluster</span><span class="o">.</span><span class="n">namespace</span><span class="si">}</span><span class="s2">.svc:10001&quot;</span>
+        <span class="p">)</span>  <span class="c1"># format that is used to generate the name of the service</span>
+        <span class="n">table0</span><span class="o">.</span><span class="n">add_row</span><span class="p">()</span>
+        <span class="n">table0</span><span class="o">.</span><span class="n">add_row</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[link=</span><span class="si">{</span><span class="n">dashboard</span><span class="si">}</span><span class="s2"> blue underline]Dashboard:link:[/link]&quot;</span><span class="p">)</span>
+        <span class="n">table0</span><span class="o">.</span><span class="n">add_row</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>  <span class="c1"># empty row for spacing</span>
+
+        <span class="c1">#&#39;table1&#39; to display the worker counts</span>
+        <span class="n">table1</span> <span class="o">=</span> <span class="n">Table</span><span class="p">(</span><span class="n">box</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+        <span class="n">table1</span><span class="o">.</span><span class="n">add_row</span><span class="p">()</span>
+        <span class="n">table1</span><span class="o">.</span><span class="n">add_column</span><span class="p">(</span><span class="s2">&quot;# Workers&quot;</span><span class="p">,</span> <span class="n">style</span><span class="o">=</span><span class="s2">&quot;magenta&quot;</span><span class="p">)</span>
+        <span class="n">table1</span><span class="o">.</span><span class="n">add_row</span><span class="p">()</span>
+        <span class="n">table1</span><span class="o">.</span><span class="n">add_row</span><span class="p">(</span><span class="n">workers</span><span class="p">)</span>
+        <span class="n">table1</span><span class="o">.</span><span class="n">add_row</span><span class="p">()</span>
+
+        <span class="c1">#&#39;table2&#39; to display the worker resources</span>
+        <span class="n">table2</span> <span class="o">=</span> <span class="n">Table</span><span class="p">(</span><span class="n">box</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+        <span class="n">table2</span><span class="o">.</span><span class="n">add_column</span><span class="p">(</span><span class="s2">&quot;Memory&quot;</span><span class="p">,</span> <span class="n">style</span><span class="o">=</span><span class="s2">&quot;cyan&quot;</span><span class="p">,</span> <span class="n">no_wrap</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">min_width</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+        <span class="n">table2</span><span class="o">.</span><span class="n">add_column</span><span class="p">(</span><span class="s2">&quot;CPU&quot;</span><span class="p">,</span> <span class="n">style</span><span class="o">=</span><span class="s2">&quot;magenta&quot;</span><span class="p">,</span> <span class="n">min_width</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+        <span class="n">table2</span><span class="o">.</span><span class="n">add_column</span><span class="p">(</span><span class="s2">&quot;GPU&quot;</span><span class="p">,</span> <span class="n">style</span><span class="o">=</span><span class="s2">&quot;magenta&quot;</span><span class="p">,</span> <span class="n">min_width</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+        <span class="n">table2</span><span class="o">.</span><span class="n">add_row</span><span class="p">()</span>
+        <span class="n">table2</span><span class="o">.</span><span class="n">add_row</span><span class="p">(</span><span class="n">memory</span><span class="p">,</span> <span class="n">cpu</span><span class="p">,</span> <span class="n">gpu</span><span class="p">)</span>
+        <span class="n">table2</span><span class="o">.</span><span class="n">add_row</span><span class="p">()</span>
+
+        <span class="c1"># panels to encompass table1 and table2 into separate cards</span>
+        <span class="n">panel_1</span> <span class="o">=</span> <span class="n">Panel</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">table1</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Workers&quot;</span><span class="p">)</span>
+        <span class="n">panel_2</span> <span class="o">=</span> <span class="n">Panel</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">table2</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Worker specs(each)&quot;</span><span class="p">)</span>
+
+        <span class="c1"># table3 to display panel_1 and panel_2 side-by-side in a single row</span>
+        <span class="n">table3</span> <span class="o">=</span> <span class="n">Table</span><span class="p">(</span><span class="n">box</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">show_header</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Cluster Resources&quot;</span><span class="p">)</span>
+        <span class="n">table3</span><span class="o">.</span><span class="n">add_row</span><span class="p">(</span><span class="n">panel_1</span><span class="p">,</span> <span class="n">panel_2</span><span class="p">)</span>
+
+        <span class="c1"># table4 to display table0 and table3, one below the other</span>
+        <span class="n">table4</span> <span class="o">=</span> <span class="n">Table</span><span class="p">(</span><span class="n">box</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">show_header</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">table4</span><span class="o">.</span><span class="n">add_row</span><span class="p">(</span><span class="n">table0</span><span class="p">)</span>
+        <span class="n">table4</span><span class="o">.</span><span class="n">add_row</span><span class="p">(</span><span class="n">table3</span><span class="p">)</span>
+
+        <span class="c1"># Encompass all details of the cluster in a single panel</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">title_printed</span><span class="p">:</span>
+            <span class="c1"># If first cluster in the list, then create a table with title &quot;Codeflare clusters&quot;.</span>
+            <span class="c1"># This is done to ensure the title is center aligned on the cluster display tables, rather</span>
+            <span class="c1"># than being center aligned on the console/terminal if we simply use console.print(title)</span>
+
+            <span class="n">table5</span> <span class="o">=</span> <span class="n">Table</span><span class="p">(</span>
+                <span class="n">box</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s2">&quot;[bold] :rocket: CodeFlare Cluster Details :rocket:&quot;</span>
+            <span class="p">)</span>
+            <span class="n">table5</span><span class="o">.</span><span class="n">add_row</span><span class="p">(</span><span class="n">Panel</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">table4</span><span class="p">))</span>
+            <span class="n">console</span><span class="o">.</span><span class="n">print</span><span class="p">(</span><span class="n">table5</span><span class="p">)</span>
+            <span class="n">title_printed</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">console</span><span class="o">.</span><span class="n">print</span><span class="p">(</span><span class="n">Panel</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">table4</span><span class="p">))</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Project CodeFlare.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

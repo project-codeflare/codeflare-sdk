@@ -1,0 +1,394 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>kube_authkit.factory &mdash; CodeFlare SDK 0.35.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=ca1b380b"></script>
+      <script src="../../_static/doctools.js?v=9a2dae69"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            CodeFlare SDK
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Code Documentation:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../modules.html">codeflare_sdk</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">User Documentation:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../user-docs/authentication.html">Authentication via the CodeFlare SDK</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../user-docs/cluster-configuration.html">Ray Cluster Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../user-docs/ray-cluster-interaction.html">Ray Cluster Interaction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../user-docs/rayjob.html">Submitting RayJobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../user-docs/e2e.html">Running e2e tests locally</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../user-docs/s3-compatible-storage.html">S3 compatible storage with Ray Train examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../user-docs/setup-kueue.html">Basic Kueue Resources configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../user-docs/ui-widgets.html">Jupyter UI Widgets</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">CodeFlare SDK</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">kube_authkit.factory</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for kube_authkit.factory</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Authentication factory for strategy selection.</span>
+
+<span class="sd">This module provides the main entry point for authentication and implements</span>
+<span class="sd">the auto-detection logic that selects the appropriate authentication strategy</span>
+<span class="sd">based on the environment and configuration.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">kubernetes.client</span><span class="w"> </span><span class="kn">import</span> <span class="n">ApiClient</span><span class="p">,</span> <span class="n">Configuration</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">AuthConfig</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.exceptions</span><span class="w"> </span><span class="kn">import</span> <span class="n">AuthenticationError</span><span class="p">,</span> <span class="n">ConfigurationError</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.strategies.base</span><span class="w"> </span><span class="kn">import</span> <span class="n">AuthStrategy</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.strategies.incluster</span><span class="w"> </span><span class="kn">import</span> <span class="n">InClusterStrategy</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.strategies.kubeconfig</span><span class="w"> </span><span class="kn">import</span> <span class="n">KubeConfigStrategy</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.strategies.oidc</span><span class="w"> </span><span class="kn">import</span> <span class="n">OIDCStrategy</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.strategies.openshift</span><span class="w"> </span><span class="kn">import</span> <span class="n">OpenShiftOAuthStrategy</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">get_k8s_config</span><span class="p">(</span><span class="n">config</span><span class="p">:</span> <span class="n">AuthConfig</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Configuration</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Get authenticated Kubernetes client configuration.</span>
+
+<span class="sd">    This function returns just the Configuration object, allowing users to</span>
+<span class="sd">    inspect or customize it before creating an ApiClient. This is useful for</span>
+<span class="sd">    advanced use cases where fine-grained control over the client configuration</span>
+<span class="sd">    is needed.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        config: AuthConfig instance. Must specify a method.</span>
+<span class="sd">            If None, raises ConfigurationError.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Configured Kubernetes Configuration object with authentication set up</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        ConfigurationError: If configuration is invalid or method not specified</span>
+<span class="sd">        AuthenticationError: If authentication fails</span>
+<span class="sd">        StrategyNotAvailableError: If requested method is not available</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        &gt;&gt;&gt; # Explicit auth config</span>
+<span class="sd">        &gt;&gt;&gt; auth_config = AuthConfig(method=&quot;oidc&quot;, oidc_issuer=&quot;...&quot;, client_id=&quot;...&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; k8s_config = get_k8s_config(auth_config)</span>
+<span class="sd">        &gt;&gt;&gt; k8s_config.debug = True  # Enable debug logging</span>
+<span class="sd">        &gt;&gt;&gt; api_client = ApiClient(k8s_config)</span>
+<span class="sd">        &gt;&gt;&gt;</span>
+<span class="sd">        &gt;&gt;&gt; # Auto-detection (opt-in)</span>
+<span class="sd">        &gt;&gt;&gt; k8s_config = get_k8s_config(AuthConfig(method=&quot;auto&quot;))</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Use default config if none provided</span>
+    <span class="k">if</span> <span class="n">config</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">config</span> <span class="o">=</span> <span class="n">AuthConfig</span><span class="p">()</span>
+
+    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Getting Kubernetes configuration with config: </span><span class="si">{</span><span class="n">config</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Select and execute authentication strategy</span>
+    <span class="n">factory</span> <span class="o">=</span> <span class="n">AuthFactory</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+    <span class="n">strategy</span> <span class="o">=</span> <span class="n">factory</span><span class="o">.</span><span class="n">get_strategy</span><span class="p">()</span>
+
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Using authentication strategy: </span><span class="si">{</span><span class="n">strategy</span><span class="o">.</span><span class="n">get_description</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Authenticate and return Configuration</span>
+    <span class="n">api_client</span> <span class="o">=</span> <span class="n">strategy</span><span class="o">.</span><span class="n">authenticate</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">api_client</span><span class="o">.</span><span class="n">configuration</span>
+
+
+<div class="viewcode-block" id="get_k8s_client">
+<a class="viewcode-back" href="../../codeflare_sdk.common.kubernetes_cluster.html#codeflare_sdk.common.kubernetes_cluster.get_k8s_client">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_k8s_client</span><span class="p">(</span><span class="n">config</span><span class="p">:</span> <span class="n">AuthConfig</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ApiClient</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Get authenticated Kubernetes API client.</span>
+
+<span class="sd">    This is the main entry point for the library. It automatically detects</span>
+<span class="sd">    the best authentication method based on the environment and configuration,</span>
+<span class="sd">    then returns a ready-to-use Kubernetes ApiClient.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        config: AuthConfig instance. Must specify a method.</span>
+<span class="sd">            If None, raises ConfigurationError.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Configured Kubernetes ApiClient ready to make API calls</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        ConfigurationError: If configuration is invalid or method not specified</span>
+<span class="sd">        AuthenticationError: If authentication fails</span>
+<span class="sd">        StrategyNotAvailableError: If requested method is not available</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        &gt;&gt;&gt; # Explicit configuration</span>
+<span class="sd">        &gt;&gt;&gt; config = AuthConfig(method=&quot;oidc&quot;, oidc_issuer=&quot;...&quot;, client_id=&quot;...&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; api_client = get_k8s_client(config)</span>
+<span class="sd">        &gt;&gt;&gt; v1 = client.CoreV1Api(api_client)</span>
+<span class="sd">        &gt;&gt;&gt;</span>
+<span class="sd">        &gt;&gt;&gt; # Auto-detection (opt-in)</span>
+<span class="sd">        &gt;&gt;&gt; api_client = get_k8s_client(AuthConfig(method=&quot;auto&quot;))</span>
+
+<span class="sd">    Note:</span>
+<span class="sd">        This is a convenience wrapper around get_k8s_config(). If you need to</span>
+<span class="sd">        customize the configuration before creating the client, use get_k8s_config()</span>
+<span class="sd">        instead.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Get authenticated configuration and wrap in ApiClient</span>
+    <span class="k">return</span> <span class="n">ApiClient</span><span class="p">(</span><span class="n">get_k8s_config</span><span class="p">(</span><span class="n">config</span><span class="p">))</span></div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">get_token</span><span class="p">(</span><span class="n">config</span><span class="p">:</span> <span class="n">AuthConfig</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Get raw authentication token.</span>
+
+<span class="sd">    Authenticates using the selected strategy and returns the raw bearer</span>
+<span class="sd">    token string. This is useful for consumers that need the token itself</span>
+<span class="sd">    rather than a pre-configured Kubernetes client (e.g., Feast).</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        config: Optional AuthConfig. If None, uses auto-detection with defaults.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Raw bearer token string</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        ConfigurationError: If configuration is invalid</span>
+<span class="sd">        AuthenticationError: If authentication fails or no token is available</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">config</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">config</span> <span class="o">=</span> <span class="n">AuthConfig</span><span class="p">()</span>
+    <span class="n">factory</span> <span class="o">=</span> <span class="n">AuthFactory</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+    <span class="n">strategy</span> <span class="o">=</span> <span class="n">factory</span><span class="o">.</span><span class="n">get_strategy</span><span class="p">()</span>
+    <span class="n">strategy</span><span class="o">.</span><span class="n">authenticate</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">strategy</span><span class="o">.</span><span class="n">get_token</span><span class="p">()</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">AuthFactory</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Factory for selecting and creating authentication strategies.</span>
+
+<span class="sd">    This class implements the strategy selection logic, including</span>
+<span class="sd">    auto-detection of the best authentication method based on</span>
+<span class="sd">    the current environment.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        config: AuthConfig instance with authentication parameters</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="p">:</span> <span class="n">AuthConfig</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize factory with configuration.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            config: AuthConfig instance</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">config</span> <span class="o">=</span> <span class="n">config</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_strategy</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AuthStrategy</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Select and return appropriate authentication strategy.</span>
+
+<span class="sd">        This method implements the auto-detection logic when method=&quot;auto&quot;,</span>
+<span class="sd">        or returns the explicitly requested strategy when method is specified.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            AuthStrategy instance ready to authenticate</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            ConfigurationError: If method is invalid or required params missing</span>
+<span class="sd">            StrategyNotAvailableError: If requested strategy not available</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># If method is explicitly specified, use that</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">method</span> <span class="o">!=</span> <span class="s2">&quot;auto&quot;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_strategy_by_name</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">method</span><span class="p">)</span>
+
+        <span class="c1"># Auto-detection logic</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Auto-detecting authentication method&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_auto_detect_strategy</span><span class="p">()</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_get_strategy_by_name</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">method</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AuthStrategy</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get strategy by explicit method name.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            method: Strategy name (&quot;kubeconfig&quot;, &quot;incluster&quot;, &quot;oidc&quot;, &quot;openshift&quot;)</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            AuthStrategy instance</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            ConfigurationError: If method is unknown</span>
+<span class="sd">            StrategyNotAvailableError: If strategy prerequisites not met</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">strategy_map</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;kubeconfig&quot;</span><span class="p">:</span> <span class="n">KubeConfigStrategy</span><span class="p">,</span>
+            <span class="s2">&quot;incluster&quot;</span><span class="p">:</span> <span class="n">InClusterStrategy</span><span class="p">,</span>
+            <span class="s2">&quot;oidc&quot;</span><span class="p">:</span> <span class="n">OIDCStrategy</span><span class="p">,</span>
+            <span class="s2">&quot;openshift&quot;</span><span class="p">:</span> <span class="n">OpenShiftOAuthStrategy</span><span class="p">,</span>
+        <span class="p">}</span>
+
+        <span class="n">strategy_class</span> <span class="o">=</span> <span class="n">strategy_map</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">method</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">strategy_class</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">available</span> <span class="o">=</span> <span class="s2">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="n">strategy_map</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span>
+            <span class="k">raise</span> <span class="n">ConfigurationError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Unknown authentication method: </span><span class="si">{</span><span class="n">method</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;Available methods: </span><span class="si">{</span><span class="n">available</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span>
+
+        <span class="c1"># Create and validate strategy</span>
+        <span class="n">strategy</span> <span class="o">=</span> <span class="n">strategy_class</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">strategy</span><span class="o">.</span><span class="n">is_available</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="n">ConfigurationError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Authentication method &#39;</span><span class="si">{</span><span class="n">method</span><span class="si">}</span><span class="s2">&#39; is not available in this environment&quot;</span><span class="p">,</span>
+                <span class="sa">f</span><span class="s2">&quot;Strategy check failed: </span><span class="si">{</span><span class="n">strategy</span><span class="o">.</span><span class="n">get_description</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">strategy</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_auto_detect_strategy</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AuthStrategy</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Auto-detect best authentication strategy for current environment.</span>
+
+<span class="sd">        Detection precedence:</span>
+<span class="sd">        1. Environment variables (OIDC_CLIENT_ID, etc.) -&gt; OIDC</span>
+<span class="sd">        2. In-cluster (KUBERNETES_SERVICE_HOST, service account) -&gt; InCluster</span>
+<span class="sd">        3. KubeConfig (~/.kube/config or KUBECONFIG) -&gt; KubeConfig</span>
+<span class="sd">        4. Interactive fallback (Phase 2) -&gt; OIDC with device/browser flow</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            AuthStrategy instance</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            AuthenticationError: If no suitable strategy found</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Check for OIDC environment variables</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_has_oidc_env_vars</span><span class="p">():</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Detected OIDC environment variables&quot;</span><span class="p">)</span>
+            <span class="n">oidc_strategy</span> <span class="o">=</span> <span class="n">OIDCStrategy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">oidc_strategy</span><span class="o">.</span><span class="n">is_available</span><span class="p">():</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;OIDC authentication available&quot;</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">oidc_strategy</span>
+
+        <span class="c1"># Check for OpenShift OAuth (token or k8s_api_host)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">token</span> <span class="ow">or</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;AUTHKIT_TOKEN&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;OPENSHIFT_TOKEN&quot;</span><span class="p">):</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Detected authentication token&quot;</span><span class="p">)</span>
+            <span class="n">openshift_strategy</span> <span class="o">=</span> <span class="n">OpenShiftOAuthStrategy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">openshift_strategy</span><span class="o">.</span><span class="n">is_available</span><span class="p">():</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;OpenShift OAuth available&quot;</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">openshift_strategy</span>
+
+        <span class="c1"># Check for in-cluster environment</span>
+        <span class="n">incluster_strategy</span> <span class="o">=</span> <span class="n">InClusterStrategy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">incluster_strategy</span><span class="o">.</span><span class="n">is_available</span><span class="p">():</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Detected in-cluster environment&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">incluster_strategy</span>
+
+        <span class="c1"># Check for kubeconfig</span>
+        <span class="n">kubeconfig_strategy</span> <span class="o">=</span> <span class="n">KubeConfigStrategy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">kubeconfig_strategy</span><span class="o">.</span><span class="n">is_available</span><span class="p">():</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Detected kubeconfig&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">kubeconfig_strategy</span>
+
+        <span class="c1"># No strategy available</span>
+        <span class="k">raise</span> <span class="n">AuthenticationError</span><span class="p">(</span>
+            <span class="s2">&quot;No authentication method available&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;Could not find any valid authentication credentials. Tried:</span><span class="se">\n</span><span class="s2">&quot;</span>
+            <span class="s2">&quot;1. OIDC environment variables (OIDC_ISSUER, OIDC_CLIENT_ID) - not found or invalid</span><span class="se">\n</span><span class="s2">&quot;</span>
+            <span class="s2">&quot;2. In-cluster service account - not available</span><span class="se">\n</span><span class="s2">&quot;</span>
+            <span class="s2">&quot;3. KubeConfig file (~/.kube/config) - not found</span><span class="se">\n\n</span><span class="s2">&quot;</span>
+            <span class="s2">&quot;Please provide authentication credentials using one of these methods:</span><span class="se">\n</span><span class="s2">&quot;</span>
+            <span class="s2">&quot;- Use kubectl to log in and generate ~/.kube/config</span><span class="se">\n</span><span class="s2">&quot;</span>
+            <span class="s2">&quot;- Run inside a Kubernetes Pod with a service account</span><span class="se">\n</span><span class="s2">&quot;</span>
+            <span class="s2">&quot;- Provide explicit OIDC configuration via AuthConfig</span><span class="se">\n</span><span class="s2">&quot;</span>
+            <span class="s2">&quot;- Set OIDC environment variables (OIDC_ISSUER, OIDC_CLIENT_ID)&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_has_oidc_env_vars</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check if OIDC environment variables are present.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            True if OIDC env vars are set, False otherwise</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Check for minimal OIDC configuration in environment</span>
+        <span class="n">has_issuer</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;AUTHKIT_OIDC_ISSUER&quot;</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+        <span class="n">has_client_id</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;AUTHKIT_CLIENT_ID&quot;</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+
+        <span class="k">return</span> <span class="n">has_issuer</span> <span class="ow">and</span> <span class="n">has_client_id</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Project CodeFlare.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

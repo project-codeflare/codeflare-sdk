@@ -1,0 +1,938 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>codeflare_sdk.ray.cluster package &mdash; CodeFlare SDK 0.35.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=ca1b380b"></script>
+      <script src="_static/doctools.js?v=9a2dae69"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="codeflare_sdk.ray.rayjobs package" href="codeflare_sdk.ray.rayjobs.html" />
+    <link rel="prev" title="codeflare_sdk.ray.client package" href="codeflare_sdk.ray.client.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            CodeFlare SDK
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Code Documentation:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">codeflare_sdk</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="codeflare_sdk.html">codeflare_sdk package</a><ul class="current">
+<li class="toctree-l3 current"><a class="reference internal" href="codeflare_sdk.html#subpackages">Subpackages</a><ul class="current">
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.common.html">codeflare_sdk.common package</a></li>
+<li class="toctree-l4 current"><a class="reference internal" href="codeflare_sdk.ray.html">codeflare_sdk.ray package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.vendored.html">codeflare_sdk.vendored package</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.html#submodules">Submodules</a></li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.html#codeflare-sdk-conftest-module">codeflare_sdk.conftest module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.html#module-codeflare_sdk">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">User Documentation:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/authentication.html">Authentication via the CodeFlare SDK</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/cluster-configuration.html">Ray Cluster Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/ray-cluster-interaction.html">Ray Cluster Interaction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/rayjob.html">Submitting RayJobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/e2e.html">Running e2e tests locally</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/s3-compatible-storage.html">S3 compatible storage with Ray Train examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/setup-kueue.html">Basic Kueue Resources configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/ui-widgets.html">Jupyter UI Widgets</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">CodeFlare SDK</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="modules.html">codeflare_sdk</a></li>
+          <li class="breadcrumb-item"><a href="codeflare_sdk.html">codeflare_sdk package</a></li>
+          <li class="breadcrumb-item"><a href="codeflare_sdk.ray.html">codeflare_sdk.ray package</a></li>
+      <li class="breadcrumb-item active">codeflare_sdk.ray.cluster package</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/codeflare_sdk.ray.cluster.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="codeflare-sdk-ray-cluster-package">
+<h1>codeflare_sdk.ray.cluster package<a class="headerlink" href="#codeflare-sdk-ray-cluster-package" title="Link to this heading"></a></h1>
+<section id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Link to this heading"></a></h2>
+</section>
+<section id="module-codeflare_sdk.ray.cluster.build_ray_cluster">
+<span id="codeflare-sdk-ray-cluster-build-ray-cluster-module"></span><h2>codeflare_sdk.ray.cluster.build_ray_cluster module<a class="headerlink" href="#module-codeflare_sdk.ray.cluster.build_ray_cluster" title="Link to this heading"></a></h2>
+<dl class="simple">
+<dt>This sub-module exists primarily to be used internally by the Cluster object</dt><dd><p>(in the cluster sub-module) for RayCluster generation.</p>
+</dd>
+</dl>
+<dl class="py function">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.build_ray_cluster.add_queue_label">
+<span class="sig-prename descclassname"><span class="pre">codeflare_sdk.ray.cluster.build_ray_cluster.</span></span><span class="sig-name descname"><span class="pre">add_queue_label</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cluster</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#codeflare_sdk.ray.cluster.cluster.Cluster" title="codeflare_sdk.ray.cluster.cluster.Cluster"><span class="pre">Cluster</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">labels</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/ray/cluster/build_ray_cluster.html#add_queue_label"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.cluster.build_ray_cluster.add_queue_label" title="Link to this definition"></a></dt>
+<dd><p>The add_queue_label() function updates the given base labels with the local queue label if Kueue exists on the Cluster</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.build_ray_cluster.build_ray_cluster">
+<span class="sig-prename descclassname"><span class="pre">codeflare_sdk.ray.cluster.build_ray_cluster.</span></span><span class="sig-name descname"><span class="pre">build_ray_cluster</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cluster</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#codeflare_sdk.ray.cluster.cluster.Cluster" title="codeflare_sdk.ray.cluster.cluster.Cluster"><span class="pre">Cluster</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/ray/cluster/build_ray_cluster.html#build_ray_cluster"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.cluster.build_ray_cluster.build_ray_cluster" title="Link to this definition"></a></dt>
+<dd><p>build_ray_cluster is used for creating a Ray Cluster dict</p>
+<p>The resource is a dict template which uses Kubernetes Objects for creating metadata, resource requests,
+specs and containers. The result is sanitised and returned either as a dict or written as a yaml file.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.build_ray_cluster.gen_names">
+<span class="sig-prename descclassname"><span class="pre">codeflare_sdk.ray.cluster.build_ray_cluster.</span></span><span class="sig-name descname"><span class="pre">gen_names</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/ray/cluster/build_ray_cluster.html#gen_names"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.cluster.build_ray_cluster.gen_names" title="Link to this definition"></a></dt>
+<dd><p>Generates a unique name for the Ray Cluster</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.build_ray_cluster.generate_custom_storage">
+<span class="sig-prename descclassname"><span class="pre">codeflare_sdk.ray.cluster.build_ray_cluster.</span></span><span class="sig-name descname"><span class="pre">generate_custom_storage</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">provided_storage</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">default_storage</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/ray/cluster/build_ray_cluster.html#generate_custom_storage"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.cluster.build_ray_cluster.generate_custom_storage" title="Link to this definition"></a></dt>
+<dd><p>The generate_custom_storage function updates the volumes/volume mounts configs with the default volumes/volume mounts.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.build_ray_cluster.generate_env_vars">
+<span class="sig-prename descclassname"><span class="pre">codeflare_sdk.ray.cluster.build_ray_cluster.</span></span><span class="sig-name descname"><span class="pre">generate_env_vars</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cluster</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#codeflare_sdk.ray.cluster.cluster.Cluster" title="codeflare_sdk.ray.cluster.cluster.Cluster"><span class="pre">Cluster</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/ray/cluster/build_ray_cluster.html#generate_env_vars"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.cluster.build_ray_cluster.generate_env_vars" title="Link to this definition"></a></dt>
+<dd><p>The generate_env_vars() builds and returns a V1EnvVar object which is populated by user specified environment variables</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.build_ray_cluster.generate_image_pull_secrets">
+<span class="sig-prename descclassname"><span class="pre">codeflare_sdk.ray.cluster.build_ray_cluster.</span></span><span class="sig-name descname"><span class="pre">generate_image_pull_secrets</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cluster</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#codeflare_sdk.ray.cluster.cluster.Cluster" title="codeflare_sdk.ray.cluster.cluster.Cluster"><span class="pre">Cluster</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/ray/cluster/build_ray_cluster.html#generate_image_pull_secrets"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.cluster.build_ray_cluster.generate_image_pull_secrets" title="Link to this definition"></a></dt>
+<dd><p>The generate_image_pull_secrets() methods generates a list of V1LocalObjectReference including each of the specified image pull secrets</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.build_ray_cluster.get_default_local_queue">
+<span class="sig-prename descclassname"><span class="pre">codeflare_sdk.ray.cluster.build_ray_cluster.</span></span><span class="sig-name descname"><span class="pre">get_default_local_queue</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cluster</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#codeflare_sdk.ray.cluster.cluster.Cluster" title="codeflare_sdk.ray.cluster.cluster.Cluster"><span class="pre">Cluster</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">labels</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/ray/cluster/build_ray_cluster.html#get_default_local_queue"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.cluster.build_ray_cluster.get_default_local_queue" title="Link to this definition"></a></dt>
+<dd><p>The get_default_local_queue() function attempts to find a local queue with the default label == true, if that is the case the labels variable is updated with that local queue</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.build_ray_cluster.get_head_container_spec">
+<span class="sig-prename descclassname"><span class="pre">codeflare_sdk.ray.cluster.build_ray_cluster.</span></span><span class="sig-name descname"><span class="pre">get_head_container_spec</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cluster</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#codeflare_sdk.ray.cluster.cluster.Cluster" title="codeflare_sdk.ray.cluster.cluster.Cluster"><span class="pre">Cluster</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/ray/cluster/build_ray_cluster.html#get_head_container_spec"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.cluster.build_ray_cluster.get_head_container_spec" title="Link to this definition"></a></dt>
+<dd><p>The get_head_container_spec() function builds and returns a V1Container object including user defined resource requests/limits</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.build_ray_cluster.get_labels">
+<span class="sig-prename descclassname"><span class="pre">codeflare_sdk.ray.cluster.build_ray_cluster.</span></span><span class="sig-name descname"><span class="pre">get_labels</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cluster</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#codeflare_sdk.ray.cluster.cluster.Cluster" title="codeflare_sdk.ray.cluster.cluster.Cluster"><span class="pre">Cluster</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/ray/cluster/build_ray_cluster.html#get_labels"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.cluster.build_ray_cluster.get_labels" title="Link to this definition"></a></dt>
+<dd><p>The get_labels() function generates a dict “labels” which includes the base label, local queue label and user defined labels</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.build_ray_cluster.get_metadata">
+<span class="sig-prename descclassname"><span class="pre">codeflare_sdk.ray.cluster.build_ray_cluster.</span></span><span class="sig-name descname"><span class="pre">get_metadata</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cluster</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#codeflare_sdk.ray.cluster.cluster.Cluster" title="codeflare_sdk.ray.cluster.cluster.Cluster"><span class="pre">Cluster</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/ray/cluster/build_ray_cluster.html#get_metadata"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.cluster.build_ray_cluster.get_metadata" title="Link to this definition"></a></dt>
+<dd><p>The get_metadata() function builds and returns a V1ObjectMeta Object using cluster configuration parameters</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.build_ray_cluster.get_pod_spec">
+<span class="sig-prename descclassname"><span class="pre">codeflare_sdk.ray.cluster.build_ray_cluster.</span></span><span class="sig-name descname"><span class="pre">get_pod_spec</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cluster</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#codeflare_sdk.ray.cluster.cluster.Cluster" title="codeflare_sdk.ray.cluster.cluster.Cluster"><span class="pre">Cluster</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">containers</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tolerations</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">V1Toleration</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">V1PodSpec</span></span></span><a class="reference internal" href="_modules/codeflare_sdk/ray/cluster/build_ray_cluster.html#get_pod_spec"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.cluster.build_ray_cluster.get_pod_spec" title="Link to this definition"></a></dt>
+<dd><p>The get_pod_spec() function generates a V1PodSpec for the head/worker containers</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.build_ray_cluster.get_resources">
+<span class="sig-prename descclassname"><span class="pre">codeflare_sdk.ray.cluster.build_ray_cluster.</span></span><span class="sig-name descname"><span class="pre">get_resources</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cpu_requests</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cpu_limits</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">memory_requests</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">memory_limits</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">custom_extended_resource_requests</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/ray/cluster/build_ray_cluster.html#get_resources"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.cluster.build_ray_cluster.get_resources" title="Link to this definition"></a></dt>
+<dd><p>The get_resources() function generates a V1ResourceRequirements object for cpu/memory request/limits and GPU resources</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.build_ray_cluster.get_worker_container_spec">
+<span class="sig-prename descclassname"><span class="pre">codeflare_sdk.ray.cluster.build_ray_cluster.</span></span><span class="sig-name descname"><span class="pre">get_worker_container_spec</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cluster</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#codeflare_sdk.ray.cluster.cluster.Cluster" title="codeflare_sdk.ray.cluster.cluster.Cluster"><span class="pre">Cluster</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/ray/cluster/build_ray_cluster.html#get_worker_container_spec"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.cluster.build_ray_cluster.get_worker_container_spec" title="Link to this definition"></a></dt>
+<dd><p>The get_worker_container_spec() function builds and returns a V1Container object including user defined resource requests/limits</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.build_ray_cluster.head_worker_extended_resources_from_cluster">
+<span class="sig-prename descclassname"><span class="pre">codeflare_sdk.ray.cluster.build_ray_cluster.</span></span><span class="sig-name descname"><span class="pre">head_worker_extended_resources_from_cluster</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cluster</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#codeflare_sdk.ray.cluster.cluster.Cluster" title="codeflare_sdk.ray.cluster.cluster.Cluster"><span class="pre">Cluster</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">dict</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">dict</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/codeflare_sdk/ray/cluster/build_ray_cluster.html#head_worker_extended_resources_from_cluster"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.cluster.build_ray_cluster.head_worker_extended_resources_from_cluster" title="Link to this definition"></a></dt>
+<dd><p>The head_worker_extended_resources_from_cluster() function returns 2 dicts for head/worker respectively populated by the GPU type requested by the user</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.build_ray_cluster.head_worker_gpu_count_from_cluster">
+<span class="sig-prename descclassname"><span class="pre">codeflare_sdk.ray.cluster.build_ray_cluster.</span></span><span class="sig-name descname"><span class="pre">head_worker_gpu_count_from_cluster</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cluster</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#codeflare_sdk.ray.cluster.cluster.Cluster" title="codeflare_sdk.ray.cluster.cluster.Cluster"><span class="pre">Cluster</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/codeflare_sdk/ray/cluster/build_ray_cluster.html#head_worker_gpu_count_from_cluster"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.cluster.build_ray_cluster.head_worker_gpu_count_from_cluster" title="Link to this definition"></a></dt>
+<dd><p>The head_worker_gpu_count_from_cluster() function returns the total number of requested GPUs for the head and worker separately</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.build_ray_cluster.local_queue_exists">
+<span class="sig-prename descclassname"><span class="pre">codeflare_sdk.ray.cluster.build_ray_cluster.</span></span><span class="sig-name descname"><span class="pre">local_queue_exists</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cluster</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#codeflare_sdk.ray.cluster.cluster.Cluster" title="codeflare_sdk.ray.cluster.cluster.Cluster"><span class="pre">Cluster</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/ray/cluster/build_ray_cluster.html#local_queue_exists"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.cluster.build_ray_cluster.local_queue_exists" title="Link to this definition"></a></dt>
+<dd><p>The local_queue_exists() checks if the user inputted local_queue exists in the given namespace and returns a bool</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.build_ray_cluster.with_nb_annotations">
+<span class="sig-prename descclassname"><span class="pre">codeflare_sdk.ray.cluster.build_ray_cluster.</span></span><span class="sig-name descname"><span class="pre">with_nb_annotations</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">annotations</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/ray/cluster/build_ray_cluster.html#with_nb_annotations"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.cluster.build_ray_cluster.with_nb_annotations" title="Link to this definition"></a></dt>
+<dd><p>The with_nb_annotations() function generates the annotation for NB Prefix if the SDK is running in a notebook and appends any user set annotations</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.build_ray_cluster.write_to_file">
+<span class="sig-prename descclassname"><span class="pre">codeflare_sdk.ray.cluster.build_ray_cluster.</span></span><span class="sig-name descname"><span class="pre">write_to_file</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cluster</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#codeflare_sdk.ray.cluster.cluster.Cluster" title="codeflare_sdk.ray.cluster.cluster.Cluster"><span class="pre">Cluster</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">resource</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/ray/cluster/build_ray_cluster.html#write_to_file"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.cluster.build_ray_cluster.write_to_file" title="Link to this definition"></a></dt>
+<dd><p>The write_to_file function writes the built Ray Cluster dict as a yaml file in the .codeflare folder</p>
+</dd></dl>
+
+</section>
+<section id="module-codeflare_sdk.ray.cluster.cluster">
+<span id="codeflare-sdk-ray-cluster-cluster-module"></span><h2>codeflare_sdk.ray.cluster.cluster module<a class="headerlink" href="#module-codeflare_sdk.ray.cluster.cluster" title="Link to this heading"></a></h2>
+<p>The cluster sub-module contains the definition of the Cluster object, which represents
+the resources requested by the user. It also contains functions for checking the
+cluster setup queue, a list of all existing clusters, and the user’s working namespace.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.cluster.Cluster">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">codeflare_sdk.ray.cluster.cluster.</span></span><span class="sig-name descname"><span class="pre">Cluster</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#codeflare_sdk.ray.cluster.config.ClusterConfiguration" title="codeflare_sdk.ray.cluster.config.ClusterConfiguration"><span class="pre">ClusterConfiguration</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/ray/cluster/cluster.html#Cluster"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.cluster.cluster.Cluster" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>An object for requesting, bringing up, and taking down resources.
+Can also be used for seeing the resource cluster status and details.</p>
+<p>Note that currently, the underlying implementation is a Ray cluster.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.cluster.Cluster.apply">
+<span class="sig-name descname"><span class="pre">apply</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">force</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timeout</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">300</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/ray/cluster/cluster.html#Cluster.apply"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.cluster.cluster.Cluster.apply" title="Link to this definition"></a></dt>
+<dd><p>Applies the Cluster yaml using server-side apply.</p>
+<p>After applying the cluster resources, this method waits for the CA secret
+to be created by KubeRay and generates TLS certificates for mTLS connections.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><dl class="simple">
+<dt>force (bool):</dt><dd><p>If True, conflicts will be forced during server-side apply.</p>
+</dd>
+<dt>timeout (int):</dt><dd><p>Maximum time in seconds to wait for post-apply operations such as
+TLS certificate generation. Default is 300 seconds (5 minutes).</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.cluster.Cluster.cluster_dashboard_uri">
+<span class="sig-name descname"><span class="pre">cluster_dashboard_uri</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="reference internal" href="_modules/codeflare_sdk/ray/cluster/cluster.html#Cluster.cluster_dashboard_uri"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.cluster.cluster.Cluster.cluster_dashboard_uri" title="Link to this definition"></a></dt>
+<dd><p>Returns a string containing the cluster’s dashboard URI.
+Tries HTTPRoute first (RHOAI v3.0+), then falls back to OpenShift Routes or Ingresses.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.cluster.Cluster.cluster_uri">
+<span class="sig-name descname"><span class="pre">cluster_uri</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="reference internal" href="_modules/codeflare_sdk/ray/cluster/cluster.html#Cluster.cluster_uri"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.cluster.cluster.Cluster.cluster_uri" title="Link to this definition"></a></dt>
+<dd><p>Returns a string containing the cluster’s URI.</p>
+<p>Note: If connecting to a cluster with mTLS enabled, ensure you have called
+cluster.wait_ready() first to automatically generate TLS certificates.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.cluster.Cluster.config_check">
+<span class="sig-name descname"><span class="pre">config_check</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/ray/cluster/cluster.html#Cluster.config_check"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.cluster.cluster.Cluster.config_check" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.cluster.Cluster.create_resource">
+<span class="sig-name descname"><span class="pre">create_resource</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/ray/cluster/cluster.html#Cluster.create_resource"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.cluster.cluster.Cluster.create_resource" title="Link to this definition"></a></dt>
+<dd><p>Called upon cluster object creation, creates a RayCluster yaml based on
+the specifications of the ClusterConfiguration.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.cluster.Cluster.details">
+<span class="sig-name descname"><span class="pre">details</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">print_to_console</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#codeflare_sdk.ray.cluster.status.RayCluster" title="codeflare_sdk.ray.cluster.status.RayCluster"><span class="pre">RayCluster</span></a></span></span><a class="reference internal" href="_modules/codeflare_sdk/ray/cluster/cluster.html#Cluster.details"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.cluster.cluster.Cluster.details" title="Link to this definition"></a></dt>
+<dd><p>Retrieves details about the Ray Cluster.</p>
+<p>This method returns a copy of the Ray Cluster information and optionally prints
+the details to the console.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><dl class="simple">
+<dt>print_to_console (bool):</dt><dd><p>Flag to determine if the cluster details should be
+printed to the console. Defaults to True.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><dl class="simple">
+<dt>RayCluster:</dt><dd><p>A copy of the Ray Cluster details.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.cluster.Cluster.down">
+<span class="sig-name descname"><span class="pre">down</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/ray/cluster/cluster.html#Cluster.down"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.cluster.cluster.Cluster.down" title="Link to this definition"></a></dt>
+<dd><p>Deletes the RayCluster, scaling-down and deleting all resources
+associated with the cluster.</p>
+<p>Also removes the TLS certificates generated for this cluster to prevent
+accumulation of sensitive key material.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.cluster.Cluster.get_dynamic_client">
+<span class="sig-name descname"><span class="pre">get_dynamic_client</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/ray/cluster/cluster.html#Cluster.get_dynamic_client"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.cluster.cluster.Cluster.get_dynamic_client" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.cluster.Cluster.is_dashboard_ready">
+<span class="sig-name descname"><span class="pre">is_dashboard_ready</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="reference internal" href="_modules/codeflare_sdk/ray/cluster/cluster.html#Cluster.is_dashboard_ready"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.cluster.cluster.Cluster.is_dashboard_ready" title="Link to this definition"></a></dt>
+<dd><p>Checks if the cluster’s dashboard is ready and accessible.</p>
+<p>This method attempts to send a GET request to the cluster dashboard URI.
+If the request is successful (HTTP status code 200), it returns True.
+For OAuth-protected dashboards, a 302 redirect to the OAuth login page
+also indicates the dashboard is ready (the OAuth proxy is working).
+If an SSL error occurs, it returns False, indicating the dashboard is not ready.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><dl class="simple">
+<dt>bool:</dt><dd><p>True if the dashboard is ready, False otherwise.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.cluster.Cluster.job_client">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">job_client</span></span><a class="headerlink" href="#codeflare_sdk.ray.cluster.cluster.Cluster.job_client" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.cluster.Cluster.job_logs">
+<span class="sig-name descname"><span class="pre">job_logs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">job_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="reference internal" href="_modules/codeflare_sdk/ray/cluster/cluster.html#Cluster.job_logs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.cluster.cluster.Cluster.job_logs" title="Link to this definition"></a></dt>
+<dd><p>This method accesses the head ray node in your cluster and returns the logs for the provided job id.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.cluster.Cluster.job_status">
+<span class="sig-name descname"><span class="pre">job_status</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">job_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="reference internal" href="_modules/codeflare_sdk/ray/cluster/cluster.html#Cluster.job_status"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.cluster.cluster.Cluster.job_status" title="Link to this definition"></a></dt>
+<dd><p>This method accesses the head ray node in your cluster and returns the job status for the provided job id.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.cluster.Cluster.list_jobs">
+<span class="sig-name descname"><span class="pre">list_jobs</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">List</span></span></span><a class="reference internal" href="_modules/codeflare_sdk/ray/cluster/cluster.html#Cluster.list_jobs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.cluster.cluster.Cluster.list_jobs" title="Link to this definition"></a></dt>
+<dd><p>This method accesses the head ray node in your cluster and lists the running jobs.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.cluster.Cluster.local_client_url">
+<span class="sig-name descname"><span class="pre">local_client_url</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/ray/cluster/cluster.html#Cluster.local_client_url"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.cluster.cluster.Cluster.local_client_url" title="Link to this definition"></a></dt>
+<dd><p>Constructs the URL for the local Ray client.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><dl class="simple">
+<dt>str:</dt><dd><p>The Ray client URL based on the ingress domain.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.cluster.Cluster.refresh_certificates">
+<span class="sig-name descname"><span class="pre">refresh_certificates</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/ray/cluster/cluster.html#Cluster.refresh_certificates"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.cluster.cluster.Cluster.refresh_certificates" title="Link to this definition"></a></dt>
+<dd><p>Refreshes TLS certificates by removing old ones and generating new ones.</p>
+<p>This is useful when:
+- The server CA secret has been rotated
+- Certificates have expired
+- You encounter TLS handshake failures
+- You need to regenerate certificates for any reason</p>
+<p>The method will:
+1. Remove existing client certificates
+2. Fetch the latest CA from Kubernetes
+3. Generate new client certificates
+4. Update environment variables for Ray</p>
+<dl>
+<dt>Example:</dt><dd><div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="c1"># If you get TLS errors after CA rotation</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cluster</span><span class="o">.</span><span class="n">refresh_certificates</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># Now you can reconnect</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ray</span><span class="o">.</span><span class="n">init</span><span class="p">(</span><span class="n">address</span><span class="o">=</span><span class="n">cluster</span><span class="o">.</span><span class="n">cluster_uri</span><span class="p">())</span>
+</pre></div>
+</div>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.cluster.Cluster.status">
+<span class="sig-name descname"><span class="pre">status</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">print_to_console</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#codeflare_sdk.ray.cluster.status.CodeFlareClusterStatus" title="codeflare_sdk.ray.cluster.status.CodeFlareClusterStatus"><span class="pre">CodeFlareClusterStatus</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">bool</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/codeflare_sdk/ray/cluster/cluster.html#Cluster.status"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.cluster.cluster.Cluster.status" title="Link to this definition"></a></dt>
+<dd><p>Returns the requested cluster’s status, as well as whether or not
+it is ready for use.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.cluster.Cluster.up">
+<span class="sig-name descname"><span class="pre">up</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/ray/cluster/cluster.html#Cluster.up"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.cluster.cluster.Cluster.up" title="Link to this definition"></a></dt>
+<dd><p>Applies the Cluster yaml, pushing the resource request onto
+the Kueue localqueue.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.cluster.Cluster.wait_ready">
+<span class="sig-name descname"><span class="pre">wait_ready</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">timeout</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dashboard_check</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/ray/cluster/cluster.html#Cluster.wait_ready"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.cluster.cluster.Cluster.wait_ready" title="Link to this definition"></a></dt>
+<dd><p>Waits for the requested cluster to be ready, up to an optional timeout.</p>
+<p>This method checks the status of the cluster every five seconds until it is
+ready or the timeout is reached. If dashboard_check is enabled, it will also
+check for the readiness of the dashboard.</p>
+<p>TLS certificates are ensured to exist for mTLS connections. If certificates
+were already generated by apply(), this is a no-op. Otherwise, certificates
+will be generated when the cluster becomes ready.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><dl class="simple">
+<dt>timeout (Optional[int]):</dt><dd><p>The maximum time to wait for the cluster to be ready in seconds. If None, waits indefinitely.</p>
+</dd>
+<dt>dashboard_check (bool):</dt><dd><p>Flag to determine if the dashboard readiness should
+be checked. Defaults to True.</p>
+</dd>
+</dl>
+</dd>
+<dt>Raises:</dt><dd><dl class="simple">
+<dt>TimeoutError:</dt><dd><p>If the timeout is reached before the cluster or dashboard is ready.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.cluster.get_cluster">
+<span class="sig-prename descclassname"><span class="pre">codeflare_sdk.ray.cluster.cluster.</span></span><span class="sig-name descname"><span class="pre">get_cluster</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cluster_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">namespace</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'default'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verify_tls</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">write_to_file</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/ray/cluster/cluster.html#get_cluster"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.cluster.cluster.get_cluster" title="Link to this definition"></a></dt>
+<dd><p>Retrieves an existing Ray Cluster as a Cluster object.</p>
+<p>This function fetches an existing Ray Cluster from the Kubernetes cluster and returns
+it as a <cite>Cluster</cite> object, including its YAML configuration under <cite>Cluster.resource_yaml</cite>.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><dl class="simple">
+<dt>cluster_name (str):</dt><dd><p>The name of the Ray Cluster.</p>
+</dd>
+<dt>namespace (str, optional):</dt><dd><p>The Kubernetes namespace where the Ray Cluster is located. Default is “default”.</p>
+</dd>
+<dt>verify_tls (bool, optional):</dt><dd><p>Whether to verify TLS when connecting to the cluster. Default is True.</p>
+</dd>
+<dt>write_to_file (bool, optional):</dt><dd><p>If True, writes the resource configuration to a YAML file. Default is False.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><dl class="simple">
+<dt>Cluster:</dt><dd><p>A Cluster object representing the retrieved Ray Cluster.</p>
+</dd>
+</dl>
+</dd>
+<dt>Raises:</dt><dd><dl class="simple">
+<dt>Exception:</dt><dd><p>If the Ray Cluster cannot be found or does not exist.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.cluster.list_all_clusters">
+<span class="sig-prename descclassname"><span class="pre">codeflare_sdk.ray.cluster.cluster.</span></span><span class="sig-name descname"><span class="pre">list_all_clusters</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">namespace</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">print_to_console</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/ray/cluster/cluster.html#list_all_clusters"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.cluster.cluster.list_all_clusters" title="Link to this definition"></a></dt>
+<dd><p>Returns (and prints by default) a list of all clusters in a given namespace.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.cluster.list_all_queued">
+<span class="sig-prename descclassname"><span class="pre">codeflare_sdk.ray.cluster.cluster.</span></span><span class="sig-name descname"><span class="pre">list_all_queued</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">namespace</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">print_to_console</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/ray/cluster/cluster.html#list_all_queued"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.cluster.cluster.list_all_queued" title="Link to this definition"></a></dt>
+<dd><p>Returns (and prints by default) a list of all currently queued-up Ray Clusters
+in a given namespace.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.cluster.remove_autogenerated_fields">
+<span class="sig-prename descclassname"><span class="pre">codeflare_sdk.ray.cluster.cluster.</span></span><span class="sig-name descname"><span class="pre">remove_autogenerated_fields</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">resource</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/ray/cluster/cluster.html#remove_autogenerated_fields"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.cluster.cluster.remove_autogenerated_fields" title="Link to this definition"></a></dt>
+<dd><p>Recursively remove autogenerated fields from a dictionary.</p>
+</dd></dl>
+
+</section>
+<section id="module-codeflare_sdk.ray.cluster.config">
+<span id="codeflare-sdk-ray-cluster-config-module"></span><h2>codeflare_sdk.ray.cluster.config module<a class="headerlink" href="#module-codeflare_sdk.ray.cluster.config" title="Link to this heading"></a></h2>
+<p>The config sub-module contains the definition of the ClusterConfiguration dataclass,
+which is used to specify resource requirements and other details when creating a
+Cluster object.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.config.ClusterConfiguration">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">codeflare_sdk.ray.cluster.config.</span></span><span class="sig-name descname"><span class="pre">ClusterConfiguration</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name:</span> <span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">namespace:</span> <span class="pre">str</span> <span class="pre">|</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">head_cpu_requests:</span> <span class="pre">int</span> <span class="pre">|</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">head_cpu_limits:</span> <span class="pre">int</span> <span class="pre">|</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">head_memory_requests:</span> <span class="pre">int</span> <span class="pre">|</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">head_memory_limits:</span> <span class="pre">int</span> <span class="pre">|</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">8</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">head_extended_resource_requests:</span> <span class="pre">~typing.Dict[str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">str</span> <span class="pre">|</span> <span class="pre">int]</span> <span class="pre">=</span> <span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">head_tolerations:</span> <span class="pre">~typing.List[~kubernetes.client.models.v1_toleration.V1Toleration]</span> <span class="pre">|</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">worker_cpu_requests:</span> <span class="pre">int</span> <span class="pre">|</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">worker_cpu_limits:</span> <span class="pre">int</span> <span class="pre">|</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_workers:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">worker_memory_requests:</span> <span class="pre">int</span> <span class="pre">|</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">worker_memory_limits:</span> <span class="pre">int</span> <span class="pre">|</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">6</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">worker_tolerations:</span> <span class="pre">~typing.List[~kubernetes.client.models.v1_toleration.V1Toleration]</span> <span class="pre">|</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">envs:</span> <span class="pre">~typing.Dict[str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">str]</span> <span class="pre">=</span> <span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">image:</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">image_pull_secrets:</span> <span class="pre">~typing.List[str]</span> <span class="pre">=</span> <span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">write_to_file:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verify_tls:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">labels:</span> <span class="pre">~typing.Dict[str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">str]</span> <span class="pre">=</span> <span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">worker_extended_resource_requests:</span> <span class="pre">~typing.Dict[str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">str</span> <span class="pre">|</span> <span class="pre">int]</span> <span class="pre">=</span> <span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">extended_resource_mapping:</span> <span class="pre">~typing.Dict[str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">str]</span> <span class="pre">=</span> <span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">overwrite_default_resource_mapping:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">local_queue:</span> <span class="pre">str</span> <span class="pre">|</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">annotations:</span> <span class="pre">~typing.Dict[str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">str]</span> <span class="pre">=</span> <span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">volumes:</span> <span class="pre">list[~kubernetes.client.models.v1_volume.V1Volume]</span> <span class="pre">=</span> <span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">volume_mounts:</span> <span class="pre">list[~kubernetes.client.models.v1_volume_mount.V1VolumeMount]</span> <span class="pre">=</span> <span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">enable_gcs_ft:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">enable_usage_stats:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">redis_address:</span> <span class="pre">str</span> <span class="pre">|</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">redis_password_secret:</span> <span class="pre">~typing.Dict[str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">str]</span> <span class="pre">|</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">external_storage_namespace:</span> <span class="pre">str</span> <span class="pre">|</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/ray/cluster/config.html#ClusterConfiguration"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.cluster.config.ClusterConfiguration" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>This dataclass is used to specify resource requirements and other details, and
+is passed in as an argument when creating a Cluster object.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><dl class="simple">
+<dt>name:</dt><dd><p>The name of the cluster.</p>
+</dd>
+<dt>namespace:</dt><dd><p>The namespace in which the cluster should be created.</p>
+</dd>
+<dt>head_extended_resource_requests:</dt><dd><p>A dictionary of extended resource requests for the head node. ex: {“nvidia.com/gpu”: 1}</p>
+</dd>
+<dt>head_tolerations:</dt><dd><p>List of tolerations for head nodes.</p>
+</dd>
+<dt>num_workers:</dt><dd><p>The number of workers to create.</p>
+</dd>
+<dt>worker_tolerations:</dt><dd><p>List of tolerations for worker nodes.</p>
+</dd>
+<dt>envs:</dt><dd><p>A dictionary of environment variables to set for the cluster.</p>
+</dd>
+<dt>image:</dt><dd><p>The image to use for the cluster.</p>
+</dd>
+<dt>image_pull_secrets:</dt><dd><p>A list of image pull secrets to use for the cluster.</p>
+</dd>
+<dt>write_to_file:</dt><dd><p>A boolean indicating whether to write the cluster configuration to a file.</p>
+</dd>
+<dt>verify_tls:</dt><dd><p>A boolean indicating whether to verify TLS when connecting to the cluster.</p>
+</dd>
+<dt>labels:</dt><dd><p>A dictionary of labels to apply to the cluster.</p>
+</dd>
+<dt>worker_extended_resource_requests:</dt><dd><p>A dictionary of extended resource requests for each worker. ex: {“nvidia.com/gpu”: 1}</p>
+</dd>
+<dt>extended_resource_mapping:</dt><dd><p>A dictionary of custom resource mappings to map extended resource requests to RayCluster resource names</p>
+</dd>
+<dt>overwrite_default_resource_mapping:</dt><dd><p>A boolean indicating whether to overwrite the default resource mapping.</p>
+</dd>
+<dt>annotations:</dt><dd><p>A dictionary of annotations to apply to the cluster.</p>
+</dd>
+<dt>volumes:</dt><dd><p>A list of V1Volume objects to add to the Cluster</p>
+</dd>
+<dt>volume_mounts:</dt><dd><p>A list of V1VolumeMount objects to add to the Cluster</p>
+</dd>
+<dt>enable_gcs_ft:</dt><dd><p>A boolean indicating whether to enable GCS fault tolerance.</p>
+</dd>
+<dt>enable_usage_stats:</dt><dd><p>A boolean indicating whether to capture and send Ray usage stats externally.</p>
+</dd>
+<dt>redis_address:</dt><dd><p>The address of the Redis server to use for GCS fault tolerance, required when enable_gcs_ft is True.</p>
+</dd>
+<dt>redis_password_secret:</dt><dd><p>Kubernetes secret reference containing Redis password. ex: {“name”: “secret-name”, “key”: “password-key”}</p>
+</dd>
+<dt>external_storage_namespace:</dt><dd><p>The storage namespace to use for GCS fault tolerance. By default, KubeRay sets it to the UID of RayCluster.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.config.ClusterConfiguration.annotations">
+<span class="sig-name descname"><span class="pre">annotations</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#codeflare_sdk.ray.cluster.config.ClusterConfiguration.annotations" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.config.ClusterConfiguration.enable_gcs_ft">
+<span class="sig-name descname"><span class="pre">enable_gcs_ft</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">False</span></em><a class="headerlink" href="#codeflare_sdk.ray.cluster.config.ClusterConfiguration.enable_gcs_ft" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.config.ClusterConfiguration.enable_usage_stats">
+<span class="sig-name descname"><span class="pre">enable_usage_stats</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">False</span></em><a class="headerlink" href="#codeflare_sdk.ray.cluster.config.ClusterConfiguration.enable_usage_stats" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.config.ClusterConfiguration.envs">
+<span class="sig-name descname"><span class="pre">envs</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#codeflare_sdk.ray.cluster.config.ClusterConfiguration.envs" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.config.ClusterConfiguration.extended_resource_mapping">
+<span class="sig-name descname"><span class="pre">extended_resource_mapping</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#codeflare_sdk.ray.cluster.config.ClusterConfiguration.extended_resource_mapping" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.config.ClusterConfiguration.external_storage_namespace">
+<span class="sig-name descname"><span class="pre">external_storage_namespace</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#codeflare_sdk.ray.cluster.config.ClusterConfiguration.external_storage_namespace" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.config.ClusterConfiguration.head_cpu_limits">
+<span class="sig-name descname"><span class="pre">head_cpu_limits</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">2</span></em><a class="headerlink" href="#codeflare_sdk.ray.cluster.config.ClusterConfiguration.head_cpu_limits" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.config.ClusterConfiguration.head_cpu_requests">
+<span class="sig-name descname"><span class="pre">head_cpu_requests</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">1</span></em><a class="headerlink" href="#codeflare_sdk.ray.cluster.config.ClusterConfiguration.head_cpu_requests" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.config.ClusterConfiguration.head_extended_resource_requests">
+<span class="sig-name descname"><span class="pre">head_extended_resource_requests</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#codeflare_sdk.ray.cluster.config.ClusterConfiguration.head_extended_resource_requests" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.config.ClusterConfiguration.head_memory_limits">
+<span class="sig-name descname"><span class="pre">head_memory_limits</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">8</span></em><a class="headerlink" href="#codeflare_sdk.ray.cluster.config.ClusterConfiguration.head_memory_limits" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.config.ClusterConfiguration.head_memory_requests">
+<span class="sig-name descname"><span class="pre">head_memory_requests</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">5</span></em><a class="headerlink" href="#codeflare_sdk.ray.cluster.config.ClusterConfiguration.head_memory_requests" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.config.ClusterConfiguration.head_tolerations">
+<span class="sig-name descname"><span class="pre">head_tolerations</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">V1Toleration</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#codeflare_sdk.ray.cluster.config.ClusterConfiguration.head_tolerations" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.config.ClusterConfiguration.image">
+<span class="sig-name descname"><span class="pre">image</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">''</span></em><a class="headerlink" href="#codeflare_sdk.ray.cluster.config.ClusterConfiguration.image" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.config.ClusterConfiguration.image_pull_secrets">
+<span class="sig-name descname"><span class="pre">image_pull_secrets</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#codeflare_sdk.ray.cluster.config.ClusterConfiguration.image_pull_secrets" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.config.ClusterConfiguration.labels">
+<span class="sig-name descname"><span class="pre">labels</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#codeflare_sdk.ray.cluster.config.ClusterConfiguration.labels" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.config.ClusterConfiguration.local_queue">
+<span class="sig-name descname"><span class="pre">local_queue</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#codeflare_sdk.ray.cluster.config.ClusterConfiguration.local_queue" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.config.ClusterConfiguration.name">
+<span class="sig-name descname"><span class="pre">name</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#codeflare_sdk.ray.cluster.config.ClusterConfiguration.name" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.config.ClusterConfiguration.namespace">
+<span class="sig-name descname"><span class="pre">namespace</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#codeflare_sdk.ray.cluster.config.ClusterConfiguration.namespace" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.config.ClusterConfiguration.num_workers">
+<span class="sig-name descname"><span class="pre">num_workers</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">1</span></em><a class="headerlink" href="#codeflare_sdk.ray.cluster.config.ClusterConfiguration.num_workers" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.config.ClusterConfiguration.overwrite_default_resource_mapping">
+<span class="sig-name descname"><span class="pre">overwrite_default_resource_mapping</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">False</span></em><a class="headerlink" href="#codeflare_sdk.ray.cluster.config.ClusterConfiguration.overwrite_default_resource_mapping" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.config.ClusterConfiguration.redis_address">
+<span class="sig-name descname"><span class="pre">redis_address</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#codeflare_sdk.ray.cluster.config.ClusterConfiguration.redis_address" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.config.ClusterConfiguration.redis_password_secret">
+<span class="sig-name descname"><span class="pre">redis_password_secret</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#codeflare_sdk.ray.cluster.config.ClusterConfiguration.redis_password_secret" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.config.ClusterConfiguration.verify_tls">
+<span class="sig-name descname"><span class="pre">verify_tls</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">True</span></em><a class="headerlink" href="#codeflare_sdk.ray.cluster.config.ClusterConfiguration.verify_tls" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.config.ClusterConfiguration.volume_mounts">
+<span class="sig-name descname"><span class="pre">volume_mounts</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">V1VolumeMount</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#codeflare_sdk.ray.cluster.config.ClusterConfiguration.volume_mounts" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.config.ClusterConfiguration.volumes">
+<span class="sig-name descname"><span class="pre">volumes</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">V1Volume</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#codeflare_sdk.ray.cluster.config.ClusterConfiguration.volumes" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.config.ClusterConfiguration.worker_cpu_limits">
+<span class="sig-name descname"><span class="pre">worker_cpu_limits</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">1</span></em><a class="headerlink" href="#codeflare_sdk.ray.cluster.config.ClusterConfiguration.worker_cpu_limits" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.config.ClusterConfiguration.worker_cpu_requests">
+<span class="sig-name descname"><span class="pre">worker_cpu_requests</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">1</span></em><a class="headerlink" href="#codeflare_sdk.ray.cluster.config.ClusterConfiguration.worker_cpu_requests" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.config.ClusterConfiguration.worker_extended_resource_requests">
+<span class="sig-name descname"><span class="pre">worker_extended_resource_requests</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#codeflare_sdk.ray.cluster.config.ClusterConfiguration.worker_extended_resource_requests" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.config.ClusterConfiguration.worker_memory_limits">
+<span class="sig-name descname"><span class="pre">worker_memory_limits</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">6</span></em><a class="headerlink" href="#codeflare_sdk.ray.cluster.config.ClusterConfiguration.worker_memory_limits" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.config.ClusterConfiguration.worker_memory_requests">
+<span class="sig-name descname"><span class="pre">worker_memory_requests</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">3</span></em><a class="headerlink" href="#codeflare_sdk.ray.cluster.config.ClusterConfiguration.worker_memory_requests" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.config.ClusterConfiguration.worker_tolerations">
+<span class="sig-name descname"><span class="pre">worker_tolerations</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">V1Toleration</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#codeflare_sdk.ray.cluster.config.ClusterConfiguration.worker_tolerations" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.config.ClusterConfiguration.write_to_file">
+<span class="sig-name descname"><span class="pre">write_to_file</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">False</span></em><a class="headerlink" href="#codeflare_sdk.ray.cluster.config.ClusterConfiguration.write_to_file" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-codeflare_sdk.ray.cluster.pretty_print">
+<span id="codeflare-sdk-ray-cluster-pretty-print-module"></span><h2>codeflare_sdk.ray.cluster.pretty_print module<a class="headerlink" href="#module-codeflare_sdk.ray.cluster.pretty_print" title="Link to this heading"></a></h2>
+<p>This sub-module exists primarily to be used internally by the Cluster object
+(in the cluster sub-module) for pretty-printing cluster status and details.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.pretty_print.print_cluster_status">
+<span class="sig-prename descclassname"><span class="pre">codeflare_sdk.ray.cluster.pretty_print.</span></span><span class="sig-name descname"><span class="pre">print_cluster_status</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cluster</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#codeflare_sdk.ray.cluster.status.RayCluster" title="codeflare_sdk.ray.cluster.status.RayCluster"><span class="pre">RayCluster</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/ray/cluster/pretty_print.html#print_cluster_status"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.cluster.pretty_print.print_cluster_status" title="Link to this definition"></a></dt>
+<dd><p>Pretty prints the status of a passed-in cluster</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.pretty_print.print_clusters">
+<span class="sig-prename descclassname"><span class="pre">codeflare_sdk.ray.cluster.pretty_print.</span></span><span class="sig-name descname"><span class="pre">print_clusters</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">clusters</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#codeflare_sdk.ray.cluster.status.RayCluster" title="codeflare_sdk.ray.cluster.status.RayCluster"><span class="pre">RayCluster</span></a><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/ray/cluster/pretty_print.html#print_clusters"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.cluster.pretty_print.print_clusters" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.pretty_print.print_no_resources_found">
+<span class="sig-prename descclassname"><span class="pre">codeflare_sdk.ray.cluster.pretty_print.</span></span><span class="sig-name descname"><span class="pre">print_no_resources_found</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/ray/cluster/pretty_print.html#print_no_resources_found"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.cluster.pretty_print.print_no_resources_found" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.pretty_print.print_ray_clusters_status">
+<span class="sig-prename descclassname"><span class="pre">codeflare_sdk.ray.cluster.pretty_print.</span></span><span class="sig-name descname"><span class="pre">print_ray_clusters_status</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">clusters</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#codeflare_sdk.ray.cluster.status.RayCluster" title="codeflare_sdk.ray.cluster.status.RayCluster"><span class="pre">RayCluster</span></a><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">starting</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/ray/cluster/pretty_print.html#print_ray_clusters_status"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.cluster.pretty_print.print_ray_clusters_status" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</section>
+<section id="module-codeflare_sdk.ray.cluster.status">
+<span id="codeflare-sdk-ray-cluster-status-module"></span><h2>codeflare_sdk.ray.cluster.status module<a class="headerlink" href="#module-codeflare_sdk.ray.cluster.status" title="Link to this heading"></a></h2>
+<p>The status sub-module defines Enums containing information for Ray cluster
+states states, and CodeFlare cluster states, as well as
+dataclasses to store information for Ray clusters.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.status.CodeFlareClusterStatus">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">codeflare_sdk.ray.cluster.status.</span></span><span class="sig-name descname"><span class="pre">CodeFlareClusterStatus</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">names=&lt;not</span> <span class="pre">given&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">*values</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">module=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">qualname=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">type=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">start=1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">boundary=None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/ray/cluster/status.html#CodeFlareClusterStatus"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.cluster.status.CodeFlareClusterStatus" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Enum</span></code></p>
+<p>Defines the possible reportable states of a Codeflare cluster.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.status.CodeFlareClusterStatus.FAILED">
+<span class="sig-name descname"><span class="pre">FAILED</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">5</span></em><a class="headerlink" href="#codeflare_sdk.ray.cluster.status.CodeFlareClusterStatus.FAILED" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.status.CodeFlareClusterStatus.QUEUED">
+<span class="sig-name descname"><span class="pre">QUEUED</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">3</span></em><a class="headerlink" href="#codeflare_sdk.ray.cluster.status.CodeFlareClusterStatus.QUEUED" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.status.CodeFlareClusterStatus.QUEUEING">
+<span class="sig-name descname"><span class="pre">QUEUEING</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">4</span></em><a class="headerlink" href="#codeflare_sdk.ray.cluster.status.CodeFlareClusterStatus.QUEUEING" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.status.CodeFlareClusterStatus.READY">
+<span class="sig-name descname"><span class="pre">READY</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">1</span></em><a class="headerlink" href="#codeflare_sdk.ray.cluster.status.CodeFlareClusterStatus.READY" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.status.CodeFlareClusterStatus.STARTING">
+<span class="sig-name descname"><span class="pre">STARTING</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">2</span></em><a class="headerlink" href="#codeflare_sdk.ray.cluster.status.CodeFlareClusterStatus.STARTING" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.status.CodeFlareClusterStatus.SUSPENDED">
+<span class="sig-name descname"><span class="pre">SUSPENDED</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">7</span></em><a class="headerlink" href="#codeflare_sdk.ray.cluster.status.CodeFlareClusterStatus.SUSPENDED" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.status.CodeFlareClusterStatus.UNKNOWN">
+<span class="sig-name descname"><span class="pre">UNKNOWN</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">6</span></em><a class="headerlink" href="#codeflare_sdk.ray.cluster.status.CodeFlareClusterStatus.UNKNOWN" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.status.RayCluster">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">codeflare_sdk.ray.cluster.status.</span></span><span class="sig-name descname"><span class="pre">RayCluster</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name:</span> <span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">status:</span> <span class="pre">~codeflare_sdk.ray.cluster.status.RayClusterStatus</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">head_cpu_requests:</span> <span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">head_cpu_limits:</span> <span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">head_mem_requests:</span> <span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">head_mem_limits:</span> <span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_workers:</span> <span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">worker_mem_requests:</span> <span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">worker_mem_limits:</span> <span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">worker_cpu_requests:</span> <span class="pre">int</span> <span class="pre">|</span> <span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">worker_cpu_limits:</span> <span class="pre">int</span> <span class="pre">|</span> <span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">namespace:</span> <span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dashboard:</span> <span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">worker_extended_resources:</span> <span class="pre">~typing.Dict[str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">int]</span> <span class="pre">=</span> <span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">head_extended_resources:</span> <span class="pre">~typing.Dict[str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">int]</span> <span class="pre">=</span> <span class="pre">&lt;factory&gt;</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/ray/cluster/status.html#RayCluster"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.cluster.status.RayCluster" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>For storing information about a Ray cluster.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.status.RayCluster.dashboard">
+<span class="sig-name descname"><span class="pre">dashboard</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#codeflare_sdk.ray.cluster.status.RayCluster.dashboard" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.status.RayCluster.head_cpu_limits">
+<span class="sig-name descname"><span class="pre">head_cpu_limits</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#codeflare_sdk.ray.cluster.status.RayCluster.head_cpu_limits" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.status.RayCluster.head_cpu_requests">
+<span class="sig-name descname"><span class="pre">head_cpu_requests</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#codeflare_sdk.ray.cluster.status.RayCluster.head_cpu_requests" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.status.RayCluster.head_extended_resources">
+<span class="sig-name descname"><span class="pre">head_extended_resources</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#codeflare_sdk.ray.cluster.status.RayCluster.head_extended_resources" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.status.RayCluster.head_mem_limits">
+<span class="sig-name descname"><span class="pre">head_mem_limits</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#codeflare_sdk.ray.cluster.status.RayCluster.head_mem_limits" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.status.RayCluster.head_mem_requests">
+<span class="sig-name descname"><span class="pre">head_mem_requests</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#codeflare_sdk.ray.cluster.status.RayCluster.head_mem_requests" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.status.RayCluster.name">
+<span class="sig-name descname"><span class="pre">name</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#codeflare_sdk.ray.cluster.status.RayCluster.name" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.status.RayCluster.namespace">
+<span class="sig-name descname"><span class="pre">namespace</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#codeflare_sdk.ray.cluster.status.RayCluster.namespace" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.status.RayCluster.num_workers">
+<span class="sig-name descname"><span class="pre">num_workers</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#codeflare_sdk.ray.cluster.status.RayCluster.num_workers" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.status.RayCluster.status">
+<span class="sig-name descname"><span class="pre">status</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#codeflare_sdk.ray.cluster.status.RayClusterStatus" title="codeflare_sdk.ray.cluster.status.RayClusterStatus"><span class="pre">RayClusterStatus</span></a></em><a class="headerlink" href="#codeflare_sdk.ray.cluster.status.RayCluster.status" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.status.RayCluster.worker_cpu_limits">
+<span class="sig-name descname"><span class="pre">worker_cpu_limits</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#codeflare_sdk.ray.cluster.status.RayCluster.worker_cpu_limits" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.status.RayCluster.worker_cpu_requests">
+<span class="sig-name descname"><span class="pre">worker_cpu_requests</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#codeflare_sdk.ray.cluster.status.RayCluster.worker_cpu_requests" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.status.RayCluster.worker_extended_resources">
+<span class="sig-name descname"><span class="pre">worker_extended_resources</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#codeflare_sdk.ray.cluster.status.RayCluster.worker_extended_resources" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.status.RayCluster.worker_mem_limits">
+<span class="sig-name descname"><span class="pre">worker_mem_limits</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#codeflare_sdk.ray.cluster.status.RayCluster.worker_mem_limits" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.status.RayCluster.worker_mem_requests">
+<span class="sig-name descname"><span class="pre">worker_mem_requests</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#codeflare_sdk.ray.cluster.status.RayCluster.worker_mem_requests" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.status.RayClusterStatus">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">codeflare_sdk.ray.cluster.status.</span></span><span class="sig-name descname"><span class="pre">RayClusterStatus</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">names=&lt;not</span> <span class="pre">given&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">*values</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">module=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">qualname=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">type=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">start=1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">boundary=None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/ray/cluster/status.html#RayClusterStatus"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.ray.cluster.status.RayClusterStatus" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Enum</span></code></p>
+<p>Defines the possible reportable states of a Ray cluster.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.status.RayClusterStatus.FAILED">
+<span class="sig-name descname"><span class="pre">FAILED</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'failed'</span></em><a class="headerlink" href="#codeflare_sdk.ray.cluster.status.RayClusterStatus.FAILED" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.status.RayClusterStatus.READY">
+<span class="sig-name descname"><span class="pre">READY</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'ready'</span></em><a class="headerlink" href="#codeflare_sdk.ray.cluster.status.RayClusterStatus.READY" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.status.RayClusterStatus.SUSPENDED">
+<span class="sig-name descname"><span class="pre">SUSPENDED</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'suspended'</span></em><a class="headerlink" href="#codeflare_sdk.ray.cluster.status.RayClusterStatus.SUSPENDED" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.status.RayClusterStatus.UNHEALTHY">
+<span class="sig-name descname"><span class="pre">UNHEALTHY</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'unhealthy'</span></em><a class="headerlink" href="#codeflare_sdk.ray.cluster.status.RayClusterStatus.UNHEALTHY" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.ray.cluster.status.RayClusterStatus.UNKNOWN">
+<span class="sig-name descname"><span class="pre">UNKNOWN</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'unknown'</span></em><a class="headerlink" href="#codeflare_sdk.ray.cluster.status.RayClusterStatus.UNKNOWN" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-codeflare_sdk.ray.cluster">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-codeflare_sdk.ray.cluster" title="Link to this heading"></a></h2>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="codeflare_sdk.ray.client.html" class="btn btn-neutral float-left" title="codeflare_sdk.ray.client package" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="codeflare_sdk.ray.rayjobs.html" class="btn btn-neutral float-right" title="codeflare_sdk.ray.rayjobs package" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Project CodeFlare.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

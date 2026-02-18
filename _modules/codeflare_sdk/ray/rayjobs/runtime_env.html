@@ -1,0 +1,535 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>codeflare_sdk.ray.rayjobs.runtime_env &mdash; CodeFlare SDK 0.35.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../_static/documentation_options.js?v=ca1b380b"></script>
+      <script src="../../../../_static/doctools.js?v=9a2dae69"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            CodeFlare SDK
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Code Documentation:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../modules.html">codeflare_sdk</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">User Documentation:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user-docs/authentication.html">Authentication via the CodeFlare SDK</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user-docs/cluster-configuration.html">Ray Cluster Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user-docs/ray-cluster-interaction.html">Ray Cluster Interaction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user-docs/rayjob.html">Submitting RayJobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user-docs/e2e.html">Running e2e tests locally</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user-docs/s3-compatible-storage.html">S3 compatible storage with Ray Train examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user-docs/setup-kueue.html">Basic Kueue Resources configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user-docs/ui-widgets.html">Jupyter UI Widgets</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">CodeFlare SDK</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">codeflare_sdk.ray.rayjobs.runtime_env</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for codeflare_sdk.ray.rayjobs.runtime_env</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>  <span class="c1"># Postpone evaluation of annotations</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">re</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">yaml</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">zipfile</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">base64</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">io</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">TYPE_CHECKING</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">codeflare_sdk.common.utils.constants</span><span class="w"> </span><span class="kn">import</span> <span class="n">MOUNT_PATH</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">kubernetes</span><span class="w"> </span><span class="kn">import</span> <span class="n">client</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">ray.runtime_env</span><span class="w"> </span><span class="kn">import</span> <span class="n">RuntimeEnv</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">codeflare_sdk.ray.rayjobs.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">ManagedClusterConfig</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">...common.kubernetes_cluster.auth</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_api_client</span>
+
+<span class="c1"># Use TYPE_CHECKING to avoid circular import at runtime</span>
+<span class="k">if</span> <span class="n">TYPE_CHECKING</span><span class="p">:</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">codeflare_sdk.ray.rayjobs.rayjob</span><span class="w"> </span><span class="kn">import</span> <span class="n">RayJob</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+<span class="c1"># Regex pattern for finding Python files in entrypoint commands</span>
+<span class="c1"># Matches paths like: test.py, ./test.py, dir/test.py, my-dir/test.py</span>
+<span class="n">PYTHON_FILE_PATTERN</span> <span class="o">=</span> <span class="sa">r</span><span class="s2">&quot;(?:python\s+)?([./\w/-]+\.py)&quot;</span>
+
+<span class="c1"># Path where working_dir will be unzipped on submitter pod</span>
+<span class="n">UNZIP_PATH</span> <span class="o">=</span> <span class="s2">&quot;/tmp/rayjob-working-dir&quot;</span>
+
+<span class="c1"># Exclude Jupyter notebook and Markdown files from working directory zips</span>
+<span class="n">JUPYTER_NOTEBOOK_PATTERN</span> <span class="o">=</span> <span class="sa">r</span><span class="s2">&quot;\.ipynb$&quot;</span>
+<span class="n">MARKDOWN_FILE_PATTERN</span> <span class="o">=</span> <span class="sa">r</span><span class="s2">&quot;\.md$&quot;</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_should_exclude_file</span><span class="p">(</span><span class="n">file_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Check if file should be excluded from working directory zip.</span>
+<span class="sd">    Currently excludes:</span>
+<span class="sd">    - Jupyter notebook files (.ipynb)</span>
+<span class="sd">    - Markdown files (.md)</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        file_path: Relative file path within the working directory</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        True if file should be excluded, False otherwise</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="nb">bool</span><span class="p">(</span>
+        <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">JUPYTER_NOTEBOOK_PATTERN</span><span class="p">,</span> <span class="n">file_path</span><span class="p">,</span> <span class="n">re</span><span class="o">.</span><span class="n">IGNORECASE</span><span class="p">)</span>
+        <span class="ow">or</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">MARKDOWN_FILE_PATTERN</span><span class="p">,</span> <span class="n">file_path</span><span class="p">,</span> <span class="n">re</span><span class="o">.</span><span class="n">IGNORECASE</span><span class="p">)</span>
+    <span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_normalize_runtime_env</span><span class="p">(</span>
+    <span class="n">runtime_env</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RuntimeEnv</span><span class="p">],</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]:</span>
+    <span class="k">if</span> <span class="n">runtime_env</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    <span class="k">return</span> <span class="n">runtime_env</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span>
+
+
+<div class="viewcode-block" id="extract_all_local_files">
+<a class="viewcode-back" href="../../../../codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.runtime_env.extract_all_local_files">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">extract_all_local_files</span><span class="p">(</span><span class="n">job</span><span class="p">:</span> <span class="n">RayJob</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Prepare local files for Secret upload.</span>
+
+<span class="sd">    - If runtime_env has local working_dir: zip entire directory into single file</span>
+<span class="sd">    - If single entrypoint file (no working_dir): extract that file</span>
+<span class="sd">    - If remote working_dir URL: return None (pass through to Ray)</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Dict with either:</span>
+<span class="sd">        - {&quot;working_dir.zip&quot;: &lt;base64_encoded_zip&gt;} for zipped directories</span>
+<span class="sd">        - {&quot;script.py&quot;: &lt;file_content&gt;} for single files</span>
+<span class="sd">        - None for remote working_dir or no files</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Convert RuntimeEnv to dict for processing</span>
+    <span class="n">runtime_env_dict</span> <span class="o">=</span> <span class="n">_normalize_runtime_env</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">runtime_env</span><span class="p">)</span>
+
+    <span class="c1"># If there&#39;s a remote working_dir, don&#39;t extract local files</span>
+    <span class="k">if</span> <span class="p">(</span>
+        <span class="n">runtime_env_dict</span>
+        <span class="ow">and</span> <span class="s2">&quot;working_dir&quot;</span> <span class="ow">in</span> <span class="n">runtime_env_dict</span>
+        <span class="ow">and</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">runtime_env_dict</span><span class="p">[</span><span class="s2">&quot;working_dir&quot;</span><span class="p">])</span>
+    <span class="p">):</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;Remote working_dir detected: </span><span class="si">{</span><span class="n">runtime_env_dict</span><span class="p">[</span><span class="s1">&#39;working_dir&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">. &quot;</span>
+            <span class="s2">&quot;Skipping local file extraction - using remote source.&quot;</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="c1"># If there&#39;s a local working_dir, zip it</span>
+    <span class="k">if</span> <span class="p">(</span>
+        <span class="n">runtime_env_dict</span>
+        <span class="ow">and</span> <span class="s2">&quot;working_dir&quot;</span> <span class="ow">in</span> <span class="n">runtime_env_dict</span>
+        <span class="ow">and</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">runtime_env_dict</span><span class="p">[</span><span class="s2">&quot;working_dir&quot;</span><span class="p">])</span>
+    <span class="p">):</span>
+        <span class="n">working_dir</span> <span class="o">=</span> <span class="n">runtime_env_dict</span><span class="p">[</span><span class="s2">&quot;working_dir&quot;</span><span class="p">]</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Zipping local working_dir: </span><span class="si">{</span><span class="n">working_dir</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">zip_data</span> <span class="o">=</span> <span class="n">_zip_directory</span><span class="p">(</span><span class="n">working_dir</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">zip_data</span><span class="p">:</span>
+            <span class="c1"># Encode zip as base64 for Secret storage</span>
+            <span class="n">zip_base64</span> <span class="o">=</span> <span class="n">base64</span><span class="o">.</span><span class="n">b64encode</span><span class="p">(</span><span class="n">zip_data</span><span class="p">)</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;working_dir.zip&quot;</span><span class="p">:</span> <span class="n">zip_base64</span><span class="p">}</span>
+
+    <span class="c1"># If no working_dir, check for single entrypoint file</span>
+    <span class="n">entrypoint_file</span> <span class="o">=</span> <span class="n">_extract_single_entrypoint_file</span><span class="p">(</span><span class="n">job</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">entrypoint_file</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">entrypoint_file</span>
+
+    <span class="k">return</span> <span class="kc">None</span></div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_zip_directory</span><span class="p">(</span><span class="n">directory_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bytes</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Zip entire directory preserving structure, excluding Jupyter notebook and markdown files.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        directory_path: Path to directory to zip</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Bytes of zip file, or None on error</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="c1"># Create in-memory zip file</span>
+        <span class="n">zip_buffer</span> <span class="o">=</span> <span class="n">io</span><span class="o">.</span><span class="n">BytesIO</span><span class="p">()</span>
+        <span class="n">excluded_count</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="k">with</span> <span class="n">zipfile</span><span class="o">.</span><span class="n">ZipFile</span><span class="p">(</span><span class="n">zip_buffer</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">,</span> <span class="n">zipfile</span><span class="o">.</span><span class="n">ZIP_DEFLATED</span><span class="p">)</span> <span class="k">as</span> <span class="n">zipf</span><span class="p">:</span>
+            <span class="c1"># Walk through directory and add all files</span>
+            <span class="k">for</span> <span class="n">root</span><span class="p">,</span> <span class="n">dirs</span><span class="p">,</span> <span class="n">files</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">walk</span><span class="p">(</span><span class="n">directory_path</span><span class="p">):</span>
+                <span class="k">for</span> <span class="n">file</span> <span class="ow">in</span> <span class="n">files</span><span class="p">:</span>
+                    <span class="n">file_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">root</span><span class="p">,</span> <span class="n">file</span><span class="p">)</span>
+                    <span class="c1"># Calculate relative path from directory_path</span>
+                    <span class="n">arcname</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">relpath</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="n">directory_path</span><span class="p">)</span>
+
+                    <span class="c1"># Check if file should be excluded</span>
+                    <span class="k">if</span> <span class="n">_should_exclude_file</span><span class="p">(</span><span class="n">arcname</span><span class="p">):</span>
+                        <span class="n">excluded_count</span> <span class="o">+=</span> <span class="mi">1</span>
+                        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Excluded from zip: </span><span class="si">{</span><span class="n">arcname</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                        <span class="k">continue</span>
+
+                    <span class="n">zipf</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="n">arcname</span><span class="p">)</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Added to zip: </span><span class="si">{</span><span class="n">arcname</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="n">zip_data</span> <span class="o">=</span> <span class="n">zip_buffer</span><span class="o">.</span><span class="n">getvalue</span><span class="p">()</span>
+
+        <span class="c1"># Log summary with exclusion count</span>
+        <span class="n">log_message</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;Successfully zipped directory: </span><span class="si">{</span><span class="n">directory_path</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">zip_data</span><span class="p">)</span><span class="si">}</span><span class="s2"> bytes)&quot;</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="n">excluded_count</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">log_message</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot; - Excluded </span><span class="si">{</span><span class="n">excluded_count</span><span class="si">}</span><span class="s2"> file(s) (.ipynb, .md)&quot;</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">log_message</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">zip_data</span>
+
+    <span class="k">except</span> <span class="p">(</span><span class="ne">IOError</span><span class="p">,</span> <span class="ne">OSError</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to zip directory </span><span class="si">{</span><span class="n">directory_path</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">None</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_extract_single_entrypoint_file</span><span class="p">(</span><span class="n">job</span><span class="p">:</span> <span class="n">RayJob</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Extract single Python file from entrypoint if no working_dir specified.</span>
+
+<span class="sd">    Returns a dict with metadata about the file path structure so we can</span>
+<span class="sd">    preserve it when mounting via Secret.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        job: RayJob instance</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Dict with special format: {&quot;__entrypoint_path__&quot;: path, &quot;filename&quot;: content}</span>
+<span class="sd">        This allows us to preserve directory structure when mounting</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">job</span><span class="o">.</span><span class="n">entrypoint</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="c1"># Look for Python file in entrypoint</span>
+    <span class="n">matches</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="n">PYTHON_FILE_PATTERN</span><span class="p">,</span> <span class="n">job</span><span class="o">.</span><span class="n">entrypoint</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">file_path</span> <span class="ow">in</span> <span class="n">matches</span><span class="p">:</span>
+        <span class="c1"># Check if it&#39;s a local file</span>
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">file_path</span><span class="p">):</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                    <span class="n">content</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+
+                <span class="c1"># Use basename as key (Secret keys can&#39;t have slashes)</span>
+                <span class="c1"># But store the full path for later use in Secret item.path</span>
+                <span class="n">filename</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span>
+                <span class="n">relative_path</span> <span class="o">=</span> <span class="n">file_path</span><span class="o">.</span><span class="n">lstrip</span><span class="p">(</span><span class="s2">&quot;./&quot;</span><span class="p">)</span>
+
+                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Extracted single entrypoint file: </span><span class="si">{</span><span class="n">file_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+                <span class="c1"># Return special format with metadata</span>
+                <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;__entrypoint_path__&quot;</span><span class="p">:</span> <span class="n">relative_path</span><span class="p">,</span> <span class="n">filename</span><span class="p">:</span> <span class="n">content</span><span class="p">}</span>
+
+            <span class="k">except</span> <span class="p">(</span><span class="ne">IOError</span><span class="p">,</span> <span class="ne">OSError</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Could not read entrypoint file </span><span class="si">{</span><span class="n">file_path</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="kc">None</span>
+
+
+<div class="viewcode-block" id="process_runtime_env">
+<a class="viewcode-back" href="../../../../codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.runtime_env.process_runtime_env">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">process_runtime_env</span><span class="p">(</span>
+    <span class="n">job</span><span class="p">:</span> <span class="n">RayJob</span><span class="p">,</span> <span class="n">files</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Process runtime_env field to handle env_vars, pip dependencies, and working_dir.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Processed runtime environment as YAML string, or None if no processing needed</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Convert RuntimeEnv to dict for processing</span>
+    <span class="n">runtime_env_dict</span> <span class="o">=</span> <span class="n">_normalize_runtime_env</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">runtime_env</span><span class="p">)</span>
+
+    <span class="n">processed_env</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="c1"># Handle env_vars</span>
+    <span class="k">if</span> <span class="n">runtime_env_dict</span> <span class="ow">and</span> <span class="s2">&quot;env_vars&quot;</span> <span class="ow">in</span> <span class="n">runtime_env_dict</span><span class="p">:</span>
+        <span class="n">processed_env</span><span class="p">[</span><span class="s2">&quot;env_vars&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">runtime_env_dict</span><span class="p">[</span><span class="s2">&quot;env_vars&quot;</span><span class="p">]</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;Added </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">runtime_env_dict</span><span class="p">[</span><span class="s1">&#39;env_vars&#39;</span><span class="p">])</span><span class="si">}</span><span class="s2"> environment variables to runtime_env&quot;</span>
+        <span class="p">)</span>
+
+    <span class="c1"># Handle pip dependencies</span>
+    <span class="k">if</span> <span class="n">runtime_env_dict</span> <span class="ow">and</span> <span class="s2">&quot;pip&quot;</span> <span class="ow">in</span> <span class="n">runtime_env_dict</span><span class="p">:</span>
+        <span class="n">pip_deps</span> <span class="o">=</span> <span class="n">process_pip_dependencies</span><span class="p">(</span><span class="n">job</span><span class="p">,</span> <span class="n">runtime_env_dict</span><span class="p">[</span><span class="s2">&quot;pip&quot;</span><span class="p">])</span>
+        <span class="k">if</span> <span class="n">pip_deps</span><span class="p">:</span>
+            <span class="n">processed_env</span><span class="p">[</span><span class="s2">&quot;pip&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pip_deps</span>
+
+    <span class="c1"># Handle working_dir</span>
+    <span class="k">if</span> <span class="n">runtime_env_dict</span> <span class="ow">and</span> <span class="s2">&quot;working_dir&quot;</span> <span class="ow">in</span> <span class="n">runtime_env_dict</span><span class="p">:</span>
+        <span class="n">working_dir</span> <span class="o">=</span> <span class="n">runtime_env_dict</span><span class="p">[</span><span class="s2">&quot;working_dir&quot;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">working_dir</span><span class="p">):</span>
+            <span class="c1"># Local working directory - will be zipped and unzipped to UNZIP_PATH by submitter pod</span>
+            <span class="n">processed_env</span><span class="p">[</span><span class="s2">&quot;working_dir&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">UNZIP_PATH</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Local working_dir will be zipped, mounted, and unzipped to: </span><span class="si">{</span><span class="n">UNZIP_PATH</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Remote URI (e.g., GitHub, S3) - pass through as-is</span>
+            <span class="n">processed_env</span><span class="p">[</span><span class="s2">&quot;working_dir&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">working_dir</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Using remote working_dir: </span><span class="si">{</span><span class="n">working_dir</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="c1"># If no working_dir specified but we have files (single file case)</span>
+    <span class="k">elif</span> <span class="ow">not</span> <span class="n">runtime_env_dict</span> <span class="ow">or</span> <span class="s2">&quot;working_dir&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">runtime_env_dict</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">files</span> <span class="ow">and</span> <span class="s2">&quot;working_dir.zip&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">files</span><span class="p">:</span>
+            <span class="c1"># Single file case - mount at MOUNT_PATH</span>
+            <span class="n">processed_env</span><span class="p">[</span><span class="s2">&quot;working_dir&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">MOUNT_PATH</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Single file will be mounted at: </span><span class="si">{</span><span class="n">MOUNT_PATH</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Convert to YAML string if we have any processed environment</span>
+    <span class="k">if</span> <span class="n">processed_env</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">yaml</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">processed_env</span><span class="p">,</span> <span class="n">default_flow_style</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="kc">None</span></div>
+
+
+
+<div class="viewcode-block" id="process_pip_dependencies">
+<a class="viewcode-back" href="../../../../codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.runtime_env.process_pip_dependencies">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">process_pip_dependencies</span><span class="p">(</span><span class="n">job</span><span class="p">:</span> <span class="n">RayJob</span><span class="p">,</span> <span class="n">pip_spec</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Process pip dependencies from runtime_env.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        pip_spec: Can be a list of packages, a string path to requirements.txt, or dict</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        List of pip dependencies</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">pip_spec</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+        <span class="c1"># Already a list of dependencies</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Using provided pip dependencies: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">pip_spec</span><span class="p">)</span><span class="si">}</span><span class="s2"> packages&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">pip_spec</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">pip_spec</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="c1"># Assume it&#39;s a path to requirements.txt</span>
+        <span class="k">return</span> <span class="n">parse_requirements_file</span><span class="p">(</span><span class="n">pip_spec</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">pip_spec</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+        <span class="c1"># Handle dict format (e.g., {&quot;packages&quot;: [...], &quot;pip_check&quot;: False})</span>
+        <span class="k">if</span> <span class="s2">&quot;packages&quot;</span> <span class="ow">in</span> <span class="n">pip_spec</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Using pip dependencies from dict: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">pip_spec</span><span class="p">[</span><span class="s1">&#39;packages&#39;</span><span class="p">])</span><span class="si">}</span><span class="s2"> packages&quot;</span>
+            <span class="p">)</span>
+            <span class="k">return</span> <span class="n">pip_spec</span><span class="p">[</span><span class="s2">&quot;packages&quot;</span><span class="p">]</span>
+
+    <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unsupported pip specification format: </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">pip_spec</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="kc">None</span></div>
+
+
+
+<div class="viewcode-block" id="parse_requirements_file">
+<a class="viewcode-back" href="../../../../codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.runtime_env.parse_requirements_file">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">parse_requirements_file</span><span class="p">(</span><span class="n">requirements_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Parse a requirements.txt file and return list of dependencies.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        requirements_path: Path to requirements.txt file</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        List of pip dependencies</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">requirements_path</span><span class="p">):</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Requirements file not found: </span><span class="si">{</span><span class="n">requirements_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">requirements_path</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">lines</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">readlines</span><span class="p">()</span>
+
+        <span class="c1"># Parse requirements, filtering out comments and empty lines</span>
+        <span class="n">requirements</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">lines</span><span class="p">:</span>
+            <span class="n">line</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">line</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">line</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;#&quot;</span><span class="p">):</span>
+                <span class="n">requirements</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">line</span><span class="p">)</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Parsed </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">requirements</span><span class="p">)</span><span class="si">}</span><span class="s2"> dependencies from </span><span class="si">{</span><span class="n">requirements_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">requirements</span>
+
+    <span class="k">except</span> <span class="p">(</span><span class="ne">IOError</span><span class="p">,</span> <span class="ne">OSError</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Could not read requirements file </span><span class="si">{</span><span class="n">requirements_path</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">None</span></div>
+
+
+
+<div class="viewcode-block" id="create_secret_from_spec">
+<a class="viewcode-back" href="../../../../codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.runtime_env.create_secret_from_spec">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">create_secret_from_spec</span><span class="p">(</span>
+    <span class="n">job</span><span class="p">:</span> <span class="n">RayJob</span><span class="p">,</span> <span class="n">secret_spec</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span> <span class="n">rayjob_result</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Create Secret from specification via Kubernetes API.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        secret_spec: Secret specification dictionary</span>
+<span class="sd">        rayjob_result: The result from RayJob creation containing UID</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        str: Name of the created Secret</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">secret_name</span> <span class="o">=</span> <span class="n">secret_spec</span><span class="p">[</span><span class="s2">&quot;metadata&quot;</span><span class="p">][</span><span class="s2">&quot;name&quot;</span><span class="p">]</span>
+
+    <span class="n">metadata</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">V1ObjectMeta</span><span class="p">(</span><span class="o">**</span><span class="n">secret_spec</span><span class="p">[</span><span class="s2">&quot;metadata&quot;</span><span class="p">])</span>
+
+    <span class="c1"># Add owner reference to ensure proper cleanup</span>
+    <span class="c1"># We can trust that rayjob_result contains UID since submit_job() only returns</span>
+    <span class="c1"># complete K8s resources or None, and we already validated result exists</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+        <span class="sa">f</span><span class="s2">&quot;Adding owner reference to Secret &#39;</span><span class="si">{</span><span class="n">secret_name</span><span class="si">}</span><span class="s2">&#39; with RayJob UID: </span><span class="si">{</span><span class="n">rayjob_result</span><span class="p">[</span><span class="s1">&#39;metadata&#39;</span><span class="p">][</span><span class="s1">&#39;uid&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span>
+    <span class="p">)</span>
+    <span class="n">metadata</span><span class="o">.</span><span class="n">owner_references</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">client</span><span class="o">.</span><span class="n">V1OwnerReference</span><span class="p">(</span>
+            <span class="n">api_version</span><span class="o">=</span><span class="s2">&quot;ray.io/v1&quot;</span><span class="p">,</span>
+            <span class="n">kind</span><span class="o">=</span><span class="s2">&quot;RayJob&quot;</span><span class="p">,</span>
+            <span class="n">name</span><span class="o">=</span><span class="n">job</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+            <span class="n">uid</span><span class="o">=</span><span class="n">rayjob_result</span><span class="p">[</span><span class="s2">&quot;metadata&quot;</span><span class="p">][</span><span class="s2">&quot;uid&quot;</span><span class="p">],</span>
+            <span class="n">controller</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">block_owner_deletion</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="p">)</span>
+    <span class="p">]</span>
+
+    <span class="c1"># Convert dict spec to V1Secret</span>
+    <span class="c1"># Use stringData instead of data to avoid double base64 encoding</span>
+    <span class="c1"># Our zip files are already base64-encoded, so stringData will handle the final encoding</span>
+    <span class="n">secret</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">V1Secret</span><span class="p">(</span>
+        <span class="n">metadata</span><span class="o">=</span><span class="n">metadata</span><span class="p">,</span>
+        <span class="nb">type</span><span class="o">=</span><span class="n">secret_spec</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;type&quot;</span><span class="p">,</span> <span class="s2">&quot;Opaque&quot;</span><span class="p">),</span>
+        <span class="n">string_data</span><span class="o">=</span><span class="n">secret_spec</span><span class="p">[</span><span class="s2">&quot;data&quot;</span><span class="p">],</span>
+    <span class="p">)</span>
+
+    <span class="c1"># Create Secret via Kubernetes API</span>
+    <span class="n">k8s_api</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">CoreV1Api</span><span class="p">(</span><span class="n">get_api_client</span><span class="p">())</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">k8s_api</span><span class="o">.</span><span class="n">create_namespaced_secret</span><span class="p">(</span><span class="n">namespace</span><span class="o">=</span><span class="n">job</span><span class="o">.</span><span class="n">namespace</span><span class="p">,</span> <span class="n">body</span><span class="o">=</span><span class="n">secret</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;Created Secret &#39;</span><span class="si">{</span><span class="n">secret_name</span><span class="si">}</span><span class="s2">&#39; with </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">secret_spec</span><span class="p">[</span><span class="s1">&#39;data&#39;</span><span class="p">])</span><span class="si">}</span><span class="s2"> files&quot;</span>
+        <span class="p">)</span>
+    <span class="k">except</span> <span class="n">client</span><span class="o">.</span><span class="n">ApiException</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">e</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="mi">409</span><span class="p">:</span>  <span class="c1"># Already exists</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Secret &#39;</span><span class="si">{</span><span class="n">secret_name</span><span class="si">}</span><span class="s2">&#39; already exists, updating...&quot;</span><span class="p">)</span>
+            <span class="n">k8s_api</span><span class="o">.</span><span class="n">replace_namespaced_secret</span><span class="p">(</span>
+                <span class="n">name</span><span class="o">=</span><span class="n">secret_name</span><span class="p">,</span> <span class="n">namespace</span><span class="o">=</span><span class="n">job</span><span class="o">.</span><span class="n">namespace</span><span class="p">,</span> <span class="n">body</span><span class="o">=</span><span class="n">secret</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to create Secret &#39;</span><span class="si">{</span><span class="n">secret_name</span><span class="si">}</span><span class="s2">&#39;: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">secret_name</span></div>
+
+
+
+<div class="viewcode-block" id="create_file_secret">
+<a class="viewcode-back" href="../../../../codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.runtime_env.create_file_secret">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">create_file_secret</span><span class="p">(</span>
+    <span class="n">job</span><span class="p">:</span> <span class="n">RayJob</span><span class="p">,</span> <span class="n">files</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span> <span class="n">rayjob_result</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Create Secret with owner reference for local files.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Use a basic config builder for Secret creation</span>
+    <span class="n">config_builder</span> <span class="o">=</span> <span class="n">ManagedClusterConfig</span><span class="p">()</span>
+
+    <span class="c1"># Filter out metadata keys (like __entrypoint_path__) from Secret data</span>
+    <span class="n">secret_files</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">files</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">k</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;__&quot;</span><span class="p">)}</span>
+
+    <span class="c1"># Validate and build Secret spec</span>
+    <span class="n">config_builder</span><span class="o">.</span><span class="n">validate_secret_size</span><span class="p">(</span><span class="n">secret_files</span><span class="p">)</span>
+    <span class="n">secret_spec</span> <span class="o">=</span> <span class="n">config_builder</span><span class="o">.</span><span class="n">build_file_secret_spec</span><span class="p">(</span>
+        <span class="n">job_name</span><span class="o">=</span><span class="n">job</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">namespace</span><span class="o">=</span><span class="n">job</span><span class="o">.</span><span class="n">namespace</span><span class="p">,</span> <span class="n">files</span><span class="o">=</span><span class="n">secret_files</span>
+    <span class="p">)</span>
+
+    <span class="c1"># Create Secret with owner reference</span>
+    <span class="n">create_secret_from_spec</span><span class="p">(</span><span class="n">job</span><span class="p">,</span> <span class="n">secret_spec</span><span class="p">,</span> <span class="n">rayjob_result</span><span class="p">)</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Project CodeFlare.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

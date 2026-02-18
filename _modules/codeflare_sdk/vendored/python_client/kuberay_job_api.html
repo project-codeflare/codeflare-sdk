@@ -1,0 +1,523 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>codeflare_sdk.vendored.python_client.kuberay_job_api &mdash; CodeFlare SDK 0.35.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../_static/documentation_options.js?v=ca1b380b"></script>
+      <script src="../../../../_static/doctools.js?v=9a2dae69"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            CodeFlare SDK
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Code Documentation:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../modules.html">codeflare_sdk</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">User Documentation:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user-docs/authentication.html">Authentication via the CodeFlare SDK</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user-docs/cluster-configuration.html">Ray Cluster Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user-docs/ray-cluster-interaction.html">Ray Cluster Interaction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user-docs/rayjob.html">Submitting RayJobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user-docs/e2e.html">Running e2e tests locally</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user-docs/s3-compatible-storage.html">S3 compatible storage with Ray Train examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user-docs/setup-kueue.html">Basic Kueue Resources configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user-docs/ui-widgets.html">Jupyter UI Widgets</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">CodeFlare SDK</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">codeflare_sdk.vendored.python_client.kuberay_job_api</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for codeflare_sdk.vendored.python_client.kuberay_job_api</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Set of APIs to manage rayjobs.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">kubernetes</span><span class="w"> </span><span class="kn">import</span> <span class="n">client</span><span class="p">,</span> <span class="n">config</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">kubernetes.client.rest</span><span class="w"> </span><span class="kn">import</span> <span class="n">ApiException</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Optional</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">codeflare_sdk.vendored.python_client</span><span class="w"> </span><span class="kn">import</span> <span class="n">constants</span>
+
+
+<span class="n">log</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+<span class="k">if</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLevelName</span><span class="p">(</span><span class="n">log</span><span class="o">.</span><span class="n">level</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;NOTSET&quot;</span><span class="p">:</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">basicConfig</span><span class="p">(</span><span class="nb">format</span><span class="o">=</span><span class="s2">&quot;</span><span class="si">%(asctime)s</span><span class="s2"> </span><span class="si">%(message)s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">level</span><span class="o">=</span><span class="n">constants</span><span class="o">.</span><span class="n">LOGLEVEL</span><span class="p">)</span>
+
+<span class="n">TERMINAL_JOB_STATUSES</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s2">&quot;STOPPED&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;SUCCEEDED&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;FAILED&quot;</span><span class="p">,</span>
+<span class="p">]</span>
+
+
+<div class="viewcode-block" id="RayjobApi">
+<a class="viewcode-back" href="../../../../codeflare_sdk.vendored.python_client.html#codeflare_sdk.vendored.python_client.kuberay_job_api.RayjobApi">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">RayjobApi</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    RayjobApi provides APIs to list, get, create, build, update, delete rayjobs.</span>
+<span class="sd">    Methods:</span>
+<span class="sd">    - submit_job(k8s_namespace: str, job: Any) -&gt; Any: Submit and execute a job asynchronously.</span>
+<span class="sd">    - suspend_job(name: str, k8s_namespace: str) -&gt; bool: Stop a job by suspending it.</span>
+<span class="sd">    - resubmit_job(name: str, k8s_namespace: str) -&gt; bool: Resubmit a job that has been suspended.</span>
+<span class="sd">    - get_job(name: str, k8s_namespace: str) -&gt; Any: Get a job.</span>
+<span class="sd">    - list_jobs(k8s_namespace: str) -&gt; Any: List all jobs.</span>
+<span class="sd">    - get_job_status(name: str, k8s_namespace: str, timeout: int, delay_between_attempts: int) -&gt; Any: Get the most recent status of a job.</span>
+<span class="sd">    - wait_until_job_finished(name: str, k8s_namespace: str, timeout: int, delay_between_attempts: int) -&gt; bool: Wait until a job is completed.</span>
+<span class="sd">    - wait_until_job_running(name: str, k8s_namespace: str, timeout: int, delay_between_attempts: int) -&gt; bool: Wait until a job reaches running state.</span>
+<span class="sd">    - delete_job(name: str, k8s_namespace: str) -&gt; bool: Delete a job and all of its associated data.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># initial config to setup the kube client</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># loading the config</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">kube_config</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">load_kube_config</span><span class="p">()</span>
+        <span class="k">except</span> <span class="n">config</span><span class="o">.</span><span class="n">ConfigException</span><span class="p">:</span>
+            <span class="c1"># No kubeconfig found, try in-cluster config</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">kube_config</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">load_incluster_config</span><span class="p">()</span>
+            <span class="k">except</span> <span class="n">config</span><span class="o">.</span><span class="n">ConfigException</span><span class="p">:</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Failed to load both kubeconfig and in-cluster config&quot;</span><span class="p">)</span>
+                <span class="k">raise</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">api</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">CustomObjectsApi</span><span class="p">()</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__del__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">api</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kube_config</span> <span class="o">=</span> <span class="kc">None</span>
+
+<div class="viewcode-block" id="RayjobApi.submit_job">
+<a class="viewcode-back" href="../../../../codeflare_sdk.vendored.python_client.html#codeflare_sdk.vendored.python_client.kuberay_job_api.RayjobApi.submit_job">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">submit_job</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k8s_namespace</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;default&quot;</span><span class="p">,</span> <span class="n">job</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Submit a Ray job to a given namespace.&quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">rayjob</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">api</span><span class="o">.</span><span class="n">create_namespaced_custom_object</span><span class="p">(</span>
+                <span class="n">group</span><span class="o">=</span><span class="n">constants</span><span class="o">.</span><span class="n">GROUP</span><span class="p">,</span>
+                <span class="n">version</span><span class="o">=</span><span class="n">constants</span><span class="o">.</span><span class="n">JOB_VERSION</span><span class="p">,</span>
+                <span class="n">plural</span><span class="o">=</span><span class="n">constants</span><span class="o">.</span><span class="n">JOB_PLURAL</span><span class="p">,</span>
+                <span class="n">body</span><span class="o">=</span><span class="n">job</span><span class="p">,</span>
+                <span class="n">namespace</span><span class="o">=</span><span class="n">k8s_namespace</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="k">return</span> <span class="n">rayjob</span>
+        <span class="k">except</span> <span class="n">ApiException</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;error submitting ray job: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+            <span class="k">return</span> <span class="kc">None</span></div>
+
+
+<div class="viewcode-block" id="RayjobApi.get_job_status">
+<a class="viewcode-back" href="../../../../codeflare_sdk.vendored.python_client.html#codeflare_sdk.vendored.python_client.kuberay_job_api.RayjobApi.get_job_status">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_job_status</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">k8s_namespace</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;default&quot;</span><span class="p">,</span>
+        <span class="n">timeout</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">60</span><span class="p">,</span>
+        <span class="n">delay_between_attempts</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get a specific Ray job status in a given namespace.</span>
+
+<span class="sd">        This method waits until the job has a status field populated by the operator.</span>
+
+<span class="sd">        Parameters:</span>
+<span class="sd">        - name (str): The name of the Ray job custom resource.</span>
+<span class="sd">        - k8s_namespace (str, optional): The namespace in which to retrieve the Ray job. Defaults to &quot;default&quot;.</span>
+<span class="sd">        - timeout (int, optional): The duration in seconds after which we stop trying to get status. Defaults to 60 seconds.</span>
+<span class="sd">        - delay_between_attempts (int, optional): The duration in seconds to wait between attempts. Defaults to 5 seconds.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Any: The custom resource status for the specified Ray job, or None if not found or timeout.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">while</span> <span class="n">timeout</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">resource</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">api</span><span class="o">.</span><span class="n">get_namespaced_custom_object_status</span><span class="p">(</span>
+                    <span class="n">group</span><span class="o">=</span><span class="n">constants</span><span class="o">.</span><span class="n">GROUP</span><span class="p">,</span>
+                    <span class="n">version</span><span class="o">=</span><span class="n">constants</span><span class="o">.</span><span class="n">JOB_VERSION</span><span class="p">,</span>
+                    <span class="n">plural</span><span class="o">=</span><span class="n">constants</span><span class="o">.</span><span class="n">JOB_PLURAL</span><span class="p">,</span>
+                    <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span>
+                    <span class="n">namespace</span><span class="o">=</span><span class="n">k8s_namespace</span><span class="p">,</span>
+                <span class="p">)</span>
+            <span class="k">except</span> <span class="n">ApiException</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">e</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="mi">404</span><span class="p">:</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;rayjob resource is not found. error = </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+                    <span class="k">return</span> <span class="kc">None</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;error fetching custom resource: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+                    <span class="k">return</span> <span class="kc">None</span>
+
+            <span class="k">if</span> <span class="n">resource</span> <span class="ow">and</span> <span class="s2">&quot;status&quot;</span> <span class="ow">in</span> <span class="n">resource</span> <span class="ow">and</span> <span class="n">resource</span><span class="p">[</span><span class="s2">&quot;status&quot;</span><span class="p">]:</span>
+                <span class="k">return</span> <span class="n">resource</span><span class="p">[</span><span class="s2">&quot;status&quot;</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;rayjob </span><span class="si">{}</span><span class="s2"> status not set yet, waiting...&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">name</span><span class="p">))</span>
+                <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">delay_between_attempts</span><span class="p">)</span>
+                <span class="n">timeout</span> <span class="o">-=</span> <span class="n">delay_between_attempts</span>
+
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;rayjob </span><span class="si">{}</span><span class="s2"> status not set yet, timing out...&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">name</span><span class="p">))</span>
+        <span class="k">return</span> <span class="kc">None</span></div>
+
+
+<div class="viewcode-block" id="RayjobApi.wait_until_job_finished">
+<a class="viewcode-back" href="../../../../codeflare_sdk.vendored.python_client.html#codeflare_sdk.vendored.python_client.kuberay_job_api.RayjobApi.wait_until_job_finished">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">wait_until_job_finished</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">k8s_namespace</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;default&quot;</span><span class="p">,</span>
+        <span class="n">timeout</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">60</span><span class="p">,</span>
+        <span class="n">delay_between_attempts</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Wait until a Ray job reaches a terminal status.</span>
+
+<span class="sd">        This method waits for the job to reach a terminal state by checking both jobStatus</span>
+<span class="sd">        (STOPPED, SUCCEEDED, FAILED) and jobDeploymentStatus (Complete, Failed).</span>
+
+<span class="sd">        Parameters:</span>
+<span class="sd">        - name (str): The name of the Ray job custom resource.</span>
+<span class="sd">        - k8s_namespace (str, optional): The namespace in which to retrieve the Ray job. Defaults to &quot;default&quot;.</span>
+<span class="sd">        - timeout (int, optional): The duration in seconds after which we stop trying. Defaults to 60 seconds.</span>
+<span class="sd">        - delay_between_attempts (int, optional): The duration in seconds to wait between attempts. Defaults to 5 seconds.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            bool: True if the rayjob reaches a terminal status, False otherwise.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">while</span> <span class="n">timeout</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">status</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_job_status</span><span class="p">(</span>
+                <span class="n">name</span><span class="p">,</span> <span class="n">k8s_namespace</span><span class="p">,</span> <span class="n">timeout</span><span class="p">,</span> <span class="n">delay_between_attempts</span>
+            <span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">status</span><span class="p">:</span>
+                <span class="k">if</span> <span class="s2">&quot;jobDeploymentStatus&quot;</span> <span class="ow">in</span> <span class="n">status</span><span class="p">:</span>
+                    <span class="n">deployment_status</span> <span class="o">=</span> <span class="n">status</span><span class="p">[</span><span class="s2">&quot;jobDeploymentStatus&quot;</span><span class="p">]</span>
+                    <span class="k">if</span> <span class="n">deployment_status</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;Complete&quot;</span><span class="p">,</span> <span class="s2">&quot;Failed&quot;</span><span class="p">]:</span>
+                        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                            <span class="s2">&quot;rayjob </span><span class="si">{}</span><span class="s2"> has finished with deployment status: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                                <span class="n">name</span><span class="p">,</span> <span class="n">deployment_status</span>
+                            <span class="p">)</span>
+                        <span class="p">)</span>
+                        <span class="k">return</span> <span class="kc">True</span>
+                    <span class="k">elif</span> <span class="n">deployment_status</span> <span class="o">==</span> <span class="s2">&quot;Suspended&quot;</span><span class="p">:</span>
+                        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;rayjob </span><span class="si">{}</span><span class="s2"> is suspended&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">name</span><span class="p">))</span>
+                        <span class="c1"># Suspended is not terminal, continue waiting</span>
+                    <span class="k">elif</span> <span class="n">deployment_status</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;Initializing&quot;</span><span class="p">,</span> <span class="s2">&quot;Running&quot;</span><span class="p">,</span> <span class="s2">&quot;Suspending&quot;</span><span class="p">]:</span>
+                        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                            <span class="s2">&quot;rayjob </span><span class="si">{}</span><span class="s2"> is </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">deployment_status</span><span class="o">.</span><span class="n">lower</span><span class="p">())</span>
+                        <span class="p">)</span>
+                    <span class="k">elif</span> <span class="n">deployment_status</span><span class="p">:</span>
+                        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                            <span class="s2">&quot;rayjob </span><span class="si">{}</span><span class="s2"> deployment status: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                                <span class="n">name</span><span class="p">,</span> <span class="n">deployment_status</span>
+                            <span class="p">)</span>
+                        <span class="p">)</span>
+
+                <span class="k">if</span> <span class="s2">&quot;jobStatus&quot;</span> <span class="ow">in</span> <span class="n">status</span><span class="p">:</span>
+                    <span class="n">current_status</span> <span class="o">=</span> <span class="n">status</span><span class="p">[</span><span class="s2">&quot;jobStatus&quot;</span><span class="p">]</span>
+                    <span class="k">if</span> <span class="n">current_status</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="s2">&quot;PENDING&quot;</span><span class="p">]:</span>
+                        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;rayjob </span><span class="si">{}</span><span class="s2"> has not started yet&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">name</span><span class="p">))</span>
+                    <span class="k">elif</span> <span class="n">current_status</span> <span class="o">==</span> <span class="s2">&quot;RUNNING&quot;</span><span class="p">:</span>
+                        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;rayjob </span><span class="si">{}</span><span class="s2"> is running&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">name</span><span class="p">))</span>
+                    <span class="k">elif</span> <span class="n">current_status</span> <span class="ow">in</span> <span class="n">TERMINAL_JOB_STATUSES</span><span class="p">:</span>
+                        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                            <span class="s2">&quot;rayjob </span><span class="si">{}</span><span class="s2"> has finished with status </span><span class="si">{}</span><span class="s2">!&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                                <span class="n">name</span><span class="p">,</span> <span class="n">current_status</span>
+                            <span class="p">)</span>
+                        <span class="p">)</span>
+                        <span class="k">return</span> <span class="kc">True</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                            <span class="s2">&quot;rayjob </span><span class="si">{}</span><span class="s2"> has an unknown status: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                                <span class="n">name</span><span class="p">,</span> <span class="n">current_status</span>
+                            <span class="p">)</span>
+                        <span class="p">)</span>
+                <span class="k">elif</span> <span class="s2">&quot;jobDeploymentStatus&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">status</span><span class="p">:</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                        <span class="s2">&quot;rayjob </span><span class="si">{}</span><span class="s2"> status fields not available yet, waiting...&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                            <span class="n">name</span>
+                        <span class="p">)</span>
+                    <span class="p">)</span>
+
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">delay_between_attempts</span><span class="p">)</span>
+            <span class="n">timeout</span> <span class="o">-=</span> <span class="n">delay_between_attempts</span>
+
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s2">&quot;rayjob </span><span class="si">{}</span><span class="s2"> has not reached terminal status before timeout&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="kc">False</span></div>
+
+
+<div class="viewcode-block" id="RayjobApi.wait_until_job_running">
+<a class="viewcode-back" href="../../../../codeflare_sdk.vendored.python_client.html#codeflare_sdk.vendored.python_client.kuberay_job_api.RayjobApi.wait_until_job_running">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">wait_until_job_running</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">k8s_namespace</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;default&quot;</span><span class="p">,</span>
+        <span class="n">timeout</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">60</span><span class="p">,</span>
+        <span class="n">delay_between_attempts</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Wait until a Ray job reaches Running state.</span>
+
+<span class="sd">        This method waits for the job&#39;s jobDeploymentStatus to reach &quot;Running&quot;.</span>
+<span class="sd">        Useful for confirming a job has started after submission or resubmission.</span>
+
+<span class="sd">        Parameters:</span>
+<span class="sd">        - name (str): The name of the Ray job custom resource.</span>
+<span class="sd">        - k8s_namespace (str, optional): The namespace in which to retrieve the Ray job. Defaults to &quot;default&quot;.</span>
+<span class="sd">        - timeout (int, optional): The duration in seconds after which we stop trying. Defaults to 60 seconds.</span>
+<span class="sd">        - delay_between_attempts (int, optional): The duration in seconds to wait between attempts. Defaults to 5 seconds.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            bool: True if the rayjob reaches Running status, False otherwise.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">while</span> <span class="n">timeout</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">status</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_job_status</span><span class="p">(</span>
+                <span class="n">name</span><span class="p">,</span> <span class="n">k8s_namespace</span><span class="p">,</span> <span class="n">timeout</span><span class="p">,</span> <span class="n">delay_between_attempts</span>
+            <span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">status</span> <span class="ow">and</span> <span class="s2">&quot;jobDeploymentStatus&quot;</span> <span class="ow">in</span> <span class="n">status</span><span class="p">:</span>
+                <span class="n">deployment_status</span> <span class="o">=</span> <span class="n">status</span><span class="p">[</span><span class="s2">&quot;jobDeploymentStatus&quot;</span><span class="p">]</span>
+                <span class="k">if</span> <span class="n">deployment_status</span> <span class="o">==</span> <span class="s2">&quot;Running&quot;</span><span class="p">:</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;rayjob </span><span class="si">{}</span><span class="s2"> is running&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">name</span><span class="p">))</span>
+                    <span class="k">return</span> <span class="kc">True</span>
+                <span class="k">elif</span> <span class="n">deployment_status</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;Complete&quot;</span><span class="p">,</span> <span class="s2">&quot;Failed&quot;</span><span class="p">,</span> <span class="s2">&quot;Suspended&quot;</span><span class="p">]:</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                        <span class="s2">&quot;rayjob </span><span class="si">{}</span><span class="s2"> reached terminal/suspended status </span><span class="si">{}</span><span class="s2"> before running&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                            <span class="n">name</span><span class="p">,</span> <span class="n">deployment_status</span>
+                        <span class="p">)</span>
+                    <span class="p">)</span>
+                    <span class="k">return</span> <span class="kc">False</span>
+                <span class="k">elif</span> <span class="n">deployment_status</span><span class="p">:</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;rayjob </span><span class="si">{}</span><span class="s2"> is </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">deployment_status</span><span class="o">.</span><span class="n">lower</span><span class="p">()))</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;rayjob </span><span class="si">{}</span><span class="s2"> deployment status not set yet&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">name</span><span class="p">))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;rayjob </span><span class="si">{}</span><span class="s2"> status not available yet, waiting...&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">name</span><span class="p">))</span>
+
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">delay_between_attempts</span><span class="p">)</span>
+            <span class="n">timeout</span> <span class="o">-=</span> <span class="n">delay_between_attempts</span>
+
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;rayjob </span><span class="si">{}</span><span class="s2"> has not reached running status before timeout&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">name</span><span class="p">))</span>
+        <span class="k">return</span> <span class="kc">False</span></div>
+
+
+<div class="viewcode-block" id="RayjobApi.suspend_job">
+<a class="viewcode-back" href="../../../../codeflare_sdk.vendored.python_client.html#codeflare_sdk.vendored.python_client.kuberay_job_api.RayjobApi.suspend_job">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">suspend_job</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">k8s_namespace</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;default&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Stop a Ray job by setting the suspend field to True.</span>
+
+<span class="sd">        This will delete the associated RayCluster and transition the job to &#39;Suspended&#39; status.</span>
+<span class="sd">        Only works on jobs in &#39;Running&#39; or &#39;Initializing&#39; status.</span>
+
+<span class="sd">        Parameters:</span>
+<span class="sd">        - name (str): The name of the Ray job custom resource.</span>
+<span class="sd">        - k8s_namespace (str, optional): The namespace in which to stop the Ray job. Defaults to &quot;default&quot;.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            bool: True if the job was successfully suspended, False otherwise.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">patch_body</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;spec&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;suspend&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">}}</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">api</span><span class="o">.</span><span class="n">patch_namespaced_custom_object</span><span class="p">(</span>
+                <span class="n">group</span><span class="o">=</span><span class="n">constants</span><span class="o">.</span><span class="n">GROUP</span><span class="p">,</span>
+                <span class="n">version</span><span class="o">=</span><span class="n">constants</span><span class="o">.</span><span class="n">JOB_VERSION</span><span class="p">,</span>
+                <span class="n">plural</span><span class="o">=</span><span class="n">constants</span><span class="o">.</span><span class="n">JOB_PLURAL</span><span class="p">,</span>
+                <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span>
+                <span class="n">namespace</span><span class="o">=</span><span class="n">k8s_namespace</span><span class="p">,</span>
+                <span class="n">body</span><span class="o">=</span><span class="n">patch_body</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Successfully suspended rayjob </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2"> in namespace </span><span class="si">{</span><span class="n">k8s_namespace</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span>
+            <span class="k">return</span> <span class="kc">True</span>
+        <span class="k">except</span> <span class="n">ApiException</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">e</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="mi">404</span><span class="p">:</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;rayjob </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2"> not found in namespace </span><span class="si">{</span><span class="n">k8s_namespace</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;error stopping rayjob </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="o">.</span><span class="n">reason</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">False</span></div>
+
+
+<div class="viewcode-block" id="RayjobApi.resubmit_job">
+<a class="viewcode-back" href="../../../../codeflare_sdk.vendored.python_client.html#codeflare_sdk.vendored.python_client.kuberay_job_api.RayjobApi.resubmit_job">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">resubmit_job</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">k8s_namespace</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;default&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Resubmit a suspended Ray job by setting the suspend field to False.</span>
+
+<span class="sd">        This will create a new RayCluster and resubmit the job.</span>
+<span class="sd">        Only works on jobs in &#39;Suspended&#39; status.</span>
+
+<span class="sd">        Parameters:</span>
+<span class="sd">        - name (str): The name of the Ray job custom resource.</span>
+<span class="sd">        - k8s_namespace (str, optional): The namespace in which to resubmit the Ray job. Defaults to &quot;default&quot;.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            bool: True if the job was successfully resubmitted, False otherwise.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="c1"># Patch the RayJob to set suspend=false</span>
+            <span class="n">patch_body</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;spec&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;suspend&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">}}</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">api</span><span class="o">.</span><span class="n">patch_namespaced_custom_object</span><span class="p">(</span>
+                <span class="n">group</span><span class="o">=</span><span class="n">constants</span><span class="o">.</span><span class="n">GROUP</span><span class="p">,</span>
+                <span class="n">version</span><span class="o">=</span><span class="n">constants</span><span class="o">.</span><span class="n">JOB_VERSION</span><span class="p">,</span>
+                <span class="n">plural</span><span class="o">=</span><span class="n">constants</span><span class="o">.</span><span class="n">JOB_PLURAL</span><span class="p">,</span>
+                <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span>
+                <span class="n">namespace</span><span class="o">=</span><span class="n">k8s_namespace</span><span class="p">,</span>
+                <span class="n">body</span><span class="o">=</span><span class="n">patch_body</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Successfully resubmitted rayjob </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2"> in namespace </span><span class="si">{</span><span class="n">k8s_namespace</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span>
+            <span class="k">return</span> <span class="kc">True</span>
+        <span class="k">except</span> <span class="n">ApiException</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">e</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="mi">404</span><span class="p">:</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;rayjob </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2"> not found in namespace </span><span class="si">{</span><span class="n">k8s_namespace</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;error resubmitting rayjob </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="o">.</span><span class="n">reason</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">False</span></div>
+
+
+<div class="viewcode-block" id="RayjobApi.delete_job">
+<a class="viewcode-back" href="../../../../codeflare_sdk.vendored.python_client.html#codeflare_sdk.vendored.python_client.kuberay_job_api.RayjobApi.delete_job">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">delete_job</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">k8s_namespace</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;default&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Delete a Ray job and all of its associated data.</span>
+
+<span class="sd">        Parameters:</span>
+<span class="sd">        - name (str): The name of the Ray job custom resource.</span>
+<span class="sd">        - k8s_namespace (str, optional): The namespace in which to delete the Ray job. Defaults to &quot;default&quot;.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            bool: True if the job was successfully deleted, False otherwise.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">api</span><span class="o">.</span><span class="n">delete_namespaced_custom_object</span><span class="p">(</span>
+                <span class="n">group</span><span class="o">=</span><span class="n">constants</span><span class="o">.</span><span class="n">GROUP</span><span class="p">,</span>
+                <span class="n">version</span><span class="o">=</span><span class="n">constants</span><span class="o">.</span><span class="n">JOB_VERSION</span><span class="p">,</span>
+                <span class="n">plural</span><span class="o">=</span><span class="n">constants</span><span class="o">.</span><span class="n">JOB_PLURAL</span><span class="p">,</span>
+                <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span>
+                <span class="n">namespace</span><span class="o">=</span><span class="n">k8s_namespace</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Successfully deleted rayjob </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2"> in namespace </span><span class="si">{</span><span class="n">k8s_namespace</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">True</span>
+        <span class="k">except</span> <span class="n">ApiException</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">e</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="mi">404</span><span class="p">:</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;rayjob custom resource already deleted. error = </span><span class="si">{</span><span class="n">e</span><span class="o">.</span><span class="n">reason</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="k">return</span> <span class="kc">False</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;error deleting the rayjob custom resource: </span><span class="si">{</span><span class="n">e</span><span class="o">.</span><span class="n">reason</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="k">return</span> <span class="kc">False</span></div>
+
+
+<div class="viewcode-block" id="RayjobApi.get_job">
+<a class="viewcode-back" href="../../../../codeflare_sdk.vendored.python_client.html#codeflare_sdk.vendored.python_client.kuberay_job_api.RayjobApi.get_job">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_job</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">k8s_namespace</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;default&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get a Ray job in a given namespace.&quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">api</span><span class="o">.</span><span class="n">get_namespaced_custom_object</span><span class="p">(</span>
+                <span class="n">group</span><span class="o">=</span><span class="n">constants</span><span class="o">.</span><span class="n">GROUP</span><span class="p">,</span>
+                <span class="n">version</span><span class="o">=</span><span class="n">constants</span><span class="o">.</span><span class="n">JOB_VERSION</span><span class="p">,</span>
+                <span class="n">plural</span><span class="o">=</span><span class="n">constants</span><span class="o">.</span><span class="n">JOB_PLURAL</span><span class="p">,</span>
+                <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span>
+                <span class="n">namespace</span><span class="o">=</span><span class="n">k8s_namespace</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="k">except</span> <span class="n">ApiException</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">e</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="mi">404</span><span class="p">:</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;rayjob </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2"> not found in namespace </span><span class="si">{</span><span class="n">k8s_namespace</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="k">return</span> <span class="kc">None</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;error fetching rayjob </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="o">.</span><span class="n">reason</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="k">return</span> <span class="kc">None</span></div>
+
+
+<div class="viewcode-block" id="RayjobApi.list_jobs">
+<a class="viewcode-back" href="../../../../codeflare_sdk.vendored.python_client.html#codeflare_sdk.vendored.python_client.kuberay_job_api.RayjobApi.list_jobs">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">list_jobs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k8s_namespace</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;default&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;List all Ray jobs in a given namespace.&quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">api</span><span class="o">.</span><span class="n">list_namespaced_custom_object</span><span class="p">(</span>
+                <span class="n">group</span><span class="o">=</span><span class="n">constants</span><span class="o">.</span><span class="n">GROUP</span><span class="p">,</span>
+                <span class="n">version</span><span class="o">=</span><span class="n">constants</span><span class="o">.</span><span class="n">JOB_VERSION</span><span class="p">,</span>
+                <span class="n">plural</span><span class="o">=</span><span class="n">constants</span><span class="o">.</span><span class="n">JOB_PLURAL</span><span class="p">,</span>
+                <span class="n">namespace</span><span class="o">=</span><span class="n">k8s_namespace</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="k">except</span> <span class="n">ApiException</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;error fetching rayjobs: </span><span class="si">{</span><span class="n">e</span><span class="o">.</span><span class="n">reason</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">None</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Project CodeFlare.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
