@@ -267,31 +267,31 @@ class RayJob:
             if self.local_queue:
                 labels["kueue.x-k8s.io/queue-name"] = self.local_queue
             else:
-                # Auto-detect default queue for new clusters
+                # Auto-detect default queue for new clusters.
+                # If no default queue is found (e.g. Kueue not installed),
+                # skip the label entirely so the job can run without Kueue.
+                # This matches the interactive Cluster behavior in build_ray_cluster.py.
                 default_queue = get_default_kueue_name(self.namespace)
                 if default_queue:
                     labels["kueue.x-k8s.io/queue-name"] = default_queue
                 else:
-                    # No default queue found, use "default" as fallback
-                    labels["kueue.x-k8s.io/queue-name"] = "default"
-                    logger.warning(
+                    logger.info(
                         f"No default Kueue LocalQueue found in namespace '{self.namespace}'. "
-                        f"Using 'default' as the queue name. If a LocalQueue named 'default' "
-                        f"does not exist, the RayJob submission will fail. "
-                        f"To fix this, please explicitly specify the 'local_queue' parameter."
+                        f"Submitting RayJob without Kueue queue management. "
+                        f"To use Kueue, specify the 'local_queue' parameter or "
+                        f"annotate a LocalQueue with 'kueue.x-k8s.io/default-queue: true'."
                     )
 
             if self.priority_class:
                 labels["kueue.x-k8s.io/priority-class"] = self.priority_class
 
-            # Apply labels to metadata
+            # Apply labels to metadata.
+            # We intentionally do NOT set suspend=true here. Kueue's mutating
+            # webhook will set it automatically when it sees the queue label.
+            # This way, if Kueue isn't installed, the label is harmless metadata
+            # and the job runs immediately without hanging.
             if labels:
                 rayjob_cr["metadata"]["labels"] = labels
-
-            # When using Kueue with lifecycled clusters, start with suspend=true
-            # Kueue will unsuspend the job once the workload is admitted
-            if labels.get("kueue.x-k8s.io/queue-name"):
-                rayjob_cr["spec"]["suspend"] = True
         else:
             if self.local_queue or self.priority_class:
                 logger.warning(
