@@ -900,7 +900,7 @@ def test_cluster_namespace_handling(mocker, capsys):
     cluster = Cluster(config)
     captured = capsys.readouterr()
     # Verify the warning message was printed
-    assert "Please specify with namespace=<your_current_namespace>" in captured.out
+    assert "Please specify namespace=<your_current_namespace>" in captured.out
     assert cluster.config.namespace is None
 
 
