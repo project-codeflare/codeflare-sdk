@@ -212,7 +212,6 @@ def build_ray_cluster(cluster: "codeflare_sdk.ray.cluster.Cluster"):
     if cluster.config.write_to_file:
         return write_to_file(cluster, resource)  # Writes the file and returns its name
     else:
-        print(f"Yaml resources loaded for {cluster.config.name}")
         return resource  # Returns the Resource as a dict
 
 

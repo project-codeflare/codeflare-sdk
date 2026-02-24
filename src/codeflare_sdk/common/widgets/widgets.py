@@ -299,18 +299,24 @@ def cluster_apply_down_buttons(
     def on_apply_button_clicked(b):  # Handle the apply button click event
         with output:
             output.clear_output()
-            # Use shorter TLS timeout (60s) for widget button clicks to avoid blocking UI
-            # Users who need full TLS wait can use wait_ready() checkbox or call apply() directly
-            cluster.apply(timeout=60)
+            try:
+                # Use shorter TLS timeout (60s) for widget button clicks to avoid blocking UI
+                # Users who need full TLS wait can use wait_ready() checkbox or call apply() directly
+                cluster.apply(timeout=60)
 
-            # If the wait_ready Checkbox is clicked(value == True) trigger the wait_ready function
-            if wait_ready_check.value:
-                cluster.wait_ready()
+                # If the wait_ready Checkbox is clicked(value == True) trigger the wait_ready function
+                if wait_ready_check.value:
+                    cluster.wait_ready()
+            except RuntimeError:
+                pass
 
     def on_down_button_clicked(b):  # Handle the down button click event
         with output:
             output.clear_output()
-            cluster.down()
+            try:
+                cluster.down()
+            except RuntimeError:
+                pass
 
     apply_button.on_click(on_apply_button_clicked)
     delete_button.on_click(on_down_button_clicked)

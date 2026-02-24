@@ -66,6 +66,8 @@ class Cluster:
             return
         else:
             self.resource_yaml = self.create_resource()
+            if not self.config.write_to_file:
+                print(f"Yaml resources loaded for {self.config.name}")
 
         if is_notebook():
             cluster_apply_down_buttons(self)
@@ -115,7 +117,7 @@ class Cluster:
         if self.config.namespace is None:
             self.config.namespace = get_current_namespace()
             if self.config.namespace is None:
-                print("Please specify with namespace=<your_current_namespace>")
+                print("Please specify namespace=<your_current_namespace>")
             elif type(self.config.namespace) is not str:
                 raise TypeError(
                     f"Namespace {self.config.namespace} is of type {type(self.config.namespace)}. Check your Kubernetes Authentication."
@@ -141,13 +143,17 @@ class Cluster:
             self._component_resources_up(namespace, api_instance)
             print(f"Ray Cluster: '{self.config.name}' has successfully been created")
         except Exception as e:  # pragma: no cover
-            if e.status == 422:
+            if hasattr(e, "status") and e.status == 422:
+                print("WARNING: RayCluster creation was rejected (invalid request).")
+            elif hasattr(e, "status") and e.status == 409:
                 print(
-                    "WARNING: RayCluster creation rejected due to invalid Kueue configuration. Please contact your administrator."
+                    "WARNING: A RayCluster with this name already exists. "
+                    "Delete or use a different name, then try again."
                 )
+                return
             else:
                 print(
-                    "WARNING: Failed to create RayCluster due to unexpected error. Please contact your administrator."
+                    "WARNING: Failed to create RayCluster due to an unexpected error."
                 )
             return _kube_api_error_handling(e)
 
@@ -192,12 +198,16 @@ class Cluster:
             if (
                 hasattr(e, "status") and e.status == 422
             ):  # adding status check to avoid returning false positive
+                print("WARNING: RayCluster creation was rejected (invalid request).")
+            elif hasattr(e, "status") and e.status == 409:
                 print(
-                    "WARNING: RayCluster creation rejected due to invalid Kueue configuration. Please contact your administrator."
+                    "WARNING: A RayCluster with this name already exists. "
+                    "Delete or use a different name, then try again."
                 )
+                return
             else:
                 print(
-                    "WARNING: Failed to create RayCluster due to unexpected error. Please contact your administrator."
+                    "WARNING: Failed to create RayCluster due to an unexpected error."
                 )
             return _kube_api_error_handling(e)
 
@@ -297,12 +307,11 @@ class Cluster:
         except ApiException as e:
             if e.status == 404:
                 raise RuntimeError(
-                    "RayCluster CustomResourceDefinition unavailable contact your administrator."
+                    "RayCluster CustomResourceDefinition unavailable. "
+                    "Contact your administrator."
                 )
-            else:
-                raise RuntimeError(
-                    "Failed to get RayCluster CustomResourceDefinition: " + str(e)
-                )
+            _kube_api_error_handling(e)
+            raise RuntimeError("Failed to get RayCluster CustomResourceDefinition.")
 
     def down(self):
         """
