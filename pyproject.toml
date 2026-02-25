@@ -1,10 +1,10 @@
 [project]
 name = "codeflare-sdk"
-version = "0.31.3"
+version = "0.31.4"
 
 [tool.poetry]
 name = "codeflare-sdk"
-version = "0.31.3"
+version = "0.31.4"
 description = "Python SDK for codeflare client"
 
 license = "Apache-2.0"
@@ -29,7 +29,7 @@ openshift-client = "1.0.18"
 rich = ">=12.5,<14.0"
 ray = {version = "2.52.1", extras = ["data", "default"]}
 kubernetes = ">= 27.2.0"
-cryptography = "43.0.3"
+cryptography = "46.0.5"
 executing = "1.2.0"
 pydantic = ">= 2.10.6"
 ipywidgets = "8.1.2"
