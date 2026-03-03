@@ -34,6 +34,7 @@ jobs:
     - name: Coverage Badge
       run: |
         pip install 'setuptools<82' coverage-badge
+        rm -f coverage.svg
         coverage-badge -o coverage.svg
 
     - name: Verify Changed files
