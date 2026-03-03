@@ -32,9 +32,7 @@ jobs:
         coverage run --omit="src/**/test_*.py,src/codeflare_sdk/common/utils/unit_test_support.py,src/codeflare_sdk/vendored/**" -m pytest
 
     - name: Coverage Badge
-      run: |
-        pip install 'setuptools<82' coverage-badge
-        coverage-badge -o coverage.svg
+      uses: tj-actions/coverage-badge-py@v2
 
     - name: Verify Changed files
       uses: tj-actions/verify-changed-files@v18
