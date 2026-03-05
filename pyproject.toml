@@ -36,7 +36,7 @@ keywords = ['codeflare', 'python', 'sdk', 'client', 'batch', 'scale']
 python = "^3.11"
 openshift-client = "1.0.18"
 rich = ">=12.5,<15.0"
-ray = {version = "2.52.1", extras = ["data", "default"]}
+ray = {version = "2.54.0", extras = ["data", "default"]}
 kubernetes = ">= 27.2.0"
 cryptography = "46.0.5"
 executing = "2.2.1"
