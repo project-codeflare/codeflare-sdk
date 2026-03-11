@@ -1,0 +1,122 @@
+---
+description: Testing and coverage when new code is added — pre-commit, unit tests, coverage (no E2E/notebooks)
+globs: "**/test_*.py,**/*_test.py,**/tests/**/*.py,src/**/*.py,.github/workflows/*.yml,.github/workflows/*.yaml"
+alwaysApply: true
+---
+
+# Testing & coverage (new code)
+
+When **new code is added**, run this validation pipeline: **pre-commit**, **unit tests**, and **coverage**. Do **not** run E2E or notebook tests (they take too long).
+
+---
+
+## Cursor: no git commands
+
+- **Cursor MUST NOT run any git commands** (e.g. no `git commit`, `git push`, `git add`, `git status`, etc.). The user runs git themselves.
+
+---
+
+## Validation when adding new code
+
+**Quick commands** (unit tests only, no E2E/notebooks):
+```bash
+pre-commit run --show-diff-on-failure --color=always --all-files
+poetry install --with test
+coverage run --omit="src/**/test_*.py,src/codeflare_sdk/common/utils/unit_test_support.py,src/codeflare_sdk/vendored/**" -m pytest --ignore=tests/e2e --ignore=tests/e2e_v2 --ignore=tests/upgrade --ignore=demo-notebooks --ignore=ui-tests
+coverage report -m
+```
+
+### 1. Pre-commit
+- Run before considering changes done: `pre-commit run --all-files` (or the full command above).
+- Do not skip or alter pre-commit hooks.
+
+### 2. Unit tests (no E2E, no notebooks)
+- Run **only unit tests**. Do **not** run E2E or notebook tests (they take too long). Exclude: `tests/e2e`, `tests/e2e_v2`, `tests/upgrade`, `demo-notebooks`, `ui-tests`.
+- Use the coverage + pytest command from **Quick commands** above.
+
+### 3. Coverage requirements
+- **Patch coverage**: **85%** target with **2.5%** threshold (fail if patch coverage drops by more than 2.5%).
+- **Codebase (project) coverage**: **90%** target. Fail if overall coverage is below 90%.
+- **codecov.yml**: patch 85%, threshold 2.5%; project target 90%. Ignore: `**/*.ipynb`, `demo-notebooks/**`, `**/__init__.py`.
+
+---
+
+## Unit test stack (do not replace)
+- **Runner**: pytest 9.x. **Extras**: pytest-mock, pytest-timeout (default timeout 900s in pyproject.toml). **Coverage**: coverage 7.x.
+
+### Where unit tests live
+- Tests next to code: `src/codeflare_sdk/**/test_*.py`. Ignore: `src/codeflare_sdk/vendored/**`, `unit_test_support.py`.
+- **conftest.py**: The global `src/codeflare_sdk/conftest.py` auto-mocks K8s API clients; tests inherit these mocks. Override with `mocker` or `monkeypatch` when testing specific K8s/config behavior. Never make real Kubernetes API calls in unit tests.
+
+### Pytest markers (use when relevant)
+- `smoke` — quick validation. `tier1` — standard suite.
+- `kind`, `openshift`, `nvidia_gpu` — environment-specific (E2E only; do not run in the “new code” flow).
+
+### Writing tests
+- Use **mocker** (pytest-mock) for K8s/API calls; see `test_kueue.py` and `test_auth*.py` for patterns.
+- Prefer **unit_test_support** helpers where present: `get_local_queue`, `create_cluster_config`, `apply_template`, etc.
+- New code in `src/codeflare_sdk` should have corresponding tests so patch coverage stays ≥85% and project coverage ≥90%.
+
+---
+
+## CI workflows (reference only; E2E/notebooks not in “new code” flow)
+
+### Versions (CI env)
+- **KUEUE_VERSION**: v0.13.4. **KUBERAY_VERSION**: v1.4.2 (opendatahub-io/kuberay fork, RHOAI features). **Python**: 3.12. **Common repo**: project-codeflare/codeflare-common @ main (KinD/GPU setup).
+
+### Pre-commit (every PR / workflow_dispatch)
+- **Run before pushing**: `pre-commit run --all-files`. Image: `quay.io/project-codeflare/codeflare-sdk-precommit:v0.0.1`. Do not skip or alter pre-commit hooks.
+
+### Unit tests (every PR)
+- `poetry install --with test` then pytest with coverage ≥90%. No paths-ignore for this workflow.
+
+### RayJob E2E (PR to main, release-*, ray-jobs-feature)
+- **Paths-ignore**: docs/**, **.adoc, **.md, LICENSE. **Runner**: gpu-t4-4-core. KinD + NVIDIA GPU operator + Kueue + KubeRay.
+- **Command**: `poetry run pytest -v -s ./tests/e2e/rayjob/`
+- **RBAC**: sdk-user with limited permissions (rayclusters, rayjobs, localqueues, clusterqueues, resourceflavors, pods, services, secrets, workloads, etc.). Do not assume cluster-admin.
+
+### General E2E (same branches as RayJob E2E)
+- **Command**: `poetry run pytest -v -s ./tests/e2e/ -m 'kind and nvidia_gpu'`
+- E2E tests in `tests/e2e/` must use `@pytest.mark.kind` and `@pytest.mark.nvidia_gpu` to run in this workflow. Place RayJob e2e in `tests/e2e/rayjob/`; other e2e in `tests/e2e/`. Install for e2e: `poetry install --with test,docs`.
+
+### Guided notebooks (label: test-guided-notebooks)
+- KinD + Kueue + KubeRay; no GPU. Notebooks: 0_basic_ray, 4_rayjob_existing_cluster, 5_submit_rayjob_cr. Run with papermill (see Demo notebooks below).
+
+### UI notebooks (labels: test-guided-notebooks or test-ui-notebooks)
+- Job: verify-3_widget_example. Playwright (chromium) in `ui-tests/`; notebook `demo-notebooks/guided-demos/3_widget_example.ipynb`.
+
+### Additional notebooks (label: test-additional-notebooks)
+- local_interactive.ipynb and ray_job_client.ipynb are **skipped** in CI (mTLS/OpenShift required; not available in KinD).
+
+---
+
+## Demo notebooks & CI
+
+### Notebooks executed in CI
+
+| Notebook | Workflow | Notes |
+|----------|----------|--------|
+| 0_basic_ray.ipynb | Guided | KinD: namespace='default', dashboard_check=False, remove auth cells |
+| 4_rayjob_existing_cluster.ipynb | Guided | KinD: namespace='default', GPU 0, remove oc login cell |
+| 5_submit_rayjob_cr.ipynb | Guided | KinD: namespace='default', remove oc login cell |
+| 3_widget_example.ipynb | UI | Playwright in ui-tests/; namespace='default', view_clusters('default'), remove auth cells |
+
+**Skipped in CI** (require mTLS/OpenShift): local_interactive.ipynb, ray_job_client.ipynb.
+
+### KinD-specific adaptations (CI applies these)
+- **Auth**: Remove cells that do auth/login (e.g. "Create authentication object for user permissions", `auth.logout()`, `oc login`) — KinD doesn't support token auth the same way.
+- **Namespace**: Use `namespace='default'` where the SDK needs it. Replace `namespace="your-namespace"` with `namespace="default"` in notebooks.
+- **Dashboard**: Use `cluster.wait_ready(dashboard_check=False)` in KinD (no HTTPRoute/Route).
+- **GPU**: In KinD jobs without GPU, set GPU requests to 0 (e.g. `head_extended_resource_requests={'nvidia.com/gpu':0}`).
+- **Widget**: For 3_widget_example, call `view_clusters('default')` with explicit namespace.
+
+When editing guided demos, keep them runnable on both real OpenShift and KinD; CI runs on KinD with the above edits applied in the workflow.
+
+### How notebooks are run
+- **Guided**: `poetry run papermill <notebook>.ipynb <notebook>_out.ipynb --log-output --execution-timeout 600` from `demo-notebooks/guided-demos`. Install: `poetry install --with test,docs`; for papermill also `pip install papermill ipython ipykernel`.
+- **UI**: From `ui-tests/`, `poetry run yarn test` (Playwright). Dependencies: `yarn install`, `yarn playwright install chromium`.
+
+### Adding a new notebook that should run in CI
+- **Guided**: Add a job in the Guided notebooks workflow (similar to verify-0_basic_ray), apply the same KinD adaptations in the workflow steps.
+- **UI**: Add to ui-tests and ensure 3_widget_example pattern (namespace, auth removal) if it uses cluster/widget APIs.
+- Do not rely on mTLS or OpenShift-only features if the notebook should run in current KinD CI.

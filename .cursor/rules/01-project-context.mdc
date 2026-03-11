@@ -1,0 +1,66 @@
+---
+description: Codeflare SDK core context, grounding, and user personas — apply to every chat
+globs:
+alwaysApply: true
+---
+
+# Codeflare SDK — Core context & personas
+
+## What this is
+- **Codeflare SDK**: Python SDK for batch resource requesting, Ray clusters, job submission, Kueue. Apache-2.0.
+- **Python**: ^3.11 in pyproject.toml; CI runs 3.12.
+- **Repo**: [project-codeflare/codeflare-sdk](https://github.com/project-codeflare/codeflare-sdk). Main package: `src/codeflare_sdk/`.
+
+## Project structure
+```
+src/codeflare_sdk/
+  __init__.py              # Public API — export new public classes/functions here
+  conftest.py              # Global test fixtures (auto-mocks K8s API clients)
+  common/
+    kubernetes_cluster/    # Auth, API client, error handling
+    kueue/                 # Local queue listing, default queue resolution
+    utils/                 # Constants, helpers, validation
+    widgets/               # Jupyter/IPython widgets
+  ray/
+    cluster/               # Cluster create/config/status/delete (main entry: Cluster)
+    rayjobs/               # RayJob submit, tracking, runtime env
+    client/                # Ray JobSubmissionClient wrapper
+  vendored/                # DO NOT MODIFY — vendored KubeRay client
+tests/
+  e2e/, e2e_v2/            # E2E (KinD/Kueue/KubeRay); not run in “new code” flow
+```
+
+## Public API
+- **Export new public classes and functions** in `src/codeflare_sdk/__init__.py`. Do not add public API without listing it there.
+
+## Grounding — avoid hallucination
+- **Only use APIs, types, and file paths that exist in this codebase.** If unsure, search the repo (e.g. `codeflare_sdk`, `Cluster`, `ClusterConfiguration`, `get_api_client`) before suggesting code.
+- **Do not invent** new modules, env vars, or config keys unless the user explicitly asks to add them.
+- **Prefer referencing** existing modules: `codeflare_sdk.ray.cluster`, `codeflare_sdk.common.kueue`, `codeflare_sdk.common.kubernetes_cluster.auth`, etc.
+- When adding features, follow existing patterns in the same package (e.g. `kueue.py` for Kueue, cluster code under `ray/cluster/`).
+
+## Conventions (high level)
+- New code: type hints, Apache-2.0 header. Tests: pytest; coverage ≥90% project, ≥85% patch. Format: pre-commit.
+
+---
+
+## User personas
+
+Use these personas to keep code, APIs, and docs user-relevant.
+
+### Cluster / platform admin
+- Manages Kubernetes/OpenShift, Kueue, quotas, namespaces.
+- Cares about: auth (kubeconfig, OIDC, tokens), RBAC, resource limits, default queues, priority classes.
+- Prefer: clear errors, `config_check()`, namespace/queue handling, security and quotas.
+
+### Data scientist / ML engineer
+- Runs Ray jobs, uses notebooks, wants minimal YAML/K8s.
+- Cares about: `Cluster`/`ClusterConfiguration`, job submission, runtime env, demos (`codeflare_sdk.copy_demo_nbs()`).
+- Prefer: simple APIs, good defaults, demos and docs that match notebook workflows.
+
+### Application developer
+- Integrates SDK into apps or pipelines.
+- Cares about: programmatic API, status checks, timeouts, error handling, idempotency.
+- Prefer: stable function signatures, logging, and predictable behavior.
+
+When writing or changing code, consider: "Which persona does this serve?" and keep their use case in mind.
