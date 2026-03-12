@@ -1,0 +1,79 @@
+---
+description: Python coding standards — quality, style, and matching existing codebase patterns
+globs: **/*.py
+alwaysApply: false
+---
+# Python coding standards
+
+When adding or editing code, **match the style and patterns of the surrounding code and the same subpackage**. Prefer consistency with existing files over introducing new conventions.
+
+---
+
+## Style & tooling
+- **Formatting / pre-commit**: Use pre-commit for all checks. Run `pre-commit run --show-diff-on-failure --color=always --all-files` before committing.
+- **Naming**: snake_case for functions, variables, modules; PascalCase for classes.
+- **Apache-2.0 header** at top of new files (see any `src/codeflare_sdk/**/*.py`).
+- **Type hints** for function parameters and return types (e.g. `Optional[str]`, `List[...]`). Use `typing`: `Optional`, `List`, `Dict`, `Tuple`. Prefer **dataclasses** for configuration or data-holding types (see `ClusterConfiguration` in config.py).
+
+---
+
+## Docstrings
+- **Format**: Google-style. One-line summary; then `Args:` with `name (type):` or `name (type, optional):`; then `Returns:`; add `Note:` or `Raises:` if needed. Required for public functions.
+- **Example** (match this style):
+  ```
+  Args:
+      namespace (str):
+          The Kubernetes namespace to query.
+  Returns:
+      Optional[str]:
+          The name of the default queue, or None.
+  ```
+- Optional multi-line description before Args for non-trivial behavior (see `get_default_kueue_name` in kueue.py).
+- **Module docstring**: Optional but used in submodules (e.g. cluster, config, auth) — short description of what the module provides.
+
+---
+
+## Imports
+- **Order**: stdlib → third-party → local. Blank line between groups.
+- **Local imports**: Use **relative** imports within the same package (e.g. `from ...common.utils import get_current_namespace`, `from .config import ClusterConfiguration`). Use **absolute** `from codeflare_sdk....` when importing from another top-level package or in tests.
+- **K8s/auth**: Prefer `from codeflare_sdk.common.kubernetes_cluster.auth import config_check, get_api_client` or `from ...common.kubernetes_cluster.auth import ...`. Use `from codeflare_sdk.common import _kube_api_error_handling` (or relative `...common`) for API error handling.
+
+---
+
+## Structure & naming
+- **Private helpers**: Prefix with `_` (e.g. `_fetch_local_queues`, `_find_default_queue_name`). Use for logic that is not part of the public API.
+- **Logging**: `logger = logging.getLogger(__name__)` at module level; use `logger` instead of `print` for runtime or debug output. (Some legacy code still uses `print`; new code should use `logger`.)
+- **Deprecation**: Use `@deprecated` from `typing_extensions` and `warnings.warn(..., DeprecationWarning, stacklevel=2)`; see `auth.py` for the pattern.
+
+---
+
+## Kubernetes / API errors
+- Use **`_kube_api_error_handling(e)`** for `ApiException` (from `kubernetes.client.exceptions` or `kubernetes.client.rest`). Do not add new ad-hoc exception handling patterns; follow kueue.py and build_ray_cluster.py.
+- Call **`config_check()`** before K8s API calls when the code path expects a configured client.
+- Use **`get_api_client()`** to obtain the client; do not instantiate new Kubernetes clients directly for the default SDK-configured client.
+
+## Parsing Kubernetes / API response dicts
+- Assume CR or list/get response fields can be **missing or wrong type**. Use safe access (e.g. `.get()`, `try/except` for KeyError, IndexError, TypeError) and coerce numeric fields with **`int(...)`** where appropriate (e.g. replicas, counts) so string or missing values do not crash.
+- For status-like fields, **reuse existing project enums** (e.g. `RayClusterStatus` in `ray/cluster/status.py`). Map invalid or missing values to the enum’s unknown/default (e.g. `RayClusterStatus.UNKNOWN`) inside a try/except; do not introduce new string constants for the same concept.
+
+---
+
+## Canonical examples (copy patterns from these)
+- **Kueue / K8s API helpers**: `src/codeflare_sdk/common/kueue/kueue.py` — docstrings, `_helper` functions, ApiException handling, `config_check()`/`get_api_client()`.
+- **Cluster / high-level API**: `src/codeflare_sdk/ray/cluster/cluster.py` — class docstrings, relative imports from `...common`, use of `_kube_api_error_handling`.
+- **Config / dataclasses**: `src/codeflare_sdk/ray/cluster/config.py` — module docstring, `@dataclass`, Google-style Args with type in parens.
+- **Auth**: `src/codeflare_sdk/common/kubernetes_cluster/auth.py` — module docstring, deprecation pattern, abstract base classes.
+
+When in doubt, open the nearest existing file in the same package and mirror its style.
+
+---
+
+## Don’t
+- Add new dependencies without updating `pyproject.toml` (Poetry). Use existing test deps: pytest, pytest-mock, pytest-timeout, coverage.
+- Change Python version: keep ^3.11 per pyproject.toml.
+
+## Common pitfalls
+- **Don’t import from vendored** — use the SDK’s own wrappers (e.g. `RayjobApi` via codeflare_sdk, not raw vendored modules).
+- **Don’t hardcode Ray image tags** — use `common/utils/constants.py` (maps Python versions to default images).
+- **Don’t skip `config_check()`** — call it before K8s API calls when the code path expects a configured client.
+- **Unit test timeout is 900s** — long-running tests are killed after 15 minutes (pyproject.toml).
