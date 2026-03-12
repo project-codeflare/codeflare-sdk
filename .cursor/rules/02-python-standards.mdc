@@ -1,9 +1,8 @@
 ---
 description: Python coding standards — quality, style, and matching existing codebase patterns
-globs: "**/*.py"
+globs: **/*.py
 alwaysApply: false
 ---
-
 # Python coding standards
 
 When adding or editing code, **match the style and patterns of the surrounding code and the same subpackage**. Prefer consistency with existing files over introducing new conventions.
@@ -52,6 +51,10 @@ When adding or editing code, **match the style and patterns of the surrounding c
 - Use **`_kube_api_error_handling(e)`** for `ApiException` (from `kubernetes.client.exceptions` or `kubernetes.client.rest`). Do not add new ad-hoc exception handling patterns; follow kueue.py and build_ray_cluster.py.
 - Call **`config_check()`** before K8s API calls when the code path expects a configured client.
 - Use **`get_api_client()`** to obtain the client; do not instantiate new Kubernetes clients directly for the default SDK-configured client.
+
+## Parsing Kubernetes / API response dicts
+- Assume CR or list/get response fields can be **missing or wrong type**. Use safe access (e.g. `.get()`, `try/except` for KeyError, IndexError, TypeError) and coerce numeric fields with **`int(...)`** where appropriate (e.g. replicas, counts) so string or missing values do not crash.
+- For status-like fields, **reuse existing project enums** (e.g. `RayClusterStatus` in `ray/cluster/status.py`). Map invalid or missing values to the enum’s unknown/default (e.g. `RayClusterStatus.UNKNOWN`) inside a try/except; do not introduce new string constants for the same concept.
 
 ---
 

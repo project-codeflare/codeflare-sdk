@@ -10,13 +10,15 @@ When **new code is added**, run this validation pipeline: **pre-commit**, **unit
 
 ---
 
-## Cursor: no git commands
+## Cursor: no write/CRUD git commands
 
-- **Cursor MUST NOT run any git commands** (e.g. no `git commit`, `git push`, `git add`, `git status`, etc.). The user runs git themselves.
-
+- **Cursor MUST NOT run any git commands that modify state** (e.g. no `git commit`, `git push`, `git add`, `git merge`, `git rebase`, `git reset --hard`, etc.). The user runs those themselves.
+- **Cursor MAY run read-only git commands** when useful (e.g. `git status`, `git log`, `git diff`, `git show`, `git checkout -- <path>` to restore a file, `git branch -a`, etc.).
 ---
 
 ## Validation when adding new code
+
+- **When to run**: If you added or changed code in this session, run the validation pipeline **once, just before ending the conversation**. Do not run pre-commit, unit tests, or coverage after every small edit; run them only at the end so the user sees a single pass/fail before they leave.
 
 **Quick commands** (unit tests only, no E2E/notebooks):
 ```bash
@@ -54,8 +56,9 @@ coverage report -m
 
 ### Writing tests
 - Use **mocker** (pytest-mock) for K8s/API calls; see `test_kueue.py` and `test_auth*.py` for patterns.
-- Prefer **unit_test_support** helpers where present: `get_local_queue`, `create_cluster_config`, `apply_template`, etc.
+- Prefer **unit_test_support** helpers where present: `get_local_queue`, `create_cluster_config`, `apply_template`, `get_ray_obj_with_status`, `get_obj_none`, etc.
 - New code in `src/codeflare_sdk` should have corresponding tests so patch coverage stays ≥85% and project coverage ≥90%.
+- **Edge-case tests for API/CR parsing**: When adding code that parses Kubernetes Custom Resource or list/get API response dicts, add at least one test that uses **malformed or partial payloads**: empty `items`, missing `spec` or `status`, empty or missing nested lists (e.g. `workerGroupSpecs`). Assert safe defaults (e.g. 0 for counts, UNKNOWN or equivalent for status). Test error-handling by mocking the API to raise (e.g. `ApiException`); assert the handler is invoked (e.g. mock `_kube_api_error_handling` and `assert_called_once()`) rather than asserting exact stdout text.
 
 ---
 

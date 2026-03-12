@@ -41,6 +41,7 @@ tests/
 
 ## Conventions (high level)
 - New code: type hints, Apache-2.0 header. Tests: pytest; coverage ≥90% project, ≥85% patch. Format: pre-commit.
+- **Reuse existing enums and types** for status/state (e.g. `RayClusterStatus`); do not introduce new string-based status fields for concepts already modeled in the codebase.
 
 ---
 
