@@ -89,7 +89,7 @@ class Cluster:
 
     @property
     def _client_verify_tls(self):
-        return _is_openshift_cluster and self.config.verify_tls
+        return _is_openshift_cluster() and self.config.verify_tls
 
     @property
     def job_client(self):
