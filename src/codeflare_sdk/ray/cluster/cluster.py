@@ -831,16 +831,16 @@ def get_cluster(
         write_to_file=write_to_file,
         head_cpu_limits=resource["spec"]["headGroupSpec"]["template"]["spec"][
             "containers"
-        ][0]["resources"]["requests"]["cpu"],
+        ][0]["resources"]["limits"]["cpu"],
         head_cpu_requests=resource["spec"]["headGroupSpec"]["template"]["spec"][
             "containers"
-        ][0]["resources"]["limits"]["cpu"],
+        ][0]["resources"]["requests"]["cpu"],
         head_memory_limits=resource["spec"]["headGroupSpec"]["template"]["spec"][
             "containers"
-        ][0]["resources"]["requests"]["memory"],
+        ][0]["resources"]["limits"]["memory"],
         head_memory_requests=resource["spec"]["headGroupSpec"]["template"]["spec"][
             "containers"
-        ][0]["resources"]["limits"]["memory"],
+        ][0]["resources"]["requests"]["memory"],
         num_workers=resource["spec"]["workerGroupSpecs"][0]["minReplicas"],
         worker_cpu_limits=resource["spec"]["workerGroupSpecs"][0]["template"]["spec"][
             "containers"
@@ -850,10 +850,10 @@ def get_cluster(
         ][0]["resources"]["requests"]["cpu"],
         worker_memory_limits=resource["spec"]["workerGroupSpecs"][0]["template"][
             "spec"
-        ]["containers"][0]["resources"]["requests"]["memory"],
+        ]["containers"][0]["resources"]["limits"]["memory"],
         worker_memory_requests=resource["spec"]["workerGroupSpecs"][0]["template"][
             "spec"
-        ]["containers"][0]["resources"]["limits"]["memory"],
+        ]["containers"][0]["resources"]["requests"]["memory"],
         head_extended_resource_requests=head_extended_resources,
         worker_extended_resource_requests=worker_extended_resources,
     )
