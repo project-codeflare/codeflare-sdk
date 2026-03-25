@@ -351,21 +351,21 @@ class Cluster:
         # check the ray cluster status
         cluster = _ray_cluster_status(self.config.name, self.config.namespace)
         if cluster:
-            if cluster.status == RayClusterStatus.SUSPENDED:
-                ready = False
-                status = CodeFlareClusterStatus.SUSPENDED
-            if cluster.status == RayClusterStatus.UNKNOWN:
-                ready = False
-                status = CodeFlareClusterStatus.STARTING
             if cluster.status == RayClusterStatus.READY:
                 ready = True
                 status = CodeFlareClusterStatus.READY
+            elif cluster.status == RayClusterStatus.SUSPENDED:
+                ready = False
+                status = CodeFlareClusterStatus.SUSPENDED
             elif cluster.status in [
                 RayClusterStatus.UNHEALTHY,
                 RayClusterStatus.FAILED,
             ]:
                 ready = False
                 status = CodeFlareClusterStatus.FAILED
+            elif cluster.status == RayClusterStatus.UNKNOWN:
+                ready = False
+                status = CodeFlareClusterStatus.STARTING
 
             if print_to_console:
                 # overriding the number of gpus with requested
