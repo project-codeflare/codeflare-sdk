@@ -91,6 +91,11 @@ def test_cluster_status(mocker):
     assert status == CodeFlareClusterStatus.READY
     assert ready is True
 
+    fake_ray.status = RayClusterStatus.SUSPENDED
+    status, ready = cf.status()
+    assert status == CodeFlareClusterStatus.SUSPENDED
+    assert ready is False
+
 
 def rc_status_fields(group, version, namespace, plural, *args):
     assert group == "ray.io"
