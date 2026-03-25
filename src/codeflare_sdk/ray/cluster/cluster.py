@@ -768,17 +768,69 @@ def list_all_clusters(namespace: str, print_to_console: bool = True):
     return clusters
 
 
+def _get_kueue_workload_for_cluster(
+    cluster_name: str, namespace: str
+) -> Optional[dict]:
+    """
+    Find the Kueue Workload associated with a RayCluster.
+
+    Returns the workload object if found, None otherwise.
+    """
+    try:
+        config_check()
+        api_instance = client.CustomObjectsApi(get_api_client())
+        workloads = api_instance.list_namespaced_custom_object(
+            group="kueue.x-k8s.io",
+            version="v1beta1",
+            plural="workloads",
+            namespace=namespace,
+        )
+
+        # Find workload with matching RayCluster owner reference
+        for workload in workloads.get("items", []):
+            owner_refs = workload.get("metadata", {}).get("ownerReferences", [])
+
+            for owner_ref in owner_refs:
+                if (
+                    owner_ref.get("kind") == "RayCluster"
+                    and owner_ref.get("name") == cluster_name
+                ):
+                    return workload
+
+        return None
+    except Exception:
+        # If Kueue is not installed or workload not found, return None
+        return None
+
+
 def list_all_queued(namespace: str, print_to_console: bool = True):
     """
     Returns (and prints by default) a list of all currently queued-up Ray Clusters
     in a given namespace.
+
+    A cluster is considered queued if it has an associated Kueue Workload that has
+    not been admitted yet (workload.status.admission is None or empty).
     """
-    resources = _get_ray_clusters(
-        namespace, filter=[RayClusterStatus.READY, RayClusterStatus.SUSPENDED]
-    )
+    # Fix for RHOAIENG-54734: Check Kueue Workload admission status instead of
+    # RayCluster state. The previous approach incorrectly inferred queue status
+    # from RayCluster state, which doesn't reliably indicate Kueue admission.
+    all_clusters = _get_ray_clusters(namespace)
+    queued_clusters = []
+
+    for cluster in all_clusters:
+        workload = _get_kueue_workload_for_cluster(cluster.name, namespace)
+
+        if workload:
+            # Check if workload has been admitted by Kueue
+            admission = workload.get("status", {}).get("admission")
+            if not admission:
+                # No admission field = workload not admitted yet = still queued
+                queued_clusters.append(cluster)
+        # If no workload exists, cluster is not using Kueue, so it's not "queued"
+
     if print_to_console:
-        pretty_print.print_ray_clusters_status(resources)
-    return resources
+        pretty_print.print_ray_clusters_status(queued_clusters)
+    return queued_clusters
 
 
 def get_cluster(
