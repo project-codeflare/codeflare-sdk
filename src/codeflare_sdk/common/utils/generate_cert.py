@@ -467,7 +467,7 @@ def list_tls_certificates():
 
             # Get directory stats
             stat_info = cert_dir.stat()
-            created = datetime.datetime.fromtimestamp(stat_info.st_ctime)
+            created = datetime.datetime.fromtimestamp(stat_info.st_ctime, tz=timezone.utc)
 
             # Calculate total size
             total_size = sum(
@@ -562,7 +562,7 @@ def cleanup_old_certificates(days=30, dry_run=True):
     """
     import shutil
 
-    cutoff_date = datetime.datetime.now() - datetime.timedelta(days=days)
+    cutoff_date = datetime.datetime.now(timezone.utc) - datetime.timedelta(days=days)
     old_certs = []
 
     certificates = list_tls_certificates()
