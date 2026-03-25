@@ -130,8 +130,11 @@ class Cluster:
         Applies the Cluster yaml, pushing the resource request onto
         the Kueue localqueue.
         """
-        print(
-            "WARNING: The up() function is planned for deprecation in favor of apply()."
+        # Fix for RHOAIENG-54731: Use warnings.warn() instead of print() for deprecation
+        warnings.warn(
+            "up() is deprecated and will be removed in a future version. Use apply() instead.",
+            DeprecationWarning,
+            stacklevel=2,
         )
         # check if RayCluster CustomResourceDefinition exists if not throw RuntimeError
         self._throw_for_no_raycluster()
