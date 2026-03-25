@@ -307,16 +307,18 @@ def cluster_apply_down_buttons(
                 # If the wait_ready Checkbox is clicked(value == True) trigger the wait_ready function
                 if wait_ready_check.value:
                     cluster.wait_ready()
-            except RuntimeError:
-                pass
+            except RuntimeError as e:
+                # Fix for RHOAIENG-54733: display error instead of silently swallowing it
+                print(f"Error applying cluster: {e}")
 
     def on_down_button_clicked(b):  # Handle the down button click event
         with output:
             output.clear_output()
             try:
                 cluster.down()
-            except RuntimeError:
-                pass
+            except RuntimeError as e:
+                # Fix for RHOAIENG-54733: display error instead of silently swallowing it
+                print(f"Error deleting cluster: {e}")
 
     apply_button.on_click(on_apply_button_clicked)
     delete_button.on_click(on_down_button_clicked)
