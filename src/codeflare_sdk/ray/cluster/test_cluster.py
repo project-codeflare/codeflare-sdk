@@ -2115,6 +2115,92 @@ def test_job_logs(mocker):
     mock_job_client.get_job_logs.assert_called_once_with("job-123")
 
 
+def test_head_only_cluster_no_workers(mocker):
+    """
+    Test for RHOAIENG-54729: Functions should handle head-only clusters (num_workers=0)
+    without crashing on IndexError when accessing workerGroupSpecs[0]
+    """
+    from codeflare_sdk.ray.cluster.cluster import (
+        Cluster,
+        _map_to_ray_cluster,
+        get_cluster,
+    )
+
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+    mocker.patch(
+        "codeflare_sdk.ray.cluster.cluster._is_openshift_cluster", return_value=False
+    )
+
+    mock_api_client = mocker.MagicMock(spec=client.ApiClient)
+    mocker.patch(
+        "codeflare_sdk.common.kubernetes_cluster.auth.get_api_client",
+        return_value=mock_api_client,
+    )
+
+    # Create a head-only cluster dict (workerGroupSpecs is empty list)
+    head_only_rc = {
+        "apiVersion": "ray.io/v1",
+        "kind": "RayCluster",
+        "metadata": {
+            "name": "head-only-cluster",
+            "namespace": "ns",
+        },
+        "spec": {
+            "headGroupSpec": {
+                "template": {
+                    "spec": {
+                        "containers": [
+                            {
+                                "name": "ray-head",
+                                "resources": {
+                                    "limits": {"cpu": "2", "memory": "8G"},
+                                    "requests": {"cpu": "2", "memory": "8G"},
+                                },
+                            }
+                        ]
+                    }
+                }
+            },
+            "workerGroupSpecs": [],  # Empty - head-only cluster
+        },
+        "status": {"state": "ready"},
+    }
+
+    # Test 1: _head_worker_extended_resources_from_rc_dict should not crash
+    head_ext, worker_ext = Cluster._head_worker_extended_resources_from_rc_dict(
+        head_only_rc
+    )
+    assert isinstance(head_ext, dict)
+    assert isinstance(worker_ext, dict)
+    assert worker_ext == {}  # Should be empty for head-only cluster
+
+    # Test 2: _map_to_ray_cluster should not crash
+    mocker.patch(
+        "kubernetes.client.NetworkingV1Api.list_namespaced_ingress",
+        return_value=mocker.Mock(items=[]),
+    )
+    result = _map_to_ray_cluster(head_only_rc)
+    assert result is not None
+    assert result.num_workers == 0
+    assert result.worker_cpu_limits == 0
+    assert result.worker_cpu_requests == 0
+    assert result.worker_mem_limits == 0
+    assert result.worker_mem_requests == 0
+
+    # Test 3: get_cluster should not crash
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.get_namespaced_custom_object",
+        return_value=head_only_rc,
+    )
+    cluster = get_cluster("head-only-cluster", "ns")
+    assert cluster.config.num_workers == 0
+    assert cluster.config.worker_cpu_limits == 0
+    assert cluster.config.worker_cpu_requests == 0
+    assert cluster.config.worker_memory_limits == "0G"
+    assert cluster.config.worker_memory_requests == "0G"
+
+
 # Make sure to always keep this function last
 def test_cleanup():
     # Clean up test files if they exist
