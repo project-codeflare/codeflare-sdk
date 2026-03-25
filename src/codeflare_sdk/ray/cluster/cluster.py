@@ -739,18 +739,6 @@ class Cluster:
         else:
             _apply_ray_cluster(self.resource_yaml, namespace, api_instance)
 
-    def _component_resources_down(
-        self, namespace: str, api_instance: client.CustomObjectsApi
-    ):
-        cluster_name = self.config.name
-        if self.config.write_to_file:
-            with open(self.resource_yaml) as f:
-                yamls = yaml.load_all(f, Loader=yaml.FullLoader)
-                _delete_resources(yamls, namespace, api_instance, cluster_name)
-        else:
-            yamls = yaml.safe_load_all(self.resource_yaml)
-            _delete_resources(yamls, namespace, api_instance, cluster_name)
-
 
 def list_all_clusters(namespace: str, print_to_console: bool = True):
     """
