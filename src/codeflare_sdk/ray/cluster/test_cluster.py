@@ -1804,10 +1804,13 @@ def test_up_method(mocker, capsys):
     )
 
     cluster = create_cluster(mocker)
-    cluster.up()
 
+    # Fix for RHOAIENG-54731: Verify deprecation warning is properly raised
+    with pytest.warns(DeprecationWarning, match="up\\(\\) is deprecated"):
+        cluster.up()
+
+    # Verify success message is still printed
     captured = capsys.readouterr()
-    assert "WARNING: The up() function is planned for deprecation" in captured.out
     assert (
         "Ray Cluster: 'unit-test-cluster' has successfully been created" in captured.out
     )
