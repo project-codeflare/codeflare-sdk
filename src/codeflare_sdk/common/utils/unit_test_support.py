@@ -143,6 +143,77 @@ def get_ray_obj(group, version, namespace, plural):
 
 def get_ray_obj_with_status(group, version, namespace, plural):
     # To be used for mocking list_namespaced_custom_object for Ray Clusters with statuses
+    # and Kueue Workloads for testing list_all_queued()
+
+    # If requesting workloads, return Kueue Workload objects
+    if plural == "workloads":
+        # RHOAIENG-54734: Return workloads WITHOUT admission field to indicate queued state
+        return {
+            "items": [
+                {
+                    "apiVersion": "kueue.x-k8s.io/v1beta1",
+                    "kind": "Workload",
+                    "metadata": {
+                        "name": "test-cluster-a-workload",
+                        "namespace": namespace,
+                        "ownerReferences": [
+                            {
+                                "apiVersion": "ray.io/v1",
+                                "kind": "RayCluster",
+                                "name": "test-cluster-a",
+                                "uid": "test-uid-a",
+                            }
+                        ],
+                    },
+                    "spec": {
+                        "queueName": "local-queue-default",
+                    },
+                    "status": {
+                        # No admission field = not admitted yet = queued
+                        "conditions": [
+                            {
+                                "type": "QuotaReserved",
+                                "status": "False",
+                                "reason": "Pending",
+                                "message": "workload didn't fit",
+                            }
+                        ],
+                    },
+                },
+                {
+                    "apiVersion": "kueue.x-k8s.io/v1beta1",
+                    "kind": "Workload",
+                    "metadata": {
+                        "name": "test-rc-b-workload",
+                        "namespace": namespace,
+                        "ownerReferences": [
+                            {
+                                "apiVersion": "ray.io/v1",
+                                "kind": "RayCluster",
+                                "name": "test-rc-b",
+                                "uid": "test-uid-b",
+                            }
+                        ],
+                    },
+                    "spec": {
+                        "queueName": "local-queue-default",
+                    },
+                    "status": {
+                        # No admission field = not admitted yet = queued
+                        "conditions": [
+                            {
+                                "type": "QuotaReserved",
+                                "status": "False",
+                                "reason": "Pending",
+                                "message": "couldn't assign flavors",
+                            }
+                        ],
+                    },
+                },
+            ]
+        }
+
+    # Otherwise, return RayCluster objects (original behavior)
     rc_a = apply_template(
         f"{parent}/tests/test_cluster_yamls/support_clusters/test-rc-a.yaml",
         get_template_variables(),
@@ -152,39 +223,28 @@ def get_ray_obj_with_status(group, version, namespace, plural):
         get_template_variables(),
     )
 
+    # RHOAIENG-54734: Cluster status doesn't matter anymore since we check workload admission
+    # But keeping some status to ensure clusters are returned in the API response
     rc_a.update(
         {
             "status": {
                 "desiredWorkerReplicas": 1,
-                "endpoints": {
-                    "client": "10001",
-                    "dashboard": "8265",
-                    "gcs": "6379",
-                    "metrics": "8080",
-                },
-                "head": {"serviceIP": "172.30.179.88"},
                 "lastUpdateTime": "2024-03-05T09:55:37Z",
                 "maxWorkerReplicas": 1,
                 "minWorkerReplicas": 1,
                 "observedGeneration": 1,
-                "state": "ready",
+                "state": "suspended",  # Can be any state; admission is what matters
             },
         }
     )
     rc_b.update(
         {
             "status": {
-                "availableWorkerReplicas": 2,
                 "desiredWorkerReplicas": 1,
-                "endpoints": {
-                    "client": "10001",
-                    "dashboard": "8265",
-                    "gcs": "6379",
-                },
                 "lastUpdateTime": "2023-02-22T16:26:16Z",
                 "maxWorkerReplicas": 1,
                 "minWorkerReplicas": 1,
-                "state": "suspended",
+                "state": "unknown",  # Can be any state; admission is what matters
             }
         }
     )
