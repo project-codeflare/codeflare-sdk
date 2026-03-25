@@ -478,7 +478,7 @@ def test_cleanup_expired_certificates_dry_run(mocker, tmp_path):
                 "cluster_name": "expired-cluster",
                 "namespace": "ns",
                 "path": str(cert_dir),
-                "created": datetime.datetime.now(),
+                "created": datetime.datetime.now(timezone.utc),
                 "size": 100,
                 "cert_expiry": expired_time,
             }
@@ -516,7 +516,7 @@ def test_cleanup_expired_certificates_delete(mocker, tmp_path):
                 "cluster_name": "expired-cluster",
                 "namespace": "ns",
                 "path": str(cert_dir),
-                "created": datetime.datetime.now(),
+                "created": datetime.datetime.now(timezone.utc),
                 "size": 100,
                 "cert_expiry": expired_time,
             }
@@ -533,6 +533,7 @@ def test_cleanup_old_certificates_dry_run(mocker, tmp_path):
     """Test cleanup_old_certificates in dry_run mode"""
     from codeflare_sdk.common.utils.generate_cert import cleanup_old_certificates
     import datetime
+    from datetime import timezone
 
     mocker.patch(
         "codeflare_sdk.common.utils.generate_cert._get_tls_base_dir",
@@ -545,7 +546,7 @@ def test_cleanup_old_certificates_dry_run(mocker, tmp_path):
     (cert_dir / "tls.crt").write_text("fake cert")
 
     # Mock list_tls_certificates to return an old cert
-    old_time = datetime.datetime.now() - datetime.timedelta(days=60)
+    old_time = datetime.datetime.now(timezone.utc) - datetime.timedelta(days=60)
     mocker.patch(
         "codeflare_sdk.common.utils.generate_cert.list_tls_certificates",
         return_value=[
@@ -570,6 +571,7 @@ def test_cleanup_old_certificates_delete(mocker, tmp_path):
     """Test cleanup_old_certificates actually deletes when dry_run=False"""
     from codeflare_sdk.common.utils.generate_cert import cleanup_old_certificates
     import datetime
+    from datetime import timezone
 
     mocker.patch(
         "codeflare_sdk.common.utils.generate_cert._get_tls_base_dir",
@@ -582,7 +584,7 @@ def test_cleanup_old_certificates_delete(mocker, tmp_path):
     (cert_dir / "tls.crt").write_text("fake cert")
 
     # Mock list_tls_certificates to return an old cert
-    old_time = datetime.datetime.now() - datetime.timedelta(days=60)
+    old_time = datetime.datetime.now(timezone.utc) - datetime.timedelta(days=60)
     mocker.patch(
         "codeflare_sdk.common.utils.generate_cert.list_tls_certificates",
         return_value=[
