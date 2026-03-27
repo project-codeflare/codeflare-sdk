@@ -687,14 +687,17 @@ class Cluster:
     @staticmethod
     def _head_worker_extended_resources_from_rc_dict(rc: Dict) -> Tuple[dict, dict]:
         head_extended_resources, worker_extended_resources = {}, {}
-        for resource in rc["spec"]["workerGroupSpecs"][0]["template"]["spec"][
-            "containers"
-        ][0]["resources"]["limits"].keys():
-            if resource in ["memory", "cpu"]:
-                continue
-            worker_extended_resources[resource] = rc["spec"]["workerGroupSpecs"][0][
-                "template"
-            ]["spec"]["containers"][0]["resources"]["limits"][resource]
+
+        # Fix for RHOAIENG-54729: Check if workerGroupSpecs exists before accessing [0]
+        if len(rc["spec"].get("workerGroupSpecs", [])) > 0:
+            for resource in rc["spec"]["workerGroupSpecs"][0]["template"]["spec"][
+                "containers"
+            ][0]["resources"]["limits"].keys():
+                if resource in ["memory", "cpu"]:
+                    continue
+                worker_extended_resources[resource] = rc["spec"]["workerGroupSpecs"][0][
+                    "template"
+                ]["spec"]["containers"][0]["resources"]["limits"][resource]
 
         for resource in rc["spec"]["headGroupSpec"]["template"]["spec"]["containers"][
             0
@@ -823,6 +826,30 @@ def get_cluster(
         head_extended_resources,
         worker_extended_resources,
     ) = Cluster._head_worker_extended_resources_from_rc_dict(resource)
+
+    # Fix for RHOAIENG-54729: Handle head-only clusters (no workers)
+    if len(resource["spec"].get("workerGroupSpecs", [])) > 0:
+        num_workers = resource["spec"]["workerGroupSpecs"][0]["minReplicas"]
+        worker_cpu_limits = resource["spec"]["workerGroupSpecs"][0]["template"]["spec"][
+            "containers"
+        ][0]["resources"]["limits"]["cpu"]
+        worker_cpu_requests = resource["spec"]["workerGroupSpecs"][0]["template"][
+            "spec"
+        ]["containers"][0]["resources"]["requests"]["cpu"]
+        worker_memory_limits = resource["spec"]["workerGroupSpecs"][0]["template"][
+            "spec"
+        ]["containers"][0]["resources"]["limits"]["memory"]
+        worker_memory_requests = resource["spec"]["workerGroupSpecs"][0]["template"][
+            "spec"
+        ]["containers"][0]["resources"]["requests"]["memory"]
+    else:
+        # Head-only cluster - use defaults for worker specs
+        num_workers = 0
+        worker_cpu_limits = 0
+        worker_cpu_requests = 0
+        worker_memory_limits = 0
+        worker_memory_requests = 0
+
     # Create a Cluster Configuration with just the necessary provided parameters
     cluster_config = ClusterConfiguration(
         name=cluster_name,
@@ -841,19 +868,11 @@ def get_cluster(
         head_memory_requests=resource["spec"]["headGroupSpec"]["template"]["spec"][
             "containers"
         ][0]["resources"]["requests"]["memory"],
-        num_workers=resource["spec"]["workerGroupSpecs"][0]["minReplicas"],
-        worker_cpu_limits=resource["spec"]["workerGroupSpecs"][0]["template"]["spec"][
-            "containers"
-        ][0]["resources"]["limits"]["cpu"],
-        worker_cpu_requests=resource["spec"]["workerGroupSpecs"][0]["template"]["spec"][
-            "containers"
-        ][0]["resources"]["requests"]["cpu"],
-        worker_memory_limits=resource["spec"]["workerGroupSpecs"][0]["template"][
-            "spec"
-        ]["containers"][0]["resources"]["limits"]["memory"],
-        worker_memory_requests=resource["spec"]["workerGroupSpecs"][0]["template"][
-            "spec"
-        ]["containers"][0]["resources"]["requests"]["memory"],
+        num_workers=num_workers,
+        worker_cpu_limits=worker_cpu_limits,
+        worker_cpu_requests=worker_cpu_requests,
+        worker_memory_limits=worker_memory_limits,
+        worker_memory_requests=worker_memory_requests,
         head_extended_resource_requests=head_extended_resources,
         worker_extended_resource_requests=worker_extended_resources,
     )
@@ -1086,23 +1105,38 @@ def _map_to_ray_cluster(rc) -> Optional[RayCluster]:
         worker_extended_resources,
     ) = Cluster._head_worker_extended_resources_from_rc_dict(rc)
 
+    # Fix for RHOAIENG-54729: Handle head-only clusters (no workers)
+    if len(rc["spec"].get("workerGroupSpecs", [])) > 0:
+        num_workers = rc["spec"]["workerGroupSpecs"][0]["replicas"]
+        worker_mem_limits = rc["spec"]["workerGroupSpecs"][0]["template"]["spec"][
+            "containers"
+        ][0]["resources"]["limits"]["memory"]
+        worker_mem_requests = rc["spec"]["workerGroupSpecs"][0]["template"]["spec"][
+            "containers"
+        ][0]["resources"]["requests"]["memory"]
+        worker_cpu_requests = rc["spec"]["workerGroupSpecs"][0]["template"]["spec"][
+            "containers"
+        ][0]["resources"]["requests"]["cpu"]
+        worker_cpu_limits = rc["spec"]["workerGroupSpecs"][0]["template"]["spec"][
+            "containers"
+        ][0]["resources"]["limits"]["cpu"]
+    else:
+        # Head-only cluster - use defaults for worker specs
+        num_workers = 0
+        worker_mem_limits = 0
+        worker_mem_requests = 0
+        worker_cpu_requests = 0
+        worker_cpu_limits = 0
+
     return RayCluster(
         name=rc["metadata"]["name"],
         status=status,
         # for now we are not using autoscaling so same replicas is fine
-        num_workers=rc["spec"]["workerGroupSpecs"][0]["replicas"],
-        worker_mem_limits=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"][
-            "containers"
-        ][0]["resources"]["limits"]["memory"],
-        worker_mem_requests=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"][
-            "containers"
-        ][0]["resources"]["requests"]["memory"],
-        worker_cpu_requests=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"][
-            "containers"
-        ][0]["resources"]["requests"]["cpu"],
-        worker_cpu_limits=rc["spec"]["workerGroupSpecs"][0]["template"]["spec"][
-            "containers"
-        ][0]["resources"]["limits"]["cpu"],
+        num_workers=num_workers,
+        worker_mem_limits=worker_mem_limits,
+        worker_mem_requests=worker_mem_requests,
+        worker_cpu_requests=worker_cpu_requests,
+        worker_cpu_limits=worker_cpu_limits,
         worker_extended_resources=worker_extended_resources,
         namespace=rc["metadata"]["namespace"],
         head_cpu_requests=rc["spec"]["headGroupSpec"]["template"]["spec"]["containers"][
