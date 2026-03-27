@@ -632,6 +632,75 @@ def test_get_tls_base_dir_default(monkeypatch):
     assert result == expected
 
 
+def test_timezone_aware_datetime_comparisons(mocker, tmp_path):
+    """
+    Test that cleanup functions use timezone-aware datetimes consistently.
+    Regression test for RHOAIENG-54714 - naive datetime comparison bug.
+    """
+    from codeflare_sdk.common.utils.generate_cert import (
+        cleanup_old_certificates,
+        cleanup_expired_certificates,
+    )
+    import datetime
+    from datetime import timezone
+
+    mocker.patch(
+        "codeflare_sdk.common.utils.generate_cert._get_tls_base_dir",
+        return_value=tmp_path,
+    )
+
+    # Create a cert directory
+    cert_dir = tmp_path / "timezone-test-cluster-ns"
+    cert_dir.mkdir(parents=True)
+    (cert_dir / "tls.crt").write_text("fake cert")
+
+    # Test cleanup_old_certificates with timezone-aware datetime
+    # Created time should be timezone-aware (UTC)
+    old_time_utc = datetime.datetime.now(timezone.utc) - datetime.timedelta(days=60)
+
+    mocker.patch(
+        "codeflare_sdk.common.utils.generate_cert.list_tls_certificates",
+        return_value=[
+            {
+                "cluster_name": "timezone-test-cluster",
+                "namespace": "ns",
+                "path": str(cert_dir),
+                "created": old_time_utc,  # Timezone-aware
+                "size": 100,
+                "cert_expiry": None,
+            }
+        ],
+    )
+
+    # Should not raise TypeError when comparing timezone-aware datetimes
+    result = cleanup_old_certificates(days=30, dry_run=True)
+    assert len(result) == 1
+    assert result[0] == str(cert_dir)
+
+    # Test cleanup_expired_certificates with timezone-aware datetime
+    # Cert expiry should be timezone-aware (UTC)
+    expired_time_utc = datetime.datetime.now(timezone.utc) - datetime.timedelta(days=1)
+
+    mocker.patch(
+        "codeflare_sdk.common.utils.generate_cert.list_tls_certificates",
+        return_value=[
+            {
+                "cluster_name": "timezone-test-cluster",
+                "namespace": "ns",
+                "path": str(cert_dir),
+                "created": datetime.datetime.now(timezone.utc),
+                "size": 100,
+                "cert_expiry": expired_time_utc,  # Timezone-aware
+            }
+        ],
+    )
+
+    # Should not raise TypeError when comparing timezone-aware datetimes
+    result = cleanup_expired_certificates(dry_run=True)
+    assert len(result) == 1
+    assert result[0] == str(cert_dir)
+
+
 # Make sure to always keep this function last
 def test_cleanup():
     """Clean up test certificate directories."""
