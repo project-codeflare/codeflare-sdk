@@ -17,9 +17,11 @@ def get_current_namespace():  # pragma: no cover
     """
     if os.path.isfile("/var/run/secrets/kubernetes.io/serviceaccount/namespace"):
         try:
-            file = open("/var/run/secrets/kubernetes.io/serviceaccount/namespace", "r")
-            active_context = file.readline().strip("\n")
-            return active_context
+            # Fix for RHOAIENG-54703: use context manager to ensure file is closed
+            with open(
+                "/var/run/secrets/kubernetes.io/serviceaccount/namespace", "r"
+            ) as file:
+                return file.readline().strip("\n")
         except Exception as e:
             print("Unable to find current namespace")
     print("Trying to gather namespace from current context")
