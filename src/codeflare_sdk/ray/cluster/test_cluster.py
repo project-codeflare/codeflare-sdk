@@ -682,7 +682,7 @@ def test_list_queue_rayclusters(mocker, capsys):
     assert "│" in captured.out  # Check for vertical lines
     mocker.patch(
         "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
-        return_value=get_ray_obj_with_status("ray.io", "v1", "ns", "rayclusters"),
+        side_effect=get_ray_obj_with_status,
     )
 
     list_all_queued("ns")
@@ -694,9 +694,9 @@ def test_list_queue_rayclusters(mocker, capsys):
         "│ +----------------+-----------+ │\n"
         "│ | Name           | Status    | │\n"
         "│ +================+===========+ │\n"
-        "│ | test-cluster-a | ready     | │\n"
+        "│ | test-cluster-a | suspended | │\n"
         "│ |                |           | │\n"
-        "│ | test-rc-b      | suspended | │\n"
+        "│ | test-rc-b      | unknown   | │\n"
         "│ |                |           | │\n"
         "│ +----------------+-----------+ │\n"
         "╰────────────────────────────────╯\n"
