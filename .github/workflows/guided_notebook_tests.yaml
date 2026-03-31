@@ -104,9 +104,8 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Remove login/logout cells, as KinD doesn't support authentication using token
-          jq -r 'del(.cells[] | select(.source[] | contains("Create authentication object for user permissions")))' 0_basic_ray.ipynb > 0_basic_ray.ipynb.tmp && mv 0_basic_ray.ipynb.tmp 0_basic_ray.ipynb
-          jq -r 'del(.cells[] | select(.source[] | contains("auth.logout()")))' 0_basic_ray.ipynb > 0_basic_ray.ipynb.tmp && mv 0_basic_ray.ipynb.tmp 0_basic_ray.ipynb
+          # Remove auth cell, as KinD uses kubeconfig and doesn't need explicit authentication
+          jq -r 'del(.cells[] | select(.source[] | contains("Authenticate to your Kubernetes/OpenShift cluster using kube-authkit")))' 0_basic_ray.ipynb > 0_basic_ray.ipynb.tmp && mv 0_basic_ray.ipynb.tmp 0_basic_ray.ipynb
           # Set explicit namespace as SDK need it (currently) to resolve local queues
           sed -i "s/head_memory_limits=8,/head_memory_limits=8, namespace='default',/" 0_basic_ray.ipynb
           # Disable dashboard check as KinD doesn't have HTTPRoute/Route configured
