@@ -138,9 +138,8 @@ jobs:
 
       - name: Fix 3_widget_example.ipynb notebook for test
         run: |
-          # Remove login/logout cells, as KinD doesn't support authentication using token
-          jq -r 'del(.cells[] | select(.source[] | contains("Create authentication object for user permissions")))' 3_widget_example.ipynb > 3_widget_example.ipynb.tmp && mv 3_widget_example.ipynb.tmp 3_widget_example.ipynb
-          jq -r 'del(.cells[] | select(.source[] | contains("auth.logout()")))' 3_widget_example.ipynb > 3_widget_example.ipynb.tmp && mv 3_widget_example.ipynb.tmp 3_widget_example.ipynb
+          # Remove auth cell, as KinD uses kubeconfig and doesn't need explicit authentication
+          jq -r 'del(.cells[] | select(.source[] | contains("Authenticate to your Kubernetes/OpenShift cluster using kube-authkit")))' 3_widget_example.ipynb > 3_widget_example.ipynb.tmp && mv 3_widget_example.ipynb.tmp 3_widget_example.ipynb
           # Set explicit namespace as SDK need it (currently) to resolve local queues
           sed -i "s|head_memory_limits=8,|head_memory_limits=8, namespace='default',|" 3_widget_example.ipynb
           sed -i "s|view_clusters()|view_clusters('default')|" 3_widget_example.ipynb
