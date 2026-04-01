@@ -369,7 +369,7 @@ def generate_tls_cert(cluster_name, namespace, days=30, force_regenerate=False):
     del ca_key, ca_private_key
     try:
         del secret
-    except:
+    except NameError:  # pragma: no cover
         pass  # May already be out of scope
 
 
