@@ -1,0 +1,22 @@
+You are working on the CodeFlare SDK, a Python SDK for batch resource management on Kubernetes.
+
+Read AGENTS.md at the project root for full instructions. Key points:
+
+- Python ^3.11, Poetry for dependency management (never pip install)
+- Run `black` on changed files before committing
+- Maintain >= 90% test coverage
+- Do NOT modify anything under src/codeflare_sdk/vendored/
+- Use type hints on all function signatures and return types
+- Use dataclasses for structured data, Enums for state values
+- Use relative imports within the codeflare_sdk package
+- Place unit tests alongside source: src/codeflare_sdk/<module>/test_<name>.py
+- The conftest.py at src/codeflare_sdk/conftest.py auto-mocks K8s API clients
+- Never make real Kubernetes API calls in unit tests
+- Export new public classes/functions in src/codeflare_sdk/__init__.py
+- Use _kube_api_error_handling() for Kubernetes API errors
+- User-friendly error messages (SDK targets data scientists)
+
+Quick commands:
+  poetry install --with test,dev
+  pytest -v src/codeflare_sdk
+  black <file>
