@@ -107,6 +107,8 @@ def list_local_queues(
 
     Note:
         Depending on the version of the local queue API, the available flavors may not be present in the response.
+        A ``LocalQueue`` may also appear without a ``status`` (or with empty status) until the Kueue controller
+        reconciles; such queues are still returned, usually without a ``flavors`` key on the dict.
 
     Args:
         namespace (str, optional):
@@ -127,8 +129,10 @@ def list_local_queues(
     to_return = []
     for lq in local_queues["items"]:
         item = {"name": lq["metadata"]["name"]}
-        if "flavors" in lq["status"]:
-            item["flavors"] = [f["name"] for f in lq["status"]["flavors"]]
+        # LocalQueue may exist before Kueue populates .status (RHOAIENG-54719).
+        lq_status = lq.get("status") or {}
+        if "flavors" in lq_status:
+            item["flavors"] = [f["name"] for f in lq_status["flavors"]]
             if flavors is not None and not set(flavors).issubset(set(item["flavors"])):
                 continue
         elif flavors is not None:
