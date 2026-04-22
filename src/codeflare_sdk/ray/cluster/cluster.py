@@ -1199,10 +1199,22 @@ def _map_to_ray_cluster(rc) -> Optional[RayCluster]:
     )
 
 
+_CODEFLARE_TO_RAY_STATUS = {
+    CodeFlareClusterStatus.READY: RayClusterStatus.READY,
+    CodeFlareClusterStatus.FAILED: RayClusterStatus.FAILED,
+    CodeFlareClusterStatus.SUSPENDED: RayClusterStatus.SUSPENDED,
+    CodeFlareClusterStatus.UNKNOWN: RayClusterStatus.UNKNOWN,
+    CodeFlareClusterStatus.STARTING: RayClusterStatus.UNKNOWN,
+    CodeFlareClusterStatus.QUEUED: RayClusterStatus.UNKNOWN,
+    CodeFlareClusterStatus.QUEUEING: RayClusterStatus.UNKNOWN,
+}
+
+
 def _copy_to_ray(cluster: Cluster) -> RayCluster:
-    ray = RayCluster(
+    cf_status = cluster.status(print_to_console=False)[0]
+    return RayCluster(
         name=cluster.config.name,
-        status=cluster.status(print_to_console=False)[0],
+        status=_CODEFLARE_TO_RAY_STATUS.get(cf_status, RayClusterStatus.UNKNOWN),
         num_workers=cluster.config.num_workers,
         worker_mem_requests=cluster.config.worker_memory_requests,
         worker_mem_limits=cluster.config.worker_memory_limits,
@@ -1217,9 +1229,6 @@ def _copy_to_ray(cluster: Cluster) -> RayCluster:
         head_cpu_limits=cluster.config.head_cpu_limits,
         head_extended_resources=cluster.config.head_extended_resource_requests,
     )
-    if ray.status == CodeFlareClusterStatus.READY:
-        ray.status = RayClusterStatus.READY
-    return ray
 
 
 # Check if the routes api exists
