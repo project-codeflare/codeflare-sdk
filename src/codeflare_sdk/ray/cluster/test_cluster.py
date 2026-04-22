@@ -32,6 +32,7 @@ from codeflare_sdk.common.utils.unit_test_support import (
     route_list_retrieval,
 )
 from codeflare_sdk.ray.cluster.cluster import _is_openshift_cluster
+from codeflare_sdk.ray.cluster.status import CodeFlareClusterStatus, RayClusterStatus
 from pathlib import Path
 from unittest.mock import MagicMock
 from kubernetes import client
@@ -45,6 +46,31 @@ import tempfile
 parent = Path(__file__).resolve().parents[4]  # project directory
 expected_clusters_dir = f"{parent}/tests/test_cluster_yamls"
 cluster_dir = os.path.expanduser("~/.codeflare/resources/")
+
+
+@pytest.mark.parametrize(
+    "cf_status,expected_ray_status",
+    [
+        (CodeFlareClusterStatus.READY, RayClusterStatus.READY),
+        (CodeFlareClusterStatus.FAILED, RayClusterStatus.FAILED),
+        (CodeFlareClusterStatus.SUSPENDED, RayClusterStatus.SUSPENDED),
+        (CodeFlareClusterStatus.UNKNOWN, RayClusterStatus.UNKNOWN),
+        (CodeFlareClusterStatus.STARTING, RayClusterStatus.UNKNOWN),
+        (CodeFlareClusterStatus.QUEUED, RayClusterStatus.UNKNOWN),
+        (CodeFlareClusterStatus.QUEUEING, RayClusterStatus.UNKNOWN),
+    ],
+)
+def test_details_maps_codeflare_status_to_ray_status(
+    mocker, cf_status, expected_ray_status
+):
+    cluster = create_cluster(mocker)
+    mocker.patch.object(cluster, "status", return_value=(cf_status, ""))
+    mocker.patch.object(cluster, "cluster_dashboard_uri", return_value="http://fake")
+
+    ray_cluster = cluster.details(print_to_console=False)
+
+    assert ray_cluster.status == expected_ray_status
+    assert isinstance(ray_cluster.status, RayClusterStatus)
 
 
 def test_cluster_apply_down(mocker):
