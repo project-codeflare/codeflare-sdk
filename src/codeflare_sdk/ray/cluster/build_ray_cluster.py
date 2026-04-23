@@ -115,6 +115,17 @@ def build_ray_cluster(cluster: "codeflare_sdk.ray.cluster.Cluster"):
     worker_resources = json.dumps(worker_resources).replace('"', '\\"')
     worker_resources = f'"{worker_resources}"'
 
+    # Determine autoscaling vs fixed-size worker replica settings
+    autoscaling_enabled = cluster.config.enable_autoscaling
+    if autoscaling_enabled:
+        worker_replicas = cluster.config.min_workers
+        worker_min_replicas = cluster.config.min_workers
+        worker_max_replicas = cluster.config.max_workers
+    else:
+        worker_replicas = cluster.config.num_workers
+        worker_min_replicas = cluster.config.num_workers
+        worker_max_replicas = cluster.config.num_workers
+
     # Create the Ray Cluster using the V1RayCluster Object
     resource = {
         "apiVersion": "ray.io/v1",
@@ -122,7 +133,7 @@ def build_ray_cluster(cluster: "codeflare_sdk.ray.cluster.Cluster"):
         "metadata": get_metadata(cluster),
         "spec": {
             "rayVersion": RAY_VERSION,
-            "enableInTreeAutoscaling": False,
+            "enableInTreeAutoscaling": autoscaling_enabled,
             "autoscalerOptions": {
                 "upscalingMode": "Default",
                 "idleTimeoutSeconds": 60,
@@ -152,9 +163,9 @@ def build_ray_cluster(cluster: "codeflare_sdk.ray.cluster.Cluster"):
             },
             "workerGroupSpecs": [
                 {
-                    "replicas": cluster.config.num_workers,
-                    "minReplicas": cluster.config.num_workers,
-                    "maxReplicas": cluster.config.num_workers,
+                    "replicas": worker_replicas,
+                    "minReplicas": worker_min_replicas,
+                    "maxReplicas": worker_max_replicas,
                     "groupName": f"small-group-{cluster.config.name}",
                     "rayStartParams": {
                         "block": "true",

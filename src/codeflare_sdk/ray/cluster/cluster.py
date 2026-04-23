@@ -871,20 +871,29 @@ def get_cluster(
     ) = Cluster._head_worker_extended_resources_from_rc_dict(resource)
 
     # Fix for RHOAIENG-54729: Handle head-only clusters (no workers)
+    enable_autoscaling = resource["spec"].get("enableInTreeAutoscaling", False)
+    min_workers = None
+    max_workers = None
+
     if len(resource["spec"].get("workerGroupSpecs", [])) > 0:
-        num_workers = resource["spec"]["workerGroupSpecs"][0]["minReplicas"]
-        worker_cpu_limits = resource["spec"]["workerGroupSpecs"][0]["template"]["spec"][
-            "containers"
-        ][0]["resources"]["limits"]["cpu"]
-        worker_cpu_requests = resource["spec"]["workerGroupSpecs"][0]["template"][
-            "spec"
-        ]["containers"][0]["resources"]["requests"]["cpu"]
-        worker_memory_limits = resource["spec"]["workerGroupSpecs"][0]["template"][
-            "spec"
-        ]["containers"][0]["resources"]["limits"]["memory"]
-        worker_memory_requests = resource["spec"]["workerGroupSpecs"][0]["template"][
-            "spec"
-        ]["containers"][0]["resources"]["requests"]["memory"]
+        worker_group = resource["spec"]["workerGroupSpecs"][0]
+        num_workers = worker_group["minReplicas"]
+        worker_cpu_limits = worker_group["template"]["spec"]["containers"][0][
+            "resources"
+        ]["limits"]["cpu"]
+        worker_cpu_requests = worker_group["template"]["spec"]["containers"][0][
+            "resources"
+        ]["requests"]["cpu"]
+        worker_memory_limits = worker_group["template"]["spec"]["containers"][0][
+            "resources"
+        ]["limits"]["memory"]
+        worker_memory_requests = worker_group["template"]["spec"]["containers"][0][
+            "resources"
+        ]["requests"]["memory"]
+
+        if enable_autoscaling:
+            min_workers = worker_group.get("minReplicas", num_workers)
+            max_workers = worker_group.get("maxReplicas", num_workers)
     else:
         # Head-only cluster - use defaults for worker specs
         num_workers = 0
@@ -918,6 +927,9 @@ def get_cluster(
         worker_memory_requests=worker_memory_requests,
         head_extended_resource_requests=head_extended_resources,
         worker_extended_resource_requests=worker_extended_resources,
+        enable_autoscaling=enable_autoscaling,
+        min_workers=min_workers,
+        max_workers=max_workers,
     )
 
     # Ignore the warning here for the lack of a ClusterConfiguration
@@ -1150,19 +1162,20 @@ def _map_to_ray_cluster(rc) -> Optional[RayCluster]:
 
     # Fix for RHOAIENG-54729: Handle head-only clusters (no workers)
     if len(rc["spec"].get("workerGroupSpecs", [])) > 0:
-        num_workers = rc["spec"]["workerGroupSpecs"][0]["replicas"]
-        worker_mem_limits = rc["spec"]["workerGroupSpecs"][0]["template"]["spec"][
-            "containers"
-        ][0]["resources"]["limits"]["memory"]
-        worker_mem_requests = rc["spec"]["workerGroupSpecs"][0]["template"]["spec"][
-            "containers"
-        ][0]["resources"]["requests"]["memory"]
-        worker_cpu_requests = rc["spec"]["workerGroupSpecs"][0]["template"]["spec"][
-            "containers"
-        ][0]["resources"]["requests"]["cpu"]
-        worker_cpu_limits = rc["spec"]["workerGroupSpecs"][0]["template"]["spec"][
-            "containers"
-        ][0]["resources"]["limits"]["cpu"]
+        worker_group = rc["spec"]["workerGroupSpecs"][0]
+        num_workers = worker_group["replicas"]
+        worker_mem_limits = worker_group["template"]["spec"]["containers"][0][
+            "resources"
+        ]["limits"]["memory"]
+        worker_mem_requests = worker_group["template"]["spec"]["containers"][0][
+            "resources"
+        ]["requests"]["memory"]
+        worker_cpu_requests = worker_group["template"]["spec"]["containers"][0][
+            "resources"
+        ]["requests"]["cpu"]
+        worker_cpu_limits = worker_group["template"]["spec"]["containers"][0][
+            "resources"
+        ]["limits"]["cpu"]
     else:
         # Head-only cluster - use defaults for worker specs
         num_workers = 0
@@ -1174,7 +1187,6 @@ def _map_to_ray_cluster(rc) -> Optional[RayCluster]:
     return RayCluster(
         name=rc["metadata"]["name"],
         status=status,
-        # for now we are not using autoscaling so same replicas is fine
         num_workers=num_workers,
         worker_mem_limits=worker_mem_limits,
         worker_mem_requests=worker_mem_requests,

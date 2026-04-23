@@ -2144,6 +2144,72 @@ def test_job_logs(mocker):
     mock_job_client.get_job_logs.assert_called_once_with("job-123")
 
 
+def test_get_cluster_autoscaling(mocker):
+    """
+    Test that get_cluster correctly reconstructs autoscaling config
+    when the RayCluster has enableInTreeAutoscaling: true.
+    Covers the enable_autoscaling branch in get_cluster().
+    """
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+
+    autoscaling_rc = {
+        "apiVersion": "ray.io/v1",
+        "kind": "RayCluster",
+        "metadata": {"name": "autoscale-cluster", "namespace": "ns"},
+        "spec": {
+            "enableInTreeAutoscaling": True,
+            "headGroupSpec": {
+                "template": {
+                    "spec": {
+                        "containers": [
+                            {
+                                "name": "ray-head",
+                                "resources": {
+                                    "limits": {"cpu": "2", "memory": "8G"},
+                                    "requests": {"cpu": "2", "memory": "8G"},
+                                },
+                            }
+                        ]
+                    }
+                }
+            },
+            "workerGroupSpecs": [
+                {
+                    "replicas": 1,
+                    "minReplicas": 1,
+                    "maxReplicas": 8,
+                    "groupName": "small-group-autoscale",
+                    "template": {
+                        "spec": {
+                            "containers": [
+                                {
+                                    "name": "machine-learning",
+                                    "resources": {
+                                        "limits": {"cpu": "4", "memory": "6G"},
+                                        "requests": {"cpu": "2", "memory": "4G"},
+                                    },
+                                }
+                            ]
+                        }
+                    },
+                }
+            ],
+        },
+    }
+
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.get_namespaced_custom_object",
+        return_value=autoscaling_rc,
+    )
+
+    cluster = get_cluster("autoscale-cluster", "ns")
+    assert cluster.config.enable_autoscaling is True
+    assert cluster.config.min_workers == 1
+    assert cluster.config.max_workers == 8
+    assert cluster.config.num_workers == 1
+
+
 def test_head_only_cluster_no_workers(mocker):
     """
     Test for RHOAIENG-54729: Functions should handle head-only clusters (num_workers=0)
