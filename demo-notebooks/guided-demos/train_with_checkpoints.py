@@ -14,7 +14,9 @@ from ray.train import Checkpoint, RunConfig, CheckpointConfig, ScalingConfig
 from ray.train.torch import TorchTrainer
 
 # Configuration
-STORAGE_PATH = f"s3://{os.environ.get('AWS_S3_BUCKET', 'my-bucket')}/ray-checkpoints/mnist-demo"
+STORAGE_PATH = (
+    f"s3://{os.environ.get('AWS_S3_BUCKET', 'my-bucket')}/ray-checkpoints/mnist-demo"
+)
 RUN_NAME = "mnist-checkpointing-run"
 
 
@@ -25,7 +27,7 @@ class SimpleCNN(nn.Module):
         self.conv2 = nn.Conv2d(32, 64, 3, 1)
         self.fc1 = nn.Linear(9216, 128)
         self.fc2 = nn.Linear(128, 10)
-    
+
     def forward(self, x):
         x = torch.relu(self.conv1(x))
         x = torch.relu(self.conv2(x))
@@ -40,22 +42,23 @@ def train_func(config):
     epochs = config.get("epochs", 10)
     batch_size = config.get("batch_size", 64)
     lr = config.get("lr", 0.001)
-    
+
     # Setup data
-    transform = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Normalize((0.1307,), (0.3081,))
-    ])
-    train_dataset = datasets.MNIST('/tmp/data', train=True, download=True, transform=transform)
+    transform = transforms.Compose(
+        [transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))]
+    )
+    train_dataset = datasets.MNIST(
+        "/tmp/data", train=True, download=True, transform=transform
+    )
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
     train_loader = train.torch.prepare_data_loader(train_loader)
-    
+
     # Setup model
     model = SimpleCNN()
     model = train.torch.prepare_model(model)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     criterion = nn.CrossEntropyLoss()
-    
+
     # Checkpoint restore: auto-detect and resume
     start_epoch = 0
     checkpoint = train.get_checkpoint()
@@ -74,13 +77,13 @@ def train_func(config):
         print("=" * 60)
         print("NO CHECKPOINT FOUND - Starting fresh training from epoch 0")
         print("=" * 60)
-    
+
     # Training loop
     for epoch in range(start_epoch, epochs):
         model.train()
         total_loss = 0
         num_batches = 0
-        
+
         for batch_idx, (data, target) in enumerate(train_loader):
             optimizer.zero_grad()
             output = model(data)
@@ -89,36 +92,40 @@ def train_func(config):
             optimizer.step()
             total_loss += loss.item()
             num_batches += 1
-        
+
         avg_loss = total_loss / num_batches
-        
+
         # Save checkpoint at end of each epoch
         with tempfile.TemporaryDirectory() as tmpdir:
             checkpoint_path = os.path.join(tmpdir, "checkpoint.pt")
-            torch.save({
-                "epoch": epoch,
-                "model_state_dict": model.state_dict(),
-                "optimizer_state_dict": optimizer.state_dict(),
-                "loss": avg_loss,
-            }, checkpoint_path)
-            
+            torch.save(
+                {
+                    "epoch": epoch,
+                    "model_state_dict": model.state_dict(),
+                    "optimizer_state_dict": optimizer.state_dict(),
+                    "loss": avg_loss,
+                },
+                checkpoint_path,
+            )
+
             train.report(
                 metrics={"loss": avg_loss, "epoch": epoch},
-                checkpoint=Checkpoint.from_directory(tmpdir)
+                checkpoint=Checkpoint.from_directory(tmpdir),
             )
-        
+
         print(f"Epoch {epoch}/{epochs-1}: loss={avg_loss:.4f} [Checkpoint saved to S3]")
 
 
 if __name__ == "__main__":
     import ray
+
     ray.init()
-    
+
     print("=" * 60)
     print(f"Storage path: {STORAGE_PATH}")
     print(f"Run name: {RUN_NAME}")
     print("=" * 60)
-    
+
     # Ray Train automatically detects and resumes from existing checkpoints
     # when using the same storage_path and run name. The train.get_checkpoint()
     # function inside train_func will return the latest checkpoint if one exists.
@@ -143,9 +150,9 @@ if __name__ == "__main__":
             ),
         ),
     )
-    
+
     result = trainer.fit()
-    
+
     print("=" * 60)
     print("TRAINING COMPLETE")
     print(f"Final result path: {result.path}")
