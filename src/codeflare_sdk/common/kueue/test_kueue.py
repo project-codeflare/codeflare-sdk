@@ -144,6 +144,31 @@ def test_list_local_queues(mocker):
     assert lqs == []
 
 
+def test_list_local_queues_no_status(mocker):
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
+        return_value={
+            "items": [
+                {"metadata": {"name": "a"}},
+                {"metadata": {"name": "b"}, "status": None},
+                {
+                    "metadata": {"name": "c"},
+                    "status": {"flavors": [{"name": "default"}]},
+                },
+            ]
+        },
+    )
+    assert list_local_queues("ns") == [
+        {"name": "a"},
+        {"name": "b"},
+        {"name": "c", "flavors": ["default"]},
+    ]
+    assert list_local_queues("ns", flavors=["default"]) == [
+        {"name": "c", "flavors": ["default"]},
+    ]
+
+
 def test_get_default_kueue_name_found(mocker):
     mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
     mock_api_instance = mocker.Mock()
