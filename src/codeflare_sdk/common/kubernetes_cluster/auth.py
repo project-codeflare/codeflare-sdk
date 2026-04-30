@@ -358,3 +358,7 @@ def set_api_client(new_client: client.ApiClient):
     global api_client, config_path
     api_client = new_client
     config_path = "custom"  # Mark as configured with custom client
+    # verify the client works by making a simple API call
+    client.AuthenticationApi(api_client).get_api_group()
+    # print message confirming successful configuration
+    print("Custom API client has been set and verified successfully.")
