@@ -210,6 +210,130 @@ def test_cluster_name_validation():
         ClusterConfiguration(name="-testcluster", namespace="ns")
 
 
+def test_autoscaling_config_valid():
+    config = ClusterConfiguration(
+        name="autoscale-test",
+        namespace="ns",
+        enable_autoscaling=True,
+        min_workers=1,
+        max_workers=8,
+    )
+    assert config.enable_autoscaling is True
+    assert config.min_workers == 1
+    assert config.max_workers == 8
+
+
+def test_autoscaling_config_zero_min_workers():
+    config = ClusterConfiguration(
+        name="autoscale-zero-min",
+        namespace="ns",
+        enable_autoscaling=True,
+        min_workers=0,
+        max_workers=4,
+    )
+    assert config.min_workers == 0
+    assert config.max_workers == 4
+
+
+def test_autoscaling_config_missing_workers():
+    with pytest.raises(
+        ValueError, match="min_workers and max_workers must be provided"
+    ):
+        ClusterConfiguration(
+            name="autoscale-missing",
+            namespace="ns",
+            enable_autoscaling=True,
+        )
+
+
+def test_autoscaling_config_missing_max_workers():
+    with pytest.raises(
+        ValueError, match="min_workers and max_workers must be provided"
+    ):
+        ClusterConfiguration(
+            name="autoscale-missing-max",
+            namespace="ns",
+            enable_autoscaling=True,
+            min_workers=1,
+        )
+
+
+def test_autoscaling_config_negative_min_workers():
+    with pytest.raises(ValueError, match="min_workers must be >= 0"):
+        ClusterConfiguration(
+            name="autoscale-negative",
+            namespace="ns",
+            enable_autoscaling=True,
+            min_workers=-1,
+            max_workers=4,
+        )
+
+
+def test_autoscaling_config_max_less_than_min():
+    with pytest.raises(ValueError, match="max_workers must be >= min_workers"):
+        ClusterConfiguration(
+            name="autoscale-bad-range",
+            namespace="ns",
+            enable_autoscaling=True,
+            min_workers=5,
+            max_workers=2,
+        )
+
+
+def test_autoscaling_disabled_ignores_workers():
+    with pytest.warns(UserWarning, match="min_workers and max_workers are ignored"):
+        config = ClusterConfiguration(
+            name="no-autoscale",
+            namespace="ns",
+            enable_autoscaling=False,
+            min_workers=1,
+            max_workers=8,
+        )
+    assert config.enable_autoscaling is False
+
+
+def test_autoscaling_spec_generation(mocker):
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch("kubernetes.client.CustomObjectsApi.list_namespaced_custom_object")
+
+    cluster = Cluster(
+        ClusterConfiguration(
+            name="autoscale-cluster",
+            namespace="ns",
+            enable_autoscaling=True,
+            min_workers=2,
+            max_workers=10,
+        )
+    )
+
+    spec = cluster.resource_yaml["spec"]
+    assert spec["enableInTreeAutoscaling"] is True
+    worker_group = spec["workerGroupSpecs"][0]
+    assert worker_group["replicas"] == 2
+    assert worker_group["minReplicas"] == 2
+    assert worker_group["maxReplicas"] == 10
+
+
+def test_autoscaling_disabled_spec_unchanged(mocker):
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch("kubernetes.client.CustomObjectsApi.list_namespaced_custom_object")
+
+    cluster = Cluster(
+        ClusterConfiguration(
+            name="fixed-cluster",
+            namespace="ns",
+            num_workers=3,
+        )
+    )
+
+    spec = cluster.resource_yaml["spec"]
+    assert spec["enableInTreeAutoscaling"] is False
+    worker_group = spec["workerGroupSpecs"][0]
+    assert worker_group["replicas"] == 3
+    assert worker_group["minReplicas"] == 3
+    assert worker_group["maxReplicas"] == 3
+
+
 # Make sure to always keep this function last
 def test_cleanup():
     os.remove(f"{cluster_dir}test-all-params.yaml")

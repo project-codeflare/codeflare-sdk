@@ -97,6 +97,17 @@ class ClusterConfiguration:
             A list of V1Volume objects to add to the Cluster
         volume_mounts:
             A list of V1VolumeMount objects to add to the Cluster
+        enable_autoscaling:
+            A boolean indicating whether to enable Ray in-tree autoscaling. When True,
+            min_workers and max_workers must also be set. Cannot be used with Kueue
+            (local_queue) until upstream KEP-77 graduates.
+        min_workers:
+            Minimum number of workers when autoscaling is enabled. Maps to
+            workerGroupSpecs.replicas and workerGroupSpecs.minReplicas.
+            Required when enable_autoscaling is True.
+        max_workers:
+            Maximum number of workers when autoscaling is enabled. Maps to
+            workerGroupSpecs.maxReplicas. Required when enable_autoscaling is True.
         enable_gcs_ft:
             A boolean indicating whether to enable GCS fault tolerance.
         enable_usage_stats:
@@ -137,6 +148,9 @@ class ClusterConfiguration:
     extended_resource_mapping: Dict[str, str] = field(default_factory=dict)
     overwrite_default_resource_mapping: bool = False
     local_queue: Optional[str] = None
+    enable_autoscaling: bool = False
+    min_workers: Optional[int] = None
+    max_workers: Optional[int] = None
     annotations: Dict[str, str] = field(default_factory=dict)
     volumes: list[V1Volume] = field(default_factory=list)
     volume_mounts: list[V1VolumeMount] = field(default_factory=list)
@@ -151,6 +165,8 @@ class ClusterConfiguration:
             print(
                 "Warning: TLS verification has been disabled - Endpoint checks will be bypassed"
             )
+
+        self._validate_autoscaling()
 
         if self.enable_usage_stats:
             self.envs["RAY_USAGE_STATS_ENABLED"] = "1"
@@ -211,6 +227,23 @@ class ClusterConfiguration:
             if k not in self.extended_resource_mapping.keys():
                 raise ValueError(
                     f"extended resource '{k}' not found in extended_resource_mapping, available resources are {list(self.extended_resource_mapping.keys())}, to add more supported resources use extended_resource_mapping. i.e. extended_resource_mapping = {{'{k}': 'FOO_BAR'}}"
+                )
+
+    def _validate_autoscaling(self):
+        if self.enable_autoscaling:
+            if self.min_workers is None or self.max_workers is None:
+                raise ValueError(
+                    "min_workers and max_workers must be provided when enable_autoscaling is True"
+                )
+            if self.min_workers < 0:
+                raise ValueError("min_workers must be >= 0")
+            if self.max_workers < self.min_workers:
+                raise ValueError("max_workers must be >= min_workers")
+        else:
+            if self.min_workers is not None or self.max_workers is not None:
+                warnings.warn(
+                    "min_workers and max_workers are ignored when enable_autoscaling is False",
+                    UserWarning,
                 )
 
     def _str_mem_no_unit_add_GB(self):
