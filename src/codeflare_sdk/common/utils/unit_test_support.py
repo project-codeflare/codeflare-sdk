@@ -287,6 +287,7 @@ def get_expected_image():
 def get_template_variables():
     return {
         "image": get_expected_image(),
+        "ray_version": constants.RAY_VERSION,
     }
 
 

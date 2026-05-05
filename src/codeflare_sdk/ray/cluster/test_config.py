@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import filecmp
 import os
 from pathlib import Path
 
@@ -96,11 +95,13 @@ def test_config_creation_all_parameters(mocker):
     assert cluster.config.volumes == volumes
     assert cluster.config.volume_mounts == volume_mounts
 
-    assert filecmp.cmp(
-        f"{cluster_dir}test-all-params.yaml",
+    with open(f"{cluster_dir}test-all-params.yaml", "r") as f:
+        actual = yaml.load(f, Loader=yaml.FullLoader)
+    expected = apply_template(
         f"{expected_clusters_dir}/ray/unit-test-all-params.yaml",
-        shallow=True,
+        get_template_variables(),
     )
+    assert actual == expected
 
 
 def test_config_creation_wrong_type():
