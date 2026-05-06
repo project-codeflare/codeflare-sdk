@@ -275,42 +275,59 @@ jobs:
         run: |
           git add .
 
-          COMMIT_MSG="Update version configuration"
-
+          HEADLINE="task(release): pre-release version bump"
+          PARTS=""
           if [ -n "${{ github.event.inputs.new_ray_version }}" ]; then
-            COMMIT_MSG="${COMMIT_MSG}
+            PARTS="${PARTS} Ray ${{ github.event.inputs.new_ray_version }}"
+          fi
+          if [ -n "${{ github.event.inputs.new_sdk_version }}" ]; then
+            [ -n "${PARTS}" ] && PARTS="${PARTS},"
+            PARTS="${PARTS} SDK ${{ github.event.inputs.new_sdk_version }}"
+          fi
+          if [ -n "${PARTS}" ]; then
+            HEADLINE="${HEADLINE}${PARTS}"
+          fi
+
+          BODY=""
+          if [ -n "${{ github.event.inputs.new_ray_version }}" ]; then
+            BODY="${BODY}
           - Ray version: ${{ steps.current.outputs.ray_version }} -> ${{ github.event.inputs.new_ray_version }}"
           fi
           if [ -n "${{ github.event.inputs.new_sdk_version }}" ]; then
-            COMMIT_MSG="${COMMIT_MSG}
+            BODY="${BODY}
           - SDK version: ${{ steps.current.outputs.sdk_version }} -> ${{ github.event.inputs.new_sdk_version }}"
           fi
           if [ -n "${{ github.event.inputs.new_py312_cuda_sha }}" ]; then
-            COMMIT_MSG="${COMMIT_MSG}
+            BODY="${BODY}
           - Updated py312 CUDA runtime image SHA"
           fi
           if [ -n "${{ github.event.inputs.new_py311_cuda_sha }}" ]; then
-            COMMIT_MSG="${COMMIT_MSG}
+            BODY="${BODY}
           - Updated py311 CUDA runtime image SHA"
           fi
           if [ -n "${{ github.event.inputs.py312_cuda_tag }}" ]; then
-            COMMIT_MSG="${COMMIT_MSG}
+            BODY="${BODY}
           - py312 CUDA tag -> ${{ github.event.inputs.py312_cuda_tag }}"
           fi
           if [ -n "${{ github.event.inputs.py312_rocm_tag }}" ]; then
-            COMMIT_MSG="${COMMIT_MSG}
+            BODY="${BODY}
           - py312 ROCm tag -> ${{ github.event.inputs.py312_rocm_tag }}"
           fi
           if [ -n "${{ github.event.inputs.py311_cuda_tag }}" ]; then
-            COMMIT_MSG="${COMMIT_MSG}
+            BODY="${BODY}
           - py311 CUDA tag -> ${{ github.event.inputs.py311_cuda_tag }}"
           fi
           if [ -n "${{ github.event.inputs.py311_rocm_tag }}" ]; then
-            COMMIT_MSG="${COMMIT_MSG}
+            BODY="${BODY}
           - py311 ROCm tag -> ${{ github.event.inputs.py311_rocm_tag }}"
           fi
 
-          git commit -m "${COMMIT_MSG}"
+          if [ -n "${BODY}" ]; then
+            git commit -m "${HEADLINE}
+          ${BODY}"
+          else
+            git commit -m "${HEADLINE}"
+          fi
 
       - name: Push changes
         if: steps.check-changes.outputs.has-changes == 'true'
