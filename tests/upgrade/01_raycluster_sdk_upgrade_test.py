@@ -27,6 +27,9 @@ class TestMNISTRayClusterApply:
             create_cluster_queue(self, cluster_queue, flavor)
             create_resource_flavor(self, flavor)
             create_local_queue(self, cluster_queue, local_queue)
+            # Populate plural lists used by delete_kueue_resources
+            self.cluster_queues = [cluster_queue]
+            self.resource_flavors = [flavor]
         except Exception as e:
             delete_namespace(self)
             delete_kueue_resources(self)
@@ -80,6 +83,7 @@ class TestMNISTRayClusterApply:
                 worker_memory_requests=6,
                 worker_memory_limits=8,
                 image=ray_image,
+                local_queue=local_queue,
                 write_to_file=True,
                 verify_tls=False,
             )
