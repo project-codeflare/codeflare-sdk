@@ -536,7 +536,7 @@ class DistributedWorkloadsPage:
             # Look for the cluster name in the table
             cluster_cell = self.wait.until(
                 EC.presence_of_element_located(
-                    (By.XPATH, f"//td[contains(text(), '{cluster_name}')]")
+                    (By.XPATH, f"//td[contains(., '{cluster_name}')]")
                 )
             )
             is_visible = cluster_cell.is_displayed()
