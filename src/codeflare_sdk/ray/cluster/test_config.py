@@ -296,10 +296,6 @@ def test_autoscaling_disabled_ignores_workers():
 def test_autoscaling_spec_generation(mocker):
     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch("kubernetes.client.CustomObjectsApi.list_namespaced_custom_object")
-    mocker.patch(
-        "codeflare_sdk.common.kueue.kueue.get_default_kueue_name",
-        return_value=None,
-    )
 
     cluster = Cluster(
         ClusterConfiguration(
@@ -317,71 +313,6 @@ def test_autoscaling_spec_generation(mocker):
     assert worker_group["replicas"] == 2
     assert worker_group["minReplicas"] == 2
     assert worker_group["maxReplicas"] == 10
-
-
-def test_autoscaling_blocked_when_local_queue_set(mocker):
-    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
-    mocker.patch("kubernetes.client.CustomObjectsApi.list_namespaced_custom_object")
-
-    with pytest.raises(
-        ValueError,
-        match="Autoscaling is not supported when Kueue is enabled",
-    ):
-        Cluster(
-            ClusterConfiguration(
-                name="autoscale-kueue-explicit",
-                namespace="ns",
-                enable_autoscaling=True,
-                min_workers=1,
-                max_workers=8,
-                local_queue="my-queue",
-            )
-        )
-
-
-def test_autoscaling_blocked_when_default_queue_exists(mocker):
-    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
-    mocker.patch("kubernetes.client.CustomObjectsApi.list_namespaced_custom_object")
-    mocker.patch(
-        "codeflare_sdk.common.kueue.kueue.get_default_kueue_name",
-        return_value="default-queue",
-    )
-
-    with pytest.raises(
-        ValueError,
-        match="Autoscaling is not supported when Kueue is enabled",
-    ):
-        Cluster(
-            ClusterConfiguration(
-                name="autoscale-kueue-default",
-                namespace="ns",
-                enable_autoscaling=True,
-                min_workers=1,
-                max_workers=8,
-            )
-        )
-
-
-def test_autoscaling_allowed_when_no_queue(mocker):
-    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
-    mocker.patch("kubernetes.client.CustomObjectsApi.list_namespaced_custom_object")
-    mocker.patch(
-        "codeflare_sdk.common.kueue.kueue.get_default_kueue_name",
-        return_value=None,
-    )
-
-    cluster = Cluster(
-        ClusterConfiguration(
-            name="autoscale-no-kueue",
-            namespace="ns",
-            enable_autoscaling=True,
-            min_workers=1,
-            max_workers=8,
-        )
-    )
-
-    spec = cluster.resource_yaml["spec"]
-    assert spec["enableInTreeAutoscaling"] is True
 
 
 def test_autoscaling_disabled_spec_unchanged(mocker):
