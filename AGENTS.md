@@ -59,7 +59,7 @@ coverage run \
   --omit="src/**/test_*.py,src/codeflare_sdk/common/utils/unit_test_support.py,src/codeflare_sdk/vendored/**" \
   -m pytest \
   --ignore=tests/e2e --ignore=tests/e2e_v2 --ignore=tests/upgrade \
-  --ignore=demo-notebooks --ignore=ui-tests
+  --ignore=demo-notebooks --ignore=tests/ui
 
 # Coverage report
 coverage report -m
