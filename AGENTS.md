@@ -140,3 +140,11 @@ Pre-commit hooks enforce:
 - YAML validation
 - Large file checks
 - black formatting
+
+## Cursor Rules (extended guidance)
+
+This repository has more detailed AI coding rules in `.cursor/rules/`:
+
+- `.cursor/rules/01-project-context.mdc` — Grounding, personas, hallucination avoidance
+- `.cursor/rules/02-python-standards.mdc` — Python style, canonical examples, common pitfalls
+- `.cursor/rules/03-testing-and-ci.mdc` — CI workflows, demo notebooks, KinD adaptations
