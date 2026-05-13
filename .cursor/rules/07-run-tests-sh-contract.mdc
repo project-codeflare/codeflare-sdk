@@ -1,0 +1,74 @@
+---
+description: Immutable contract for run-tests.sh — BYOIDC auth flow, podman run shape, and kubeconfig injection must not change
+globs: "images/tests/run-tests.sh,images/tests/Dockerfile"
+alwaysApply: false
+---
+
+# run-tests.sh: immutable contract
+
+`images/tests/run-tests.sh` handles cluster authentication and test dispatch inside the container. The auth flow and the `podman run` interface are **fixed** — do not change them without explicit user approval.
+
+---
+
+## The podman run interface is fixed
+
+The canonical invocation is:
+
+```bash
+podman run --rm -it --platform linux/amd64 --pull="never" \
+  -v ~/.kube/config:/codeflare-sdk/tests/.kube/config:ro \
+  -v ./results:/codeflare-sdk/tests/results:Z \
+  --env-file ../creds \
+  quay.io/opendatahub/codeflare-sdk-tests:<tag> -m <tier>
+```
+
+- ❌ Do NOT change the kubeconfig mount path (`/codeflare-sdk/tests/.kube/config`)
+- ❌ Do NOT require mounting `~/.kube/` (the whole directory) — this is intentionally avoided to prevent disrupting the user's host kubeconfig cache
+- ❌ Do NOT change the results mount or the env-file contract
+
+---
+
+## BYOIDC auth flow inside the container
+
+On BYOIDC clusters the kubeconfig uses an exec-plugin (`oc`). Since the container cannot run the interactive OIDC browser flow, the script uses the following fallback chain:
+
+1. **`BYOIDC_ADMIN_TOKEN`** env var — if set, the pre-extracted `id_token` is injected directly (fastest path; obtain with `python3 -c "import json,glob,os; [print(json.load(open(f))['id_token']) for f in glob.glob(os.path.expanduser('~/.kube/cache/oc/*')) if 'id_token' in json.load(open(f))]" | head -1`)
+2. **Keycloak password grant** — uses `OCP_ADMIN_USER_USERNAME` / `OCP_ADMIN_USER_PASSWORD` and the OIDC well-known discovery endpoint to fetch `id_token` + `refresh_token`, then injects them as a `kubectl` `auth-provider` (same method as Jenkins `loginByoidcUser`)
+3. **Exec-plugin as-is** — if neither of the above yields a token, the kubeconfig is used unchanged and `oc` commands invoke the exec plugin when needed
+
+- ❌ Do NOT add `oc login --username/--password` as a fallback — it returns `401 Unauthorized` on BYOIDC clusters because OpenShift's internal OAuth is replaced by external OIDC
+- ❌ Do NOT use `oc version` (without `--client`) for connectivity checks — it triggers the exec plugin and hangs; use `curl -sk <OCP_API_URL>/version` instead (unauthenticated endpoint)
+- `OCP_API_URL` is always inferred from the kubeconfig (`oc whoami --show-server` → fallback to `oc config view … .clusters[0].cluster.server`); it does not need to be in the credentials file
+
+## BYOIDC detection in run-tests.sh
+
+Detection inspects the kubeconfig directly (no API calls, no timeouts):
+
+```bash
+HAS_EXEC_PLUGIN=$(oc config view --minify -o jsonpath='{.users[0].user.exec.command}' 2>/dev/null)
+# If non-empty and contains "oc" or "oc-oidc" → BYOIDC cluster
+```
+
+- ❌ Do NOT use `oc get authentication cluster` for detection at startup — it hangs when the kubeconfig uses an exec-plugin
+- ❌ Do NOT rely on `BYOIDC_ADMIN_USERNAME` env var for detection — the env file may contain BYOIDC variables even when running against a non-BYOIDC cluster
+
+---
+
+## Variable promotion (BYOIDC → standard names)
+
+When a BYOIDC cluster is detected, `run-tests.sh` automatically promotes:
+- `BYOIDC_ADMIN_USERNAME` → `OCP_ADMIN_USER_USERNAME`
+- `BYOIDC_ADMIN_PASSWORD` → `OCP_ADMIN_USER_PASSWORD`
+- `BYOIDC_TEST_USERNAME` → `TEST_USER_USERNAME`
+- `BYOIDC_TEST_PASSWORD` → `TEST_USER_PASSWORD`
+
+Python tests then consume only the standard `OCP_ADMIN_USER_*` / `TEST_USER_*` names regardless of cluster type.
+
+---
+
+## Adding new env variables
+
+If a new env variable is needed for a test:
+1. Add it to the credentials file template (see rule `05-e2e-validation-workflow.mdc`)
+2. Add it to the `run-tests.sh` required-variable check section
+3. Document whether it is required for BYOIDC only, non-BYOIDC only, or both

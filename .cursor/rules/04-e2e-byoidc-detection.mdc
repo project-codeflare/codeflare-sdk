@@ -1,0 +1,71 @@
+---
+description: BYOIDC vs non-BYOIDC cluster detection rules for e2e and upgrade tests — single source of truth, anti-patterns, job submission contract
+globs: "tests/e2e/**/*.py,tests/upgrade/**/*.py"
+alwaysApply: false
+---
+
+# E2E: BYOIDC cluster detection & job submission
+
+## Single source of truth
+
+`is_byoidc_cluster_detected()` in `tests/e2e/support.py` is the **only** place that decides whether a cluster is BYOIDC. All test files consume it via `from support import *`.
+
+- ✅ Call `is_byoidc_cluster_detected()` from any test file
+- ❌ Do NOT add `_is_byoidc_cluster()` instance methods to test classes (removes duplication)
+- ❌ Do NOT copy or re-implement the detection logic anywhere else
+
+## Detection logic — what is authoritative
+
+```python
+# ✅ CORRECT: spec.oidcProviders is only populated on BYOIDC clusters
+spec = auth_resource.get("spec", {})
+for provider in spec.get("oidcProviders", []):
+    issuer_url = provider.get("issuer", {}).get("issuerURL", "")
+    if issuer_url:
+        return True  # BYOIDC
+```
+
+## Detection anti-patterns — never use these
+
+```python
+# ❌ Wrong field name (returns empty string always)
+provider.get("issuer", {}).get("url", "")
+
+# ❌ status.oidcClients is present on standard OpenShift 4.14+ clusters too → false positive
+if "oidcClients" in status and status["oidcClients"]: ...
+
+# ❌ clientID field does not exist at componentName level
+client.get("clientID") == "oc-cli"
+
+# ❌ Environment variable fallback — env file variables are cluster-agnostic,
+#    so BYOIDC_ADMIN_USERNAME may be set even on non-BYOIDC clusters
+os.getenv("BYOIDC_ADMIN_USERNAME")
+os.getenv("TEST_USER_USERNAME", "").startswith("odh-")
+```
+
+## Job submission — both cluster types must submit real jobs
+
+For BYOIDC clusters, `oc whoami --show-token=true` is unavailable. Use `get_oidc_tokens()`:
+
+```python
+if is_byoidc_cluster_detected():
+    issuer_url = get_byoidc_issuer_url()
+    id_token, _ = get_oidc_tokens(
+        os.environ["OCP_ADMIN_USER_USERNAME"],
+        os.environ["OCP_ADMIN_USER_PASSWORD"],
+        issuer_url,
+    )
+    header = {"Authorization": f"Bearer {id_token}"}
+else:
+    auth_token = run_oc_command(["whoami", "--show-token=true"])
+    header = {"Authorization": f"Bearer {auth_token}"}
+
+client = RayJobClient(address=ray_dashboard, headers=header, verify=False)
+```
+
+- ❌ Do NOT skip job submission for BYOIDC clusters — use the token flow above
+- ✅ `get_oidc_tokens`, `get_byoidc_issuer_url`, `run_oc_command`, `RayJobClient` are all available via `from support import *`
+
+## Every fix must be BYOIDC-safe
+
+Any change to detection or job submission logic **must be validated on both cluster types** before it is considered done. See rule `05-e2e-validation-workflow.mdc` for the exact validation commands.

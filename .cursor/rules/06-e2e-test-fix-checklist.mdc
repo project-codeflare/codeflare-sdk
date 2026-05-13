@@ -1,0 +1,69 @@
+---
+description: Checklist and anti-patterns for fixing e2e and upgrade tests — Python 3.12 compat, detection duplication, BYOIDC compatibility
+globs: "tests/e2e/**/*.py,tests/upgrade/**/*.py,tests/e2e/*.txt"
+alwaysApply: false
+---
+
+# E2E: Test fix checklist
+
+Before marking any test fix as done, verify all items below.
+
+---
+
+## BYOIDC compatibility (highest priority)
+
+- [ ] Fix works on **both** BYOIDC and non-BYOIDC clusters (see rule `05-e2e-validation-workflow.mdc`)
+- [ ] BYOIDC detection uses only `is_byoidc_cluster_detected()` from `support.py` — no new copies
+- [ ] No env-var-based BYOIDC detection added (`BYOIDC_ADMIN_USERNAME`, username prefix checks, etc.)
+- [ ] No `status.oidcClients` check added — it is present on standard OpenShift 4.14+ clusters and causes false positives
+- [ ] `spec.oidcProviders[].issuer.issuerURL` (not `.url`) used wherever the issuer URL is read
+- [ ] Job submission is not skipped for BYOIDC — use `get_oidc_tokens()` with `OCP_ADMIN_USER_USERNAME/PASSWORD`
+
+## Code structure
+
+- [ ] No `_is_byoidc_cluster()` instance method added to a test class — call `is_byoidc_cluster_detected()` directly
+- [ ] Helper functions (`get_oidc_tokens`, `get_byoidc_issuer_url`, `run_oc_command`, etc.) used from `support.py`, not re-implemented
+- [ ] `import os` present in any file that uses `os.environ.get(...)` (support.py re-exports it via `*` but upgrade test must import it explicitly)
+
+## Python 3.12 compatibility
+
+- [ ] `pkg_resources` not used — use `importlib.metadata` or avoid entirely. If a Ray `runtime_env` pip requirement pulls in an old library that uses `pkg_resources`, pin it to a version that does not (e.g. `pytorch_lightning>=2.0,<3.0`)
+- [ ] `pytorch_lightning` imports use 2.x paths:
+  ```python
+  # ✅ 2.x
+  from pytorch_lightning.callbacks import TQDMProgressBar
+  # ❌ 1.x
+  from pytorch_lightning.callbacks.progress import TQDMProgressBar
+  ```
+- [ ] `Trainer` uses `use_distributed_sampler=` (not the removed `replace_sampler_ddp=`)
+- [ ] `ACCELERATOR` env var defaults to `"auto"`, not `None`; map `"gpu"` → `"cuda"` before passing to `Trainer`
+
+## Ray runtime_env pip requirements (`mnist_pip_requirements.txt`)
+
+- [ ] No `setuptools` added as a workaround — upgrade the offending library instead
+- [ ] `pytorch_lightning` pinned to `>=2.0,<3.0` (or exact compatible version)
+
+## Pre-commit (must pass before finishing)
+
+- [ ] Run `pre-commit run --all-files` and fix any failures before considering the change done
+- [ ] Do not skip or alter pre-commit hooks
+
+## Docker / image build
+
+- [ ] After editing any file under `tests/`, rebuild the image with `--no-cache` or use `make build-test-image` (which does not cache by default via `podman build`)
+- [ ] Run with `--pull="never"` to guarantee the locally built image is used
+
+---
+
+## Quick reference: files that own each concern
+
+| Concern | File |
+|---------|------|
+| BYOIDC detection | `tests/e2e/support.py` → `is_byoidc_cluster_detected()` |
+| BYOIDC issuer URL | `tests/e2e/support.py` → `get_byoidc_issuer_url()` |
+| OIDC token fetch | `tests/e2e/support.py` → `get_oidc_tokens()` |
+| Ray job submission (tier1) | `tests/e2e/mnist_raycluster_sdk_oauth_test.py` → `assert_jobsubmit_withlogin()` |
+| Ray job submission (upgrade) | `tests/upgrade/01_raycluster_sdk_upgrade_test.py` → `assert_jobsubmit_withlogin()` |
+| Generic job submit helper | `tests/e2e/support.py` → `assert_get_cluster_and_jobsubmit()` |
+| Ray job pip deps | `tests/e2e/mnist_pip_requirements.txt` |
+| Ray training script | `tests/e2e/mnist.py` |
