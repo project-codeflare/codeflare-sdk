@@ -124,52 +124,6 @@ class TestMnistJobSubmit:
         if not self.cluster:
             raise RuntimeError("TestRayClusterUp needs to be run before this test")
 
-    def _is_byoidc_cluster(self):
-        """
-        BYOIDC cluster detection by checking OpenShift cluster Authentication resource.
-        Detection is based solely on cluster state — no environment variable fallback.
-        """
-        try:
-            auth_resource = self.custom_api.get_cluster_custom_object(
-                group="config.openshift.io",
-                version="v1",
-                plural="authentications",
-                name="cluster",
-            )
-
-            spec = auth_resource.get("spec", {})
-
-            # Any non-empty spec.oidcProviders.issuerURL means external OIDC is configured.
-            # This field is only populated on BYOIDC clusters — never on standard OAuth clusters.
-            if "oidcProviders" in spec and spec["oidcProviders"]:
-                for provider in spec["oidcProviders"]:
-                    issuer_url = provider.get("issuer", {}).get("issuerURL", "")
-                    if issuer_url:
-                        print(f"Detected BYOIDC cluster with OIDC issuer: {issuer_url}")
-                        return True
-
-            # Check webhookTokenAuthenticators
-            if (
-                "webhookTokenAuthenticators" in spec
-                and spec["webhookTokenAuthenticators"]
-            ):
-                for webhook in spec["webhookTokenAuthenticators"]:
-                    if webhook.get("kubeConfig", {}):
-                        print(
-                            "Detected BYOIDC cluster with webhook token authenticator"
-                        )
-                        return True
-
-            # Do NOT check status.oidcClients — it is present on standard OpenShift 4.14+
-            # clusters too and causes false positives.
-
-            print("No BYOIDC indicators found in cluster Authentication resource")
-            return False
-
-        except Exception as e:
-            print(f"Could not check cluster authentication method: {e}")
-            return False
-
     def test_mnist_job_submission(self):
         self.assert_jobsubmit_withoutLogin(self.cluster)
         self.assert_jobsubmit_withlogin(self.cluster)
@@ -179,7 +133,7 @@ class TestMnistJobSubmit:
         dashboard_url = cluster.cluster_dashboard_uri()
 
         # Check if this is a BYOIDC cluster
-        is_byoidc_cluster = self._is_byoidc_cluster()
+        is_byoidc_cluster = is_byoidc_cluster_detected()
 
         # For BYOIDC clusters, authentication is enforced at the gateway level
         if is_byoidc_cluster:
@@ -299,7 +253,7 @@ class TestMnistJobSubmit:
     def assert_jobsubmit_withlogin(self, cluster):
         ray_dashboard = cluster.cluster_dashboard_uri()
 
-        is_byoidc_cluster = self._is_byoidc_cluster()
+        is_byoidc_cluster = is_byoidc_cluster_detected()
 
         if is_byoidc_cluster:
             # On BYOIDC clusters oc whoami --show-token=true is unavailable.
