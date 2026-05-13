@@ -219,85 +219,6 @@ class TestRayClusterSDKOauth:
 
         assert True, "Job submission without authentication was correctly blocked"
 
-    def _is_byoidc_cluster(self):
-        """
-        Simple BYOIDC cluster detection by checking for OIDC issuer in cluster Authentication resource.
-        """
-        try:
-            # Check if cluster has OIDC authentication configured
-            auth_resource = self.custom_api.get_cluster_custom_object(
-                group="config.openshift.io",
-                version="v1",
-                plural="authentications",
-                name="cluster",
-            )
-
-            # Look for OIDC issuer URL in the authentication spec
-            spec = auth_resource.get("spec", {})
-
-            # Check oidcProviders first - must be BYOIDC-specific
-            if "oidcProviders" in spec and spec["oidcProviders"]:
-                for provider in spec["oidcProviders"]:
-                    issuer_url = provider.get("issuer", {}).get("url", "")
-                    # More specific check for BYOIDC patterns
-                    if (
-                        "keycloak" in issuer_url.lower()
-                        and (
-                            "rh-ods.com" in issuer_url or "qe.rh-ods.com" in issuer_url
-                        )
-                    ) or "realms/openshift" in issuer_url:
-                        print(f"Detected BYOIDC cluster with OIDC issuer: {issuer_url}")
-                        return True
-
-            # Also check for webhookTokenAuthenticators (alternative OIDC config)
-            if (
-                "webhookTokenAuthenticators" in spec
-                and spec["webhookTokenAuthenticators"]
-            ):
-                for webhook in spec["webhookTokenAuthenticators"]:
-                    kubeconfig = webhook.get("kubeConfig", {})
-                    if kubeconfig:
-                        print(
-                            "Detected BYOIDC cluster with webhook token authenticator"
-                        )
-                        return True
-
-            # Check status for BYOIDC-specific OIDC clients
-            status = auth_resource.get("status", {})
-            if "oidcClients" in status and status["oidcClients"]:
-                # Check if oc-cli client exists (BYOIDC-specific)
-                for client in status["oidcClients"]:
-                    if client.get("clientID") == "oc-cli":
-                        print(
-                            "Detected BYOIDC cluster from status.oidcClients (oc-cli)"
-                        )
-                        return True
-
-            # Fallback: check if we can detect OIDC from environment or other indicators
-            # This is a simple heuristic - if we're using Jenkins vault credentials for BYOIDC
-            import os
-
-            if os.getenv("BYOIDC_ADMIN_USERNAME") or os.getenv(
-                "TEST_USER_USERNAME", ""
-            ).startswith("odh-"):
-                print("Detected BYOIDC cluster from environment variables")
-                return True
-
-            print("No BYOIDC OIDC providers found in cluster Authentication resource")
-            return False
-
-        except Exception as e:
-            print(f"Could not check cluster authentication method: {e}")
-            # Fallback: check environment variables as last resort
-            import os
-
-            if os.getenv("BYOIDC_ADMIN_USERNAME") or os.getenv(
-                "TEST_USER_USERNAME", ""
-            ).startswith("odh-"):
-                print("Detected BYOIDC cluster from environment variables (fallback)")
-                return True
-            return False
-
     def assert_jobsubmit_withlogin(self, cluster):
         ray_dashboard = cluster.cluster_dashboard_uri()
 
@@ -305,50 +226,33 @@ class TestRayClusterSDKOauth:
         ray_cluster_auth_enabled = self._is_ray_cluster_auth_enabled(cluster)
         print(f"Ray cluster authentication enabled: {ray_cluster_auth_enabled}")
 
-        # For BYOIDC clusters, skip the Ray Dashboard test entirely
-        # BYOIDC uses different authentication mechanisms (OIDC tokens, cookies) that are
-        # not compatible with the simple bearer token approach used in this test
-        # Simple detection: check if we have OIDC issuer in cluster
-        is_byoidc_cluster = self._is_byoidc_cluster()
-        if is_byoidc_cluster:
-            print("Skipping Ray Dashboard authentication test for BYOIDC cluster")
-            print(
-                "BYOIDC authentication is handled differently and requires browser-based OIDC flow"
-            )
-            # Instead, just verify that the cluster is working by checking its status
-            print("Verifying cluster is accessible via Kubernetes API...")
-            ray_cluster = get_ray_cluster(cluster.config.name, cluster.config.namespace)
-            if ray_cluster and ray_cluster.get("status", {}).get("state") == "ready":
-                print(
-                    "✓ Ray cluster is ready and accessible - BYOIDC authentication test passed"
-                )
-                return
-            else:
-                cluster_state = (
-                    ray_cluster.get("status", {}).get("state", "unknown")
-                    if ray_cluster
-                    else "not found"
-                )
-                print(
-                    f"✗ Ray cluster is not ready or not accessible (state: {cluster_state})"
-                )
-                print("This may be due to:")
-                print("  - ServiceAccount creation delays (known product issue)")
-                print("  - Authentication controller timing issues")
-                print("  - Cluster resource constraints")
-                assert (
-                    False
-                ), f"Ray cluster is not accessible via Kubernetes API (state: {cluster_state})"
+        is_byoidc_cluster = is_byoidc_cluster_detected()
 
-        if not ray_cluster_auth_enabled:
-            # If Ray cluster doesn't have authentication enabled, don't send auth headers
+        if is_byoidc_cluster:
+            # On BYOIDC clusters oc whoami --show-token=true is unavailable.
+            # Obtain an OIDC id_token via Keycloak password grant (same approach
+            # as Jenkins loginByoidcUser / opendatahub-tests get_oidc_tokens).
+            username = os.environ.get("OCP_ADMIN_USER_USERNAME", "")
+            password = os.environ.get("OCP_ADMIN_USER_PASSWORD", "")
+            if not username or not password:
+                raise RuntimeError(
+                    "OCP_ADMIN_USER_USERNAME and OCP_ADMIN_USER_PASSWORD must be set "
+                    "for BYOIDC job submission"
+                )
+            issuer_url = get_byoidc_issuer_url()
+            id_token, _ = get_oidc_tokens(username, password, issuer_url)
+            if not id_token:
+                raise RuntimeError(
+                    "Failed to obtain OIDC token for Ray Dashboard authentication. "
+                    "Check OCP_ADMIN_USER_PASSWORD."
+                )
+            header = {"Authorization": f"Bearer {id_token}"}
+        elif not ray_cluster_auth_enabled:
             print(
                 "Ray cluster authentication is disabled - proceeding without auth headers"
             )
             header = {}
         else:
-            # For authenticated clusters, try to get token via oc command
-            # This works for both legacy and kubeconfig-based authentication
             try:
                 auth_token = run_oc_command(["whoami", "--show-token=true"])
                 if auth_token:
