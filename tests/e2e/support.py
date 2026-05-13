@@ -595,48 +595,60 @@ def get_tolerations_from_flavor(self, flavor_name):
 
 def is_byoidc_cluster_detected():
     """
-    Simple BYOIDC cluster detection by checking environment variables.
-    This is a fallback method for support functions that don't have access to self.
+    BYOIDC cluster detection by checking OpenShift cluster Authentication resource.
+    Detection is based solely on cluster state — no environment variable fallback.
     """
     try:
-        import os
+        from kubernetes import client as k8s_client
 
-        # Check environment variables as indicator of BYOIDC
-        if os.getenv("BYOIDC_ADMIN_USERNAME") or os.getenv(
-            "TEST_USER_USERNAME", ""
-        ).startswith("odh-"):
-            print("Detected BYOIDC cluster from environment variables")
-            return True
+        custom_api = k8s_client.CustomObjectsApi()
+        auth_resource = custom_api.get_cluster_custom_object(
+            group="config.openshift.io",
+            version="v1",
+            plural="authentications",
+            name="cluster",
+        )
 
-        # Try to check cluster authentication if possible
-        try:
-            from kubernetes import client
+        spec = auth_resource.get("spec", {})
 
-            custom_api = client.CustomObjectsApi()
-            auth_resource = custom_api.get_cluster_custom_object(
-                group="config.openshift.io",
-                version="v1",
-                plural="authentications",
-                name="cluster",
-            )
+        # Check oidcProviders for BYOIDC-specific issuer URL patterns
+        if "oidcProviders" in spec and spec["oidcProviders"]:
+            for provider in spec["oidcProviders"]:
+                issuer_url = provider.get("issuer", {}).get("issuerURL", "")
+                if (
+                    "keycloak" in issuer_url.lower()
+                    and (
+                        "rh-ods.com" in issuer_url or "qe.rh-ods.com" in issuer_url
+                    )
+                ) or "realms/openshift" in issuer_url:
+                    print(f"Detected BYOIDC cluster with OIDC issuer: {issuer_url}")
+                    return True
 
-            # Check status for BYOIDC-specific OIDC clients
-            status = auth_resource.get("status", {})
-            if "oidcClients" in status and status["oidcClients"]:
-                # Check if oc-cli client exists (BYOIDC-specific)
-                for client in status["oidcClients"]:
-                    if client.get("clientID") == "oc-cli":
-                        print(
-                            "Detected BYOIDC cluster from status.oidcClients (oc-cli)"
-                        )
-                        return True
+        # Check webhookTokenAuthenticators
+        if (
+            "webhookTokenAuthenticators" in spec
+            and spec["webhookTokenAuthenticators"]
+        ):
+            for webhook in spec["webhookTokenAuthenticators"]:
+                if webhook.get("kubeConfig", {}):
+                    print("Detected BYOIDC cluster with webhook token authenticator")
+                    return True
 
-        except Exception:
-            pass  # Ignore API errors, fall back to environment detection
+        # Check status.oidcClients for cli component (BYOIDC-specific).
+        # clientID is nested under currentOIDCClients[]; componentName=="cli" is
+        # simpler and always present when BYOIDC is active.
+        status = auth_resource.get("status", {})
+        if "oidcClients" in status and status["oidcClients"]:
+            for oidc_client in status["oidcClients"]:
+                if oidc_client.get("componentName") == "cli":
+                    print("Detected BYOIDC cluster from status.oidcClients (cli component)")
+                    return True
 
+        print("No BYOIDC indicators found in cluster Authentication resource")
         return False
 
-    except Exception:
+    except Exception as e:
+        print(f"Could not check cluster authentication method: {e}")
         return False
 
 
@@ -1933,7 +1945,7 @@ def get_byoidc_issuer_url():
         spec = auth_resource.get("spec", {})
         if "oidcProviders" in spec and spec["oidcProviders"]:
             for provider in spec["oidcProviders"]:
-                issuer_url = provider.get("issuer", {}).get("url", "")
+                issuer_url = provider.get("issuer", {}).get("issuerURL", "")
                 if issuer_url:
                     return issuer_url
 

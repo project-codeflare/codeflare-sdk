@@ -1,3 +1,4 @@
+import os
 import pytest
 import requests
 from time import sleep
@@ -125,10 +126,10 @@ class TestMnistJobSubmit:
 
     def _is_byoidc_cluster(self):
         """
-        Simple BYOIDC cluster detection by checking for OIDC issuer in cluster Authentication resource.
+        BYOIDC cluster detection by checking OpenShift cluster Authentication resource.
+        Detection is based solely on cluster state — no environment variable fallback.
         """
         try:
-            # Check if cluster has OIDC authentication configured
             auth_resource = self.custom_api.get_cluster_custom_object(
                 group="config.openshift.io",
                 version="v1",
@@ -136,14 +137,12 @@ class TestMnistJobSubmit:
                 name="cluster",
             )
 
-            # Look for OIDC issuer URL in the authentication spec
             spec = auth_resource.get("spec", {})
 
-            # Check oidcProviders first - must be BYOIDC-specific
+            # Check oidcProviders for BYOIDC-specific issuer URL patterns
             if "oidcProviders" in spec and spec["oidcProviders"]:
                 for provider in spec["oidcProviders"]:
-                    issuer_url = provider.get("issuer", {}).get("url", "")
-                    # More specific check for BYOIDC patterns
+                    issuer_url = provider.get("issuer", {}).get("issuerURL", "")
                     if (
                         "keycloak" in issuer_url.lower()
                         and (
@@ -153,53 +152,35 @@ class TestMnistJobSubmit:
                         print(f"Detected BYOIDC cluster with OIDC issuer: {issuer_url}")
                         return True
 
-            # Also check for webhookTokenAuthenticators (alternative OIDC config)
+            # Check webhookTokenAuthenticators
             if (
                 "webhookTokenAuthenticators" in spec
                 and spec["webhookTokenAuthenticators"]
             ):
                 for webhook in spec["webhookTokenAuthenticators"]:
-                    kubeconfig = webhook.get("kubeConfig", {})
-                    if kubeconfig:
+                    if webhook.get("kubeConfig", {}):
                         print(
                             "Detected BYOIDC cluster with webhook token authenticator"
                         )
                         return True
 
-            # Check status for BYOIDC-specific OIDC clients
+            # Check status.oidcClients for cli component (BYOIDC-specific).
+            # clientID is nested under currentOIDCClients[]; componentName=="cli" is
+            # simpler and always present when BYOIDC is active.
             status = auth_resource.get("status", {})
             if "oidcClients" in status and status["oidcClients"]:
-                # Check if oc-cli client exists (BYOIDC-specific)
                 for client in status["oidcClients"]:
-                    if client.get("clientID") == "oc-cli":
+                    if client.get("componentName") == "cli":
                         print(
-                            "Detected BYOIDC cluster from status.oidcClients (oc-cli)"
+                            "Detected BYOIDC cluster from status.oidcClients (cli component)"
                         )
                         return True
 
-            # Fallback: check if we can detect OIDC from environment or other indicators
-            # This is a simple heuristic - if we're using Jenkins vault credentials for BYOIDC
-            import os
-
-            if os.getenv("BYOIDC_ADMIN_USERNAME") or os.getenv(
-                "TEST_USER_USERNAME", ""
-            ).startswith("odh-"):
-                print("Detected BYOIDC cluster from environment variables")
-                return True
-
-            print("No BYOIDC OIDC providers found in cluster Authentication resource")
+            print("No BYOIDC indicators found in cluster Authentication resource")
             return False
 
         except Exception as e:
             print(f"Could not check cluster authentication method: {e}")
-            # Fallback: check environment variables as last resort
-            import os
-
-            if os.getenv("BYOIDC_ADMIN_USERNAME") or os.getenv(
-                "TEST_USER_USERNAME", ""
-            ).startswith("odh-"):
-                print("Detected BYOIDC cluster from environment variables (fallback)")
-                return True
             return False
 
     def test_mnist_job_submission(self):
@@ -219,7 +200,6 @@ class TestMnistJobSubmit:
             print("BYOIDC authentication is enforced at the gateway level")
             print("Verifying that dashboard requires authentication...")
 
-            # For BYOIDC, just verify that accessing the dashboard without auth redirects to login
             try:
                 response = requests.get(
                     dashboard_url, verify=False, allow_redirects=False
@@ -234,21 +214,14 @@ class TestMnistJobSubmit:
                     print(
                         f"Warning: Dashboard returned unexpected status {response.status_code} for unauthenticated access"
                     )
-                    print("This may indicate authentication is not properly enforced")
             except Exception as e:
                 print(f"Error testing dashboard authentication: {e}")
-                # Don't fail the test for this - it's not critical
             return
 
-        # For legacy authentication, verify that job submission is actually blocked by attempting to submit without auth
-        # The endpoint path depends on whether we're using HTTPRoute (with path prefix) or not
+        # For non-BYOIDC clusters, verify that job submission is blocked without auth
         if "/ray/" in dashboard_url:
-            # HTTPRoute format: https://hostname/ray/namespace/cluster-name
-            # API endpoint is at the same base path
             api_url = dashboard_url + "/api/jobs/"
         else:
-            # OpenShift Route format: https://hostname
-            # API endpoint is directly under the hostname
             api_url = dashboard_url + "/api/jobs/"
 
         jobdata = {
@@ -260,18 +233,9 @@ class TestMnistJobSubmit:
             },
         }
 
-        # Try to submit a job without authentication
-        # Follow redirects to see the final response - if it redirects to login, that's still a failure
         response = requests.post(
             api_url, verify=False, json=jobdata, allow_redirects=True
         )
-
-        # Check if the submission was actually blocked
-        # Success indicators that submission was blocked:
-        # 1. Status code 403 (Forbidden)
-        # 2. Status code 302 (Redirect to login) - but we need to verify the final response after redirect
-        # 3. Status code 200 but with HTML content (login page) instead of JSON (job submission response)
-        # 4. Status code 401 (Unauthorized)
 
         submission_blocked = False
 
@@ -280,29 +244,19 @@ class TestMnistJobSubmit:
         elif response.status_code == 401:
             submission_blocked = True
         elif response.status_code == 302:
-            # Redirect happened - check if final response after redirect is also a failure
-            # If we followed redirects, check the final status
-            submission_blocked = True  # Redirect to login means submission failed
+            submission_blocked = True
         elif response.status_code == 200:
-            # Check if response is HTML (login page) instead of JSON (job submission response)
             content_type = response.headers.get("Content-Type", "")
             if "text/html" in content_type or "application/json" not in content_type:
-                # Got HTML (likely login page) instead of JSON - submission was blocked
                 submission_blocked = True
             else:
-                # Got JSON response - check if it's an error or actually a successful submission
                 try:
                     json_response = response.json()
-                    # If it's a successful job submission, it should have a 'job_id' or 'submission_id'
-                    # If it's an error, it might have 'error' or 'message'
                     if "job_id" in json_response or "submission_id" in json_response:
-                        # Job was actually submitted - this is a failure!
                         submission_blocked = False
                     else:
-                        # Error response - submission was blocked
                         submission_blocked = True
                 except ValueError:
-                    # Not JSON - likely HTML login page
                     submission_blocked = True
 
         if not submission_blocked:
@@ -310,10 +264,8 @@ class TestMnistJobSubmit:
                 False
             ), f"Job submission succeeded without authentication! Status: {response.status_code}, Response: {response.text[:200]}"
 
-        # Also verify that RayJobClient cannot be used without authentication
         try:
             client = RayJobClient(address=dashboard_url, verify=False)
-            # Try to call a method to trigger the connection and authentication check
             client.list_jobs()
             assert (
                 False
@@ -323,7 +275,6 @@ class TestMnistJobSubmit:
             requests.exceptions.HTTPError,
             Exception,
         ):
-            # Any exception is expected when trying to use the client without auth
             pass
 
         assert True, "Job submission without authentication was correctly blocked"
@@ -331,93 +282,31 @@ class TestMnistJobSubmit:
     def assert_jobsubmit_withlogin(self, cluster):
         ray_dashboard = cluster.cluster_dashboard_uri()
 
-        # Check if this is a BYOIDC cluster - skip Ray Dashboard job submission for BYOIDC
         is_byoidc_cluster = self._is_byoidc_cluster()
 
-        # For BYOIDC clusters, skip Ray Dashboard job submission due to authentication incompatibility
         if is_byoidc_cluster:
-            print("Skipping Ray Dashboard job submission test for BYOIDC cluster")
-            print(
-                "BYOIDC authentication requires browser-based OIDC flow for Ray Dashboard"
-            )
-            print("Verifying cluster is accessible via Kubernetes API instead...")
-
-            # Verify cluster is accessible via Kubernetes API as an alternative test
-            try:
-                cluster_details = cluster.details()
-                if (
-                    cluster_details
-                    and hasattr(cluster_details, "status")
-                    and cluster_details.status
-                ):
-                    print(
-                        f"✓ Ray cluster is accessible and has status: {cluster_details.status}"
-                    )
-                    print(
-                        "✓ BYOIDC authentication test passed - cluster is accessible via Kubernetes API"
-                    )
-                    return
-                else:
-                    raise RuntimeError(
-                        "Cluster details could not be retrieved or cluster is not ready"
-                    )
-            except Exception as e:
+            # On BYOIDC clusters oc whoami --show-token=true is unavailable.
+            # Obtain an OIDC id_token via Keycloak password grant (same approach
+            # as Jenkins loginByoidcUser / opendatahub-tests get_oidc_tokens).
+            username = os.environ.get("OCP_ADMIN_USER_USERNAME", "")
+            password = os.environ.get("OCP_ADMIN_USER_PASSWORD", "")
+            if not username or not password:
                 raise RuntimeError(
-                    f"Failed to verify cluster accessibility via Kubernetes API: {e}"
+                    "OCP_ADMIN_USER_USERNAME and OCP_ADMIN_USER_PASSWORD must be set "
+                    "for BYOIDC job submission"
                 )
-
-        # For legacy authentication, proceed with Ray Dashboard job submission
-        print("Using legacy authentication for Ray Dashboard job submission...")
-
-        try:
-            # For legacy auth, use oc command to get token
+            issuer_url = get_byoidc_issuer_url()
+            id_token, _ = get_oidc_tokens(username, password, issuer_url)
+            if not id_token:
+                raise RuntimeError(
+                    "Failed to obtain OIDC token for Ray Dashboard authentication. "
+                    "Check OCP_ADMIN_USER_PASSWORD."
+                )
+            auth_token = id_token
+        else:
+            # For non-BYOIDC clusters use the OpenShift OAuth token
             auth_token = run_oc_command(["whoami", "--show-token=true"])
-            header = {"Authorization": f"Bearer {auth_token}"}
-        except Exception as e:
-            print(f"Warning: Could not get auth token via oc command: {e}")
-            print("Attempting to use kubeconfig token...")
-            # Try to extract token from kubeconfig
-            try:
-                import yaml
-
-                kubeconfig_path = os.getenv(
-                    "KUBECONFIG", os.path.expanduser("~/.kube/config")
-                )
-                with open(kubeconfig_path, "r") as f:
-                    kubeconfig = yaml.safe_load(f)
-
-                # Find current context and extract token
-                current_context = kubeconfig.get("current-context")
-                user_name = None
-                for context in kubeconfig.get("contexts", []):
-                    if context["name"] == current_context:
-                        user_name = context["context"]["user"]
-                        break
-
-                auth_token = None
-                for user in kubeconfig.get("users", []):
-                    if user["name"] == user_name:
-                        user_info = user.get("user", {})
-                        auth_token = user_info.get("token")
-                        if not auth_token and "auth-provider" in user_info:
-                            # Handle auth-provider token
-                            auth_provider = user_info["auth-provider"]
-                            if "config" in auth_provider:
-                                auth_token = auth_provider["config"].get("access-token")
-                        break
-
-                if auth_token:
-                    header = {"Authorization": f"Bearer {auth_token}"}
-                else:
-                    # Fall back to no auth header (kubeconfig should handle auth)
-                    header = {}
-                    print("Warning: Using RayJobClient without explicit auth header")
-            except Exception as token_error:
-                print(
-                    f"Warning: Could not extract token from kubeconfig: {token_error}"
-                )
-                header = {}
-
+        header = {"Authorization": f"Bearer {auth_token}"}
         client = RayJobClient(address=ray_dashboard, headers=header, verify=False)
 
         # Submit the job
