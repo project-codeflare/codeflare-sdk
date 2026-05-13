@@ -1,0 +1,110 @@
+---
+description: End-to-end test validation workflow — how to build the test image and run all tiers on BYOIDC and non-BYOIDC clusters
+globs: "tests/e2e/**,tests/upgrade/**,images/tests/**"
+alwaysApply: false
+---
+
+# E2E: Validation workflow
+
+Any change to e2e or upgrade tests must be validated against **both** a BYOIDC cluster and a non-BYOIDC cluster before the fix is considered complete.
+
+---
+
+## Prerequisites
+
+### 1. Know your target
+- Which branch is being fixed (e.g. `main`, `v0.36.0-test-fix`)
+- Which RHOAI version the image tag maps to (e.g. `3.5`)
+- Whether the cluster under test is BYOIDC or non-BYOIDC
+
+### 2. Credentials file (must be outside the repo — never commit it)
+Store credentials at a path like `../creds` (one level above the repo root):
+
+```
+BYOIDC_ADMIN_USERNAME=<username>
+BYOIDC_ADMIN_PASSWORD=<password>
+BYOIDC_TEST_USERNAME=<username>
+BYOIDC_TEST_PASSWORD=<password>
+OCP_ADMIN_USER_USERNAME=<username>
+OCP_ADMIN_USER_PASSWORD=<password>
+TEST_USER_USERNAME=<username>
+TEST_USER_PASSWORD=<password>
+```
+
+`OCP_API_URL` does **not** need to be in this file — `run-tests.sh` always infers it from the mounted kubeconfig (first tries `oc whoami --show-server`; falls back to `oc config view … .clusters[0].cluster.server`, which is always present).
+
+The same credentials file works for both cluster types — `run-tests.sh` automatically promotes `BYOIDC_*` variables when a BYOIDC cluster is detected.
+
+### 3. Active oc session
+Log in to the target cluster before running:
+```bash
+oc whoami   # confirm you are on the correct cluster
+```
+On BYOIDC clusters, `oc whoami` works but `oc whoami --show-token=true` does not — that is intentional; the tests handle it via `get_oidc_tokens()`.
+
+### 4. Ensure results directory exists
+```bash
+mkdir -p results
+```
+
+---
+
+## Build the test image
+
+```bash
+# Build locally with the correct tag (no-cache prevents stale layers)
+make build-test-image E2E_TEST_IMAGE_VERSION=<tag>   # e.g. 3.5
+# Verify it exists before running tests
+podman images | grep codeflare-sdk-tests
+```
+
+---
+
+## Run tests — canonical podman run command
+
+`--pull="never"` is mandatory when testing a locally built image.
+
+```bash
+podman run --rm -it --platform linux/amd64 --pull="never" \
+  -v ~/.kube/config:/codeflare-sdk/tests/.kube/config:ro \
+  -v ./results:/codeflare-sdk/tests/results:Z \
+  --env-file ../creds \
+  quay.io/opendatahub/codeflare-sdk-tests:<tag> -m <tier>
+```
+
+Replace `<tag>` with the image tag (e.g. `3.5`) and `<tier>` with one of the values below.
+
+---
+
+## Tier order and markers
+
+Run in this order — `pre_upgrade` must pass before `post_upgrade` is meaningful:
+
+| Order | Marker | Description |
+|-------|--------|-------------|
+| 1 | `smoke` | Quick sanity checks |
+| 2 | `tier1` | Standard full suite |
+| 3 | `pre_upgrade` | Creates state for upgrade test |
+| 4 | `post_upgrade` | Validates state after upgrade |
+
+---
+
+## Cluster switching
+
+To test both cluster types, `oc login` to each cluster in turn and re-run the same image:
+
+```bash
+oc login <byoidc-api-url> ...    # switch to BYOIDC cluster
+# run all 4 tiers
+
+oc login <standard-api-url> ...  # switch to non-BYOIDC cluster
+# run all 4 tiers
+```
+
+The kubeconfig is mounted read-only so changes on the host take effect immediately for the next container run.
+
+---
+
+## Definition of done
+
+A fix is complete only when **all 4 tiers pass on both BYOIDC and non-BYOIDC clusters**. A partial result (e.g. BYOIDC passing, non-BYOIDC failing) is not acceptable.
