@@ -17,7 +17,7 @@ import os
 import torch
 import requests
 from pytorch_lightning import LightningModule, Trainer
-from pytorch_lightning.callbacks.progress import TQDMProgressBar
+from pytorch_lightning.callbacks import TQDMProgressBar
 from torch import nn
 from torch.nn import functional as F
 from torch.utils.data import DataLoader, random_split, RandomSampler

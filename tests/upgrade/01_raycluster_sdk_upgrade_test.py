@@ -1,3 +1,4 @@
+import os
 import pytest
 import requests
 from time import sleep
@@ -125,10 +126,10 @@ class TestMnistJobSubmit:
 
     def _is_byoidc_cluster(self):
         """
-        Simple BYOIDC cluster detection by checking for OIDC issuer in cluster Authentication resource.
+        BYOIDC cluster detection by checking OpenShift cluster Authentication resource.
+        Detection is based solely on cluster state — no environment variable fallback.
         """
         try:
-            # Check if cluster has OIDC authentication configured
             auth_resource = self.custom_api.get_cluster_custom_object(
                 group="config.openshift.io",
                 version="v1",
@@ -136,70 +137,37 @@ class TestMnistJobSubmit:
                 name="cluster",
             )
 
-            # Look for OIDC issuer URL in the authentication spec
             spec = auth_resource.get("spec", {})
 
-            # Check oidcProviders first - must be BYOIDC-specific
+            # Any non-empty spec.oidcProviders.issuerURL means external OIDC is configured.
+            # This field is only populated on BYOIDC clusters — never on standard OAuth clusters.
             if "oidcProviders" in spec and spec["oidcProviders"]:
                 for provider in spec["oidcProviders"]:
-                    issuer_url = provider.get("issuer", {}).get("url", "")
-                    # More specific check for BYOIDC patterns
-                    if (
-                        "keycloak" in issuer_url.lower()
-                        and (
-                            "rh-ods.com" in issuer_url or "qe.rh-ods.com" in issuer_url
-                        )
-                    ) or "realms/openshift" in issuer_url:
+                    issuer_url = provider.get("issuer", {}).get("issuerURL", "")
+                    if issuer_url:
                         print(f"Detected BYOIDC cluster with OIDC issuer: {issuer_url}")
                         return True
 
-            # Also check for webhookTokenAuthenticators (alternative OIDC config)
+            # Check webhookTokenAuthenticators
             if (
                 "webhookTokenAuthenticators" in spec
                 and spec["webhookTokenAuthenticators"]
             ):
                 for webhook in spec["webhookTokenAuthenticators"]:
-                    kubeconfig = webhook.get("kubeConfig", {})
-                    if kubeconfig:
+                    if webhook.get("kubeConfig", {}):
                         print(
                             "Detected BYOIDC cluster with webhook token authenticator"
                         )
                         return True
 
-            # Check status for BYOIDC-specific OIDC clients
-            status = auth_resource.get("status", {})
-            if "oidcClients" in status and status["oidcClients"]:
-                # Check if oc-cli client exists (BYOIDC-specific)
-                for client in status["oidcClients"]:
-                    if client.get("clientID") == "oc-cli":
-                        print(
-                            "Detected BYOIDC cluster from status.oidcClients (oc-cli)"
-                        )
-                        return True
+            # Do NOT check status.oidcClients — it is present on standard OpenShift 4.14+
+            # clusters too and causes false positives.
 
-            # Fallback: check if we can detect OIDC from environment or other indicators
-            # This is a simple heuristic - if we're using Jenkins vault credentials for BYOIDC
-            import os
-
-            if os.getenv("BYOIDC_ADMIN_USERNAME") or os.getenv(
-                "TEST_USER_USERNAME", ""
-            ).startswith("odh-"):
-                print("Detected BYOIDC cluster from environment variables")
-                return True
-
-            print("No BYOIDC OIDC providers found in cluster Authentication resource")
+            print("No BYOIDC indicators found in cluster Authentication resource")
             return False
 
         except Exception as e:
             print(f"Could not check cluster authentication method: {e}")
-            # Fallback: check environment variables as last resort
-            import os
-
-            if os.getenv("BYOIDC_ADMIN_USERNAME") or os.getenv(
-                "TEST_USER_USERNAME", ""
-            ).startswith("odh-"):
-                print("Detected BYOIDC cluster from environment variables (fallback)")
-                return True
             return False
 
     def test_mnist_job_submission(self):
@@ -331,93 +299,32 @@ class TestMnistJobSubmit:
     def assert_jobsubmit_withlogin(self, cluster):
         ray_dashboard = cluster.cluster_dashboard_uri()
 
-        # Check if this is a BYOIDC cluster - skip Ray Dashboard job submission for BYOIDC
         is_byoidc_cluster = self._is_byoidc_cluster()
 
-        # For BYOIDC clusters, skip Ray Dashboard job submission due to authentication incompatibility
         if is_byoidc_cluster:
-            print("Skipping Ray Dashboard job submission test for BYOIDC cluster")
-            print(
-                "BYOIDC authentication requires browser-based OIDC flow for Ray Dashboard"
-            )
-            print("Verifying cluster is accessible via Kubernetes API instead...")
-
-            # Verify cluster is accessible via Kubernetes API as an alternative test
-            try:
-                cluster_details = cluster.details()
-                if (
-                    cluster_details
-                    and hasattr(cluster_details, "status")
-                    and cluster_details.status
-                ):
-                    print(
-                        f"✓ Ray cluster is accessible and has status: {cluster_details.status}"
-                    )
-                    print(
-                        "✓ BYOIDC authentication test passed - cluster is accessible via Kubernetes API"
-                    )
-                    return
-                else:
-                    raise RuntimeError(
-                        "Cluster details could not be retrieved or cluster is not ready"
-                    )
-            except Exception as e:
+            # On BYOIDC clusters oc whoami --show-token=true is unavailable.
+            # Obtain an OIDC id_token via Keycloak password grant (same approach
+            # as Jenkins loginByoidcUser / opendatahub-tests get_oidc_tokens).
+            username = os.environ.get("OCP_ADMIN_USER_USERNAME", "")
+            password = os.environ.get("OCP_ADMIN_USER_PASSWORD", "")
+            if not username or not password:
                 raise RuntimeError(
-                    f"Failed to verify cluster accessibility via Kubernetes API: {e}"
+                    "OCP_ADMIN_USER_USERNAME and OCP_ADMIN_USER_PASSWORD must be set "
+                    "for BYOIDC job submission"
                 )
-
-        # For legacy authentication, proceed with Ray Dashboard job submission
-        print("Using legacy authentication for Ray Dashboard job submission...")
-
-        try:
-            # For legacy auth, use oc command to get token
+            issuer_url = get_byoidc_issuer_url()
+            id_token, _ = get_oidc_tokens(username, password, issuer_url)
+            if not id_token:
+                raise RuntimeError(
+                    "Failed to obtain OIDC token for Ray Dashboard authentication. "
+                    "Check OCP_ADMIN_USER_PASSWORD."
+                )
+            auth_token = id_token
+        else:
+            # For non-BYOIDC clusters use the OpenShift OAuth token
             auth_token = run_oc_command(["whoami", "--show-token=true"])
-            header = {"Authorization": f"Bearer {auth_token}"}
-        except Exception as e:
-            print(f"Warning: Could not get auth token via oc command: {e}")
-            print("Attempting to use kubeconfig token...")
-            # Try to extract token from kubeconfig
-            try:
-                import yaml
 
-                kubeconfig_path = os.getenv(
-                    "KUBECONFIG", os.path.expanduser("~/.kube/config")
-                )
-                with open(kubeconfig_path, "r") as f:
-                    kubeconfig = yaml.safe_load(f)
-
-                # Find current context and extract token
-                current_context = kubeconfig.get("current-context")
-                user_name = None
-                for context in kubeconfig.get("contexts", []):
-                    if context["name"] == current_context:
-                        user_name = context["context"]["user"]
-                        break
-
-                auth_token = None
-                for user in kubeconfig.get("users", []):
-                    if user["name"] == user_name:
-                        user_info = user.get("user", {})
-                        auth_token = user_info.get("token")
-                        if not auth_token and "auth-provider" in user_info:
-                            # Handle auth-provider token
-                            auth_provider = user_info["auth-provider"]
-                            if "config" in auth_provider:
-                                auth_token = auth_provider["config"].get("access-token")
-                        break
-
-                if auth_token:
-                    header = {"Authorization": f"Bearer {auth_token}"}
-                else:
-                    # Fall back to no auth header (kubeconfig should handle auth)
-                    header = {}
-                    print("Warning: Using RayJobClient without explicit auth header")
-            except Exception as token_error:
-                print(
-                    f"Warning: Could not extract token from kubeconfig: {token_error}"
-                )
-                header = {}
-
+        header = {"Authorization": f"Bearer {auth_token}"}
         client = RayJobClient(address=ray_dashboard, headers=header, verify=False)
 
         # Submit the job

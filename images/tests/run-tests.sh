@@ -149,16 +149,27 @@ echo "Detecting cluster authentication type from cluster configuration..."
 # Detect BYOIDC from cluster configuration alone
 CLUSTER_IS_BYOIDC=false
 
-# Method 1: Check Authentication resource type (most reliable for OIDC clusters)
-AUTH_TYPE=$(oc get authentication cluster -o jsonpath='{.spec.type}' 2>/dev/null)
-if [ "$AUTH_TYPE" = "OIDC" ]; then
-    echo "Detected BYOIDC cluster: Authentication spec.type = OIDC"
+# Method 0: Check kubeconfig exec plugin format (no API call — safe before auth setup)
+# Handles clusters where the kubeconfig uses oc get-token with OIDC (e.g., PSI BYOIDC with exec plugin)
+EXEC_ARGS=$(oc config view --minify -o jsonpath='{.users[0].user.exec.args}' 2>/dev/null) || true
+if echo "$EXEC_ARGS" | grep -qi "oc-cli\|realms/openshift"; then
+    echo "Detected BYOIDC cluster: kubeconfig uses OIDC exec plugin (oc-cli / realms/openshift)"
     CLUSTER_IS_BYOIDC=true
+fi
+
+# Method 1: Check Authentication resource type (most reliable for OIDC clusters)
+# Uses timeout to avoid hanging when kubeconfig requires interactive token refresh
+if [ "$CLUSTER_IS_BYOIDC" = "false" ]; then
+    AUTH_TYPE=$(timeout 10 oc get authentication cluster -o jsonpath='{.spec.type}' 2>/dev/null) || true
+    if [ "$AUTH_TYPE" = "OIDC" ]; then
+        echo "Detected BYOIDC cluster: Authentication spec.type = OIDC"
+        CLUSTER_IS_BYOIDC=true
+    fi
 fi
 
 # Method 2: Check for OIDC providers in Authentication resource (fallback)
 if [ "$CLUSTER_IS_BYOIDC" = "false" ]; then
-    OIDC_ISSUER=$(oc get authentication cluster -o jsonpath='{.spec.oidcProviders[*].issuer.issuerURL}' 2>/dev/null)
+    OIDC_ISSUER=$(timeout 10 oc get authentication cluster -o jsonpath='{.spec.oidcProviders[*].issuer.issuerURL}' 2>/dev/null) || true
     if [ -n "$OIDC_ISSUER" ]; then
         echo "Detected BYOIDC cluster: Authentication has oidcProviders with issuerURL: $OIDC_ISSUER"
         CLUSTER_IS_BYOIDC=true
@@ -167,7 +178,7 @@ fi
 
 # Method 3: Check for oidcClients in Authentication status (another fallback)
 if [ "$CLUSTER_IS_BYOIDC" = "false" ]; then
-    if oc get authentication cluster -o jsonpath='{.status.oidcClients}' 2>/dev/null | grep -q "oc-cli"; then
+    if timeout 10 oc get authentication cluster -o jsonpath='{.status.oidcClients}' 2>/dev/null | grep -q "oc-cli"; then
         echo "Detected BYOIDC cluster: Authentication status has oidcClients with oc-cli"
         CLUSTER_IS_BYOIDC=true
     fi
@@ -175,7 +186,7 @@ fi
 
 # Method 4: Check OAuth resource for openID identity provider (legacy OIDC setup)
 if [ "$CLUSTER_IS_BYOIDC" = "false" ]; then
-    if oc get oauth cluster -o jsonpath='{.spec.identityProviders[*].type}' 2>/dev/null | grep -qi "OpenID"; then
+    if timeout 10 oc get oauth cluster -o jsonpath='{.spec.identityProviders[*].type}' 2>/dev/null | grep -qi "OpenID"; then
         echo "Detected BYOIDC cluster: OAuth has OpenID identity provider"
         CLUSTER_IS_BYOIDC=true
     fi
@@ -374,7 +385,8 @@ set_kueue_management_state() {
 # ============================================================================
 echo "Extracting OpenShift API URL from active oc session..."
 # Try to get URL from active oc session first (if already logged in)
-OCP_API_URL=$(oc whoami --show-server 2>/dev/null)
+# Use timeout to avoid hanging when kubeconfig uses an exec plugin (e.g., BYOIDC with oc get-token)
+OCP_API_URL=$(timeout 10 oc whoami --show-server 2>/dev/null) || true
 
 if [ -z "$OCP_API_URL" ]; then
     echo "No active oc session found, extracting from kubeconfig..."
@@ -402,6 +414,9 @@ fi
 # Authentication Setup for RBAC Application
 # ============================================================================
 echo "Setting up authentication for RBAC policies..."
+
+# Save original kubeconfig directory for token cache lookup later
+ORIGINAL_KUBE_DIR=$(dirname "${KUBECONFIG:-/codeflare-sdk/tests/.kube/config}")
 
 # Create a temporary kubeconfig (since the mounted one is read-only)
 TEMP_KUBECONFIG="/tmp/kubeconfig-$$"
@@ -464,17 +479,158 @@ elif [ "$AUTH_METHOD" = "byoidc" ]; then
         NEEDS_CONVERSION=true
     fi
 
+    # Allow a pre-extracted token to be injected via BYOIDC_ADMIN_TOKEN env var.
+    # Useful for local runs on BYOIDC clusters where the exec plugin can't run
+    # inside the container (no token cache, no browser).
+    # Obtain it on the host: python3 -c "import json,glob,os; [print(json.load(open(f))['id_token']) for f in glob.glob(os.path.expanduser('~/.kube/cache/oc/*')) if 'id_token' in json.load(open(f))]" | head -1
+    if [ -z "$KUBECONFIG_TOKEN" ] && [ -n "${BYOIDC_ADMIN_TOKEN:-}" ]; then
+        echo "Using pre-extracted token from BYOIDC_ADMIN_TOKEN"
+        KUBECONFIG_TOKEN="$BYOIDC_ADMIN_TOKEN"
+        NEEDS_CONVERSION=true
+    fi
+
     # Check for exec plugin format (oc-oidc plugin)
     if [ -z "$KUBECONFIG_TOKEN" ]; then
         HAS_EXEC_PLUGIN=$(oc config view --minify -o jsonpath='{.users[0].user.exec.command}' 2>/dev/null)
         if [ -n "$HAS_EXEC_PLUGIN" ]; then
             echo "Detected exec-plugin format ($HAS_EXEC_PLUGIN), searching for cached token..."
 
-            # Try to extract a token from cached locations
-            if [ -f ~/.kube/oidc-login.cache ]; then
+            # Check oc's built-in token cache (~/.kube/cache/oc/<hash> JSON files).
+            # oc stores tokens at <kube-dir>/cache/oc/<hash> where <kube-dir> is the
+            # directory containing the kubeconfig. This is populated when ~/.kube/ is
+            # mounted into the container (not just ~/.kube/config).
+            OC_CACHE_DIR="${ORIGINAL_KUBE_DIR}/cache/oc"
+            if [ -z "$KUBECONFIG_TOKEN" ] && [ -d "$OC_CACHE_DIR" ]; then
+                for cache_file in "$OC_CACHE_DIR"/*; do
+                    if [ -f "$cache_file" ]; then
+                        TOKEN=$(grep -o '"id_token":"[^"]*"' "$cache_file" 2>/dev/null | head -1 | cut -d'"' -f4)
+                        if [ -n "$TOKEN" ]; then
+                            KUBECONFIG_TOKEN="$TOKEN"
+                            echo "Found cached OIDC token in oc cache: $(basename "$cache_file")"
+                            break
+                        fi
+                    fi
+                done
+            fi
+
+            # Also check legacy oidc-login cache location
+            if [ -z "$KUBECONFIG_TOKEN" ] && [ -f ~/.kube/oidc-login.cache ]; then
                 KUBECONFIG_TOKEN=$(cat ~/.kube/oidc-login.cache 2>/dev/null | grep -o '"id_token":"[^"]*"' | cut -d'"' -f4)
             fi
-            NEEDS_CONVERSION=true
+
+            # Last resort: try running the exec plugin directly to get a fresh token.
+            # Works when oc can refresh the token non-interactively (e.g. valid refresh_token
+            # is in the cache AND the cache directory is mounted into the container).
+            if [ -z "$KUBECONFIG_TOKEN" ]; then
+                echo "No cached token found, attempting to run exec plugin directly..."
+                mapfile -t EXEC_PLUGIN_ARGS < <(oc config view --minify -o jsonpath='{range .users[0].user.exec.args[*]}{@}{"\n"}{end}' 2>/dev/null)
+                if [ ${#EXEC_PLUGIN_ARGS[@]} -gt 0 ]; then
+                    EXEC_OUTPUT=$(timeout 30 "$HAS_EXEC_PLUGIN" "${EXEC_PLUGIN_ARGS[@]}" 2>/dev/null) || true
+                    if [ -n "$EXEC_OUTPUT" ]; then
+                        KUBECONFIG_TOKEN=$(echo "$EXEC_OUTPUT" | grep -o '"token":"[^"]*"' | head -1 | cut -d'"' -f4)
+                        [ -n "$KUBECONFIG_TOKEN" ] && echo "Obtained token from exec plugin"
+                    fi
+                fi
+            fi
+
+            if [ -n "$KUBECONFIG_TOKEN" ]; then
+                NEEDS_CONVERSION=true
+            else
+                # No cached token found. Use the same approach as Jenkins loginByoidcUser:
+                # call Keycloak's token endpoint directly with grant_type=password, then
+                # inject id-token + refresh-token into the kubeconfig via auth-provider.
+                # The OIDC issuer URL and client ID are already in the exec plugin args.
+                if [ -n "${OCP_ADMIN_USER_USERNAME:-}" ] && [ -n "${OCP_ADMIN_USER_PASSWORD:-}" ]; then
+                    echo "Attempting Keycloak password grant (same method as Jenkins loginByoidcUser)..."
+
+                    # Extract issuer URL and client ID directly from exec plugin args in kubeconfig
+                    OIDC_ISSUER=$(oc config view --minify \
+                        -o jsonpath='{range .users[0].user.exec.args[*]}{@}{"\n"}{end}' 2>/dev/null \
+                        | grep -- '--issuer-url=' | sed 's/--issuer-url=//' | tr -d '[:space:]')
+                    OIDC_CLIENT_ID=$(oc config view --minify \
+                        -o jsonpath='{range .users[0].user.exec.args[*]}{@}{"\n"}{end}' 2>/dev/null \
+                        | grep -- '--client-id=' | sed 's/--client-id=//' | tr -d '[:space:]')
+
+                    # Allow env overrides (consistent with Jenkins configData fields)
+                    OIDC_ISSUER="${CLUSTER_OIDC_ISSUER:-$OIDC_ISSUER}"
+                    OIDC_CLIENT_ID="${CLIENT_ID_OC_CLI:-${OIDC_CLIENT_ID:-oc-cli}}"
+                    OIDC_TOKEN_ENDPOINT="${CLUSTER_OIDC_TOKEN_ENDPOINT:-${OIDC_ISSUER}/protocol/openid-connect/token}"
+
+                    if [ -n "$OIDC_ISSUER" ]; then
+                        echo "  OIDC issuer: $OIDC_ISSUER"
+                        echo "  Admin user:  $OCP_ADMIN_USER_USERNAME"
+
+                        # Use OIDC well-known discovery to find the correct token endpoint
+                        # (mirrors opendatahub-tests get_oidc_token_endpoint())
+                        if [ -z "${CLUSTER_OIDC_TOKEN_ENDPOINT:-}" ]; then
+                            WELL_KNOWN=$(curl -sk --max-time 10 "${OIDC_ISSUER}/.well-known/openid-configuration" 2>/dev/null) || true
+                            if [ -n "$WELL_KNOWN" ]; then
+                                DISCOVERED_ENDPOINT=$(echo "$WELL_KNOWN" | python3 -c \
+                                    "import json,sys; print(json.load(sys.stdin).get('token_endpoint',''))" \
+                                    2>/dev/null || true)
+                                [ -n "$DISCOVERED_ENDPOINT" ] && OIDC_TOKEN_ENDPOINT="$DISCOVERED_ENDPOINT"
+                            fi
+                        fi
+                        echo "  Token endpoint: $OIDC_TOKEN_ENDPOINT"
+
+                        # mirrors Jenkins loginByoidcUser / opendatahub-tests get_oidc_tokens():
+                        # --data-urlencode safely handles special characters in credentials.
+                        # scope matches Jenkins OIDC_LOGIN_SCOPE (default "openid").
+                        OIDC_SCOPE="${OIDC_LOGIN_SCOPE:-openid}"
+                        TOKENS=$(curl -sk -L -X POST "$OIDC_TOKEN_ENDPOINT" \
+                            -H "Content-Type: application/x-www-form-urlencoded" \
+                            -H "User-Agent: python-requests" \
+                            --data-urlencode "username=${OCP_ADMIN_USER_USERNAME}" \
+                            --data-urlencode "password=${OCP_ADMIN_USER_PASSWORD}" \
+                            -d "grant_type=password" \
+                            -d "client_id=${OIDC_CLIENT_ID}" \
+                            -d "scope=${OIDC_SCOPE}" 2>/dev/null) || true
+
+                        if [ -n "$TOKENS" ]; then
+                            ID_TOKEN=$(echo "$TOKENS" | python3 -c \
+                                "import json,sys; print(json.load(sys.stdin).get('id_token',''))" \
+                                2>/dev/null || echo "$TOKENS" | grep -o '"id_token":"[^"]*"' | cut -d'"' -f4)
+                            REFRESH_TOKEN_VAL=$(echo "$TOKENS" | python3 -c \
+                                "import json,sys; print(json.load(sys.stdin).get('refresh_token',''))" \
+                                2>/dev/null || echo "$TOKENS" | grep -o '"refresh_token":"[^"]*"' | cut -d'"' -f4)
+
+                            if [ -n "$ID_TOKEN" ] && [ "$ID_TOKEN" != "None" ] && [ "$ID_TOKEN" != "" ]; then
+                                # Inject tokens into kubeconfig using auth-provider format
+                                # (identical to Jenkins loginByoidcUser kubectl config set-credentials call)
+                                oc config set-credentials "${OCP_ADMIN_USER_USERNAME}" \
+                                    --auth-provider=oidc \
+                                    --auth-provider-arg=idp-issuer-url="${OIDC_ISSUER}" \
+                                    --auth-provider-arg=client-id="${OIDC_CLIENT_ID}" \
+                                    --auth-provider-arg=client-secret="" \
+                                    --auth-provider-arg=refresh-token="${REFRESH_TOKEN_VAL}" \
+                                    --auth-provider-arg=id-token="${ID_TOKEN}" 2>/dev/null
+                                oc config set-context --current --user="${OCP_ADMIN_USER_USERNAME}" 2>/dev/null
+                                cp "${TEMP_KUBECONFIG}" ~/.kube/config 2>/dev/null || true
+                                echo "  ✓ Kubeconfig updated with Keycloak id-token + refresh-token"
+                                KUBECONFIG_TOKEN="$ID_TOKEN"
+                                NEEDS_CONVERSION=false
+                            else
+                                ERR=$(echo "$TOKENS" | python3 -c \
+                                    "import json,sys; d=json.load(sys.stdin); print(d.get('error','?') + ': ' + d.get('error_description',''))" \
+                                    2>/dev/null || echo "$TOKENS" | head -c 200)
+                                echo "  WARNING: Keycloak token request failed: $ERR"
+                                echo "  Falling back to kubeconfig exec plugin as-is"
+                            fi
+                        else
+                            echo "  WARNING: No response from Keycloak token endpoint"
+                        fi
+                    else
+                        echo "  WARNING: Could not determine OIDC issuer from exec plugin args"
+                    fi
+                fi
+
+                if [ -z "$KUBECONFIG_TOKEN" ]; then
+                    # Last resort: use kubeconfig with exec plugin as-is.
+                    # When running interactively (-it), oc get-token may prompt for device/browser auth.
+                    echo "Using kubeconfig with exec plugin as-is (no static token conversion)"
+                    echo "oc commands will invoke the exec plugin to authenticate when needed"
+                fi
+            fi
         fi
     fi
 
@@ -529,15 +685,6 @@ elif [ "$AUTH_METHOD" = "byoidc" ]; then
             # Update ~/.kube/config after conversion
             cp "${TEMP_KUBECONFIG}" ~/.kube/config 2>/dev/null || true
             echo "✓ Converted to token-based authentication"
-        else
-            echo "ERROR: Cannot extract token from kubeconfig"
-            echo "The kubeconfig uses exec-plugin or auth-provider format but no token could be extracted."
-            echo ""
-            echo "Solution: Jenkins should mount a kubeconfig with a static token."
-            echo "You can verify the Jenkins kubeconfig by running:"
-            echo "  kubectl config view --minify -o jsonpath='{.users[0].user}'"
-            rm -f "${TEMP_KUBECONFIG}"
-            exit 1
         fi
     fi
 
@@ -560,23 +707,30 @@ elif [ "$AUTH_METHOD" = "byoidc" ]; then
         echo "Note: oc whoami not available on this cluster (external OIDC mode)"
         echo "Using alternative authentication verification..."
 
-        # Method 1: Try to get API server version (basic connectivity test)
-        if oc version 2>/dev/null | grep -q "Server"; then
-            echo "  ✓ API server connectivity verified"
+        # Method 1: Raw connectivity check — /version is unauthenticated, avoids exec plugin
+        if [ -n "${OCP_API_URL:-}" ] && \
+           curl -sk --max-time 10 "${OCP_API_URL}/version" 2>/dev/null | grep -q '"major"'; then
+            echo "  ✓ API server connectivity verified (unauthenticated /version endpoint)"
+        elif [ -z "$KUBECONFIG_TOKEN" ]; then
+            # No static token — exec plugin as-is; connectivity may still work through Python client.
+            # Don't abort: the Python kubernetes client handles exec plugins in-process and may succeed.
+            echo "  WARNING: Could not verify API connectivity via /version (exec plugin as-is mode)"
+            echo "  Tests will attempt to run; Python's kubernetes client invokes the exec plugin natively."
+            echo "  If tests fail with 401, ensure BYOIDC_ADMIN_PASSWORD is correct in your env file,"
+            echo "  or extract the id_token from the oc cache on your host and set BYOIDC_ADMIN_TOKEN:"
+            echo "    python3 -c \"import json,glob,os; [print(json.load(open(f))['id_token']) for f in glob.glob(os.path.expanduser('~/.kube/cache/oc/*')) if 'id_token' in json.load(open(f))]\" | head -1"
         else
-            echo "ERROR: Cannot connect to API server"
+            echo "ERROR: Cannot connect to API server at ${OCP_API_URL:-[not set]}"
             rm -f "${TEMP_KUBECONFIG}"
             exit 1
         fi
 
-        # Method 2: Check if we can perform basic API calls
+        # Method 2: Check if we can perform basic API calls (requires valid token)
         if oc auth can-i get namespaces 2>/dev/null | grep -q "yes"; then
             echo "  ✓ Authentication verified (can get namespaces)"
         else
-            echo "ERROR: Cannot verify authentication - no namespace access"
-            echo "oc whoami output: $WHOAMI_OUTPUT"
-            rm -f "${TEMP_KUBECONFIG}"
-            exit 1
+            echo "  WARNING: Cannot verify API authentication via oc auth can-i"
+            echo "  This is expected when the exec plugin is used without a cached token."
         fi
 
         # Method 3: Try to extract username from token (JWT sub claim)
