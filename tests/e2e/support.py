@@ -626,10 +626,7 @@ def is_byoidc_cluster_detected():
                     return True
 
         # Check webhookTokenAuthenticators
-        if (
-            "webhookTokenAuthenticators" in spec
-            and spec["webhookTokenAuthenticators"]
-        ):
+        if "webhookTokenAuthenticators" in spec and spec["webhookTokenAuthenticators"]:
             for webhook in spec["webhookTokenAuthenticators"]:
                 if webhook.get("kubeConfig", {}):
                     print("Detected BYOIDC cluster with webhook token authenticator")
