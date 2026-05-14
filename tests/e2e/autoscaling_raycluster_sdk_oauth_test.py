@@ -1,5 +1,3 @@
-from time import sleep
-
 import pytest
 
 from codeflare_sdk import Cluster, ClusterConfiguration
@@ -36,7 +34,7 @@ class TestRayClusterAutoscalingSDKOauth:
                 namespace=self.namespace,
                 enable_autoscaling=True,
                 min_workers=1,
-                max_workers=4,
+                max_workers=2,
                 image=ray_image,
                 write_to_file=True,
                 verify_tls=False,
@@ -50,14 +48,18 @@ class TestRayClusterAutoscalingSDKOauth:
         # Verify initial state: 1 worker (min_workers)
         wait_for_worker_count(self, cluster_name, lambda n: n == 1, timeout_s=600)
 
-        # Trigger scale-up via load script in head pod
-        run_autoscaling_load_in_head_pod(self, cluster_name, tasks=4, sleep_s=180)
+        # Trigger scale-up via load script in head pod (async)
+        load_proc = run_autoscaling_load_in_head_pod(
+            self, cluster_name, tasks=2, sleep_s=180
+        )
 
-        # Verify scale-up
+        # Verify scale-up while load is still running
         wait_for_worker_count(self, cluster_name, lambda n: n >= 2, timeout_s=900)
 
-        # Wait for idle timeout + verify scale-down back to min_workers
-        sleep(120)
+        # Wait for load to finish, then verify scale-down back to min_workers
+        load_proc.wait(timeout=600)
+        assert load_proc.returncode == 0, "Load script failed"
+
         wait_for_worker_count(self, cluster_name, lambda n: n == 1, timeout_s=900)
 
         cluster.down()

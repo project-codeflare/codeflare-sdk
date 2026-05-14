@@ -364,10 +364,12 @@ def wait_for_worker_count(self, cluster_name, predicate, timeout_s=600):
     )
 
 
-def run_autoscaling_load_in_head_pod(self, cluster_name, tasks=4, sleep_s=120):
+def run_autoscaling_load_in_head_pod(self, cluster_name, tasks=2, sleep_s=120):
     """
-    Copy autoscaling_load.py into the head pod and run it.
-    Avoids port-forwarding / Ray Dashboard API dependency.
+    Copy autoscaling_load.py into the head pod and run it asynchronously.
+    Returns the Popen handle so the caller can check for scale-up while
+    the workload is still running (avoids the race where blocking execution
+    lets workers scale back down before the assertion runs).
     """
     label = f"ray.io/node-type=head,ray.io/cluster={cluster_name}"
     pods = self.api_instance.list_namespaced_pod(self.namespace, label_selector=label)
@@ -375,16 +377,20 @@ def run_autoscaling_load_in_head_pod(self, cluster_name, tasks=4, sleep_s=120):
         raise RuntimeError(f"No head pod found for cluster {cluster_name}")
     head_pod = pods.items[0].metadata.name
 
+    load_script = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "autoscaling_load.py"
+    )
+
     subprocess.check_call(
         [
             "kubectl",
             "cp",
-            "./tests/e2e/autoscaling_load.py",
+            load_script,
             f"{self.namespace}/{head_pod}:/tmp/autoscaling_load.py",
         ]
     )
 
-    subprocess.check_call(
+    return subprocess.Popen(
         [
             "kubectl",
             "exec",

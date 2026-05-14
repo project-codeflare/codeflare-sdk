@@ -54,6 +54,22 @@ import json
 from codeflare_sdk.common.utils import constants
 
 FORBIDDEN_CUSTOM_RESOURCE_TYPES = ["GPU", "CPU", "memory"]
+
+
+def _cpu_limit_to_num_cpus(cpu_limit: Union[int, str]) -> str:
+    """Convert a Kubernetes CPU limit to an integer string for Ray's num-cpus.
+
+    Ray auto-detects host CPUs when num-cpus is not set, which can vastly
+    overcount in containerised environments (e.g. KinD on a beefy laptop).
+    Pinning num-cpus to the container CPU limit keeps the autoscaler's view
+    of available resources accurate.
+    """
+    if isinstance(cpu_limit, int):
+        return str(max(cpu_limit, 0))
+    s = str(cpu_limit).strip()
+    if s.endswith("m"):
+        return str(max(int(float(s[:-1]) / 1000), 1))
+    return str(max(int(float(s)), 1))
 VOLUME_MOUNTS = [
     V1VolumeMount(
         mount_path="/etc/pki/tls/certs/odh-trusted-ca-bundle.crt",
@@ -156,6 +172,9 @@ def build_ray_cluster(cluster: "codeflare_sdk.ray.cluster.Cluster"):
                 "rayStartParams": {
                     "dashboard-host": "0.0.0.0",
                     "block": "true",
+                    "num-cpus": _cpu_limit_to_num_cpus(
+                        cluster.config.head_cpu_limits
+                    ),
                     "num-gpus": str(head_gpu_count),
                     "resources": head_resources,
                 },
@@ -180,6 +199,9 @@ def build_ray_cluster(cluster: "codeflare_sdk.ray.cluster.Cluster"):
                     "groupName": f"small-group-{cluster.config.name}",
                     "rayStartParams": {
                         "block": "true",
+                        "num-cpus": _cpu_limit_to_num_cpus(
+                            cluster.config.worker_cpu_limits
+                        ),
                         "num-gpus": str(worker_gpu_count),
                         "resources": worker_resources,
                     },
