@@ -22,6 +22,7 @@ import re
 import warnings
 from typing import Dict, Any, Optional, Tuple, Union
 
+from kubernetes import client
 from ray.runtime_env import RuntimeEnv
 from codeflare_sdk.common.kueue.kueue import (
     get_default_kueue_name,
@@ -39,6 +40,7 @@ from codeflare_sdk.ray.rayjobs.runtime_env import (
     process_runtime_env,
 )
 
+from ...common.kubernetes_cluster.auth import config_check, get_api_client
 from ...common.utils import get_current_namespace
 from ...common.utils.validation import validate_ray_version_compatibility
 
@@ -169,8 +171,13 @@ class RayJob:
             self.cluster_name = cluster_name
             logger.info(f"Using existing cluster: {self.cluster_name}")
 
+        config_check()
+        k8s_client = get_api_client()
         self._api = RayjobApi()
+        self._api.api = client.CustomObjectsApi(k8s_client)
         self._cluster_api = RayClusterApi()
+        self._cluster_api.api = client.CustomObjectsApi(k8s_client)
+        self._cluster_api.core_v1_api = client.CoreV1Api(k8s_client)
 
         logger.info(f"Initialized RayJob: {self.name} in namespace: {self.namespace}")
 
