@@ -41,6 +41,7 @@ from .ray.cluster.cluster import (
     list_all_queued,
 )
 from .ray.cluster.config import ClusterConfiguration
+from .ray.rayjobs.rayjob import RayJob
 
 _VALID_LOG_LEVELS = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
 
@@ -139,6 +140,50 @@ class JobHandler:
 
     def __init__(self, sdk: "Codeflare"):
         self._sdk = sdk
+
+    def submit(
+        self,
+        name: str,
+        entrypoint: str,
+        namespace: Optional[str] = None,
+        **kwargs,
+    ) -> "RayJob":
+        """Create and immediately submit a RayJob.
+
+        Args:
+            name: Job name.
+            entrypoint: Python script or command to run.
+            namespace: K8s namespace. Falls back to SDKConfig.namespace.
+            **kwargs: Forwarded to RayJob constructor (cluster_name, cluster_config, etc.).
+
+        Returns:
+            Submitted RayJob instance.
+        """
+        ns = namespace or self._sdk.config.namespace
+        job = RayJob(job_name=name, entrypoint=entrypoint, namespace=ns, **kwargs)
+        job.submit()
+        return job
+
+    def create(
+        self,
+        name: str,
+        entrypoint: str,
+        namespace: Optional[str] = None,
+        **kwargs,
+    ) -> "RayJob":
+        """Create a RayJob without submitting it.
+
+        Args:
+            name: Job name.
+            entrypoint: Python script or command to run.
+            namespace: K8s namespace. Falls back to SDKConfig.namespace.
+            **kwargs: Forwarded to RayJob constructor (cluster_name, cluster_config, etc.).
+
+        Returns:
+            RayJob instance (not yet submitted).
+        """
+        ns = namespace or self._sdk.config.namespace
+        return RayJob(job_name=name, entrypoint=entrypoint, namespace=ns, **kwargs)
 
 
 class Codeflare:
