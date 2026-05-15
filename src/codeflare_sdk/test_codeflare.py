@@ -159,3 +159,96 @@ class TestCodeflare:
 
         with pytest.raises(AuthenticationError, match="bad token"):
             Codeflare()
+
+
+class TestClusterHandler:
+    @pytest.fixture
+    def cf(self, mocker):
+        """Create a Codeflare instance with mocked auth."""
+        from codeflare_sdk.codeflare import Codeflare, SDKConfig
+
+        mocker.patch("codeflare_sdk.codeflare.get_k8s_client")
+        mocker.patch("codeflare_sdk.codeflare.set_api_client")
+        return Codeflare(config=SDKConfig(namespace="default-ns"))
+
+    def test_create_cluster(self, cf, mocker):
+        """create() returns a Cluster with the right config."""
+        mock_cluster_cls = mocker.patch("codeflare_sdk.codeflare.Cluster")
+        mock_cluster_config_cls = mocker.patch(
+            "codeflare_sdk.codeflare.ClusterConfiguration"
+        )
+
+        result = cf.clusters.create(name="my-cluster", num_workers=3)
+
+        mock_cluster_config_cls.assert_called_once_with(
+            name="my-cluster", namespace="default-ns", num_workers=3
+        )
+        mock_cluster_cls.assert_called_once_with(mock_cluster_config_cls.return_value)
+        assert result is mock_cluster_cls.return_value
+
+    def test_create_cluster_override_namespace(self, cf, mocker):
+        """create() allows namespace override."""
+        mocker.patch("codeflare_sdk.codeflare.Cluster")
+        mock_cluster_config_cls = mocker.patch(
+            "codeflare_sdk.codeflare.ClusterConfiguration"
+        )
+
+        cf.clusters.create(name="my-cluster", namespace="other-ns")
+
+        mock_cluster_config_cls.assert_called_once_with(
+            name="my-cluster", namespace="other-ns"
+        )
+
+    def test_get_cluster(self, cf, mocker):
+        """get() delegates to get_cluster function."""
+        mock_get = mocker.patch("codeflare_sdk.codeflare.get_cluster")
+
+        result = cf.clusters.get(name="existing-cluster")
+
+        mock_get.assert_called_once_with(
+            cluster_name="existing-cluster", namespace="default-ns"
+        )
+        assert result is mock_get.return_value
+
+    def test_get_cluster_override_namespace(self, cf, mocker):
+        """get() allows namespace override."""
+        mock_get = mocker.patch("codeflare_sdk.codeflare.get_cluster")
+
+        cf.clusters.get(name="existing-cluster", namespace="other-ns")
+
+        mock_get.assert_called_once_with(
+            cluster_name="existing-cluster", namespace="other-ns"
+        )
+
+    def test_list_clusters(self, cf, mocker):
+        """list() delegates to list_all_clusters."""
+        mock_list = mocker.patch("codeflare_sdk.codeflare.list_all_clusters")
+        mock_list.return_value = ["cluster1", "cluster2"]
+
+        result = cf.clusters.list()
+
+        mock_list.assert_called_once_with("default-ns", print_to_console=False)
+        assert result == ["cluster1", "cluster2"]
+
+    def test_list_queued(self, cf, mocker):
+        """list_queued() delegates to list_all_queued."""
+        mock_list = mocker.patch("codeflare_sdk.codeflare.list_all_queued")
+        mock_list.return_value = []
+
+        result = cf.clusters.list_queued()
+
+        mock_list.assert_called_once_with("default-ns", print_to_console=False)
+        assert result == []
+
+    def test_list_no_default_namespace_uses_default(self, mocker):
+        """list() falls back to 'default' when no namespace configured."""
+        from codeflare_sdk.codeflare import Codeflare, SDKConfig
+
+        mocker.patch("codeflare_sdk.codeflare.get_k8s_client")
+        mocker.patch("codeflare_sdk.codeflare.set_api_client")
+        mock_list = mocker.patch("codeflare_sdk.codeflare.list_all_clusters")
+
+        cf = Codeflare(config=SDKConfig(namespace=None))
+        cf.clusters.list()
+
+        mock_list.assert_called_once_with("default", print_to_console=False)

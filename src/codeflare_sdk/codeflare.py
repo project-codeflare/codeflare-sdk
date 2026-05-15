@@ -34,6 +34,13 @@ from typing import Optional
 
 from kube_authkit import AuthConfig, get_k8s_client
 from .common.kubernetes_cluster.auth import set_api_client
+from .ray.cluster.cluster import (
+    Cluster,
+    get_cluster,
+    list_all_clusters,
+    list_all_queued,
+)
+from .ray.cluster.config import ClusterConfiguration
 
 _VALID_LOG_LEVELS = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
 
@@ -72,6 +79,59 @@ class ClusterHandler:
 
     def __init__(self, sdk: "Codeflare"):
         self._sdk = sdk
+
+    def create(self, name: str, namespace: Optional[str] = None, **kwargs) -> "Cluster":
+        """Create a new Cluster object (does not apply it to K8s yet).
+
+        Args:
+            name: Cluster name.
+            namespace: K8s namespace. Falls back to SDKConfig.namespace.
+            **kwargs: Forwarded to ClusterConfiguration.
+
+        Returns:
+            Cluster instance ready for .apply().
+        """
+        ns = namespace or self._sdk.config.namespace
+        cluster_config = ClusterConfiguration(name=name, namespace=ns, **kwargs)
+        return Cluster(cluster_config)
+
+    def get(self, name: str, namespace: Optional[str] = None, **kwargs) -> "Cluster":
+        """Retrieve an existing cluster by name.
+
+        Args:
+            name: Cluster name.
+            namespace: K8s namespace. Falls back to SDKConfig.namespace or 'default'.
+            **kwargs: Forwarded to get_cluster.
+
+        Returns:
+            Cluster instance.
+        """
+        ns = namespace or self._sdk.config.namespace or "default"
+        return get_cluster(cluster_name=name, namespace=ns, **kwargs)
+
+    def list(self, namespace: Optional[str] = None) -> list:
+        """List all Ray clusters in a namespace.
+
+        Args:
+            namespace: K8s namespace. Falls back to SDKConfig.namespace or 'default'.
+
+        Returns:
+            List of RayCluster objects.
+        """
+        ns = namespace or self._sdk.config.namespace or "default"
+        return list_all_clusters(ns, print_to_console=False)
+
+    def list_queued(self, namespace: Optional[str] = None) -> list:
+        """List all queued Ray clusters in a namespace.
+
+        Args:
+            namespace: K8s namespace. Falls back to SDKConfig.namespace or 'default'.
+
+        Returns:
+            List of queued RayCluster objects.
+        """
+        ns = namespace or self._sdk.config.namespace or "default"
+        return list_all_queued(ns, print_to_console=False)
 
 
 class JobHandler:
