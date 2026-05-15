@@ -16,7 +16,7 @@ from codeflare_sdk.common.utils.utils import get_ray_image_for_python_version
 # Authentication imports - prioritize kube-authkit
 try:
     from kube_authkit import get_k8s_client, AuthConfig
-    from codeflare_sdk import set_api_client
+    from codeflare_sdk.common.kubernetes_cluster.auth import set_api_client
 
     KUBE_AUTHKIT_AVAILABLE = True
 except ImportError:
@@ -25,14 +25,9 @@ except ImportError:
     AuthConfig = None
     set_api_client = None
 
-# Fallback to legacy authentication if kube-authkit is not available
-try:
-    from codeflare_sdk import TokenAuthentication
-
-    LEGACY_AUTH_AVAILABLE = True
-except ImportError:
-    LEGACY_AUTH_AVAILABLE = False
-    TokenAuthentication = None
+# Legacy authentication has been removed — kube-authkit is the only auth method
+LEGACY_AUTH_AVAILABLE = False
+TokenAuthentication = None
 
 
 def get_ray_cluster(cluster_name, namespace):

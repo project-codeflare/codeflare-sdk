@@ -43,7 +43,7 @@ from .ray.cluster.cluster import (
 from .ray.cluster.config import ClusterConfiguration
 from .ray.rayjobs.rayjob import RayJob
 
-_VALID_LOG_LEVELS = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
+_VALID_LOG_LEVELS = ("CRITICAL", "DEBUG", "ERROR", "INFO", "WARNING")
 
 
 @dataclass
@@ -86,13 +86,13 @@ class ClusterHandler:
 
         Args:
             name: Cluster name.
-            namespace: K8s namespace. Falls back to SDKConfig.namespace.
+            namespace: K8s namespace. Falls back to SDKConfig.namespace or 'default'.
             **kwargs: Forwarded to ClusterConfiguration.
 
         Returns:
             Cluster instance ready for .apply().
         """
-        ns = namespace or self._sdk.config.namespace
+        ns = namespace or self._sdk.config.namespace or "default"
         cluster_config = ClusterConfiguration(name=name, namespace=ns, **kwargs)
         return Cluster(cluster_config)
 
@@ -153,13 +153,13 @@ class JobHandler:
         Args:
             name: Job name.
             entrypoint: Python script or command to run.
-            namespace: K8s namespace. Falls back to SDKConfig.namespace.
+            namespace: K8s namespace. Falls back to SDKConfig.namespace or 'default'.
             **kwargs: Forwarded to RayJob constructor (cluster_name, cluster_config, etc.).
 
         Returns:
             Submitted RayJob instance.
         """
-        ns = namespace or self._sdk.config.namespace
+        ns = namespace or self._sdk.config.namespace or "default"
         job = RayJob(job_name=name, entrypoint=entrypoint, namespace=ns, **kwargs)
         job.submit()
         return job
@@ -176,13 +176,13 @@ class JobHandler:
         Args:
             name: Job name.
             entrypoint: Python script or command to run.
-            namespace: K8s namespace. Falls back to SDKConfig.namespace.
+            namespace: K8s namespace. Falls back to SDKConfig.namespace or 'default'.
             **kwargs: Forwarded to RayJob constructor (cluster_name, cluster_config, etc.).
 
         Returns:
             RayJob instance (not yet submitted).
         """
-        ns = namespace or self._sdk.config.namespace
+        ns = namespace or self._sdk.config.namespace or "default"
         return RayJob(job_name=name, entrypoint=entrypoint, namespace=ns, **kwargs)
 
 

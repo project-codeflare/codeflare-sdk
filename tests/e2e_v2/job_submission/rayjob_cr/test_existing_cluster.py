@@ -6,8 +6,8 @@ import textwrap
 
 import pytest
 
-from codeflare_sdk import Cluster, ClusterConfiguration, RayJob
-from codeflare_sdk.common.kubernetes_cluster.auth import TokenAuthentication
+from codeflare_sdk import Cluster, ClusterConfiguration, RayJob, Codeflare, SDKConfig
+from kube_authkit import AuthConfig
 
 from ...utils.support import (
     create_kueue_resources,
@@ -36,12 +36,15 @@ class TestRayJobCRExistingCluster:
     @pytest.mark.openshift
     @pytest.mark.parametrize("num_gpus", [CPU_CONFIG, GPU_CONFIG])
     def test_openshift_remote_submission(self, num_gpus, require_gpu_flag):
-        auth = TokenAuthentication(
-            token=run_oc_command(["whoami", "--show-token=true"]),
-            server=run_oc_command(["whoami", "--show-server=true"]),
-            skip_tls=True,
+        Codeflare(
+            config=SDKConfig(
+                auth=AuthConfig(
+                    k8s_api_host=run_oc_command(["whoami", "--show-server=true"]),
+                    token=run_oc_command(["whoami", "--show-token=true"]),
+                    skip_tls_verify=True,
+                ),
+            )
         )
-        auth.login()
 
         self.run_remote_submission(num_gpus=num_gpus)
 
@@ -53,12 +56,15 @@ class TestRayJobCRExistingCluster:
     @pytest.mark.openshift
     @pytest.mark.parametrize("num_gpus", [CPU_CONFIG, GPU_CONFIG])
     def test_openshift_in_cluster_submission(self, num_gpus, require_gpu_flag):
-        auth = TokenAuthentication(
-            token=run_oc_command(["whoami", "--show-token=true"]),
-            server=run_oc_command(["whoami", "--show-server=true"]),
-            skip_tls=True,
+        Codeflare(
+            config=SDKConfig(
+                auth=AuthConfig(
+                    k8s_api_host=run_oc_command(["whoami", "--show-server=true"]),
+                    token=run_oc_command(["whoami", "--show-token=true"]),
+                    skip_tls_verify=True,
+                ),
+            )
         )
-        auth.login()
 
         self.run_in_cluster_submission(num_gpus=num_gpus)
 

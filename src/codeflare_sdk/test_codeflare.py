@@ -16,7 +16,7 @@
 
 import logging
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 from kube_authkit import AuthConfig
 
 
@@ -253,6 +253,20 @@ class TestClusterHandler:
 
         mock_list.assert_called_once_with("default", print_to_console=False)
 
+    def test_create_no_default_namespace_uses_default(self, mocker):
+        """create() falls back to 'default' when no namespace configured."""
+        from codeflare_sdk.codeflare import Codeflare, SDKConfig
+
+        mocker.patch("codeflare_sdk.codeflare.get_k8s_client")
+        mocker.patch("codeflare_sdk.codeflare.set_api_client")
+        mocker.patch("codeflare_sdk.codeflare.Cluster")
+        mock_config = mocker.patch("codeflare_sdk.codeflare.ClusterConfiguration")
+
+        cf = Codeflare(config=SDKConfig(namespace=None))
+        cf.clusters.create(name="test")
+
+        mock_config.assert_called_once_with(name="test", namespace="default")
+
 
 class TestJobHandler:
     @pytest.fixture
@@ -324,6 +338,22 @@ class TestJobHandler:
         )
         mock_job.submit.assert_not_called()
         assert result is mock_job
+
+    def test_submit_no_default_namespace_uses_default(self, mocker):
+        """submit() falls back to 'default' when no namespace configured."""
+        from codeflare_sdk.codeflare import Codeflare, SDKConfig
+
+        mocker.patch("codeflare_sdk.codeflare.get_k8s_client")
+        mocker.patch("codeflare_sdk.codeflare.set_api_client")
+        mock_rayjob_cls = mocker.patch("codeflare_sdk.codeflare.RayJob")
+        mock_rayjob_cls.return_value = MagicMock()
+
+        cf = Codeflare(config=SDKConfig(namespace=None))
+        cf.jobs.submit(name="job", entrypoint="python run.py")
+
+        mock_rayjob_cls.assert_called_once_with(
+            job_name="job", entrypoint="python run.py", namespace="default"
+        )
 
 
 class TestLegacyAuthRemoved:
