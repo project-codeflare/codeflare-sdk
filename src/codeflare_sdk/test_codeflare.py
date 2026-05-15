@@ -324,3 +324,38 @@ class TestJobHandler:
         )
         mock_job.submit.assert_not_called()
         assert result is mock_job
+
+
+class TestLegacyAuthRemoved:
+    def test_token_auth_not_importable(self):
+        """TokenAuthentication is no longer exported from codeflare_sdk."""
+        with pytest.raises(ImportError):
+            from codeflare_sdk import TokenAuthentication  # noqa: F401
+
+    def test_kubeconfig_auth_not_importable(self):
+        """KubeConfigFileAuthentication is no longer exported from codeflare_sdk."""
+        with pytest.raises(ImportError):
+            from codeflare_sdk import KubeConfigFileAuthentication  # noqa: F401
+
+    def test_authentication_not_importable(self):
+        """Authentication base class is no longer exported from codeflare_sdk."""
+        with pytest.raises(ImportError):
+            from codeflare_sdk import Authentication  # noqa: F401
+
+    def test_kube_configuration_not_importable(self):
+        """KubeConfiguration base class is no longer exported from codeflare_sdk."""
+        with pytest.raises(ImportError):
+            from codeflare_sdk import KubeConfiguration  # noqa: F401
+
+    def test_set_api_client_not_importable(self):
+        """set_api_client is no longer exported from codeflare_sdk top-level."""
+        with pytest.raises(ImportError):
+            from codeflare_sdk import set_api_client  # noqa: F401
+
+    def test_codeflare_importable(self):
+        """Codeflare is importable from codeflare_sdk."""
+        from codeflare_sdk import Codeflare  # noqa: F401
+
+    def test_sdk_config_importable(self):
+        """SDKConfig is importable from codeflare_sdk."""
+        from codeflare_sdk import SDKConfig  # noqa: F401
