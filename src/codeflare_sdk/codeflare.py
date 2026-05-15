@@ -32,7 +32,8 @@ import logging
 from dataclasses import dataclass, field
 from typing import Optional
 
-from kube_authkit import AuthConfig
+from kube_authkit import AuthConfig, get_k8s_client
+from .common.kubernetes_cluster.auth import set_api_client
 
 _VALID_LOG_LEVELS = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
 
@@ -64,3 +65,39 @@ class SDKConfig:
             raise ValueError(
                 f"log_level must be one of {_VALID_LOG_LEVELS}, got '{self.log_level}'"
             )
+
+
+class ClusterHandler:
+    """Namespace accessor for Ray cluster operations."""
+
+    def __init__(self, sdk: "Codeflare"):
+        self._sdk = sdk
+
+
+class JobHandler:
+    """Namespace accessor for RayJob operations."""
+
+    def __init__(self, sdk: "Codeflare"):
+        self._sdk = sdk
+
+
+class Codeflare:
+    """Single entrypoint for the CodeFlare SDK.
+
+    Authenticates to Kubernetes via kube-authkit and provides
+    namespace-accessor handlers for clusters and jobs.
+
+    Args:
+        config: SDK configuration. Defaults to auto-detection.
+    """
+
+    def __init__(self, config: Optional[SDKConfig] = None):
+        self.config = config or SDKConfig()
+
+        logging.getLogger("codeflare_sdk").setLevel(self.config.log_level)
+
+        self._client = get_k8s_client(config=self.config.auth)
+        set_api_client(self._client)
+
+        self.clusters = ClusterHandler(self)
+        self.jobs = JobHandler(self)
