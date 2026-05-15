@@ -252,3 +252,75 @@ class TestClusterHandler:
         cf.clusters.list()
 
         mock_list.assert_called_once_with("default", print_to_console=False)
+
+
+class TestJobHandler:
+    @pytest.fixture
+    def cf(self, mocker):
+        """Create a Codeflare instance with mocked auth."""
+        from codeflare_sdk.codeflare import Codeflare, SDKConfig
+
+        mocker.patch("codeflare_sdk.codeflare.get_k8s_client")
+        mocker.patch("codeflare_sdk.codeflare.set_api_client")
+        return Codeflare(config=SDKConfig(namespace="default-ns"))
+
+    def test_submit_job(self, cf, mocker):
+        """submit() creates and submits a RayJob."""
+        mock_rayjob_cls = mocker.patch("codeflare_sdk.codeflare.RayJob")
+        mock_job = MagicMock()
+        mock_rayjob_cls.return_value = mock_job
+
+        result = cf.jobs.submit(
+            name="train",
+            entrypoint="python train.py",
+            cluster_name="my-cluster",
+        )
+
+        mock_rayjob_cls.assert_called_once_with(
+            job_name="train",
+            entrypoint="python train.py",
+            namespace="default-ns",
+            cluster_name="my-cluster",
+        )
+        mock_job.submit.assert_called_once()
+        assert result is mock_job
+
+    def test_submit_job_override_namespace(self, cf, mocker):
+        """submit() allows namespace override."""
+        mock_rayjob_cls = mocker.patch("codeflare_sdk.codeflare.RayJob")
+        mock_rayjob_cls.return_value = MagicMock()
+
+        cf.jobs.submit(
+            name="train",
+            entrypoint="python train.py",
+            namespace="other-ns",
+            cluster_name="my-cluster",
+        )
+
+        mock_rayjob_cls.assert_called_once_with(
+            job_name="train",
+            entrypoint="python train.py",
+            namespace="other-ns",
+            cluster_name="my-cluster",
+        )
+
+    def test_create_job_without_submit(self, cf, mocker):
+        """create() returns a RayJob without submitting."""
+        mock_rayjob_cls = mocker.patch("codeflare_sdk.codeflare.RayJob")
+        mock_job = MagicMock()
+        mock_rayjob_cls.return_value = mock_job
+
+        result = cf.jobs.create(
+            name="train",
+            entrypoint="python train.py",
+            cluster_name="my-cluster",
+        )
+
+        mock_rayjob_cls.assert_called_once_with(
+            job_name="train",
+            entrypoint="python train.py",
+            namespace="default-ns",
+            cluster_name="my-cluster",
+        )
+        mock_job.submit.assert_not_called()
+        assert result is mock_job
