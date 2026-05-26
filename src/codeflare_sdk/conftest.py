@@ -22,7 +22,6 @@ patch them locally.
 """
 
 import pytest
-import os
 
 
 @pytest.fixture(autouse=True)

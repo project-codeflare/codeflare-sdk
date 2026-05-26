@@ -94,7 +94,7 @@ class Cluster:
     @property
     def job_client(self):
         self._check_tls_certs_exist()
-        k8client = get_api_client()
+        _ = get_api_client()  # Initialize API client
         if self._job_submission_client:
             return self._job_submission_client
         if _is_openshift_cluster():
@@ -495,7 +495,7 @@ class Cluster:
             if not dashboard_wait_logged:
                 dashboard_uri = self.cluster_dashboard_uri()
                 if not dashboard_uri.startswith(("http://", "https://")):
-                    print(f"Waiting for dashboard route/HTTPRoute to be created...")
+                    print("Waiting for dashboard route/HTTPRoute to be created...")
                 else:
                     print(
                         f"Waiting for dashboard to become accessible: {dashboard_uri}"
@@ -532,7 +532,6 @@ class Cluster:
         This is called by connection methods (cluster_uri, local_client_url, job_client)
         to help users debug mTLS connection issues.
         """
-        from pathlib import Path
 
         from codeflare_sdk.common.utils.generate_cert import _get_tls_base_dir
 
@@ -641,9 +640,7 @@ class Cluster:
                     "name"
                 ] == f"ray-dashboard-{self.config.name}" or route["metadata"][
                     "name"
-                ].startswith(
-                    f"{self.config.name}-ingress"
-                ):
+                ].startswith(f"{self.config.name}-ingress"):
                     protocol = "https" if route["spec"].get("tls") else "http"
                     return f"{protocol}://{route['spec']['host']}"
             # No route found for this cluster

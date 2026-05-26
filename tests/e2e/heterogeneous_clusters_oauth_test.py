@@ -74,7 +74,7 @@ class TestHeterogeneousClustersOauth:
             wait_ready_with_stuck_detection(cluster, dashboard_check=False)
             node_name = get_pod_node(self, self.namespace, cluster_name)
             print(f"Cluster {cluster_name}-{flavor} is running on node: {node_name}")
-            assert (
-                node_name in expected_nodes
-            ), f"Node {node_name} is not in the expected nodes for flavor {flavor}."
+            assert node_name in expected_nodes, (
+                f"Node {node_name} is not in the expected nodes for flavor {flavor}."
+            )
             cluster.down()

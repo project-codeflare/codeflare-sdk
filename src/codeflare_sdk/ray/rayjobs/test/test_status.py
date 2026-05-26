@@ -338,9 +338,9 @@ def test_rayjob_status_all_deployment_states(mocker):
         }
         status, ready = rayjob.status(print_to_console=False)
         assert status == expected_status, f"Failed for {deployment_status_str}"
-        assert (
-            ready == expected_ready
-        ), f"Failed ready check for {deployment_status_str}"
+        assert ready == expected_ready, (
+            f"Failed ready check for {deployment_status_str}"
+        )
 
 
 def test_rayjob_status_with_end_time(mocker):

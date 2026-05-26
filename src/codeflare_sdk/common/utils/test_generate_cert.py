@@ -53,9 +53,9 @@ def test_generate_ca_cert():
     assert cert_pub_key_bytes == private_pub_key_bytes
 
     # Verify RSA key size is 3072 bits for security compliance
-    assert (
-        private_key.key_size == 3072
-    ), f"CA key size should be 3072 bits, got {private_key.key_size}"
+    assert private_key.key_size == 3072, (
+        f"CA key size should be 3072 bits, got {private_key.key_size}"
+    )
 
     # Verify CA certificate has required extensions
     assert (
@@ -109,37 +109,37 @@ def test_generate_tls_cert(mocker):
     # Verify RSA key size is 3072 bits for security compliance
     with open(os.path.join(tls_dir, "tls.key"), "rb") as f:
         tls_key = load_pem_private_key(f.read(), password=None)
-    assert (
-        tls_key.key_size == 3072
-    ), f"TLS key size should be 3072 bits, got {tls_key.key_size}"
+    assert tls_key.key_size == 3072, (
+        f"TLS key size should be 3072 bits, got {tls_key.key_size}"
+    )
 
     # Verify RFC 5280 certificate extensions are present
     # BasicConstraints (CA:FALSE for client cert)
     basic_constraints = tls_cert.extensions.get_extension_for_oid(
         ExtensionOID.BASIC_CONSTRAINTS
     )
-    assert (
-        basic_constraints is not None
-    ), "Certificate should have BasicConstraints extension"
+    assert basic_constraints is not None, (
+        "Certificate should have BasicConstraints extension"
+    )
     assert basic_constraints.value.ca is False, "Client cert should have CA:FALSE"
 
     # KeyUsage extension
     key_usage = tls_cert.extensions.get_extension_for_oid(ExtensionOID.KEY_USAGE)
     assert key_usage is not None, "Certificate should have KeyUsage extension"
-    assert (
-        key_usage.value.digital_signature is True
-    ), "KeyUsage should include digitalSignature"
-    assert (
-        key_usage.value.key_encipherment is True
-    ), "KeyUsage should include keyEncipherment"
+    assert key_usage.value.digital_signature is True, (
+        "KeyUsage should include digitalSignature"
+    )
+    assert key_usage.value.key_encipherment is True, (
+        "KeyUsage should include keyEncipherment"
+    )
 
     # ExtendedKeyUsage (serverAuth and clientAuth for mTLS)
     extended_key_usage = tls_cert.extensions.get_extension_for_oid(
         ExtensionOID.EXTENDED_KEY_USAGE
     )
-    assert (
-        extended_key_usage is not None
-    ), "Certificate should have ExtendedKeyUsage extension"
+    assert extended_key_usage is not None, (
+        "Certificate should have ExtendedKeyUsage extension"
+    )
 
     # SubjectAlternativeName
     san = tls_cert.extensions.get_extension_for_oid(
@@ -167,15 +167,15 @@ def test_generate_tls_cert(mocker):
     crt_perms = os.stat(tls_crt_path).st_mode & 0o777
     ca_perms = os.stat(ca_crt_path).st_mode & 0o777
 
-    assert (
-        key_perms == 0o600
-    ), f"tls.key should have 0600 permissions, got {oct(key_perms)}"
-    assert (
-        crt_perms == 0o600
-    ), f"tls.crt should have 0600 permissions, got {oct(crt_perms)}"
-    assert (
-        ca_perms == 0o600
-    ), f"ca.crt should have 0600 permissions, got {oct(ca_perms)}"
+    assert key_perms == 0o600, (
+        f"tls.key should have 0600 permissions, got {oct(key_perms)}"
+    )
+    assert crt_perms == 0o600, (
+        f"tls.crt should have 0600 permissions, got {oct(crt_perms)}"
+    )
+    assert ca_perms == 0o600, (
+        f"ca.crt should have 0600 permissions, got {oct(ca_perms)}"
+    )
 
 
 def secret_ca_retreival_with_ca_key(secret_name, namespace):

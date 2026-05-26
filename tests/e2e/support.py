@@ -1736,8 +1736,7 @@ def detect_stuck_oauth_proxy_serviceaccount(namespace, timeout_minutes=3):
         bool: True if stuck condition detected, False otherwise
     """
     try:
-        import time
-        from datetime import datetime, timedelta
+        from datetime import datetime
 
         v1 = client.CoreV1Api()
 
@@ -1760,11 +1759,11 @@ def detect_stuck_oauth_proxy_serviceaccount(namespace, timeout_minutes=3):
                         - event.first_timestamp
                     )
                     if event_age.total_seconds() > (timeout_minutes * 60):
-                        print(f"🔍 Detected stuck oauth-proxy ServiceAccount creation:")
+                        print("🔍 Detected stuck oauth-proxy ServiceAccount creation:")
                         print(f"   Event: {event.message}")
                         print(f"   Age: {event_age}")
                         print(
-                            f"   This appears to be a product bug - will attempt cluster recreation"
+                            "   This appears to be a product bug - will attempt cluster recreation"
                         )
                         return True
 
@@ -1819,9 +1818,9 @@ def wait_ready_with_stuck_detection(cluster, timeout=600, dashboard_check=True):
                 print("🔄 Attempting cluster recreation to recover...")
                 try:
                     # Mark recovery as attempted
-                    wait_ready_with_stuck_detection._recovery_attempted[
-                        cluster_key
-                    ] = True
+                    wait_ready_with_stuck_detection._recovery_attempted[cluster_key] = (
+                        True
+                    )
 
                     # Delete and recreate the cluster
                     print(f"🗑️  Deleting stuck cluster {cluster.config.name}...")
@@ -1913,9 +1912,6 @@ def setup_token_refresh_monitoring():
     This monitors token expiration and attempts to refresh when needed.
     """
     try:
-        import threading
-        import time
-        import yaml
 
         def monitor_token_expiration():
             """Background thread to monitor and refresh tokens."""
@@ -1968,7 +1964,6 @@ def get_oidc_tokens(username, password, issuer_url):
     """
     try:
         import requests
-        import json
 
         # Construct token endpoint
         if "/realms/" in issuer_url:

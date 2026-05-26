@@ -1,4 +1,3 @@
-import requests
 from time import sleep
 
 from codeflare_sdk import (
@@ -77,10 +76,10 @@ class TestSetupSleepRayJob:
             _, ready = cluster.status()
             assert ready
             submission_id = self.assert_jobsubmit()
-            print(f"Job submitted successfully, job submission id: ", submission_id)
+            print("Job submitted successfully, job submission id: ", submission_id)
 
         except Exception as e:
-            print(f"An unexpected error occurred. Error: ", e)
+            print("An unexpected error occurred. Error: ", e)
             delete_namespace(self)
             delete_kueue_resources(self)
             assert False, "Cluster is not ready!"

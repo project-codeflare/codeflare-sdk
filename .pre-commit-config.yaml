@@ -9,8 +9,9 @@ repos:
     -   id: check-yaml
         args: [--allow-multiple-documents]
     -   id: check-added-large-files
--   repo: https://github.com/psf/black
-    rev: 23.3.0
+-   repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.9.0
     hooks:
-      - id: black
-        language_version: python3.9
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+      - id: ruff-format

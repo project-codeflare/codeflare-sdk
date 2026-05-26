@@ -29,11 +29,9 @@ from support import (
     create_kueue_resources,
     delete_kueue_resources,
     get_ray_image,
-    run_oc_command,
     authenticate_for_tests,
     cleanup_authentication,
     # Gateway API helpers
-    get_reference_grant,
     list_reference_grants,
     get_httproutes_for_cluster,
     wait_for_reference_grant,
@@ -134,9 +132,9 @@ class TestGatewayApiResources:
             # Verify dashboard is accessible via HTTPRoute
             dashboard_url = cluster.cluster_dashboard_uri()
             assert dashboard_url, "Dashboard URL should be available"
-            assert (
-                "Dashboard not available" not in dashboard_url
-            ), f"Dashboard should be available, got: {dashboard_url}"
+            assert "Dashboard not available" not in dashboard_url, (
+                f"Dashboard should be available, got: {dashboard_url}"
+            )
             print(f"✓ Dashboard URL: {dashboard_url}")
 
         finally:
@@ -195,9 +193,9 @@ class TestGatewayApiResources:
         print(f"✓ ReferenceGrant found: {grant_name}")
 
         # Verify the spec
-        assert verify_reference_grant_spec(
-            reference_grant
-        ), "ReferenceGrant spec validation failed"
+        assert verify_reference_grant_spec(reference_grant), (
+            "ReferenceGrant spec validation failed"
+        )
         print("✓ ReferenceGrant spec is valid")
 
         # Print details
@@ -250,9 +248,9 @@ class TestGatewayApiResources:
             print(f"  HTTPRoute: {route_namespace}/{route_name}")
 
             # Verify spec
-            assert verify_httproute_spec(
-                httproute, cluster_name, self.namespace
-            ), f"HTTPRoute {route_name} spec validation failed"
+            assert verify_httproute_spec(httproute, cluster_name, self.namespace), (
+                f"HTTPRoute {route_name} spec validation failed"
+            )
             print(f"  ✓ HTTPRoute '{route_name}' spec is valid")
 
             # Print details
@@ -327,7 +325,7 @@ class TestGatewayApiResources:
                 for key, value in selector_labels.items()
             )
             if not has_ray_label:
-                print(f"    Warning: Pod selector may not target Ray cluster")
+                print("    Warning: Pod selector may not target Ray cluster")
 
         # Check if Ray-specific ports are allowed
         ray_ports_allowed = expected_ray_ports.intersection(all_allowed_ports)
@@ -418,7 +416,7 @@ class TestGatewayApiResources:
             print("Skipping NetworkPolicy cleanup verification (not found during test)")
 
         # Final summary
-        print(f"\n--- Cleanup Verification Summary ---")
+        print("\n--- Cleanup Verification Summary ---")
         if cleanup_success:
             print("✓ All gateway resources properly cleaned up")
         else:

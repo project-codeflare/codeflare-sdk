@@ -75,6 +75,42 @@ webdriver-manager = "4.0.2"
 diff-cover = "^9.6.0"
 black = ">=25.11,<27.0"
 pre-commit = "^4.5.0"
+ruff = "^0.9.0"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 88  # Match black
+extend-exclude = [
+    "*.ipynb",  # Exclude Jupyter notebooks (different execution context)
+]
+
+[tool.ruff.lint]
+select = [
+    "F",   # pyflakes (undefined names, unused imports)
+    "E",   # pycodestyle errors
+    # "I",   # isort (import sorting) - disabled due to circular import issues
+]
+ignore = [
+    "E501",  # line too long (handled by black/ruff-format)
+    "E402",  # module level import not at top of file
+    "E722",  # bare except (TODO: fix in future PR)
+    "F403",  # star imports (TODO: refactor in future PR)
+    "F405",  # may be undefined from star imports
+]
+
+[tool.ruff.lint.per-file-ignores]
+"src/codeflare_sdk/vendored/**" = ["E", "F"]  # Exclude vendored code
+"**/test_*.py" = ["F401", "F811", "F841"]  # Allow unused imports, redefinitions, and variables in tests
+"**/__init__.py" = ["F401"]  # Allow unused imports in __init__.py (re-exports for public API)
+"demo-notebooks/**/*.py" = ["F841"]  # Allow unused variables in demo notebooks
+"tests/**/*.py" = ["F841"]  # Allow unused variables in test scripts
+"scripts/**/*.py" = ["F841"]  # Allow unused variables in scripts
+"ui-tests/**/*.py" = ["F821"]  # Allow undefined names in UI test config
+
+[tool.ruff.lint.isort]
+known-first-party = ["codeflare_sdk"]
+force-single-line = false
+lines-after-imports = 2
 
 [tool.pytest.ini_options]
 filterwarnings = [

@@ -20,7 +20,7 @@ This sub-module exists primarily to be used internally by the RayJob object
 from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
-from typing import Tuple, Optional
+from typing import Tuple
 
 from .status import RayJobDeploymentStatus, RayJobInfo
 

@@ -1,7 +1,6 @@
 from codeflare_sdk import Cluster, ClusterConfiguration
 import pytest
 import time
-from kubernetes import client
 from codeflare_sdk.common.utils import constants
 
 from support import (
@@ -57,9 +56,9 @@ class TestRayClusterApply:
         # Verify the cluster is created
         ray_cluster = get_ray_cluster(cluster_name, namespace)
         assert ray_cluster is not None, "Cluster was not created successfully"
-        assert (
-            ray_cluster["spec"]["workerGroupSpecs"][0]["replicas"] == 1
-        ), "Initial worker count does not match"
+        assert ray_cluster["spec"]["workerGroupSpecs"][0]["replicas"] == 1, (
+            "Initial worker count does not match"
+        )
 
         # Update configuration with 2 workers
         updated_config = ClusterConfiguration(
@@ -89,15 +88,15 @@ class TestRayClusterApply:
         # Wait for the updated cluster to be ready
         cluster.wait_ready(dashboard_check=False)
         updated_status, updated_ready = cluster.status()
-        assert (
-            updated_ready
-        ), f"Cluster {cluster_name} is not ready after update: {updated_status}"
+        assert updated_ready, (
+            f"Cluster {cluster_name} is not ready after update: {updated_status}"
+        )
 
         # Verify the cluster is updated
         updated_ray_cluster = get_ray_cluster(cluster_name, namespace)
-        assert (
-            updated_ray_cluster["spec"]["workerGroupSpecs"][0]["replicas"] == 2
-        ), "Worker count was not updated"
+        assert updated_ray_cluster["spec"]["workerGroupSpecs"][0]["replicas"] == 2, (
+            "Worker count was not updated"
+        )
 
         # Clean up
         cluster.down()
@@ -114,6 +113,6 @@ class TestRayClusterApply:
             time.sleep(wait_interval)
             elapsed += wait_interval
 
-        assert (
-            ray_cluster is None
-        ), f"Cluster was not deleted successfully after {max_wait}s"
+        assert ray_cluster is None, (
+            f"Cluster was not deleted successfully after {max_wait}s"
+        )

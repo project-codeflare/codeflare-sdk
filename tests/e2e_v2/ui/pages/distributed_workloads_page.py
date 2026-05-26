@@ -134,7 +134,7 @@ class DistributedWorkloadsPage:
             try:
                 body = self.driver.find_element(By.TAG_NAME, "body")
                 if len(body.text) > 100:  # Body has substantial content
-                    print(f"Dashboard rendered after {i+1} seconds")
+                    print(f"Dashboard rendered after {i + 1} seconds")
                     break
             except:
                 pass
@@ -442,10 +442,9 @@ class DistributedWorkloadsPage:
     def _select_project_by_url(self, project_name):
         """Select project by navigating to the URL with the project name"""
         import time
-        import re
 
         current_url = self.driver.current_url
-        print(f"Attempting to select project via URL navigation")
+        print("Attempting to select project via URL navigation")
         print(f"Current URL: {current_url}")
 
         # URL pattern: .../observe-monitor/workload-metrics/workload-status/{project_name}
@@ -501,9 +500,7 @@ class DistributedWorkloadsPage:
                         f"Successfully navigated to project using alternative pattern: {project_name}"
                     )
                 else:
-                    print(
-                        f"Warning: Project navigation may not have worked as expected"
-                    )
+                    print("Warning: Project navigation may not have worked as expected")
                     print(f"Expected project: {project_name}, Final URL: {final_url}")
                     # Don't raise an error here - let the subsequent verification methods handle it
         else:

@@ -46,9 +46,9 @@ def test_yaml_serialization_with_pydantic_models():
         content = yaml.safe_load(f)
 
     assert content is not None, "YAML content should not be None"
-    assert (
-        "kind" in content or "apiVersion" in content
-    ), "YAML should contain Kubernetes resource fields"
+    assert "kind" in content or "apiVersion" in content, (
+        "YAML should contain Kubernetes resource fields"
+    )
 
 
 def test_yaml_serialization_without_write_to_file():
@@ -61,9 +61,9 @@ def test_yaml_serialization_without_write_to_file():
     cluster = Cluster(config)
 
     # Verify resource_yaml is a dict (in-memory)
-    assert isinstance(
-        cluster.resource_yaml, dict
-    ), "resource_yaml should be a dict when write_to_file=False"
+    assert isinstance(cluster.resource_yaml, dict), (
+        "resource_yaml should be a dict when write_to_file=False"
+    )
     assert "kind" in cluster.resource_yaml or "apiVersion" in cluster.resource_yaml
 
 

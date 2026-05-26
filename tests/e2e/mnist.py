@@ -15,7 +15,6 @@
 import os
 
 import torch
-import requests
 from pytorch_lightning import LightningModule, Trainer
 from pytorch_lightning.callbacks import TQDMProgressBar
 from torch import nn
@@ -53,17 +52,17 @@ STORAGE_BUCKET_EXISTS = "AWS_DEFAULT_ENDPOINT" in os.environ
 print("STORAGE_BUCKET_EXISTS: ", STORAGE_BUCKET_EXISTS)
 
 print(
-    f'Storage_Bucket_Default_Endpoint : is {os.environ.get("AWS_DEFAULT_ENDPOINT")}'
+    f"Storage_Bucket_Default_Endpoint : is {os.environ.get('AWS_DEFAULT_ENDPOINT')}"
     if "AWS_DEFAULT_ENDPOINT" in os.environ
     else ""
 )
 print(
-    f'Storage_Bucket_Name : is {os.environ.get("AWS_STORAGE_BUCKET")}'
+    f"Storage_Bucket_Name : is {os.environ.get('AWS_STORAGE_BUCKET')}"
     if "AWS_STORAGE_BUCKET" in os.environ
     else ""
 )
 print(
-    f'Storage_Bucket_Mnist_Directory : is {os.environ.get("AWS_STORAGE_BUCKET_MNIST_DIR")}'
+    f"Storage_Bucket_Mnist_Directory : is {os.environ.get('AWS_STORAGE_BUCKET_MNIST_DIR')}"
     if "AWS_STORAGE_BUCKET_MNIST_DIR" in os.environ
     else ""
 )

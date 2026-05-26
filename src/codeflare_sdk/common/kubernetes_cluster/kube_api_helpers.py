@@ -23,8 +23,7 @@ from kubernetes import client, config
 
 
 ERROR_MESSAGES = {
-    401: "Access to the API is unauthorized.\n"
-    "Check your credentials or permissions.",
+    401: "Access to the API is unauthorized.\nCheck your credentials or permissions.",
     403: "Access denied:\n"
     "Ensure your role has sufficient permissions and that you are logged in to the correct cluster.",
     404: "The requested resource could not be located.\n"
@@ -108,6 +107,6 @@ def _kube_api_error_handling(
         print_message(message)
 
     else:
-        message = "An unexpected error occurred.\n" f"{str(e)}"
+        message = f"An unexpected error occurred.\n{str(e)}"
         print_message(message)
         raise e

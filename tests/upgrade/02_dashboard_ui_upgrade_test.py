@@ -165,23 +165,23 @@ class TestDistributedWorkloadsUIPreUpgrade:
         # Verify cluster is Running or Admitted
         # (needs to be clarified with dw team - in the past the status was "Running")
         print("\n=== Verifying cluster is in Running or Admitted state ===")
-        assert (
-            dw_page.verify_cluster_running()
-        ), f"Cluster in {NAMESPACE} should be in Running or Admitted state before upgrade"
+        assert dw_page.verify_cluster_running(), (
+            f"Cluster in {NAMESPACE} should be in Running or Admitted state before upgrade"
+        )
 
         # Click Project Metrics tab and verify metrics are visible
         print("\n=== Checking Project Metrics tab ===")
         dw_page.click_project_metrics_tab()
-        assert (
-            dw_page.verify_metrics_visible()
-        ), "Resource metrics should be visible on Project Metrics tab"
+        assert dw_page.verify_metrics_visible(), (
+            "Resource metrics should be visible on Project Metrics tab"
+        )
 
         # Click Workload Status tab and verify cluster appears in the list
         print("\n=== Checking Workload Status tab ===")
         dw_page.click_workload_status_tab()
-        assert dw_page.verify_cluster_in_workload_list(
-            CLUSTER_NAME
-        ), f"Cluster '{CLUSTER_NAME}' should appear in workload list with Running or Admitted status"
+        assert dw_page.verify_cluster_in_workload_list(CLUSTER_NAME), (
+            f"Cluster '{CLUSTER_NAME}' should appear in workload list with Running or Admitted status"
+        )
 
         print("\n=== Pre-upgrade UI verification completed successfully ===")
 
@@ -221,23 +221,23 @@ class TestDistributedWorkloadsUIPostUpgrade:
         print(
             "\n=== Verifying cluster is still in Running or Admitted state after upgrade ==="
         )
-        assert (
-            dw_page.verify_cluster_running()
-        ), f"Cluster in {NAMESPACE} should still be in Running or Admitted state after upgrade"
+        assert dw_page.verify_cluster_running(), (
+            f"Cluster in {NAMESPACE} should still be in Running or Admitted state after upgrade"
+        )
 
         # Click Project Metrics tab and verify metrics are still accessible
         print("\n=== Checking Project Metrics tab ===")
         dw_page.click_project_metrics_tab()
-        assert (
-            dw_page.verify_metrics_visible()
-        ), "Resource metrics should still be visible on Project Metrics tab after upgrade"
+        assert dw_page.verify_metrics_visible(), (
+            "Resource metrics should still be visible on Project Metrics tab after upgrade"
+        )
 
         # Click Workload Status tab and verify cluster still appears in the list
         print("\n=== Checking Workload Status tab ===")
         dw_page.click_workload_status_tab()
-        assert dw_page.verify_cluster_in_workload_list(
-            CLUSTER_NAME
-        ), f"Cluster '{CLUSTER_NAME}' should still appear in workload list with Running or Admitted status after upgrade"
+        assert dw_page.verify_cluster_in_workload_list(CLUSTER_NAME), (
+            f"Cluster '{CLUSTER_NAME}' should still appear in workload list with Running or Admitted status after upgrade"
+        )
 
         print("\n=== Post-upgrade UI verification completed successfully ===")
         print(

@@ -22,7 +22,7 @@ def get_current_namespace():  # pragma: no cover
                 "/var/run/secrets/kubernetes.io/serviceaccount/namespace", "r"
             ) as file:
                 return file.readline().strip("\n")
-        except Exception as e:
+        except Exception:
             print("Unable to find current namespace")
     print("Trying to gather namespace from current context")
     try:
