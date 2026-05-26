@@ -72,10 +72,16 @@ coverage report -m --include="path/to/changed1.py,path/to/changed2.py"
 
 ```sh
 # Format a single file
-black path/to/file.py
+ruff format path/to/file.py
 
 # Check formatting without modifying
-black --check path/to/file.py
+ruff format --check path/to/file.py
+
+# Lint a single file (with auto-fix)
+ruff check --fix path/to/file.py
+
+# Lint a single file (check only, no changes)
+ruff check path/to/file.py
 ```
 
 ### Coverage Requirements
@@ -88,7 +94,8 @@ black --check path/to/file.py
 
 ### Python Style
 
-- **Formatter**: black (via pre-commit)
+- **Formatter**: ruff-format (via pre-commit)
+- **Linter**: ruff (pycodestyle, pyflakes)
 - **Naming**: snake_case for functions/variables/modules, PascalCase for classes
 - **Type hints**: required for function parameters and return types
 - **Docstrings**: Google-style (Args, Returns, Raises sections)
@@ -139,7 +146,7 @@ Pre-commit hooks enforce:
 - end-of-file newline
 - YAML validation
 - Large file checks
-- black formatting
+- ruff linting and formatting
 
 ## Cursor Rules (extended guidance)
 

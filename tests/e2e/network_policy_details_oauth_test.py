@@ -27,7 +27,6 @@ from support import (
     create_kueue_resources,
     delete_kueue_resources,
     get_ray_image,
-    run_oc_command,
     authenticate_for_tests,
     cleanup_authentication,
     # Gateway API helpers
@@ -113,7 +112,7 @@ class TestNetworkPolicyDetails:
                 pytest.skip("No NetworkPolicies found")
 
             found_network_policies = True
-            print(f"\n--- NetworkPolicy Analysis ---")
+            print("\n--- NetworkPolicy Analysis ---")
             print(f"Found {len(policies)} policies for cluster '{cluster_name}'")
 
             for policy in policies:
@@ -124,16 +123,16 @@ class TestNetworkPolicyDetails:
                 # Check for proper pod selector
                 selector = verification["pod_selector_labels"]
                 if selector:
-                    print(f"  Pod Selector Labels:")
+                    print("  Pod Selector Labels:")
                     for key, value in selector.items():
                         print(f"    {key}: {value}")
 
                     # Verify selector targets Ray pods
                     ray_selector_keys = ["ray.io/cluster", "ray.io/node-type"]
                     has_ray_selector = any(key in selector for key in ray_selector_keys)
-                    assert has_ray_selector or cluster_name in str(
-                        selector
-                    ), f"Policy should target Ray pods, got selector: {selector}"
+                    assert has_ray_selector or cluster_name in str(selector), (
+                        f"Policy should target Ray pods, got selector: {selector}"
+                    )
                     print("  ✓ Pod selector targets Ray pods")
 
                 # Check allowed ports

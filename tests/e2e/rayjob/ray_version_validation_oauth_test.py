@@ -118,9 +118,9 @@ class TestRayJobRayVersionValidationOauth:
         with pytest.warns(UserWarning, match="Cannot determine Ray version"):
             submission_result = rayjob.submit()
 
-        assert (
-            submission_result == job_name
-        ), f"Job submission failed, expected {job_name}, got {submission_result}"
+        assert submission_result == job_name, (
+            f"Job submission failed, expected {job_name}, got {submission_result}"
+        )
 
         print("✅ RayJob submission succeeded with warning for unknown Ray version!")
         print(

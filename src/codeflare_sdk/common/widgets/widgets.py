@@ -15,6 +15,7 @@
 """
 The widgets sub-module contains the ui widgets created using the ipywidgets package.
 """
+
 import contextlib
 import io
 import os
@@ -148,9 +149,11 @@ class RayClusterManagerWidgets:
         cluster_name = self.classification_widget.value
 
         # Suppress from Cluster Object initialisation widgets and outputs
-        with widgets.Output(), contextlib.redirect_stdout(
-            io.StringIO()
-        ), contextlib.redirect_stderr(io.StringIO()):
+        with (
+            widgets.Output(),
+            contextlib.redirect_stdout(io.StringIO()),
+            contextlib.redirect_stderr(io.StringIO()),
+        ):
             cluster = Cluster(ClusterConfiguration(cluster_name, self.namespace))
         dashboard_url = cluster.cluster_dashboard_uri()
 
@@ -171,9 +174,11 @@ class RayClusterManagerWidgets:
         cluster_name = self.classification_widget.value
 
         # Suppress from Cluster Object initialisation widgets and outputs
-        with widgets.Output(), contextlib.redirect_stdout(
-            io.StringIO()
-        ), contextlib.redirect_stderr(io.StringIO()):
+        with (
+            widgets.Output(),
+            contextlib.redirect_stdout(io.StringIO()),
+            contextlib.redirect_stderr(io.StringIO()),
+        ):
             cluster = Cluster(ClusterConfiguration(cluster_name, self.namespace))
         dashboard_url = cluster.cluster_dashboard_uri()
 

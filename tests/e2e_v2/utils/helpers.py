@@ -316,13 +316,13 @@ def assert_job_succeeded(status: dict, job_name: str = None) -> None:
     name_prefix = f"Job '{job_name}'" if job_name else "Job"
 
     if job_status:
-        assert (
-            job_status == "SUCCEEDED"
-        ), f"{name_prefix} did not succeed. Status: {job_status}. Full: {status}"
+        assert job_status == "SUCCEEDED", (
+            f"{name_prefix} did not succeed. Status: {job_status}. Full: {status}"
+        )
     elif deployment_status:
-        assert (
-            deployment_status == "Complete"
-        ), f"{name_prefix} did not complete. Status: {deployment_status}. Full: {status}"
+        assert deployment_status == "Complete", (
+            f"{name_prefix} did not complete. Status: {deployment_status}. Full: {status}"
+        )
     else:
         raise AssertionError(f"Could not determine job status. Full: {status}")
 

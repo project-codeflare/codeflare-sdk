@@ -1,4 +1,3 @@
-import requests
 import subprocess
 
 from time import sleep

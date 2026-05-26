@@ -86,9 +86,9 @@ class TestRayJobLifecycledCluster:
 
             # Wait for job to be running with retry logic for BYOIDC stability
             job_running = self._wait_for_job_running_with_retry(rayjob, max_retries=2)
-            assert (
-                job_running
-            ), f"RayJob {rayjob.name} failed to reach running state after retries"
+            assert job_running, (
+                f"RayJob {rayjob.name} failed to reach running state after retries"
+            )
 
             assert self.job_api.wait_until_job_finished(
                 name=rayjob.name, k8s_namespace=rayjob.namespace, timeout=300
@@ -234,7 +234,7 @@ class TestRayJobLifecycledCluster:
 
             # If not the last attempt, wait before retrying
             if attempt < max_retries:
-                print(f"Retrying in 30 seconds...")
+                print("Retrying in 30 seconds...")
                 sleep(30)
 
                 # Verify and re-initialize authentication if needed (for BYOIDC token refresh)
@@ -281,25 +281,25 @@ class TestRayJobLifecycledCluster:
             assert len(secret.data) > 0, "Secret data is empty"
 
             # Verify owner reference
-            assert (
-                secret.metadata.owner_references is not None
-            ), "Secret has no owner references"
-            assert (
-                len(secret.metadata.owner_references) > 0
-            ), "Secret owner references list is empty"
+            assert secret.metadata.owner_references is not None, (
+                "Secret has no owner references"
+            )
+            assert len(secret.metadata.owner_references) > 0, (
+                "Secret owner references list is empty"
+            )
 
             owner_ref = secret.metadata.owner_references[0]
-            assert (
-                owner_ref.api_version == "ray.io/v1"
-            ), f"Wrong API version: {owner_ref.api_version}"
+            assert owner_ref.api_version == "ray.io/v1", (
+                f"Wrong API version: {owner_ref.api_version}"
+            )
             assert owner_ref.kind == "RayJob", f"Wrong kind: {owner_ref.kind}"
             assert owner_ref.name == rayjob.name, f"Wrong owner name: {owner_ref.name}"
-            assert (
-                owner_ref.controller is True
-            ), "Owner reference controller not set to true"
-            assert (
-                owner_ref.block_owner_deletion is True
-            ), "Owner reference blockOwnerDeletion not set to true"
+            assert owner_ref.controller is True, (
+                "Owner reference controller not set to true"
+            )
+            assert owner_ref.block_owner_deletion is True, (
+                "Owner reference blockOwnerDeletion not set to true"
+            )
 
             # Verify labels
             assert secret.metadata.labels.get("ray.io/job-name") == rayjob.name

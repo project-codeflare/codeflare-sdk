@@ -530,14 +530,14 @@ def handle_openshift_oauth_login(driver, test_credentials):
                     )
                     for i, form in enumerate(forms):
                         inputs = form.find_elements(By.TAG_NAME, "input")
-                        print(f"Form {i+1} has {len(inputs)} input fields")
+                        print(f"Form {i + 1} has {len(inputs)} input fields")
                         for j, inp in enumerate(inputs):
                             input_type = inp.get_attribute("type") or "text"
                             input_name = inp.get_attribute("name") or ""
                             input_id = inp.get_attribute("id") or ""
                             input_placeholder = inp.get_attribute("placeholder") or ""
                             print(
-                                f"  Input {j+1}: type='{input_type}', name='{input_name}', id='{input_id}', placeholder='{input_placeholder}'"
+                                f"  Input {j + 1}: type='{input_type}', name='{input_name}', id='{input_id}', placeholder='{input_placeholder}'"
                             )
 
                             # Try to use the first text input as username field
@@ -604,7 +604,7 @@ def handle_openshift_oauth_login(driver, test_credentials):
                 )
                 if password_inputs:
                     password_field = password_inputs[0]
-                    print(f"Found password field using generic password input selector")
+                    print("Found password field using generic password input selector")
             except:
                 pass
 
@@ -655,7 +655,7 @@ def handle_openshift_oauth_login(driver, test_credentials):
                 buttons = driver.find_elements(By.TAG_NAME, "button")
                 if buttons:
                     login_button = buttons[0]  # Use the first button found
-                    print(f"Using first button found as login button")
+                    print("Using first button found as login button")
                 else:
                     # Try input type submit
                     submit_inputs = driver.find_elements(
@@ -663,7 +663,7 @@ def handle_openshift_oauth_login(driver, test_credentials):
                     )
                     if submit_inputs:
                         login_button = submit_inputs[0]
-                        print(f"Using submit input as login button")
+                        print("Using submit input as login button")
             except:
                 pass
 
@@ -788,8 +788,8 @@ def login_to_dashboard(selenium_driver, dashboard_url, test_credentials):
 
         for i in range(8):  # Try for up to 40 seconds (8 * 5 seconds)
             time.sleep(5)
-            print(f"Attempt {i+1}/8 - Current URL: {driver.current_url}")
-            print(f"Attempt {i+1}/8 - Page title: {driver.title}")
+            print(f"Attempt {i + 1}/8 - Current URL: {driver.current_url}")
+            print(f"Attempt {i + 1}/8 - Page title: {driver.title}")
 
             # Check if page title indicates we're on the dashboard
             if "Red Hat OpenShift AI" in driver.title or "OpenShift" in driver.title:

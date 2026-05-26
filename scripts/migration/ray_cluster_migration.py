@@ -348,7 +348,7 @@ def _wait_for_cluster_ready(
     recreation_detected = False
     phase1_timeout = min(60, timeout_seconds // 2)  # Max 60s for phase 1
 
-    print(f"       Waiting for pods to be recreated...", end="\r")
+    print("       Waiting for pods to be recreated...", end="\r")
 
     while elapsed < phase1_timeout and not recreation_detected:
         try:
@@ -392,7 +392,7 @@ def _wait_for_cluster_ready(
             elapsed += poll_interval
 
     # Phase 2: Wait for cluster to become fully ready
-    print(f"       Waiting for cluster to become ready...", end="\r")
+    print("       Waiting for cluster to become ready...", end="\r")
 
     while elapsed < timeout_seconds:
         try:
@@ -1238,7 +1238,7 @@ def _post_upgrade_from_backup(
             if dry_run:
                 print(f"  [DRY RUN] Would restore from backup: {name} (ns: {ns})")
                 print(
-                    f"            (will delete existing cluster if present, then create from backup)"
+                    "            (will delete existing cluster if present, then create from backup)"
                 )
                 migrated_count += 1
                 continue
@@ -1325,7 +1325,7 @@ def _post_upgrade_from_backup(
                     print(f"       Dashboard: {route_url}")
                 else:
                     print(f"  [OK] Restored from backup: {name} (ns: {ns})")
-                    print(f"       Dashboard: Route not yet available (check later)")
+                    print("       Dashboard: Route not yet available (check later)")
             else:
                 print(
                     f"  [OK] Restored from backup: {name} (ns: {ns}) - cluster starting up"
@@ -1339,12 +1339,12 @@ def _post_upgrade_from_backup(
             failed_count += 1
 
     # Print summary
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     if dry_run:
-        print(f"DRY RUN Summary:")
+        print("DRY RUN Summary:")
         print(f"  Would restore: {migrated_count}")
     else:
-        print(f"Restore from Backup Summary:")
+        print("Restore from Backup Summary:")
         print(f"  Restored: {migrated_count}")
     print(f"  Failed: {failed_count}")
 
@@ -1514,13 +1514,13 @@ def pre_upgrade(
             continue
 
     print(f"\nBackup complete: {len(saved_files)} RayCluster(s) saved to {output_dir}")
-    print(f"\nBackup directory structure:")
+    print("\nBackup directory structure:")
     print(f"  {output_dir}/")
     print(
-        f"    rhoai-2.x/  - RHOAI 2.x compatible (use if you did not proceed with the 3.x upgrade)"
+        "    rhoai-2.x/  - RHOAI 2.x compatible (use if you did not proceed with the 3.x upgrade)"
     )
     print(
-        f"    rhoai-3.x/  - RHOAI 3.x compatible (use with post-upgrade --from-backup)"
+        "    rhoai-3.x/  - RHOAI 3.x compatible (use with post-upgrade --from-backup)"
     )
     print()
     print("WARNING: The 'rhoai-2.x/' backups contain CodeFlare-operator components.")
@@ -1781,7 +1781,7 @@ def post_upgrade(
                     print(f"       Dashboard: {route_url}")
                 else:
                     print(f"  [OK] Migrated: {name} (ns: {ns})")
-                    print(f"       Dashboard: Route not yet available (check later)")
+                    print("       Dashboard: Route not yet available (check later)")
             else:
                 print(
                     f"  [OK] Migrated: {name} (ns: {ns}) - cluster starting up (may take a moment)"
@@ -1795,12 +1795,12 @@ def post_upgrade(
             failed_count += 1
 
     # Print final summary
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     if dry_run:
-        print(f"DRY RUN Summary:")
+        print("DRY RUN Summary:")
         print(f"  Would migrate: {migrated_count}")
     else:
-        print(f"Migration Summary:")
+        print("Migration Summary:")
         print(f"  Migrated: {migrated_count}")
     print(f"  Skipped (already migrated): {len(already_migrated)}")
     print(f"  Failed: {failed_count}")
@@ -1922,7 +1922,7 @@ def list_ray_clusters(
     if output_format == "yaml":
         print(yaml.dump(clusters_info, default_flow_style=False))
     else:
-        print(f"RayCluster Migration Status:\n")
+        print("RayCluster Migration Status:\n")
         print(
             f"{'Name':<25} {'Namespace':<18} {'Status':<12} {'Workers':<8} {'Migration Status':<30}"
         )
@@ -2127,9 +2127,9 @@ def import_ray_clusters(
                             doc["metadata"] = {}
                         if "annotations" not in doc["metadata"]:
                             doc["metadata"]["annotations"] = {}
-                        doc["metadata"]["annotations"][
-                            SECURE_NETWORK_ANNOTATION
-                        ] = "true"
+                        doc["metadata"]["annotations"][SECURE_NETWORK_ANNOTATION] = (
+                            "true"
+                        )
 
                         if dry_run:
                             message = f"[DRY RUN] Would import: {name} (ns: {ns})"

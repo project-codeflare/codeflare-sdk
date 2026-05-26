@@ -186,7 +186,7 @@ class KubeConfigFileAuthentication(KubeConfiguration):
         global config_path
         global api_client
 
-        if self.kube_config_path == None:
+        if self.kube_config_path is None:
             return "Please specify a config file path"
 
         # Try kube-authkit first
@@ -256,7 +256,7 @@ def config_check() -> str:
             # Verify connection
             client.AuthenticationApi(api_client).get_api_group()
             return config_path
-        except Exception as e:
+        except Exception:
             # Fall through to legacy method
             api_client = None
             # Don't warn - auto-detection failure is expected when no auth is configured

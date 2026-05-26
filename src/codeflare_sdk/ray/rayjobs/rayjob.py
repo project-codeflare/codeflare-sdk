@@ -302,8 +302,8 @@ class RayJob:
         else:
             if self.local_queue or self.priority_class:
                 logger.warning(
-                    f"Kueue labels (local_queue, priority_class) are ignored for RayJobs "
-                    f"targeting existing clusters. Kueue only manages RayJobs that create new clusters."
+                    "Kueue labels (local_queue, priority_class) are ignored for RayJobs "
+                    "targeting existing clusters. Kueue only manages RayJobs that create new clusters."
                 )
 
         # Add active deadline if specified
@@ -318,9 +318,9 @@ class RayJob:
         # Add submitterPodTemplate if we have files to mount
         if files:
             secret_name = f"{self.name}-files"
-            rayjob_cr["spec"][
-                "submitterPodTemplate"
-            ] = self._build_submitter_pod_template(files, secret_name)
+            rayjob_cr["spec"]["submitterPodTemplate"] = (
+                self._build_submitter_pod_template(files, secret_name)
+            )
 
         # Configure cluster: either use existing or create new
         if self._cluster_config is not None:

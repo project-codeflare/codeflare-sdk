@@ -99,7 +99,7 @@ class TestRayClusterSDKOauth:
             )
 
             if auth_annotation.lower() == "true":
-                print(f"Ray cluster has authentication enabled via annotation")
+                print("Ray cluster has authentication enabled via annotation")
                 return True
 
             # Check for auth options in spec
@@ -197,18 +197,18 @@ class TestRayClusterSDKOauth:
                     submission_blocked = True
 
         if not submission_blocked:
-            assert (
-                False
-            ), f"Job submission succeeded without authentication! Status: {response.status_code}, Response: {response.text[:200]}"
+            assert False, (
+                f"Job submission succeeded without authentication! Status: {response.status_code}, Response: {response.text[:200]}"
+            )
 
         # Also verify that RayJobClient cannot be used without authentication
         try:
             client = RayJobClient(address=dashboard_url, verify=False)
             # Try to call a method to trigger the connection and authentication check
             client.list_jobs()
-            assert (
-                False
-            ), "RayJobClient succeeded without authentication - this should not be possible"
+            assert False, (
+                "RayJobClient succeeded without authentication - this should not be possible"
+            )
         except (
             requests.exceptions.JSONDecodeError,
             requests.exceptions.HTTPError,

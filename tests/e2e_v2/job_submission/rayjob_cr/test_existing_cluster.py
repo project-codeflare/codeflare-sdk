@@ -195,12 +195,12 @@ class TestRayJobCRExistingCluster:
                 custom_api=self.custom_api,
             )
 
-            assert (
-                result.succeeded
-            ), f"In-cluster submission failed. Logs: {result.logs}"
-            assert (
-                "IN_CLUSTER_CR_SUBMISSION_PASSED" in result.logs
-            ), f"In-cluster submission did not pass. Logs: {result.logs}"
+            assert result.succeeded, (
+                f"In-cluster submission failed. Logs: {result.logs}"
+            )
+            assert "IN_CLUSTER_CR_SUBMISSION_PASSED" in result.logs, (
+                f"In-cluster submission did not pass. Logs: {result.logs}"
+            )
 
         finally:
             cluster.down()

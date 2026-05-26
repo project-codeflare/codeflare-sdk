@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import string
-import sys
 from codeflare_sdk.common.utils import constants
 from codeflare_sdk.common.utils.utils import get_ray_image_for_python_version
 from codeflare_sdk.ray.cluster.cluster import (
