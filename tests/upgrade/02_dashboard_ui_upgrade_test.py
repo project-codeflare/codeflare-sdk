@@ -20,8 +20,7 @@ from ui.conftest import (
     login_to_dashboard,
 )
 
-NAMESPACE = "test-ns-rayupgrade"
-CLUSTER_NAME = "mnist"
+from tests.upgrade.constants import CLUSTER_NAME, NAMESPACE
 
 
 @pytest.mark.pre_upgrade

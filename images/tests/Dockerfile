@@ -80,6 +80,7 @@ COPY --from=builder /codeflare-sdk/.venv /codeflare-sdk/.venv
 COPY pyproject.toml poetry.lock* ./
 COPY README.md ./
 COPY src/ ./src/
+COPY scripts/ ./scripts/
 COPY tests/ ./tests/
 
 # Copy test runner script, entrypoint, and RBAC file

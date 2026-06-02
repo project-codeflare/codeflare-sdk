@@ -10,10 +10,18 @@ from codeflare_sdk.ray.cluster.cluster import get_cluster
 
 from codeflare_sdk.common import _kube_api_error_handling
 
-namespace = "test-ns-rayupgrade"
-cluster_queue = "cluster-queue-mnist"
-flavor = "default-flavor-mnist"
-local_queue = "local-queue-mnist"
+from tests.upgrade.constants import (
+    CLUSTER_NAME,
+    CLUSTER_QUEUE,
+    LOCAL_QUEUE,
+    NAMESPACE,
+    RESOURCE_FLAVOR,
+)
+
+namespace = NAMESPACE
+cluster_queue = CLUSTER_QUEUE
+flavor = RESOURCE_FLAVOR
+local_queue = LOCAL_QUEUE
 
 
 @pytest.mark.pre_upgrade
@@ -63,7 +71,7 @@ class TestMNISTRayClusterApply:
 
         cluster = Cluster(
             ClusterConfiguration(
-                name="mnist",
+                name=CLUSTER_NAME,
                 namespace=self.namespace,
                 num_workers=1,
                 head_cpu_requests=1,
@@ -106,7 +114,7 @@ class TestMnistJobSubmit:
         )
         auth.login()
         self.namespace = namespace
-        self.cluster = get_cluster("mnist", self.namespace)
+        self.cluster = get_cluster(CLUSTER_NAME, self.namespace)
         if not self.cluster:
             raise RuntimeError("TestMNISTRayClusterApply needs to be run before this test")
 

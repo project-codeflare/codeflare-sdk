@@ -1,6 +1,35 @@
 #!/bin/bash
 set -e
 
+# Preserve args for pytest parsing later (entrypoint forwards "$@").
+SCRIPT_ARGS=("$@")
+
+# v0.31-pre-upgrade: reject post_upgrade before trap/setup/cleanup.
+reject_post_upgrade_marker() {
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            -m|--markers)
+                if [ "${2:-}" = "post_upgrade" ]; then
+                    echo "ERROR: post_upgrade tests are disabled in this branch's container image."
+                    echo "       Use the 3.0+ test image tag for post_upgrade tests, or the 3.5+ test image tag for 2.x -> 3.x post_upgrade."
+                    exit 1
+                fi
+                shift 2
+                ;;
+            -mpost_upgrade)
+                echo "ERROR: post_upgrade tests are disabled in this branch's container image."
+                echo "       Use the 3.0+ test image tag for post_upgrade tests, or the 3.5+ test image tag for 2.x -> 3.x post_upgrade."
+                exit 1
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+}
+
+reject_post_upgrade_marker "${SCRIPT_ARGS[@]}"
+
 # ============================================================================
 # Cleanup function to ensure RBAC and Kueue cleanup always runs
 # ============================================================================
@@ -9,6 +38,11 @@ cleanup_on_exit() {
     # Use TEST_EXIT_CODE if set, otherwise use the current exit code
     local exit_code=${TEST_EXIT_CODE:-$?}
     local cleanup_ran=0
+
+    # Skip cleanup for early configuration errors (e.g. disallowed post_upgrade on this branch).
+    if [ "${SKIP_CONTAINER_CLEANUP:-}" = "1" ]; then
+        exit "$exit_code"
+    fi
 
     # Only run cleanup if we've started the process (TEMP_KUBECONFIG exists)
     if [ -n "${TEMP_KUBECONFIG:-}" ] && [ -f "${TEMP_KUBECONFIG}" ]; then
@@ -973,15 +1007,37 @@ PYTEST_ARGS=()
 PYTEST_ARGS+=("${EXPANDED_TEST_PATHS[@]}")
 PYTEST_ARGS+=("${DEFAULT_PYTEST_OPTS[@]}")
 
-# Check if pytest marker arguments were passed (e.g., -m smoke, -m tier1)
-# If arguments are passed to the script, they are pytest arguments
-if [ $# -gt 0 ]; then
-    echo "Received pytest arguments: $*"
-    # Add passed arguments to pytest args
-    PYTEST_ARGS+=("$@")
+# v0.31-pre-upgrade branch: post_upgrade runs on the 3.x image only.
+# Pytest 7.x uses the last -m when multiple are passed, so use one combined expression.
+PYTEST_MARKER="pre_upgrade and not post_upgrade"
+FORWARD_ARGS=()
+
+set -- "${SCRIPT_ARGS[@]}"
+while [ $# -gt 0 ]; do
+    case "$1" in
+        -m|--markers)
+            if [ -z "${2:-}" ]; then
+                echo "ERROR: -m requires a marker expression"
+                export SKIP_CONTAINER_CLEANUP=1
+                exit 1
+            fi
+            PYTEST_MARKER="$2 and not post_upgrade"
+            shift 2
+            ;;
+        *)
+            FORWARD_ARGS+=("$1")
+            shift
+            ;;
+    esac
+done
+
+if [ ${#FORWARD_ARGS[@]} -gt 0 ]; then
+    echo "Received pytest arguments: ${FORWARD_ARGS[*]} -m ${PYTEST_MARKER}"
+    PYTEST_ARGS+=("${FORWARD_ARGS[@]}")
 else
-    echo "No pytest arguments provided, running all oauth tests"
+    echo "No pytest arguments provided, using marker expression: ${PYTEST_MARKER}"
 fi
+PYTEST_ARGS+=("-m" "${PYTEST_MARKER}")
 
 if [ ${#EXPANDED_TEST_PATHS[@]} -eq 0 ]; then
     echo "ERROR: No test files found matching patterns: tests/e2e/*oauth_test.py tests/e2e/rayjob/*_test.py tests/upgrade/*_test.py"
