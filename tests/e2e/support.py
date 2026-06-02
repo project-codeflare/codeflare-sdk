@@ -1,3 +1,4 @@
+import json
 import os
 import random
 import string
@@ -611,38 +612,35 @@ def is_byoidc_cluster_detected():
 
         spec = auth_resource.get("spec", {})
 
-        # Check oidcProviders for BYOIDC-specific issuer URL patterns
+        # BYOIDC clusters register Authentication.spec.type as OIDC
+        if (spec.get("type") or "").upper() == "OIDC":
+            print("Detected BYOIDC cluster: Authentication spec.type is OIDC")
+            return True
+
+        # Check oidcProviders for Keycloak / QE BYOIDC issuer URLs
         if "oidcProviders" in spec and spec["oidcProviders"]:
             for provider in spec["oidcProviders"]:
                 issuer_url = provider.get("issuer", {}).get("issuerURL", "")
-                if (
-                    "keycloak" in issuer_url.lower()
-                    and (
-                        "rh-ods.com" in issuer_url or "qe.rh-ods.com" in issuer_url
-                    )
-                ) or "realms/openshift" in issuer_url:
+                if "keycloak" in issuer_url.lower() and (
+                    "rh-ods.com" in issuer_url or "qe.rh-ods.com" in issuer_url
+                ):
                     print(f"Detected BYOIDC cluster with OIDC issuer: {issuer_url}")
                     return True
 
-        # Check webhookTokenAuthenticators
-        if (
-            "webhookTokenAuthenticators" in spec
-            and spec["webhookTokenAuthenticators"]
-        ):
+        # Check webhookTokenAuthenticators (external OIDC token review)
+        if spec.get("webhookTokenAuthenticators"):
             for webhook in spec["webhookTokenAuthenticators"]:
                 if webhook.get("kubeConfig", {}):
                     print("Detected BYOIDC cluster with webhook token authenticator")
                     return True
 
-        # Check status.oidcClients for cli component (BYOIDC-specific).
-        # clientID is nested under currentOIDCClients[]; componentName=="cli" is
-        # simpler and always present when BYOIDC is active.
+        # status.oidcClients with componentName "cli" is NOT BYOIDC-specific (false positive
+        # on standard OpenShift). BYOIDC registers client id "oc-cli" — see run-tests.sh.
         status = auth_resource.get("status", {})
-        if "oidcClients" in status and status["oidcClients"]:
-            for oidc_client in status["oidcClients"]:
-                if oidc_client.get("componentName") == "cli":
-                    print("Detected BYOIDC cluster from status.oidcClients (cli component)")
-                    return True
+        oidc_clients_blob = json.dumps(status.get("oidcClients", []))
+        if "oc-cli" in oidc_clients_blob:
+            print("Detected BYOIDC cluster from status.oidcClients (oc-cli client)")
+            return True
 
         print("No BYOIDC indicators found in cluster Authentication resource")
         return False

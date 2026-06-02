@@ -31,9 +31,7 @@ from support import (
 
 # Fixtures are imported via conftest.py in this directory
 
-# Test configuration - should match the cluster created in raycluster_sdk_upgrade_test.py
-NAMESPACE = "test-ns-rayupgrade"
-CLUSTER_NAME = "mnist"
+from tests.upgrade.constants import CLUSTER_NAME, NAMESPACE
 
 
 @pytest.mark.pre_upgrade
