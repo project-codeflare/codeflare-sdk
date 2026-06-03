@@ -76,6 +76,7 @@ diff-cover = "^9.6.0"
 black = ">=25.11,<27.0"
 pre-commit = "^4.5.0"
 ruff = "^0.9.0"
+mypy = "^1.15"
 
 [tool.ruff]
 target-version = "py312"
@@ -130,6 +131,27 @@ markers = [
 addopts = "--timeout=900 --ignore=src/codeflare_sdk/vendored"
 testpaths = ["src/codeflare_sdk"]
 collect_ignore = ["src/codeflare_sdk/common/utils/unit_test_support.py"]
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+ignore_missing_imports = true
+exclude = [
+    "src/codeflare_sdk/vendored/",
+    "tests/",
+    "demo-notebooks/",
+    "ui-tests/",
+]
+
+[[tool.mypy.overrides]]
+module = "codeflare_sdk.vendored.*"
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = "codeflare_sdk.conftest"
+disallow_untyped_defs = false
 
 [build-system]
 requires = ["poetry-core>=1.6.0"]

@@ -209,7 +209,7 @@ class RayJob:
         else:
             raise RuntimeError(f"Failed to submit RayJob {self.name}")
 
-    def stop(self):
+    def stop(self) -> bool:
         """
         Suspend the Ray job.
         """
@@ -220,7 +220,7 @@ class RayJob:
         else:
             raise RuntimeError(f"Failed to stop the RayJob {self.name}")
 
-    def resubmit(self):
+    def resubmit(self) -> bool:
         """
         Resubmit the Ray job.
         """
@@ -230,7 +230,7 @@ class RayJob:
         else:
             raise RuntimeError(f"Failed to resubmit the RayJob {self.name}")
 
-    def delete(self):
+    def delete(self) -> bool:
         """
         Delete the Ray job.
         Returns True if deleted successfully or if already deleted.
