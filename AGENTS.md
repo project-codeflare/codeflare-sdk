@@ -17,6 +17,26 @@ and Kueue integration. Apache-2.0 licensed, Python ^3.11.
 | `docs/` | Sphinx documentation |
 | `images/` | Docker build files |
 
+### Where to Make Changes
+
+| Task | Location |
+| --- | --- |
+| Cluster config / creation | `src/codeflare_sdk/ray/cluster/` |
+| RayJob lifecycle | `src/codeflare_sdk/ray/rayjobs/` |
+| Ray job client (submission API) | `src/codeflare_sdk/ray/client/` |
+| K8s auth / client setup | `src/codeflare_sdk/common/kubernetes_cluster/` |
+| Kueue integration | `src/codeflare_sdk/common/kueue/` |
+| Widgets (Jupyter) | `src/codeflare_sdk/common/widgets/` |
+| Constants (Ray version, images) | `src/codeflare_sdk/common/utils/constants.py` |
+| Unit tests | Colocated `test_*.py` next to source, or `test/` subdirectory |
+| Unit test helpers | `src/codeflare_sdk/common/utils/unit_test_support.py` |
+| E2e tests | `tests/e2e/` (KinD), `tests/e2e_v2/` |
+| Example notebooks | `demo-notebooks/guided-demos/` |
+| Vendored KubeRay client | `src/codeflare_sdk/vendored/` (DO NOT MODIFY) |
+| CI workflows | `.github/workflows/` |
+| Pre-commit config | `.pre-commit-config.yaml` |
+| Linter / formatter config | `pyproject.toml` (`[tool.ruff]`, `[tool.mypy]`) |
+
 ### Key Packages
 
 ```
