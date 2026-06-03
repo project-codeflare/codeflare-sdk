@@ -116,7 +116,9 @@ class TestMnistJobSubmit:
         self.namespace = namespace
         self.cluster = get_cluster(CLUSTER_NAME, self.namespace)
         if not self.cluster:
-            raise RuntimeError("TestMNISTRayClusterApply needs to be run before this test")
+            raise RuntimeError(
+                "TestMNISTRayClusterApply needs to be run before this test"
+            )
 
     def test_mnist_job_submission(self):
         self.assert_jobsubmit_withoutLogin(self.cluster)

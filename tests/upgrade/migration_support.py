@@ -215,9 +215,9 @@ def _assert_no_ray_owned_routes(namespace: str) -> None:
     for item in routes.get("items") or []:
         name = item.get("metadata", {}).get("name", "")
         for owner in (item.get("metadata") or {}).get("ownerReferences") or []:
-            if owner.get("kind") == "RayCluster" and owner.get("apiVersion", "").startswith(
-                "ray.io/"
-            ):
+            if owner.get("kind") == "RayCluster" and owner.get(
+                "apiVersion", ""
+            ).startswith("ray.io/"):
                 raise AssertionError(
                     f"OpenShift Route '{namespace}/{name}' still owned by a RayCluster; "
                     "migration pre-upgrade should have removed it."

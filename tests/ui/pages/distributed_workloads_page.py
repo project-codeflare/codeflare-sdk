@@ -426,7 +426,9 @@ class DistributedWorkloadsPage:
             if self._select_project_by_dropdown(project_name):
                 return
 
-            print(f"Dropdown selection failed, trying URL navigation for '{project_name}'")
+            print(
+                f"Dropdown selection failed, trying URL navigation for '{project_name}'"
+            )
             self._select_project_by_url(project_name)
 
         except Exception as e:

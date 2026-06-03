@@ -94,21 +94,21 @@ class TestDistributedWorkloadsUIPreUpgrade:
         dw_page.select_project(NAMESPACE)
 
         print("\n=== Verifying cluster is Running or Admitted ===")
-        assert dw_page.verify_cluster_running(), (
-            f"Cluster in {NAMESPACE} should be Running or Admitted before upgrade"
-        )
+        assert (
+            dw_page.verify_cluster_running()
+        ), f"Cluster in {NAMESPACE} should be Running or Admitted before upgrade"
 
         print("\n=== Checking Project Metrics tab ===")
         dw_page.click_project_metrics_tab()
-        assert dw_page.verify_metrics_visible(), (
-            "Distributed workload resource metrics should be visible"
-        )
+        assert (
+            dw_page.verify_metrics_visible()
+        ), "Distributed workload resource metrics should be visible"
 
         print("\n=== Checking Workload Status tab ===")
         dw_page.click_workload_status_tab()
-        assert dw_page.verify_cluster_in_workload_list(CLUSTER_NAME), (
-            f"Cluster '{CLUSTER_NAME}' should appear in workload list with Running status"
-        )
+        assert dw_page.verify_cluster_in_workload_list(
+            CLUSTER_NAME
+        ), f"Cluster '{CLUSTER_NAME}' should appear in workload list with Running status"
 
         print("\n=== Pre-upgrade UI verification completed successfully ===")
 

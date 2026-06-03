@@ -128,7 +128,11 @@ def create_namespace_with_name(self, namespace_name, kueue_managed=True):
                 try:
                     self.api_instance.patch_namespace(
                         self.namespace,
-                        {"metadata": {"labels": {"kueue.openshift.io/managed": "true"}}},
+                        {
+                            "metadata": {
+                                "labels": {"kueue.openshift.io/managed": "true"}
+                            }
+                        },
                     )
                 except Exception as patch_error:
                     print(
@@ -158,7 +162,9 @@ def detect_authentication_method():
     if os.getenv("CLUSTER_AUTH", "").lower() == "oidc":
         return "byoidc"
     try:
-        auth_type = run_oc_command(["get", "authentication", "cluster", "-o", "jsonpath={.spec.type}"])
+        auth_type = run_oc_command(
+            ["get", "authentication", "cluster", "-o", "jsonpath={.spec.type}"]
+        )
         if auth_type == "OIDC":
             return "byoidc"
     except Exception:
