@@ -148,6 +148,48 @@ Pre-commit hooks enforce:
 - Large file checks
 - ruff linting and formatting
 
+## Pattern References
+
+Real examples for the most common change types. Follow these patterns, not descriptions.
+
+### Adding or modifying ClusterConfiguration / ManagedClusterConfig
+
+- `ClusterConfiguration` dataclass: `src/codeflare_sdk/ray/cluster/config.py` (line 58)
+- `ManagedClusterConfig` dataclass: `src/codeflare_sdk/ray/rayjobs/config.py` (line 65)
+- Tests: `src/codeflare_sdk/ray/cluster/test_config.py` — see `test_config_creation_all_parameters`
+  and `test_autoscaling_config_valid` for the pattern.
+
+### Adding or modifying RayJob methods
+
+- `RayJob` class: `src/codeflare_sdk/ray/rayjobs/rayjob.py` (line 58)
+- Tests: `src/codeflare_sdk/ray/rayjobs/test/test_rayjob.py` — uses `auto_mock_setup`
+  fixture from `src/codeflare_sdk/ray/rayjobs/test/conftest.py`.
+
+### Adding unit and e2e tests
+
+- **Unit tests**: colocated with source as `test_*.py`. The global
+  `src/codeflare_sdk/conftest.py` auto-mocks K8s clients — tests inherit those
+  fakes. See `src/codeflare_sdk/common/kueue/test_kueue.py` for a mocker-based
+  pattern using helpers from `common/utils/unit_test_support.py`.
+- **E2e tests**: `tests/e2e/` — see `tests/e2e/cluster_apply_kind_test.py` for
+  a KinD-based lifecycle test (`@pytest.mark.kind`).
+
+### Updating runtime images and Ray versions
+
+- `RAY_VERSION` and runtime image constants: `src/codeflare_sdk/common/utils/constants.py`
+- Image selection logic: `src/codeflare_sdk/common/utils/utils.py` (`update_image`,
+  `get_ray_image_for_python_version`)
+- Ray dependency version: `pyproject.toml` (search `ray =`)
+- E2e image resolution: `tests/e2e/support.py` (`get_ray_image`)
+
+### Updating example notebooks
+
+- Guided demos: `demo-notebooks/guided-demos/` (6 notebooks: `0_basic_ray` through
+  `5_submit_rayjob_cr`)
+- CI workflow: `.github/workflows/guided_notebook_tests.yaml` — runs on KinD via
+  papermill. See `.cursor/rules/03-testing-and-ci.mdc` for KinD adaptations
+  (namespace, auth removal, dashboard_check=False).
+
 ## Cursor Rules (extended guidance)
 
 This repository has more detailed AI coding rules in `.cursor/rules/`:
