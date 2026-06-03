@@ -113,17 +113,27 @@ def create_new_local_queue(self, num_queues):
         self.local_queues.append(local_queue_name)
 
 
-def create_namespace_with_name(self, namespace_name):
+def create_namespace_with_name(self, namespace_name, kueue_managed=True):
     self.namespace = namespace_name
+    labels = {"kueue.openshift.io/managed": "true"} if kueue_managed else {}
     try:
         namespace_body = client.V1Namespace(
-            metadata=client.V1ObjectMeta(name=self.namespace)
+            metadata=client.V1ObjectMeta(name=self.namespace, labels=labels)
         )
         self.api_instance.create_namespace(namespace_body)
     except Exception as e:
         # Check if it's an AlreadyExists error (409 Conflict) and ignore it
         if hasattr(e, "status") and e.status == 409:
-            # Namespace already exists, which is fine - just continue
+            if kueue_managed:
+                try:
+                    self.api_instance.patch_namespace(
+                        self.namespace,
+                        {"metadata": {"labels": {"kueue.openshift.io/managed": "true"}}},
+                    )
+                except Exception as patch_error:
+                    print(
+                        f"Warning: Could not label namespace '{namespace_name}' for Kueue: {patch_error}"
+                    )
             print(
                 f"Warning: Namespace '{namespace_name}' already exists, continuing..."
             )
@@ -141,6 +151,19 @@ def initialize_kubernetes_client(self):
     # Initialize Kubernetes client
     self.api_instance = client.CoreV1Api()
     self.custom_api = client.CustomObjectsApi(self.api_instance.api_client)
+
+
+def detect_authentication_method():
+    """Detect cluster auth type for UI/e2e helpers (legacy htpasswd vs BYOIDC)."""
+    if os.getenv("CLUSTER_AUTH", "").lower() == "oidc":
+        return "byoidc"
+    try:
+        auth_type = run_oc_command(["get", "authentication", "cluster", "-o", "jsonpath={.spec.type}"])
+        if auth_type == "OIDC":
+            return "byoidc"
+    except Exception:
+        pass
+    return "legacy"
 
 
 def run_oc_command(args):
