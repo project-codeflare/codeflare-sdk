@@ -75,7 +75,7 @@ class Cluster:
     def get_dynamic_client(self):  # pragma: no cover
         return DynamicClient(get_api_client())
 
-    def config_check(self):
+    def config_check(self) -> str:
         return config_check()
 
     @property
@@ -109,7 +109,7 @@ class Cluster:
             )
         return self._job_submission_client
 
-    def create_resource(self):
+    def create_resource(self) -> None:
         """
         Called upon cluster object creation, creates a RayCluster yaml based on
         the specifications of the ClusterConfiguration.
@@ -161,7 +161,7 @@ class Cluster:
             return _kube_api_error_handling(e)
 
     # Applies a new cluster with the provided or default spec
-    def apply(self, force=False, timeout: int = 300):
+    def apply(self, force=False, timeout: int = 300) -> None:
         """
         Applies the Cluster yaml using server-side apply.
 
@@ -316,7 +316,7 @@ class Cluster:
             _kube_api_error_handling(e)
             raise RuntimeError("Failed to get RayCluster CustomResourceDefinition.")
 
-    def down(self):
+    def down(self) -> None:
         """
         Deletes the RayCluster, scaling-down and deleting all resources
         associated with the cluster.
@@ -428,7 +428,7 @@ class Cluster:
         else:
             return False
 
-    def wait_ready(self, timeout: Optional[int] = None, dashboard_check: bool = True):
+    def wait_ready(self, timeout: Optional[int] = None, dashboard_check: bool = True) -> None:
         """
         Waits for the requested cluster to be ready, up to an optional timeout.
 
@@ -743,7 +743,7 @@ class Cluster:
             _apply_ray_cluster(self.resource_yaml, namespace, api_instance)
 
 
-def list_all_clusters(namespace: str, print_to_console: bool = True):
+def list_all_clusters(namespace: str, print_to_console: bool = True) -> List[RayCluster]:
     """
     Returns (and prints by default) a list of all clusters in a given namespace.
     """
@@ -788,7 +788,7 @@ def _get_kueue_workload_for_cluster(
         return None
 
 
-def list_all_queued(namespace: str, print_to_console: bool = True):
+def list_all_queued(namespace: str, print_to_console: bool = True) -> List[RayCluster]:
     """
     Returns (and prints by default) a list of all currently queued-up Ray Clusters
     in a given namespace.
@@ -823,7 +823,7 @@ def get_cluster(
     namespace: str = "default",
     verify_tls: bool = True,
     write_to_file: bool = False,
-):
+) -> "Cluster":
     """
     Retrieves an existing Ray Cluster as a Cluster object.
 

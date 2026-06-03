@@ -101,8 +101,8 @@ class TokenAuthentication(Authentication):
         token: str,
         server: str,
         skip_tls: bool = False,
-        ca_cert_path: str = None,
-    ):
+        ca_cert_path: Optional[str] = None,
+    ) -> None:
         """
         Initialize a TokenAuthentication object that requires a value for `token`, the API Token
         and `server`, the API server address for authenticating to a Kubernetes cluster.

@@ -19,7 +19,7 @@ The SDK acts as a wrapper for the Ray Job Submission Client.
 
 from ray.job_submission import JobSubmissionClient
 from ray.dashboard.modules.job.pydantic_models import JobDetails
-from typing import Iterator, Optional, Dict, Any, Union, List
+from typing import Iterator, Optional, Dict, Any, Union, List, Tuple
 
 
 class RayJobClient:
@@ -121,7 +121,7 @@ class RayJobClient:
             entrypoint_resources=entrypoint_resources,
         )
 
-    def delete_job(self, job_id: str) -> (bool, str):
+    def delete_job(self, job_id: str) -> Tuple[bool, str]:
         """
         Deletes a job by job ID.
 
@@ -152,7 +152,7 @@ class RayJobClient:
         """
         return self.rayJobClient.get_address()
 
-    def get_job_info(self, job_id: str):
+    def get_job_info(self, job_id: str) -> JobDetails:
         """
         Fetches information about a job by job ID.
 
