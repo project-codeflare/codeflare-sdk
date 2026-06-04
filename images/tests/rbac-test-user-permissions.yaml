@@ -1,0 +1,174 @@
+---
+# RBAC permissions for test user to run e2e tests
+# Apply this as cluster-admin before running tests:
+#   oc apply -f images/tests/rbac-test-user-permissions.yaml
+#   OR
+#   kubectl apply -f images/tests/rbac-test-user-permissions.yaml
+#
+# The username "TEST_USER_USERNAME_PLACEHOLDER" will be replaced at runtime with the actual test username
+
+# For OpenShift: Grant self-provisioner role (allows namespace creation)
+# This is the recommended approach for OpenShift
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: test-user-self-provisioner
+  # For OpenShift, you can also use: oc adm policy add-cluster-role-to-user self-provisioner TEST_USER_USERNAME_PLACEHOLDER
+subjects:
+- kind: User
+  name: TEST_USER_USERNAME_PLACEHOLDER
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: self-provisioner
+  apiGroup: rbac.authorization.k8s.io
+---
+# Alternative: Grant admin role (more permissive, use if self-provisioner doesn't work)
+# For OpenShift, you can also use: oc adm policy add-cluster-role-to-user admin TEST_USER_USERNAME_PLACEHOLDER
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: test-user-admin
+subjects:
+- kind: User
+  name: TEST_USER_USERNAME_PLACEHOLDER
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: admin
+  apiGroup: rbac.authorization.k8s.io
+---
+# For Kubernetes: Grant cluster-admin role (allows all operations including namespace creation)
+# This is more permissive but ensures all test operations work
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: test-user-cluster-admin
+subjects:
+- kind: User
+  name: TEST_USER_USERNAME_PLACEHOLDER
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: cluster-admin
+  apiGroup: rbac.authorization.k8s.io
+---
+# Additional permissions for Kueue resources (if needed)
+# This allows the user to create/manage Kueue CustomResources
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: test-user-kueue-admin
+rules:
+- apiGroups:
+  - kueue.x-k8s.io
+  resources:
+  - clusterqueues
+  - resourceflavors
+  - localqueues
+  - workloads
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: test-user-kueue-admin
+subjects:
+- kind: User
+  name: TEST_USER_USERNAME_PLACEHOLDER
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: test-user-kueue-admin
+  apiGroup: rbac.authorization.k8s.io
+---
+# Permissions for RayCluster and RayJob CustomResources
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: test-user-ray-admin
+rules:
+- apiGroups:
+  - ray.io
+  resources:
+  - rayclusters
+  - rayjobs
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: test-user-ray-admin
+subjects:
+- kind: User
+  name: TEST_USER_USERNAME_PLACEHOLDER
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: test-user-ray-admin
+  apiGroup: rbac.authorization.k8s.io
+---
+# Comprehensive RBAC role for Kueue batch operations
+# This role provides permissions for namespaces, Kueue, Ray, and core Kubernetes resources
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kueue-batch-user-role
+rules:
+- apiGroups: [""]
+  resources: ["namespaces"]
+  verbs: ["create", "get", "list", "watch"]
+- apiGroups: ["kueue.x-k8s.io"]
+  resources: ["clusterqueues", "resourceflavors", "localqueues"]
+  verbs: ["create", "get", "list", "watch", "update", "patch", "delete"]
+- apiGroups: ["ray.io"]
+  resources: ["rayclusters", "rayjobs"]
+  verbs: ["create", "get", "list", "watch", "update", "patch", "delete"]
+- apiGroups: ["apps"]
+  resources: ["deployments"]
+  verbs: ["create", "get", "list", "watch", "update", "patch", "delete"]
+- apiGroups: [""]
+  resources: ["pods", "services", "configmaps", "secrets"]
+  verbs: ["create", "get", "list", "watch", "update", "patch", "delete"]
+---
+# ClusterRoleBinding for authenticated users (group-based)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kueue-batch-user-rolebinding
+subjects:
+  - kind: Group
+    apiGroup: rbac.authorization.k8s.io
+    name: 'system:authenticated'
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kueue-batch-user-role
+---
+# ClusterRoleBinding for specific test user
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kueue-batch-user-specific-rolebinding
+subjects:
+  - kind: User
+    apiGroup: rbac.authorization.k8s.io
+    name: 'TEST_USER_USERNAME_PLACEHOLDER'
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kueue-batch-user-role
