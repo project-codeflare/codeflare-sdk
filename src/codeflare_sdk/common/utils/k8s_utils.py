@@ -3,11 +3,12 @@ Kubernetes utility functions for the CodeFlare SDK.
 """
 
 import os
+from typing import Optional
 from kubernetes import config
 from ..kubernetes_cluster import config_check, _kube_api_error_handling
 
 
-def get_current_namespace():  # pragma: no cover
+def get_current_namespace() -> Optional[str]:  # pragma: no cover
     """
     Retrieves the current Kubernetes namespace.
 

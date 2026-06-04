@@ -53,13 +53,13 @@ class Authentication(metaclass=abc.ABCMeta):
     Specifically, this class defines the need for a `login()` and a `logout()` function.
     """
 
-    def login(self):
+    def login(self) -> None:
         """
         Method for logging in to a remote cluster.
         """
         pass
 
-    def logout(self):
+    def logout(self) -> None:
         """
         Method for logging out of the remote cluster.
         """
@@ -71,13 +71,13 @@ class KubeConfiguration(metaclass=abc.ABCMeta):
     An abstract class that defines the method for loading a user defined config file using the `load_kube_config()` function
     """
 
-    def load_kube_config(self):
+    def load_kube_config(self) -> None:
         """
         Method for setting your Kubernetes configuration to a certain file
         """
         pass
 
-    def logout(self):
+    def logout(self) -> None:
         """
         Method for logging out of the remote cluster
         """
@@ -171,7 +171,7 @@ class KubeConfigFileAuthentication(KubeConfiguration):
     Specifically this class defines the `load_kube_config()` and `config_check()` functions.
     """
 
-    def __init__(self, kube_config_path: str = None):
+    def __init__(self, kube_config_path: Optional[str] = None):
         warnings.warn(
             _DEPRECATION_MSG.format(cls_name="KubeConfigFileAuthentication"),
             DeprecationWarning,
@@ -179,7 +179,7 @@ class KubeConfigFileAuthentication(KubeConfiguration):
         )
         self.kube_config_path = kube_config_path
 
-    def load_kube_config(self):
+    def load_kube_config(self) -> str:
         """
         Function for loading a user's own predefined Kubernetes config file.
         """
@@ -216,7 +216,7 @@ class KubeConfigFileAuthentication(KubeConfiguration):
         return response
 
 
-def config_check() -> str:
+def config_check() -> Optional[str]:
     """
     Check and load the Kubernetes config from the default location.
 
@@ -337,7 +337,7 @@ def get_api_client() -> client.ApiClient:
     return to_return
 
 
-def set_api_client(new_client: client.ApiClient):
+def set_api_client(new_client: client.ApiClient) -> None:
     """
     Set a custom Kubernetes API client for the SDK to use.
 

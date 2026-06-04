@@ -30,6 +30,7 @@ spec:
     rayStartParams:
       block: 'true'
       dashboard-host: 0.0.0.0
+      num-cpus: '8'
       num-gpus: '1'
       resources: '"{\"TPU\": 2}"'
     serviceType: ClusterIP
@@ -137,6 +138,7 @@ spec:
     minReplicas: 10
     rayStartParams:
       block: 'true'
+      num-cpus: '8'
       num-gpus: '1'
       resources: '"{}"'
     replicas: 10

@@ -163,6 +163,7 @@ module = [
     "codeflare_sdk.common.kubernetes_cluster.*",
     "codeflare_sdk.common.kueue.kueue",
     "codeflare_sdk.common.widgets.widgets",
+    "codeflare_sdk.common.utils.generate_cert",
     "codeflare_sdk.ray.cluster.*",
     "codeflare_sdk.ray.rayjobs.*",
 ]
