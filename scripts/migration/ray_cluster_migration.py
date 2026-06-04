@@ -314,17 +314,16 @@ def _remove_pre_upgrade_backup_annotation(
             plural="rayclusters",
             name=name,
         )
-        annotations = dict(rc.get("metadata", {}).get("annotations") or {})
+        annotations = rc.get("metadata", {}).get("annotations") or {}
         if PRE_UPGRADE_BACKUP_ANNOTATION not in annotations:
             return
-        del annotations[PRE_UPGRADE_BACKUP_ANNOTATION]
         api_instance.patch_namespaced_custom_object(
             group="ray.io",
             version="v1",
             namespace=namespace,
             plural="rayclusters",
             name=name,
-            body={"metadata": {"annotations": annotations}},
+            body={"metadata": {"annotations": {PRE_UPGRADE_BACKUP_ANNOTATION: None}}},
         )
     except Exception as e:
         print(
