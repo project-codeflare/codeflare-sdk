@@ -428,7 +428,9 @@ class Cluster:
         else:
             return False
 
-    def wait_ready(self, timeout: Optional[int] = None, dashboard_check: bool = True) -> None:
+    def wait_ready(
+        self, timeout: Optional[int] = None, dashboard_check: bool = True
+    ) -> None:
         """
         Waits for the requested cluster to be ready, up to an optional timeout.
 
@@ -743,7 +745,9 @@ class Cluster:
             _apply_ray_cluster(self.resource_yaml, namespace, api_instance)
 
 
-def list_all_clusters(namespace: str, print_to_console: bool = True) -> List[RayCluster]:
+def list_all_clusters(
+    namespace: str, print_to_console: bool = True
+) -> List[RayCluster]:
     """
     Returns (and prints by default) a list of all clusters in a given namespace.
     """
