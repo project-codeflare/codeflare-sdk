@@ -72,7 +72,7 @@ class Cluster:
         if is_notebook():
             cluster_apply_down_buttons(self)
 
-    def get_dynamic_client(self):  # pragma: no cover
+    def get_dynamic_client(self) -> DynamicClient:  # pragma: no cover
         return DynamicClient(get_api_client())
 
     def config_check(self) -> str:
@@ -125,7 +125,7 @@ class Cluster:
         return build_ray_cluster(self)
 
     # creates a new cluster with the provided or default spec
-    def up(self):
+    def up(self) -> None:
         """
         Applies the Cluster yaml, pushing the resource request onto
         the Kueue localqueue.
@@ -161,7 +161,7 @@ class Cluster:
             return _kube_api_error_handling(e)
 
     # Applies a new cluster with the provided or default spec
-    def apply(self, force=False, timeout: int = 300) -> None:
+    def apply(self, force: bool = False, timeout: int = 300) -> None:
         """
         Applies the Cluster yaml using server-side apply.
 
@@ -577,7 +577,7 @@ class Cluster:
         self._check_tls_certs_exist()
         return f"ray://{self.config.name}-head-svc.{self.config.namespace}.svc:10001"
 
-    def refresh_certificates(self):
+    def refresh_certificates(self) -> None:
         """
         Refreshes TLS certificates by removing old ones and generating new ones.
 
@@ -668,7 +668,7 @@ class Cluster:
                 return f"{protocol}://{ingress.spec.rules[0].host}"
         return "Dashboard not available yet, have you run cluster.apply()? Run cluster.details() to check if it's ready."
 
-    def list_jobs(self) -> List:
+    def list_jobs(self) -> List[Dict]:
         """
         This method accesses the head ray node in your cluster and lists the running jobs.
         """
@@ -712,7 +712,7 @@ class Cluster:
 
         return head_extended_resources, worker_extended_resources
 
-    def local_client_url(self):
+    def local_client_url(self) -> str:
         """
         Constructs the URL for the local Ray client.
 
