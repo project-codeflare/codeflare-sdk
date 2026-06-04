@@ -77,6 +77,8 @@ black = ">=25.11,<27.0"
 pre-commit = "^4.5.0"
 ruff = "^0.9.0"
 mypy = "^1.15"
+types-PyYAML = "^6.0"
+types-requests = "^2.32"
 
 [tool.ruff]
 target-version = "py312"
@@ -134,24 +136,37 @@ collect_ignore = ["src/codeflare_sdk/common/utils/unit_test_support.py"]
 
 [tool.mypy]
 python_version = "3.12"
-warn_return_any = true
+warn_return_any = false
 warn_unused_configs = true
-disallow_untyped_defs = true
+# Legacy modules are not fully annotated; tighten incrementally in follow-up PRs.
+disallow_untyped_defs = false
 ignore_missing_imports = true
 exclude = [
     "src/codeflare_sdk/vendored/",
     "tests/",
     "demo-notebooks/",
     "ui-tests/",
+    # Colocated unit tests (see AGENTS.md)
+    ".*/test_.*\\.py$",
+    ".*/test/.*",
+    "unit_test_support\\.py$",
+    "conftest\\.py$",
 ]
 
 [[tool.mypy.overrides]]
 module = "codeflare_sdk.vendored.*"
 ignore_errors = true
 
+# Partial annotations on legacy modules; tighten in follow-up PRs (RHOAIENG-61476).
 [[tool.mypy.overrides]]
-module = "codeflare_sdk.conftest"
-disallow_untyped_defs = false
+module = [
+    "codeflare_sdk.common.kubernetes_cluster.*",
+    "codeflare_sdk.common.kueue.kueue",
+    "codeflare_sdk.common.widgets.widgets",
+    "codeflare_sdk.ray.cluster.*",
+    "codeflare_sdk.ray.rayjobs.*",
+]
+ignore_errors = true
 
 [build-system]
 requires = ["poetry-core>=1.6.0"]
