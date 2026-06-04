@@ -83,6 +83,24 @@ from kubernetes import client, config
 from kubernetes.dynamic import DynamicClient
 from kubernetes.client.rest import ApiException
 
+# Same env as codeflare-sdk tests/upgrade/migration_support.py (default: suppress).
+_SUPPRESS_TLS_WARNINGS_ENV = "RAY_CLUSTER_MIGRATION_SUPPRESS_TLS_WARNINGS"
+
+
+def _configure_tls_warning_suppression() -> None:
+    value = os.environ.get(_SUPPRESS_TLS_WARNINGS_ENV, "1").strip().lower()
+    if value in ("0", "false", "no", "off"):
+        return
+    try:
+        import urllib3
+
+        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+    except Exception:
+        pass
+
+
+_configure_tls_warning_suppression()
+
 RHOAI_UPGRADE_BACKUP_DIR = os.environ.get("RHOAI_UPGRADE_BACKUP_DIR", "/tmp/rhoai-upgrade-backup")
 
 # Field manager identifier for server-side apply

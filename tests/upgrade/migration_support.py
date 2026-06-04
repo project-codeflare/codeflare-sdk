@@ -23,28 +23,17 @@ DEFAULT_BACKUP_BASE = os.environ.get(
     "RHOAI_UPGRADE_BACKUP_DIR", "/tmp/rhoai-upgrade-backup"
 )
 
-# Set to 0/false/no/off to allow urllib3 InsecureRequestWarning when invoking the script.
+# Honored inside ray_cluster_migration.py (default: suppress via urllib3.disable_warnings).
 SUPPRESS_TLS_WARNINGS_ENV = "RAY_CLUSTER_MIGRATION_SUPPRESS_TLS_WARNINGS"
-_PYTHONWARNINGS_TLS_FILTER = "ignore::urllib3.exceptions.InsecureRequestWarning"
 
 _finalize_invoked = False
-
-
-def _suppress_migration_tls_warnings() -> bool:
-    value = os.environ.get(SUPPRESS_TLS_WARNINGS_ENV, "1").strip().lower()
-    return value not in ("0", "false", "no", "off")
 
 
 def _migration_subprocess_env(backup_base_dir: str) -> dict:
     env = os.environ.copy()
     env["RHOAI_UPGRADE_BACKUP_DIR"] = backup_base_dir
-    if _suppress_migration_tls_warnings():
-        existing = env.get("PYTHONWARNINGS", "").strip()
-        env["PYTHONWARNINGS"] = (
-            f"{existing},{_PYTHONWARNINGS_TLS_FILTER}"
-            if existing
-            else _PYTHONWARNINGS_TLS_FILTER
-        )
+    # TLS warning suppression is in the script; do not set PYTHONWARNINGS
+    # (ignore::urllib3.exceptions.InsecureRequestWarning is invalid on Python 3.13+).
     return env
 
 

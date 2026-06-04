@@ -37,18 +37,23 @@ podman run --rm --platform linux/amd64 --pull=never \
 
 Backups are written under `$RHOAI_UPGRADE_BACKUP_DIR/ray` (default `/tmp/rhoai-upgrade-backup/ray`). Not required for the in-place post-upgrade path.
 
-### Migration script environment
+### Migration script
+
+Vendored from [rhoai-upgrade-helpers](https://github.com/red-hat-data-services/rhoai-upgrade-helpers) — keep `scripts/migration/ray_cluster_migration.py` in sync.
 
 | Variable | Default | Effect |
 |----------|---------|--------|
-| `RAY_CLUSTER_MIGRATION_SUPPRESS_TLS_WARNINGS` | `1` | When enabled, upgrade tests set `PYTHONWARNINGS` so the vendored migration script does not print urllib3 `InsecureRequestWarning` (typical lab kubeconfig with TLS verify off). Set to `0` to show warnings. |
+| `RHOAI_UPGRADE_BACKUP_DIR` | `/tmp/rhoai-upgrade-backup` | Backup root for pre-upgrade (`.../ray/rhoai-2.x`, `.../rhoai-3.x`) |
+| `RAY_CLUSTER_MIGRATION_SUPPRESS_TLS_WARNINGS` | `1` | Script calls `urllib3.disable_warnings` for `InsecureRequestWarning`; set `0` to show warnings |
 
-For a **manual** script run (no pytest wrapper), use the same filter directly:
+Manual pre-upgrade (same cluster as tests):
 
 ```bash
-export PYTHONWARNINGS='ignore::urllib3.exceptions.InsecureRequestWarning'
-python scripts/migration/ray_cluster_migration.py pre-upgrade --namespace test-ns-rayupgrade --cluster mnist
+python scripts/migration/ray_cluster_migration.py pre-upgrade \
+  --namespace test-ns-rayupgrade --cluster mnist
 ```
+
+**Known flake (fresh cluster):** first pre-upgrade may briefly leave Ray-owned Routes if KubeRay reconciles slowly; reruns usually pass. Script sets `enableIngress: false` before route delete and polls — see `upgrades/script_fix_suggestion.md` in qualification notes.
 
 ## Retry after failure
 
