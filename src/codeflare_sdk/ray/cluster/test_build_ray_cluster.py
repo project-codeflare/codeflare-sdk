@@ -13,7 +13,12 @@
 # limitations under the License.
 from collections import namedtuple
 import sys
-from .build_ray_cluster import gen_names, update_image, build_ray_cluster
+from .build_ray_cluster import (
+    gen_names,
+    update_image,
+    build_ray_cluster,
+    _cpu_limit_to_num_cpus,
+)
 import uuid
 from codeflare_sdk.ray.cluster.cluster import ClusterConfiguration, Cluster
 
@@ -64,6 +69,19 @@ def test_update_image_without_supported_python_version(mocker):
 
     # Assert that no image was set since the Python version is not supported
     assert image is None
+
+
+def test_cpu_limit_to_num_cpus():
+    assert _cpu_limit_to_num_cpus(2) == "2"
+    assert _cpu_limit_to_num_cpus(0) == "0"
+    assert _cpu_limit_to_num_cpus(1) == "1"
+    assert _cpu_limit_to_num_cpus("500m") == "1"
+    assert _cpu_limit_to_num_cpus("1000m") == "1"
+    assert _cpu_limit_to_num_cpus("2000m") == "2"
+    assert _cpu_limit_to_num_cpus("250m") == "1"
+    assert _cpu_limit_to_num_cpus("1") == "1"
+    assert _cpu_limit_to_num_cpus("4") == "4"
+    assert _cpu_limit_to_num_cpus("8") == "8"
 
 
 def test_build_ray_cluster_with_gcs_ft(mocker):
