@@ -16,6 +16,7 @@
 This sub-module exists primarily to be used internally by the Cluster object
     (in the cluster sub-module) for RayCluster generation.
 """
+
 from typing import List, Union, Tuple, Dict
 from ...common import _kube_api_error_handling
 from ...common.kubernetes_cluster import get_api_client, config_check
@@ -70,6 +71,8 @@ def _cpu_limit_to_num_cpus(cpu_limit: Union[int, str]) -> str:
     if s.endswith("m"):
         return str(max(int(float(s[:-1]) / 1000), 1))
     return str(max(int(float(s)), 1))
+
+
 VOLUME_MOUNTS = [
     V1VolumeMount(
         mount_path="/etc/pki/tls/certs/odh-trusted-ca-bundle.crt",
@@ -172,9 +175,7 @@ def build_ray_cluster(cluster: "codeflare_sdk.ray.cluster.Cluster"):
                 "rayStartParams": {
                     "dashboard-host": "0.0.0.0",
                     "block": "true",
-                    "num-cpus": _cpu_limit_to_num_cpus(
-                        cluster.config.head_cpu_limits
-                    ),
+                    "num-cpus": _cpu_limit_to_num_cpus(cluster.config.head_cpu_limits),
                     "num-gpus": str(head_gpu_count),
                     "resources": head_resources,
                 },
@@ -231,9 +232,9 @@ def build_ray_cluster(cluster: "codeflare_sdk.ray.cluster.Cluster"):
         gcs_ft_options = {"redisAddress": cluster.config.redis_address}
 
         if cluster.config.external_storage_namespace:
-            gcs_ft_options[
-                "externalStorageNamespace"
-            ] = cluster.config.external_storage_namespace
+            gcs_ft_options["externalStorageNamespace"] = (
+                cluster.config.external_storage_namespace
+            )
 
         if cluster.config.redis_password_secret:
             gcs_ft_options["redisPassword"] = {
@@ -478,28 +479,18 @@ def head_worker_extended_resources_from_cluster(
         resource_type = cluster.config.extended_resource_mapping[k]
         if resource_type in FORBIDDEN_CUSTOM_RESOURCE_TYPES:
             continue
-        head_worker_extended_resources[0][
-            resource_type
-        ] = cluster.config.head_extended_resource_requests[
-            k
-        ] + head_worker_extended_resources[
-            0
-        ].get(
-            resource_type, 0
+        head_worker_extended_resources[0][resource_type] = (
+            cluster.config.head_extended_resource_requests[k]
+            + head_worker_extended_resources[0].get(resource_type, 0)
         )
 
     for k in cluster.config.worker_extended_resource_requests.keys():
         resource_type = cluster.config.extended_resource_mapping[k]
         if resource_type in FORBIDDEN_CUSTOM_RESOURCE_TYPES:
             continue
-        head_worker_extended_resources[1][
-            resource_type
-        ] = cluster.config.worker_extended_resource_requests[
-            k
-        ] + head_worker_extended_resources[
-            1
-        ].get(
-            resource_type, 0
+        head_worker_extended_resources[1][resource_type] = (
+            cluster.config.worker_extended_resource_requests[k]
+            + head_worker_extended_resources[1].get(resource_type, 0)
         )
     return head_worker_extended_resources
 
