@@ -384,8 +384,6 @@ def test_autoscaling_allowed_when_no_queue(mocker):
     assert spec["enableInTreeAutoscaling"] is True
 
 
-
-
 def test_autoscaling_disabled_spec_unchanged(mocker):
     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch("kubernetes.client.CustomObjectsApi.list_namespaced_custom_object")
