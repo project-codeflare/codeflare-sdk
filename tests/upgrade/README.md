@@ -93,7 +93,6 @@ Pre-upgrade backups: `$RHOAI_UPGRADE_BACKUP_DIR/ray` (default `/tmp/rhoai-upgrad
 ### Manual pre-upgrade script
 
 ```bash
-export PYTHONWARNINGS='ignore::urllib3.exceptions.InsecureRequestWarning'
 python scripts/migration/ray_cluster_migration.py pre-upgrade \
   --namespace test-ns-rayupgrade --cluster mnist
 ```
@@ -189,7 +188,7 @@ On **htpasswd/LDAP** QE clusters, job tests use `oc whoami --show-token=true` wi
 | Variable | Default | Effect |
 |----------|---------|--------|
 | `RHOAI_UPGRADE_BACKUP_DIR` | `/tmp/rhoai-upgrade-backup` | Backup root for pre-upgrade |
-| `RAY_CLUSTER_MIGRATION_SUPPRESS_TLS_WARNINGS` | `1` | Suppress urllib3 `InsecureRequestWarning` during script (pytest sets `PYTHONWARNINGS` when `1`) |
+| `RAY_CLUSTER_MIGRATION_SUPPRESS_TLS_WARNINGS` | `1` | Suppress urllib3 `InsecureRequestWarning` in the script via `urllib3.disable_warnings` |
 
 Annotations (see `constants.py`): `odh.ray.io/pre-upgrade-backup-taken`, `odh.ray.io/secure-trusted-network` (post-migration).
 
