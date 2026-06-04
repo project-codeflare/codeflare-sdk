@@ -101,7 +101,9 @@ def _configure_tls_warning_suppression() -> None:
 
 _configure_tls_warning_suppression()
 
-RHOAI_UPGRADE_BACKUP_DIR = os.environ.get("RHOAI_UPGRADE_BACKUP_DIR", "/tmp/rhoai-upgrade-backup")
+RHOAI_UPGRADE_BACKUP_DIR = os.environ.get(
+    "RHOAI_UPGRADE_BACKUP_DIR", "/tmp/rhoai-upgrade-backup"
+)
 
 # Field manager identifier for server-side apply
 CF_SDK_FIELD_MANAGER = "codeflare-sdk"
@@ -115,6 +117,7 @@ PRE_UPGRADE_BACKUP_ANNOTATION = "odh.ray.io/pre-upgrade-backup-taken"
 # Gateway API constants
 GATEWAY_API_GROUP = "gateway.networking.k8s.io"
 GATEWAY_API_VERSION = "v1"
+
 
 def _confirm(prompt: str, auto_confirm: bool = False) -> bool:
     """
@@ -324,7 +327,9 @@ def _remove_pre_upgrade_backup_annotation(
             body={"metadata": {"annotations": annotations}},
         )
     except Exception as e:
-        print(f"  Warning: could not remove pre-upgrade backup annotation from {name}: {e}")
+        print(
+            f"  Warning: could not remove pre-upgrade backup annotation from {name}: {e}"
+        )
 
 
 def _set_enable_ingress_false(api_instance, name: str, namespace: str) -> None:
@@ -370,9 +375,10 @@ def _is_route_owned_by_ray_cluster(route: dict) -> bool:
     """
     refs = route.get("metadata", {}).get("ownerReferences") or []
     for ref in refs:
-        if (ref.get("kind") == "RayCluster" and
-                (ref.get("apiVersion") == "ray.io/v1" or
-                 (ref.get("apiVersion") or "").endswith("ray.io/v1"))):
+        if ref.get("kind") == "RayCluster" and (
+            ref.get("apiVersion") == "ray.io/v1"
+            or (ref.get("apiVersion") or "").endswith("ray.io/v1")
+        ):
             return True
     return False
 
@@ -437,9 +443,7 @@ def _wait_for_no_ray_owned_routes(
             return True
 
         if not logged_waiting:
-            print(
-                "Pre-upgrade step: Waiting for Ray-owned Routes to be removed..."
-            )
+            print("Pre-upgrade step: Waiting for Ray-owned Routes to be removed...")
             logged_waiting = True
 
         for ns, name in remaining:
@@ -453,9 +457,7 @@ def _wait_for_no_ray_owned_routes(
                 )
             except ApiException as e:
                 if e.status != 404:
-                    print(
-                        f"  Warning: could not delete Route {ns}/{name}: {e.reason}"
-                    )
+                    print(f"  Warning: could not delete Route {ns}/{name}: {e.reason}")
 
         time.sleep(poll_interval)
         elapsed += poll_interval
@@ -602,7 +604,7 @@ def _wait_for_cluster_ready(
     recreation_detected = False
     phase1_timeout = min(60, timeout_seconds // 2)  # Max 60s for phase 1
 
-    print(f"       Waiting for pods to be recreated...", end="\r")
+    print("       Waiting for pods to be recreated...", end="\r")
 
     while elapsed < phase1_timeout and not recreation_detected:
         try:
@@ -646,7 +648,7 @@ def _wait_for_cluster_ready(
             elapsed += poll_interval
 
     # Phase 2: Wait for cluster to become fully ready
-    print(f"       Waiting for cluster to become ready...", end="\r")
+    print("       Waiting for cluster to become ready...", end="\r")
 
     while elapsed < timeout_seconds:
         try:
@@ -1164,11 +1166,17 @@ def _set_dsc_codeflare_removed(api_client) -> Tuple[bool, str]:
         components = dsc.get("spec", {}).get("components", {})
 
         if "codeflare" not in components:
-            return True, f"Codeflare not present in DataScienceCluster '{dsc_name}' (nothing to update)."
+            return (
+                True,
+                f"Codeflare not present in DataScienceCluster '{dsc_name}' (nothing to update).",
+            )
 
         codeflare_state = (components.get("codeflare") or {}).get("managementState", "")
         if (codeflare_state or "").lower() == "removed":
-            return True, f"Codeflare is already Removed in DataScienceCluster '{dsc_name}'."
+            return (
+                True,
+                f"Codeflare is already Removed in DataScienceCluster '{dsc_name}'.",
+            )
 
         patch = {"spec": {"components": {"codeflare": {"managementState": "Removed"}}}}
         if dsc_namespace:
@@ -1296,8 +1304,18 @@ def _run_pre_upgrade_checks(api_client) -> List[Dict[str, any]]:
         ("patch", "rayclusters", "ray.io", "Patch RayClusters"),
         ("list", "routes", "route.openshift.io", "List Routes"),
         ("delete", "routes", "route.openshift.io", "Delete Routes"),
-        ("list", "datascienceclusters", "datasciencecluster.opendatahub.io", "List DataScienceClusters"),
-        ("patch", "datascienceclusters", "datasciencecluster.opendatahub.io", "Patch DataScienceClusters"),
+        (
+            "list",
+            "datascienceclusters",
+            "datasciencecluster.opendatahub.io",
+            "List DataScienceClusters",
+        ),
+        (
+            "patch",
+            "datascienceclusters",
+            "datasciencecluster.opendatahub.io",
+            "Patch DataScienceClusters",
+        ),
         ("get", "customresourcedefinitions", "apiextensions.k8s.io", "Get CRDs"),
     ]
 
@@ -1522,7 +1540,7 @@ def _post_upgrade_from_backup(
             if dry_run:
                 print(f"  [DRY RUN] Would restore from backup: {name} (ns: {ns})")
                 print(
-                    f"            (will delete existing cluster if present, then create from backup)"
+                    "            (will delete existing cluster if present, then create from backup)"
                 )
                 migrated_count += 1
                 continue
@@ -1601,8 +1619,10 @@ def _post_upgrade_from_backup(
             if is_suspended:
                 # Suspended clusters don't have pods, so skip pod readiness check
                 print(f"  [OK] Restored from backup: {name} (ns: {ns}) [SUSPENDED]")
-                print(f"       Note: Suspended clusters may become active after restore.")
-                print(f"       Verify cluster state and re-suspend if needed.")
+                print(
+                    "       Note: Suspended clusters may become active after restore."
+                )
+                print("       Verify cluster state and re-suspend if needed.")
                 if not dry_run:
                     _remove_pre_upgrade_backup_annotation(api_instance, name, ns)
                 migrated_count += 1
@@ -1625,11 +1645,15 @@ def _post_upgrade_from_backup(
                 if route_url:
                     print(f"  [OK] Restored from backup: {name} (ns: {ns})")
                     print(f"       Dashboard: {route_url}")
-                    print(f"       Pods will become ready when quota/resources are available.")
+                    print(
+                        "       Pods will become ready when quota/resources are available."
+                    )
                 else:
                     print(f"  [OK] Restored from backup: {name} (ns: {ns})")
-                    print(f"       Dashboard: Route not yet available (check later)")
-                    print(f"       Pods will become ready when quota/resources are available.")
+                    print("       Dashboard: Route not yet available (check later)")
+                    print(
+                        "       Pods will become ready when quota/resources are available."
+                    )
 
                 if not dry_run:
                     _remove_pre_upgrade_backup_annotation(api_instance, name, ns)
@@ -1641,18 +1665,16 @@ def _post_upgrade_from_backup(
             failed_count += 1
 
     # Print summary
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     if dry_run:
-        print(f"DRY RUN Summary:")
+        print("DRY RUN Summary:")
         print(f"  Would restore: {migrated_count}")
     else:
-        print(f"Restore from Backup Summary:")
+        print("Restore from Backup Summary:")
         print(f"  Restored: {migrated_count}")
     print(f"  Failed: {failed_count}")
     if failed_count:
-        print(
-            "  Please verify failed clusters and revisit as needed."
-        )
+        print("  Please verify failed clusters and revisit as needed.")
 
     return {"restored": migrated_count, "skipped": 0, "failed": failed_count}
 
@@ -1768,9 +1790,7 @@ def pre_upgrade(
 
     # Disable enableIngress before deleting Routes so KubeRay does not recreate them
     # during the backup phase on a slow/fresh cluster.
-    print(
-        "Pre-upgrade step: Setting enableIngress to false on RayClusters..."
-    )
+    print("Pre-upgrade step: Setting enableIngress to false on RayClusters...")
     for rc in clusters:
         name = rc.get("metadata", {}).get("name", "unknown")
         ns = rc.get("metadata", {}).get("namespace", "unknown")
@@ -1868,7 +1888,9 @@ def pre_upgrade(
                     body={"metadata": {"annotations": annotations}},
                 )
             except Exception as patch_err:
-                print(f"  Warning: could not add pre-upgrade annotation to {name}: {patch_err}")
+                print(
+                    f"  Warning: could not add pre-upgrade annotation to {name}: {patch_err}"
+                )
 
             # Set enableIngress to false so new KubeRay picks it up immediately after upgrade,
             # without relying on the user running post-upgrade right away.
@@ -2034,9 +2056,7 @@ def post_upgrade(
         print(
             "  - Kueue-managed suspended RayClusters may become active after migration, potentially"
         )
-        print(
-            "    affecting quota. Re-suspend workloads manually if needed."
-        )
+        print("    affecting quota. Re-suspend workloads manually if needed.")
 
         if not _confirm("\nProceed with migration? (yes/no): ", auto_confirm):
             print("Migration cancelled.")
@@ -2138,8 +2158,10 @@ def post_upgrade(
                 # Suspended clusters don't have pods, so skip pod readiness check
                 # Route will be created by the operator when the cluster is unsuspended
                 print(f"  [OK] Migrated: {name} (ns: {ns}) [SUSPENDED]")
-                print(f"       Note: Suspended clusters may become active after migration.")
-                print(f"       Verify cluster state and re-suspend if needed.")
+                print(
+                    "       Note: Suspended clusters may become active after migration."
+                )
+                print("       Verify cluster state and re-suspend if needed.")
                 if not dry_run:
                     _remove_pre_upgrade_backup_annotation(api_instance, name, ns)
                 migrated_count += 1
@@ -2162,11 +2184,15 @@ def post_upgrade(
                 if route_url:
                     print(f"  [OK] Migrated: {name} (ns: {ns})")
                     print(f"       Dashboard: {route_url}")
-                    print(f"       Pods will become ready when quota/resources are available.")
+                    print(
+                        "       Pods will become ready when quota/resources are available."
+                    )
                 else:
                     print(f"  [OK] Migrated: {name} (ns: {ns})")
-                    print(f"       Dashboard: Route not yet available (check later)")
-                    print(f"       Pods will become ready when quota/resources are available.")
+                    print("       Dashboard: Route not yet available (check later)")
+                    print(
+                        "       Pods will become ready when quota/resources are available."
+                    )
 
                 if not dry_run:
                     _remove_pre_upgrade_backup_annotation(api_instance, name, ns)
@@ -2178,19 +2204,17 @@ def post_upgrade(
             failed_count += 1
 
     # Print final summary
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     if dry_run:
-        print(f"DRY RUN Summary:")
+        print("DRY RUN Summary:")
         print(f"  Would migrate: {migrated_count}")
     else:
-        print(f"Migration Summary:")
+        print("Migration Summary:")
         print(f"  Migrated: {migrated_count}")
     print(f"  Skipped (already migrated): {len(already_migrated)}")
     print(f"  Failed: {failed_count}")
     if failed_count:
-        print(
-            "  Please verify failed clusters and revisit as needed."
-        )
+        print("  Please verify failed clusters and revisit as needed.")
 
     return {
         "migrated": migrated_count,
@@ -2311,7 +2335,7 @@ def list_ray_clusters(
     if output_format == "yaml":
         print(yaml.dump(clusters_info, default_flow_style=False))
     else:
-        print(f"RayCluster Migration Status:\n")
+        print("RayCluster Migration Status:\n")
         print(
             f"{'RayCluster Name':<25} {'Namespace':<18} {'Status':<12} {'Workers':<8} {'Migration Status':<30}"
         )
@@ -2515,9 +2539,9 @@ def import_ray_clusters(
                             doc["metadata"] = {}
                         if "annotations" not in doc["metadata"]:
                             doc["metadata"]["annotations"] = {}
-                        doc["metadata"]["annotations"][
-                            SECURE_NETWORK_ANNOTATION
-                        ] = "true"
+                        doc["metadata"]["annotations"][SECURE_NETWORK_ANNOTATION] = (
+                            "true"
+                        )
 
                         if dry_run:
                             message = f"[DRY RUN] Would import: {name} (ns: {ns})"
