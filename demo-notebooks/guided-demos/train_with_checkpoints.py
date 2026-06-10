@@ -14,11 +14,11 @@ from ray import train
 from ray.train import Checkpoint, RunConfig, CheckpointConfig, ScalingConfig
 from ray.train.torch import TorchTrainer
 
-# Configuration
-STORAGE_PATH = (
-    f"s3://{os.environ.get('AWS_S3_BUCKET', 'my-bucket')}/ray-checkpoints/mnist-demo"
-)
-RUN_NAME = "mnist-checkpointing-run"
+# Configuration — override via runtime_env env_vars on the RayJob.
+# Use a fresh RAY_CHECKPOINT_PREFIX when switching Ray versions or re-running the demo.
+CHECKPOINT_PREFIX = os.environ.get("RAY_CHECKPOINT_PREFIX", "mnist-demo")
+RUN_NAME = os.environ.get("RAY_CHECKPOINT_RUN_NAME", "mnist-checkpointing-run")
+STORAGE_PATH = f"s3://{os.environ.get('AWS_S3_BUCKET', 'my-bucket')}/ray-checkpoints/{CHECKPOINT_PREFIX}"
 
 
 class SimpleCNN(nn.Module):
