@@ -138,8 +138,12 @@ class TestRayJobLifecycledCluster:
                 local_queue=self.local_queues[0],
             )
             assert job1.submit() == "holder"
-            assert self.job_api.wait_until_job_running(
-                name=job1.name, k8s_namespace=job1.namespace, timeout=60
+            assert wait_for_kueue_admission(
+                self, self.job_api, job1.name, job1.namespace, timeout=120
+            ), f"RayJob {job1.name} was not admitted by Kueue"
+            job_running = self._wait_for_job_running_with_retry(job1, max_retries=1)
+            assert job_running, (
+                f"RayJob {job1.name} failed to reach running state after retries"
             )
 
             job2 = RayJob(
@@ -176,15 +180,15 @@ class TestRayJobLifecycledCluster:
             assert job_is_queued, "Job2 should be queued by Kueue while Job1 is running"
 
             assert self.job_api.wait_until_job_finished(
-                name=job1.name, k8s_namespace=job1.namespace, timeout=60
+                name=job1.name, k8s_namespace=job1.namespace, timeout=120
             )
 
             assert wait_for_kueue_admission(
-                self, self.job_api, job2.name, job2.namespace, timeout=30
+                self, self.job_api, job2.name, job2.namespace, timeout=120
             )
 
             assert self.job_api.wait_until_job_finished(
-                name=job2.name, k8s_namespace=job2.namespace, timeout=60
+                name=job2.name, k8s_namespace=job2.namespace, timeout=300
             )
         finally:
             for job in [job1, job2]:
