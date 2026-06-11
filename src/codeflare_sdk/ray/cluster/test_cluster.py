@@ -1556,6 +1556,165 @@ def test_get_dashboard_url_from_httproute(mocker):
     assert result is None, "Should return None when Gateway not found (404)"
 
 
+def test_get_dashboard_url_gatewayconfig_fallback(mocker):
+    """
+    Test GatewayConfig CR fallback for hostname resolution when Gateway listeners
+    and OpenShift Routes don't provide a hostname.
+    """
+    from codeflare_sdk.ray.cluster.cluster import _get_dashboard_url_from_httproute
+
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+
+    mock_httproute = {
+        "metadata": {"name": "test-cluster", "namespace": "test-ns"},
+        "spec": {
+            "parentRefs": [
+                {
+                    "group": "gateway.networking.k8s.io",
+                    "kind": "Gateway",
+                    "name": "data-science-gateway",
+                    "namespace": "openshift-ingress",
+                }
+            ]
+        },
+    }
+
+    mock_gateway_no_hostname = {
+        "metadata": {"name": "data-science-gateway", "namespace": "openshift-ingress"},
+        "spec": {"listeners": [{"name": "https", "port": 443, "protocol": "HTTPS"}]},
+    }
+
+    mock_gatewayconfig = {
+        "spec": {
+            "subdomain": "my-gateway",
+            "domain": "apps.cluster.example.com",
+        }
+    }
+
+    def mock_list_cluster(group, version, plural, label_selector):
+        if plural == "httproutes":
+            return {"items": [mock_httproute]}
+        raise Exception(f"Unexpected plural: {plural}")
+
+    def mock_get_namespaced(group, version, namespace, plural, name):
+        if plural == "gateways":
+            return mock_gateway_no_hostname
+        raise Exception(f"Unexpected plural: {plural}")
+
+    def mock_list_namespaced(group, version, namespace, plural, label_selector=None):
+        if plural == "routes":
+            return {"items": []}
+        raise Exception(f"Unexpected plural: {plural}")
+
+    def mock_get_cluster(group, version, plural, name):
+        if plural == "gatewayconfigs":
+            return mock_gatewayconfig
+        raise Exception(f"Unexpected plural: {plural}")
+
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_cluster_custom_object",
+        side_effect=mock_list_cluster,
+    )
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.get_namespaced_custom_object",
+        side_effect=mock_get_namespaced,
+    )
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
+        side_effect=mock_list_namespaced,
+    )
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.get_cluster_custom_object",
+        side_effect=mock_get_cluster,
+    )
+
+    # GatewayConfig with both subdomain and domain
+    result = _get_dashboard_url_from_httproute("test-cluster", "test-ns")
+    expected = "https://my-gateway.apps.cluster.example.com/ray/test-ns/test-cluster"
+    assert result == expected, f"Expected {expected}, got {result}"
+
+    # GatewayConfig with domain but no subdomain — defaults to "data-science-gateway"
+    mock_gatewayconfig_no_sub = {
+        "spec": {
+            "domain": "apps.cluster.example.com",
+        }
+    }
+
+    def mock_get_cluster_no_sub(group, version, plural, name):
+        if plural == "gatewayconfigs":
+            return mock_gatewayconfig_no_sub
+        raise Exception(f"Unexpected plural: {plural}")
+
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.get_cluster_custom_object",
+        side_effect=mock_get_cluster_no_sub,
+    )
+
+    result = _get_dashboard_url_from_httproute("test-cluster", "test-ns")
+    expected = (
+        "https://data-science-gateway.apps.cluster.example.com/ray/test-ns/test-cluster"
+    )
+    assert result == expected, f"Expected {expected}, got {result}"
+
+    # GatewayConfig with empty subdomain string — defaults to "data-science-gateway"
+    mock_gatewayconfig_empty_sub = {
+        "spec": {
+            "subdomain": "  ",
+            "domain": "apps.cluster.example.com",
+        }
+    }
+
+    def mock_get_cluster_empty_sub(group, version, plural, name):
+        if plural == "gatewayconfigs":
+            return mock_gatewayconfig_empty_sub
+        raise Exception(f"Unexpected plural: {plural}")
+
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.get_cluster_custom_object",
+        side_effect=mock_get_cluster_empty_sub,
+    )
+
+    result = _get_dashboard_url_from_httproute("test-cluster", "test-ns")
+    expected = (
+        "https://data-science-gateway.apps.cluster.example.com/ray/test-ns/test-cluster"
+    )
+    assert result == expected, f"Expected {expected}, got {result}"
+
+    # GatewayConfig with no domain — should fall through to status.addresses
+    mock_gatewayconfig_no_domain = {
+        "spec": {
+            "subdomain": "my-gateway",
+        }
+    }
+
+    def mock_get_cluster_no_domain(group, version, plural, name):
+        if plural == "gatewayconfigs":
+            return mock_gatewayconfig_no_domain
+        raise Exception(f"Unexpected plural: {plural}")
+
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.get_cluster_custom_object",
+        side_effect=mock_get_cluster_no_domain,
+    )
+
+    result = _get_dashboard_url_from_httproute("test-cluster", "test-ns")
+    assert result is None, "Should return None when GatewayConfig has no domain"
+
+    # GatewayConfig lookup fails — should fall through to status.addresses
+    def mock_get_cluster_exception(group, version, plural, name):
+        if plural == "gatewayconfigs":
+            raise Exception("GatewayConfig not found")
+        raise Exception(f"Unexpected plural: {plural}")
+
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.get_cluster_custom_object",
+        side_effect=mock_get_cluster_exception,
+    )
+
+    result = _get_dashboard_url_from_httproute("test-cluster", "test-ns")
+    assert result is None, "Should return None when GatewayConfig lookup fails"
+
+
 def test_cluster_dashboard_uri_httproute_first(mocker):
     """
     Test that cluster_dashboard_uri() tries HTTPRoute first, then falls back to OpenShift Routes
