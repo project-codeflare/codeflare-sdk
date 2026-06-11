@@ -2,8 +2,10 @@ import os
 import random
 import string
 import subprocess
+import time
 import warnings
 from time import sleep
+
 from codeflare_sdk import get_cluster
 from kubernetes import client, config
 from kubernetes.client import V1Toleration
@@ -357,6 +359,66 @@ def run_kubectl_command(args):
     except subprocess.CalledProcessError as e:
         print(f"Error executing 'kubectl {' '.join(args)}': {e}")
         return None
+
+
+def wait_for_worker_count(self, cluster_name, predicate, timeout_s=600):
+    """Wait until the number of worker pods for cluster_name satisfies predicate."""
+    label = f"ray.io/node-type=worker,ray.io/cluster={cluster_name}"
+    start = time.time()
+    last = None
+    while time.time() - start < timeout_s:
+        pods = self.api_instance.list_namespaced_pod(
+            self.namespace, label_selector=label
+        )
+        last = len(pods.items or [])
+        if predicate(last):
+            return last
+        sleep(10)
+    raise TimeoutError(
+        f"Timed out waiting for worker count. cluster={cluster_name} last={last}"
+    )
+
+
+def run_autoscaling_load_in_head_pod(self, cluster_name, tasks=2, sleep_s=120):
+    """
+    Copy autoscaling_load.py into the head pod and run it asynchronously.
+    Returns the Popen handle so the caller can check for scale-up while
+    the workload is still running (avoids the race where blocking execution
+    lets workers scale back down before the assertion runs).
+    """
+    label = f"ray.io/node-type=head,ray.io/cluster={cluster_name}"
+    pods = self.api_instance.list_namespaced_pod(self.namespace, label_selector=label)
+    if not pods.items:
+        raise RuntimeError(f"No head pod found for cluster {cluster_name}")
+    head_pod = pods.items[0].metadata.name
+
+    load_script = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "autoscaling_load.py"
+    )
+
+    subprocess.check_call(
+        [
+            "kubectl",
+            "cp",
+            load_script,
+            f"{self.namespace}/{head_pod}:/tmp/autoscaling_load.py",
+        ]
+    )
+
+    return subprocess.Popen(
+        [
+            "kubectl",
+            "exec",
+            "-n",
+            self.namespace,
+            head_pod,
+            "--",
+            "bash",
+            "-lc",
+            f"AUTOSCALING_TASKS={tasks} AUTOSCALING_TASK_SLEEP_S={sleep_s} "
+            f"python /tmp/autoscaling_load.py",
+        ]
+    )
 
 
 def create_cluster_queue(self, cluster_queue, flavor):
