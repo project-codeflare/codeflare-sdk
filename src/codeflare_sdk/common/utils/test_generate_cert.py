@@ -45,17 +45,17 @@ def test_generate_ca_cert():
     cert_pub_key_bytes = cert.public_key().public_bytes(
         Encoding.PEM, PublicFormat.SubjectPublicKeyInfo
     )
-    assert type(key) == str
-    assert type(certificate) == str
+    assert isinstance(key, str)
+    assert isinstance(certificate, str)
     # Veirfy ca.cert is self signed
-    assert cert.verify_directly_issued_by(cert) == None
+    assert cert.verify_directly_issued_by(cert) is None
     # Verify cert has the public key bytes from the private key
     assert cert_pub_key_bytes == private_pub_key_bytes
 
     # Verify RSA key size is 3072 bits for security compliance
-    assert (
-        private_key.key_size == 3072
-    ), f"CA key size should be 3072 bits, got {private_key.key_size}"
+    assert private_key.key_size == 3072, (
+        f"CA key size should be 3072 bits, got {private_key.key_size}"
+    )
 
     # Verify CA certificate has required extensions
     assert (
@@ -104,42 +104,42 @@ def test_generate_tls_cert(mocker):
         tls_cert = load_pem_x509_certificate(f.read().encode("utf-8"))
     with open(os.path.join(tls_dir, "ca.crt"), "r") as f:
         root_cert = load_pem_x509_certificate(f.read().encode("utf-8"))
-    assert tls_cert.verify_directly_issued_by(root_cert) == None
+    assert tls_cert.verify_directly_issued_by(root_cert) is None
 
     # Verify RSA key size is 3072 bits for security compliance
     with open(os.path.join(tls_dir, "tls.key"), "rb") as f:
         tls_key = load_pem_private_key(f.read(), password=None)
-    assert (
-        tls_key.key_size == 3072
-    ), f"TLS key size should be 3072 bits, got {tls_key.key_size}"
+    assert tls_key.key_size == 3072, (
+        f"TLS key size should be 3072 bits, got {tls_key.key_size}"
+    )
 
     # Verify RFC 5280 certificate extensions are present
     # BasicConstraints (CA:FALSE for client cert)
     basic_constraints = tls_cert.extensions.get_extension_for_oid(
         ExtensionOID.BASIC_CONSTRAINTS
     )
-    assert (
-        basic_constraints is not None
-    ), "Certificate should have BasicConstraints extension"
+    assert basic_constraints is not None, (
+        "Certificate should have BasicConstraints extension"
+    )
     assert basic_constraints.value.ca is False, "Client cert should have CA:FALSE"
 
     # KeyUsage extension
     key_usage = tls_cert.extensions.get_extension_for_oid(ExtensionOID.KEY_USAGE)
     assert key_usage is not None, "Certificate should have KeyUsage extension"
-    assert (
-        key_usage.value.digital_signature is True
-    ), "KeyUsage should include digitalSignature"
-    assert (
-        key_usage.value.key_encipherment is True
-    ), "KeyUsage should include keyEncipherment"
+    assert key_usage.value.digital_signature is True, (
+        "KeyUsage should include digitalSignature"
+    )
+    assert key_usage.value.key_encipherment is True, (
+        "KeyUsage should include keyEncipherment"
+    )
 
     # ExtendedKeyUsage (serverAuth and clientAuth for mTLS)
     extended_key_usage = tls_cert.extensions.get_extension_for_oid(
         ExtensionOID.EXTENDED_KEY_USAGE
     )
-    assert (
-        extended_key_usage is not None
-    ), "Certificate should have ExtendedKeyUsage extension"
+    assert extended_key_usage is not None, (
+        "Certificate should have ExtendedKeyUsage extension"
+    )
 
     # SubjectAlternativeName
     san = tls_cert.extensions.get_extension_for_oid(
@@ -167,15 +167,15 @@ def test_generate_tls_cert(mocker):
     crt_perms = os.stat(tls_crt_path).st_mode & 0o777
     ca_perms = os.stat(ca_crt_path).st_mode & 0o777
 
-    assert (
-        key_perms == 0o600
-    ), f"tls.key should have 0600 permissions, got {oct(key_perms)}"
-    assert (
-        crt_perms == 0o600
-    ), f"tls.crt should have 0600 permissions, got {oct(crt_perms)}"
-    assert (
-        ca_perms == 0o600
-    ), f"ca.crt should have 0600 permissions, got {oct(ca_perms)}"
+    assert key_perms == 0o600, (
+        f"tls.key should have 0600 permissions, got {oct(key_perms)}"
+    )
+    assert crt_perms == 0o600, (
+        f"tls.crt should have 0600 permissions, got {oct(crt_perms)}"
+    )
+    assert ca_perms == 0o600, (
+        f"ca.crt should have 0600 permissions, got {oct(ca_perms)}"
+    )
 
 
 def secret_ca_retreival_with_ca_key(secret_name, namespace):
@@ -219,7 +219,7 @@ def test_generate_tls_cert_with_ca_key_fallback(mocker):
         tls_cert = load_pem_x509_certificate(f.read().encode("utf-8"))
     with open(os.path.join(tls_dir, "ca.crt"), "r") as f:
         root_cert = load_pem_x509_certificate(f.read().encode("utf-8"))
-    assert tls_cert.verify_directly_issued_by(root_cert) == None
+    assert tls_cert.verify_directly_issued_by(root_cert) is None
 
     # Cleanup for this test
     os.remove(os.path.join(tls_dir, "ca.crt"))
@@ -335,7 +335,7 @@ def test_refresh_tls_cert(mocker):
 
     # Refresh should remove and regenerate
     result = refresh_tls_cert("refresh-test", "default")
-    assert result == True
+    assert result is True
     assert tls_dir.exists()  # Should exist again
 
     # Cleanup
@@ -478,7 +478,7 @@ def test_cleanup_expired_certificates_dry_run(mocker, tmp_path):
                 "cluster_name": "expired-cluster",
                 "namespace": "ns",
                 "path": str(cert_dir),
-                "created": datetime.datetime.now(),
+                "created": datetime.datetime.now(timezone.utc),
                 "size": 100,
                 "cert_expiry": expired_time,
             }
@@ -516,7 +516,7 @@ def test_cleanup_expired_certificates_delete(mocker, tmp_path):
                 "cluster_name": "expired-cluster",
                 "namespace": "ns",
                 "path": str(cert_dir),
-                "created": datetime.datetime.now(),
+                "created": datetime.datetime.now(timezone.utc),
                 "size": 100,
                 "cert_expiry": expired_time,
             }
@@ -533,6 +533,7 @@ def test_cleanup_old_certificates_dry_run(mocker, tmp_path):
     """Test cleanup_old_certificates in dry_run mode"""
     from codeflare_sdk.common.utils.generate_cert import cleanup_old_certificates
     import datetime
+    from datetime import timezone
 
     mocker.patch(
         "codeflare_sdk.common.utils.generate_cert._get_tls_base_dir",
@@ -545,7 +546,7 @@ def test_cleanup_old_certificates_dry_run(mocker, tmp_path):
     (cert_dir / "tls.crt").write_text("fake cert")
 
     # Mock list_tls_certificates to return an old cert
-    old_time = datetime.datetime.now() - datetime.timedelta(days=60)
+    old_time = datetime.datetime.now(timezone.utc) - datetime.timedelta(days=60)
     mocker.patch(
         "codeflare_sdk.common.utils.generate_cert.list_tls_certificates",
         return_value=[
@@ -570,6 +571,7 @@ def test_cleanup_old_certificates_delete(mocker, tmp_path):
     """Test cleanup_old_certificates actually deletes when dry_run=False"""
     from codeflare_sdk.common.utils.generate_cert import cleanup_old_certificates
     import datetime
+    from datetime import timezone
 
     mocker.patch(
         "codeflare_sdk.common.utils.generate_cert._get_tls_base_dir",
@@ -582,7 +584,7 @@ def test_cleanup_old_certificates_delete(mocker, tmp_path):
     (cert_dir / "tls.crt").write_text("fake cert")
 
     # Mock list_tls_certificates to return an old cert
-    old_time = datetime.datetime.now() - datetime.timedelta(days=60)
+    old_time = datetime.datetime.now(timezone.utc) - datetime.timedelta(days=60)
     mocker.patch(
         "codeflare_sdk.common.utils.generate_cert.list_tls_certificates",
         return_value=[

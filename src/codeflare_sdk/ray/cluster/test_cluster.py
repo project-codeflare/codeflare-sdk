@@ -32,6 +32,7 @@ from codeflare_sdk.common.utils.unit_test_support import (
     route_list_retrieval,
 )
 from codeflare_sdk.ray.cluster.cluster import _is_openshift_cluster
+from codeflare_sdk.ray.cluster.status import CodeFlareClusterStatus, RayClusterStatus
 from pathlib import Path
 from unittest.mock import MagicMock
 from kubernetes import client
@@ -45,6 +46,31 @@ import tempfile
 parent = Path(__file__).resolve().parents[4]  # project directory
 expected_clusters_dir = f"{parent}/tests/test_cluster_yamls"
 cluster_dir = os.path.expanduser("~/.codeflare/resources/")
+
+
+@pytest.mark.parametrize(
+    "cf_status,expected_ray_status",
+    [
+        (CodeFlareClusterStatus.READY, RayClusterStatus.READY),
+        (CodeFlareClusterStatus.FAILED, RayClusterStatus.FAILED),
+        (CodeFlareClusterStatus.SUSPENDED, RayClusterStatus.SUSPENDED),
+        (CodeFlareClusterStatus.UNKNOWN, RayClusterStatus.UNKNOWN),
+        (CodeFlareClusterStatus.STARTING, RayClusterStatus.UNKNOWN),
+        (CodeFlareClusterStatus.QUEUED, RayClusterStatus.UNKNOWN),
+        (CodeFlareClusterStatus.QUEUEING, RayClusterStatus.UNKNOWN),
+    ],
+)
+def test_details_maps_codeflare_status_to_ray_status(
+    mocker, cf_status, expected_ray_status
+):
+    cluster = create_cluster(mocker)
+    mocker.patch.object(cluster, "status", return_value=(cf_status, ""))
+    mocker.patch.object(cluster, "cluster_dashboard_uri", return_value="http://fake")
+
+    ray_cluster = cluster.details(print_to_console=False)
+
+    assert ray_cluster.status == expected_ray_status
+    assert isinstance(ray_cluster.status, RayClusterStatus)
 
 
 def test_cluster_apply_down(mocker):
@@ -525,7 +551,7 @@ def test_wait_ready(mocker, capsys):
         cf.wait_ready(timeout=5)
         assert 1 == 0
     except Exception as e:
-        assert type(e) == TimeoutError
+        assert isinstance(e, TimeoutError)
 
     captured = capsys.readouterr()
     assert (
@@ -663,7 +689,7 @@ def test_list_queue_rayclusters(mocker, capsys):
     ]
     mocker.patch("kubernetes.client.ApisApi", return_value=mock_api)
 
-    assert _is_openshift_cluster() == True
+    assert _is_openshift_cluster() is True
     mocker.patch(
         "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
         return_value=get_obj_none("ray.io", "v1", "ns", "rayclusters"),
@@ -682,7 +708,7 @@ def test_list_queue_rayclusters(mocker, capsys):
     assert "│" in captured.out  # Check for vertical lines
     mocker.patch(
         "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
-        return_value=get_ray_obj_with_status("ray.io", "v1", "ns", "rayclusters"),
+        side_effect=get_ray_obj_with_status,
     )
 
     list_all_queued("ns")
@@ -694,9 +720,9 @@ def test_list_queue_rayclusters(mocker, capsys):
         "│ +----------------+-----------+ │\n"
         "│ | Name           | Status    | │\n"
         "│ +================+===========+ │\n"
-        "│ | test-cluster-a | ready     | │\n"
+        "│ | test-cluster-a | suspended | │\n"
         "│ |                |           | │\n"
-        "│ | test-rc-b      | suspended | │\n"
+        "│ | test-rc-b      | unknown   | │\n"
         "│ |                |           | │\n"
         "│ +----------------+-----------+ │\n"
         "╰────────────────────────────────╯\n"
@@ -900,7 +926,7 @@ def test_cluster_namespace_handling(mocker, capsys):
     cluster = Cluster(config)
     captured = capsys.readouterr()
     # Verify the warning message was printed
-    assert "Please specify with namespace=<your_current_namespace>" in captured.out
+    assert "Please specify namespace=<your_current_namespace>" in captured.out
     assert cluster.config.namespace is None
 
 
@@ -1967,10 +1993,13 @@ def test_up_method(mocker, capsys):
     )
 
     cluster = create_cluster(mocker)
-    cluster.up()
 
+    # Fix for RHOAIENG-54731: Verify deprecation warning is properly raised
+    with pytest.warns(DeprecationWarning, match="up\\(\\) is deprecated"):
+        cluster.up()
+
+    # Verify success message is still printed
     captured = capsys.readouterr()
-    assert "WARNING: The up() function is planned for deprecation" in captured.out
     assert (
         "Ray Cluster: 'unit-test-cluster' has successfully been created" in captured.out
     )
@@ -2276,6 +2305,158 @@ def test_job_logs(mocker):
     logs = cluster.job_logs("job-123")
     assert logs == "Job output logs here"
     mock_job_client.get_job_logs.assert_called_once_with("job-123")
+
+
+def test_get_cluster_autoscaling(mocker):
+    """
+    Test that get_cluster correctly reconstructs autoscaling config
+    when the RayCluster has enableInTreeAutoscaling: true.
+    Covers the enable_autoscaling branch in get_cluster().
+    """
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+
+    autoscaling_rc = {
+        "apiVersion": "ray.io/v1",
+        "kind": "RayCluster",
+        "metadata": {"name": "autoscale-cluster", "namespace": "ns"},
+        "spec": {
+            "enableInTreeAutoscaling": True,
+            "headGroupSpec": {
+                "template": {
+                    "spec": {
+                        "containers": [
+                            {
+                                "name": "ray-head",
+                                "resources": {
+                                    "limits": {"cpu": "2", "memory": "8G"},
+                                    "requests": {"cpu": "2", "memory": "8G"},
+                                },
+                            }
+                        ]
+                    }
+                }
+            },
+            "workerGroupSpecs": [
+                {
+                    "replicas": 1,
+                    "minReplicas": 1,
+                    "maxReplicas": 8,
+                    "groupName": "small-group-autoscale",
+                    "template": {
+                        "spec": {
+                            "containers": [
+                                {
+                                    "name": "machine-learning",
+                                    "resources": {
+                                        "limits": {"cpu": "4", "memory": "6G"},
+                                        "requests": {"cpu": "2", "memory": "4G"},
+                                    },
+                                }
+                            ]
+                        }
+                    },
+                }
+            ],
+        },
+    }
+
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.get_namespaced_custom_object",
+        return_value=autoscaling_rc,
+    )
+
+    cluster = get_cluster("autoscale-cluster", "ns")
+    assert cluster.config.enable_autoscaling is True
+    assert cluster.config.min_workers == 1
+    assert cluster.config.max_workers == 8
+    assert cluster.config.num_workers == 1
+
+
+def test_head_only_cluster_no_workers(mocker):
+    """
+    Test for RHOAIENG-54729: Functions should handle head-only clusters (num_workers=0)
+    without crashing on IndexError when accessing workerGroupSpecs[0]
+    """
+    from codeflare_sdk.ray.cluster.cluster import (
+        Cluster,
+        _map_to_ray_cluster,
+        get_cluster,
+    )
+
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+    mocker.patch(
+        "codeflare_sdk.ray.cluster.cluster._is_openshift_cluster", return_value=False
+    )
+
+    mock_api_client = mocker.MagicMock(spec=client.ApiClient)
+    mocker.patch(
+        "codeflare_sdk.common.kubernetes_cluster.auth.get_api_client",
+        return_value=mock_api_client,
+    )
+
+    # Create a head-only cluster dict (workerGroupSpecs is empty list)
+    head_only_rc = {
+        "apiVersion": "ray.io/v1",
+        "kind": "RayCluster",
+        "metadata": {
+            "name": "head-only-cluster",
+            "namespace": "ns",
+        },
+        "spec": {
+            "headGroupSpec": {
+                "template": {
+                    "spec": {
+                        "containers": [
+                            {
+                                "name": "ray-head",
+                                "resources": {
+                                    "limits": {"cpu": "2", "memory": "8G"},
+                                    "requests": {"cpu": "2", "memory": "8G"},
+                                },
+                            }
+                        ]
+                    }
+                }
+            },
+            "workerGroupSpecs": [],  # Empty - head-only cluster
+        },
+        "status": {"state": "ready"},
+    }
+
+    # Test 1: _head_worker_extended_resources_from_rc_dict should not crash
+    head_ext, worker_ext = Cluster._head_worker_extended_resources_from_rc_dict(
+        head_only_rc
+    )
+    assert isinstance(head_ext, dict)
+    assert isinstance(worker_ext, dict)
+    assert worker_ext == {}  # Should be empty for head-only cluster
+
+    # Test 2: _map_to_ray_cluster should not crash
+    mocker.patch(
+        "kubernetes.client.NetworkingV1Api.list_namespaced_ingress",
+        return_value=mocker.Mock(items=[]),
+    )
+    result = _map_to_ray_cluster(head_only_rc)
+    assert result is not None
+    assert result.num_workers == 0
+    assert result.worker_cpu_limits == 0
+    assert result.worker_cpu_requests == 0
+    assert result.worker_mem_limits == 0
+    assert result.worker_mem_requests == 0
+
+    # Test 3: get_cluster should not crash
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.get_namespaced_custom_object",
+        return_value=head_only_rc,
+    )
+    cluster = get_cluster("head-only-cluster", "ns")
+    assert cluster.config.num_workers == 0
+    assert cluster.config.worker_cpu_limits == 0
+    assert cluster.config.worker_cpu_requests == 0
+    assert cluster.config.worker_memory_limits == "0G"
+    assert cluster.config.worker_memory_requests == "0G"
 
 
 # Make sure to always keep this function last

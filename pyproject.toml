@@ -1,10 +1,10 @@
 [project]
 name = "codeflare-sdk"
-version = "0.34.0"
+version = "0.37.0"
 
 [tool.poetry]
 name = "codeflare-sdk"
-version = "0.34.0"
+version = "0.37.0"
 description = "Python SDK for codeflare client"
 
 license = "Apache-2.0"
@@ -35,13 +35,14 @@ keywords = ['codeflare', 'python', 'sdk', 'client', 'batch', 'scale']
 [tool.poetry.dependencies]
 python = "^3.11"
 openshift-client = "1.0.18"
-rich = ">=12.5,<14.0"
-ray = {version = "2.52.1", extras = ["data", "default"]}
+rich = ">=12.5,<15.0"
+ray = {version = "2.55.1", extras = ["data", "default"]}
 kubernetes = ">= 27.2.0"
-cryptography = "46.0.3"
-executing = "1.2.0"
+cryptography = "46.0.7"
+executing = "2.2.1"
 pydantic = ">= 2.10.6"
 ipywidgets = "8.1.2"
+kube-authkit = ">=0.4.0"
 
 [[tool.poetry.source]]
 name = "pypi"
@@ -61,19 +62,58 @@ sphinx-rtd-theme = "3.0.1"
 optional = true
 
 [tool.poetry.group.test.dependencies]
-pytest = "7.4.0"
-coverage = "7.6.4"
-pytest-mock = "3.11.1"
+pytest = "9.0.3"
+coverage = "7.13.1"
+pytest-mock = "3.15.1"
 pytest-timeout = "2.3.1"
-jupyterlab = "4.5.0"
-selenium = "4.27.1"
+jupyterlab = "4.5.7"
+selenium = "4.41.0.202601270013"
 webdriver-manager = "4.0.2"
 
 
 [tool.poetry.group.dev.dependencies]
 diff-cover = "^9.6.0"
-black = "^25.11.0"
+black = ">=25.11,<27.0"
 pre-commit = "^4.5.0"
+ruff = "^0.9.0"
+mypy = "^1.15"
+types-PyYAML = "^6.0"
+types-requests = "^2.32"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 88  # Match black
+extend-exclude = [
+    "*.ipynb",  # Exclude Jupyter notebooks (different execution context)
+]
+
+[tool.ruff.lint]
+select = [
+    "F",   # pyflakes (undefined names, unused imports)
+    "E",   # pycodestyle errors
+    # "I",   # isort (import sorting) - disabled due to circular import issues
+]
+ignore = [
+    "E501",  # line too long (handled by black/ruff-format)
+    "E402",  # module level import not at top of file
+    "E722",  # bare except (TODO: fix in future PR)
+    "F403",  # star imports (TODO: refactor in future PR)
+    "F405",  # may be undefined from star imports
+]
+
+[tool.ruff.lint.per-file-ignores]
+"src/codeflare_sdk/vendored/**" = ["E", "F"]  # Exclude vendored code
+"**/test_*.py" = ["F401", "F811", "F841"]  # Allow unused imports, redefinitions, and variables in tests
+"**/__init__.py" = ["F401"]  # Allow unused imports in __init__.py (re-exports for public API)
+"demo-notebooks/**/*.py" = ["F841"]  # Allow unused variables in demo notebooks
+"tests/**/*.py" = ["F841"]  # Allow unused variables in test scripts
+"scripts/**/*.py" = ["F841"]  # Allow unused variables in scripts
+"ui-tests/**/*.py" = ["F821"]  # Allow undefined names in UI test config
+
+[tool.ruff.lint.isort]
+known-first-party = ["codeflare_sdk"]
+force-single-line = false
+lines-after-imports = 2
 
 [tool.pytest.ini_options]
 filterwarnings = [
@@ -93,6 +133,41 @@ markers = [
 addopts = "--timeout=900 --ignore=src/codeflare_sdk/vendored"
 testpaths = ["src/codeflare_sdk"]
 collect_ignore = ["src/codeflare_sdk/common/utils/unit_test_support.py"]
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = false
+warn_unused_configs = true
+# Legacy modules are not fully annotated; tighten incrementally in follow-up PRs.
+disallow_untyped_defs = false
+ignore_missing_imports = true
+exclude = [
+    "src/codeflare_sdk/vendored/",
+    "tests/",
+    "demo-notebooks/",
+    "ui-tests/",
+    # Colocated unit tests (see AGENTS.md)
+    ".*/test_.*\\.py$",
+    ".*/test/.*",
+    "unit_test_support\\.py$",
+    "conftest\\.py$",
+]
+
+[[tool.mypy.overrides]]
+module = "codeflare_sdk.vendored.*"
+ignore_errors = true
+
+# Partial annotations on legacy modules; tighten in follow-up PRs (RHOAIENG-61476).
+[[tool.mypy.overrides]]
+module = [
+    "codeflare_sdk.common.kubernetes_cluster.*",
+    "codeflare_sdk.common.kueue.kueue",
+    "codeflare_sdk.common.widgets.widgets",
+    "codeflare_sdk.common.utils.generate_cert",
+    "codeflare_sdk.ray.cluster.*",
+    "codeflare_sdk.ray.rayjobs.*",
+]
+ignore_errors = true
 
 [build-system]
 requires = ["poetry-core>=1.6.0"]

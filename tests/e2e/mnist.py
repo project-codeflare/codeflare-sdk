@@ -15,9 +15,8 @@
 import os
 
 import torch
-import requests
 from pytorch_lightning import LightningModule, Trainer
-from pytorch_lightning.callbacks.progress import TQDMProgressBar
+from pytorch_lightning.callbacks import TQDMProgressBar
 from torch import nn
 from torch.nn import functional as F
 from torch.utils.data import DataLoader, random_split, RandomSampler
@@ -39,11 +38,13 @@ print("prior to running the trainer")
 print("MASTER_ADDR: is ", os.getenv("MASTER_ADDR"))
 print("MASTER_PORT: is ", os.getenv("MASTER_PORT"))
 
-print("ACCELERATOR: is ", os.getenv("ACCELERATOR"))
-ACCELERATOR = os.getenv("ACCELERATOR")
+# Get accelerator from environment variable, default to "auto" for pytorch_lightning 2.x compatibility
+# Valid values: auto, cuda, tpu, cpu, mps, gpu
+ACCELERATOR = os.getenv("ACCELERATOR", "auto")
+print("ACCELERATOR: is ", ACCELERATOR)
 
-# If GPU is requested but CUDA is not available, fall back to CPU
-if ACCELERATOR == "gpu" and not torch.cuda.is_available():
+# If GPU/CUDA is requested but CUDA is not available, fall back to CPU
+if ACCELERATOR in ("gpu", "cuda") and not torch.cuda.is_available():
     print("Warning: GPU requested but CUDA is not available. Falling back to CPU.")
     ACCELERATOR = "cpu"
 
@@ -51,17 +52,17 @@ STORAGE_BUCKET_EXISTS = "AWS_DEFAULT_ENDPOINT" in os.environ
 print("STORAGE_BUCKET_EXISTS: ", STORAGE_BUCKET_EXISTS)
 
 print(
-    f'Storage_Bucket_Default_Endpoint : is {os.environ.get("AWS_DEFAULT_ENDPOINT")}'
+    f"Storage_Bucket_Default_Endpoint : is {os.environ.get('AWS_DEFAULT_ENDPOINT')}"
     if "AWS_DEFAULT_ENDPOINT" in os.environ
     else ""
 )
 print(
-    f'Storage_Bucket_Name : is {os.environ.get("AWS_STORAGE_BUCKET")}'
+    f"Storage_Bucket_Name : is {os.environ.get('AWS_STORAGE_BUCKET')}"
     if "AWS_STORAGE_BUCKET" in os.environ
     else ""
 )
 print(
-    f'Storage_Bucket_Mnist_Directory : is {os.environ.get("AWS_STORAGE_BUCKET_MNIST_DIR")}'
+    f"Storage_Bucket_Mnist_Directory : is {os.environ.get('AWS_STORAGE_BUCKET_MNIST_DIR')}"
     if "AWS_STORAGE_BUCKET_MNIST_DIR" in os.environ
     else ""
 )
@@ -146,11 +147,7 @@ class LitMNIST(LightningModule):
         # download
         print("Downloading MNIST dataset...")
 
-        if (
-            STORAGE_BUCKET_EXISTS
-            and os.environ.get("AWS_DEFAULT_ENDPOINT") != ""
-            and os.environ.get("AWS_DEFAULT_ENDPOINT") != None
-        ):
+        if STORAGE_BUCKET_EXISTS and os.environ.get("AWS_DEFAULT_ENDPOINT", "") != "":
             print("Using storage bucket to download datasets...")
 
             dataset_dir = os.path.join(self.data_dir, "MNIST/raw")
@@ -253,7 +250,7 @@ trainer = Trainer(
     callbacks=[TQDMProgressBar(refresh_rate=20)],
     num_nodes=int(os.environ.get("GROUP_WORLD_SIZE", 1)),
     devices=int(os.environ.get("LOCAL_WORLD_SIZE", 1)),
-    replace_sampler_ddp=False,
+    use_distributed_sampler=False,
     strategy="ddp",
 )
 

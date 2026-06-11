@@ -24,6 +24,51 @@ from ...common.utils import get_current_namespace
 logger = logging.getLogger(__name__)
 
 
+def _fetch_local_queues(namespace: str) -> dict:
+    """
+    Fetches all local queues from the specified namespace via the Kueue API.
+
+    Args:
+        namespace (str):
+            The Kubernetes namespace to query.
+
+    Returns:
+        dict:
+            The raw API response containing local queue items.
+    """
+    config_check()
+    api_instance = client.CustomObjectsApi(get_api_client())
+    return api_instance.list_namespaced_custom_object(
+        group="kueue.x-k8s.io",
+        version="v1beta1",
+        namespace=namespace,
+        plural="localqueues",
+    )
+
+
+def _find_default_queue_name(local_queues: dict) -> Optional[str]:
+    """
+    Scans fetched local queues for one annotated as the default.
+
+    Args:
+        local_queues (dict):
+            The raw API response from _fetch_local_queues.
+
+    Returns:
+        Optional[str]:
+            The name of the default queue, or None if no default is set.
+    """
+    for lq in local_queues["items"]:
+        if (
+            "annotations" in lq["metadata"]
+            and "kueue.x-k8s.io/default-queue" in lq["metadata"]["annotations"]
+            and lq["metadata"]["annotations"]["kueue.x-k8s.io/default-queue"].lower()
+            == "true"
+        ):
+            return lq["metadata"]["name"]
+    return None
+
+
 def get_default_kueue_name(namespace: str) -> Optional[str]:
     """
     Retrieves the default Kueue name from the provided namespace.
@@ -42,27 +87,13 @@ def get_default_kueue_name(namespace: str) -> Optional[str]:
             The name of the default queue if it exists, otherwise None.
     """
     try:
-        config_check()
-        api_instance = client.CustomObjectsApi(get_api_client())
-        local_queues = api_instance.list_namespaced_custom_object(
-            group="kueue.x-k8s.io",
-            version="v1beta1",
-            namespace=namespace,
-            plural="localqueues",
-        )
+        local_queues = _fetch_local_queues(namespace)
     except ApiException as e:  # pragma: no cover
         if e.status == 404 or e.status == 403:
             return
         else:
             return _kube_api_error_handling(e)
-    for lq in local_queues["items"]:
-        if (
-            "annotations" in lq["metadata"]
-            and "kueue.x-k8s.io/default-queue" in lq["metadata"]["annotations"]
-            and lq["metadata"]["annotations"]["kueue.x-k8s.io/default-queue"].lower()
-            == "true"
-        ):
-            return lq["metadata"]["name"]
+    return _find_default_queue_name(local_queues)
 
 
 def list_local_queues(
@@ -76,6 +107,8 @@ def list_local_queues(
 
     Note:
         Depending on the version of the local queue API, the available flavors may not be present in the response.
+        A ``LocalQueue`` may also appear without a ``status`` (or with empty status) until the Kueue controller
+        reconciles; such queues are still returned, usually without a ``flavors`` key on the dict.
 
     Args:
         namespace (str, optional):
@@ -90,21 +123,16 @@ def list_local_queues(
     if namespace is None:  # pragma: no cover
         namespace = get_current_namespace()
     try:
-        config_check()
-        api_instance = client.CustomObjectsApi(get_api_client())
-        local_queues = api_instance.list_namespaced_custom_object(
-            group="kueue.x-k8s.io",
-            version="v1beta1",
-            namespace=namespace,
-            plural="localqueues",
-        )
+        local_queues = _fetch_local_queues(namespace)
     except ApiException as e:  # pragma: no cover
         return _kube_api_error_handling(e)
     to_return = []
     for lq in local_queues["items"]:
         item = {"name": lq["metadata"]["name"]}
-        if "flavors" in lq["status"]:
-            item["flavors"] = [f["name"] for f in lq["status"]["flavors"]]
+        # LocalQueue may exist before Kueue populates .status (RHOAIENG-54719).
+        lq_status = lq.get("status") or {}
+        if "flavors" in lq_status:
+            item["flavors"] = [f["name"] for f in lq_status["flavors"]]
             if flavors is not None and not set(flavors).issubset(set(item["flavors"])):
                 continue
         elif flavors is not None:
@@ -130,21 +158,12 @@ def local_queue_exists(namespace: str, local_queue_name: str) -> bool:
             True if the local queue exists, False otherwise.
     """
     try:
-        config_check()
-        api_instance = client.CustomObjectsApi(get_api_client())
-        local_queues = api_instance.list_namespaced_custom_object(
-            group="kueue.x-k8s.io",
-            version="v1beta1",
-            namespace=namespace,
-            plural="localqueues",
-        )
+        local_queues = _fetch_local_queues(namespace)
     except Exception as e:  # pragma: no cover
         return _kube_api_error_handling(e)
-    # check if local queue with the name provided in cluster config exists
-    for lq in local_queues["items"]:
-        if lq["metadata"]["name"] == local_queue_name:
-            return True
-    return False
+    return any(
+        lq["metadata"]["name"] == local_queue_name for lq in local_queues["items"]
+    )
 
 
 def priority_class_exists(priority_class_name: str) -> Optional[bool]:
@@ -198,6 +217,9 @@ def add_queue_label(item: dict, namespace: str, local_queue: Optional[str]):
     If the local queue is not provided, the default local queue for the namespace is used. The function validates if the
     local queue exists, and if it does, the local queue name label is added to the resource metadata.
 
+    Fetches the list of local queues only once and reuses it for both
+    default-name resolution and existence validation.
+
     Args:
         item (dict):
             The resource where the label will be added.
@@ -210,13 +232,21 @@ def add_queue_label(item: dict, namespace: str, local_queue: Optional[str]):
         ValueError:
             If the provided or default local queue does not exist in the namespace.
     """
-    lq_name = local_queue or get_default_kueue_name(namespace)
-    if lq_name == None:
+    try:
+        local_queues = _fetch_local_queues(namespace)
+    except ApiException as e:  # pragma: no cover
+        if e.status == 404 or e.status == 403:
+            return
+        else:
+            return _kube_api_error_handling(e)
+
+    lq_name = local_queue or _find_default_queue_name(local_queues)
+    if lq_name is None:
         return
-    elif not local_queue_exists(namespace, lq_name):
+    if not any(lq["metadata"]["name"] == lq_name for lq in local_queues["items"]):
         raise ValueError(
             "local_queue provided does not exist or is not in this namespace. Please provide the correct local_queue name in Cluster Configuration"
         )
-    if not "labels" in item["metadata"]:
+    if "labels" not in item["metadata"]:
         item["metadata"]["labels"] = {}
     item["metadata"]["labels"].update({"kueue.x-k8s.io/queue-name": lq_name})

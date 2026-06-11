@@ -22,6 +22,7 @@ import re
 import warnings
 from typing import Dict, Any, Optional, Tuple, Union
 
+from kubernetes import client
 from ray.runtime_env import RuntimeEnv
 from codeflare_sdk.common.kueue.kueue import (
     get_default_kueue_name,
@@ -39,6 +40,7 @@ from codeflare_sdk.ray.rayjobs.runtime_env import (
     process_runtime_env,
 )
 
+from ...common.kubernetes_cluster.auth import config_check, get_api_client
 from ...common.utils import get_current_namespace
 from ...common.utils.validation import validate_ray_version_compatibility
 
@@ -118,6 +120,15 @@ class RayJob:
                 "to specify which existing cluster to use."
             )
 
+        if cluster_name is not None and ttl_seconds_after_finished != 0:
+            raise ValueError(
+                "❌ Configuration Error: 'ttl_seconds_after_finished' cannot be set when targeting "
+                "an existing cluster (via 'cluster_name').\n"
+                "TTL controls automatic cleanup of RayJob-managed clusters, which only applies "
+                "when creating a new cluster via 'cluster_config'.\n"
+                "For existing clusters, the RayJob CR will remain after completion for inspection."
+            )
+
         self.name = job_name
         self.entrypoint = entrypoint
 
@@ -160,8 +171,13 @@ class RayJob:
             self.cluster_name = cluster_name
             logger.info(f"Using existing cluster: {self.cluster_name}")
 
+        config_check()
+        k8s_client = get_api_client()
         self._api = RayjobApi()
+        self._api.api = client.CustomObjectsApi(k8s_client)
         self._cluster_api = RayClusterApi()
+        self._cluster_api.api = client.CustomObjectsApi(k8s_client)
+        self._cluster_api.core_v1_api = client.CoreV1Api(k8s_client)
 
         logger.info(f"Initialized RayJob: {self.name} in namespace: {self.namespace}")
 
@@ -193,7 +209,7 @@ class RayJob:
         else:
             raise RuntimeError(f"Failed to submit RayJob {self.name}")
 
-    def stop(self):
+    def stop(self) -> bool:
         """
         Suspend the Ray job.
         """
@@ -204,7 +220,7 @@ class RayJob:
         else:
             raise RuntimeError(f"Failed to stop the RayJob {self.name}")
 
-    def resubmit(self):
+    def resubmit(self) -> bool:
         """
         Resubmit the Ray job.
         """
@@ -214,7 +230,7 @@ class RayJob:
         else:
             raise RuntimeError(f"Failed to resubmit the RayJob {self.name}")
 
-    def delete(self):
+    def delete(self) -> bool:
         """
         Delete the Ray job.
         Returns True if deleted successfully or if already deleted.
@@ -258,36 +274,36 @@ class RayJob:
             if self.local_queue:
                 labels["kueue.x-k8s.io/queue-name"] = self.local_queue
             else:
-                # Auto-detect default queue for new clusters
+                # Auto-detect default queue for new clusters.
+                # If no default queue is found (e.g. Kueue not installed),
+                # skip the label entirely so the job can run without Kueue.
+                # This matches the interactive Cluster behavior in build_ray_cluster.py.
                 default_queue = get_default_kueue_name(self.namespace)
                 if default_queue:
                     labels["kueue.x-k8s.io/queue-name"] = default_queue
                 else:
-                    # No default queue found, use "default" as fallback
-                    labels["kueue.x-k8s.io/queue-name"] = "default"
-                    logger.warning(
+                    logger.info(
                         f"No default Kueue LocalQueue found in namespace '{self.namespace}'. "
-                        f"Using 'default' as the queue name. If a LocalQueue named 'default' "
-                        f"does not exist, the RayJob submission will fail. "
-                        f"To fix this, please explicitly specify the 'local_queue' parameter."
+                        f"Submitting RayJob without Kueue queue management. "
+                        f"To use Kueue, specify the 'local_queue' parameter or "
+                        f"annotate a LocalQueue with 'kueue.x-k8s.io/default-queue: true'."
                     )
 
             if self.priority_class:
                 labels["kueue.x-k8s.io/priority-class"] = self.priority_class
 
-            # Apply labels to metadata
+            # Apply labels to metadata.
+            # We intentionally do NOT set suspend=true here. Kueue's mutating
+            # webhook will set it automatically when it sees the queue label.
+            # This way, if Kueue isn't installed, the label is harmless metadata
+            # and the job runs immediately without hanging.
             if labels:
                 rayjob_cr["metadata"]["labels"] = labels
-
-            # When using Kueue with lifecycled clusters, start with suspend=true
-            # Kueue will unsuspend the job once the workload is admitted
-            if labels.get("kueue.x-k8s.io/queue-name"):
-                rayjob_cr["spec"]["suspend"] = True
         else:
             if self.local_queue or self.priority_class:
                 logger.warning(
-                    f"Kueue labels (local_queue, priority_class) are ignored for RayJobs "
-                    f"targeting existing clusters. Kueue only manages RayJobs that create new clusters."
+                    "Kueue labels (local_queue, priority_class) are ignored for RayJobs "
+                    "targeting existing clusters. Kueue only manages RayJobs that create new clusters."
                 )
 
         # Add active deadline if specified
@@ -302,9 +318,9 @@ class RayJob:
         # Add submitterPodTemplate if we have files to mount
         if files:
             secret_name = f"{self.name}-files"
-            rayjob_cr["spec"][
-                "submitterPodTemplate"
-            ] = self._build_submitter_pod_template(files, secret_name)
+            rayjob_cr["spec"]["submitterPodTemplate"] = (
+                self._build_submitter_pod_template(files, secret_name)
+            )
 
         # Configure cluster: either use existing or create new
         if self._cluster_config is not None:

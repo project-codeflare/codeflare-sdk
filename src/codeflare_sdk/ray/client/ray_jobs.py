@@ -19,7 +19,7 @@ The SDK acts as a wrapper for the Ray Job Submission Client.
 
 from ray.job_submission import JobSubmissionClient
 from ray.dashboard.modules.job.pydantic_models import JobDetails
-from typing import Iterator, Optional, Dict, Any, Union, List
+from typing import AsyncIterator, Optional, Dict, Any, Union, List, Tuple
 
 
 class RayJobClient:
@@ -121,7 +121,7 @@ class RayJobClient:
             entrypoint_resources=entrypoint_resources,
         )
 
-    def delete_job(self, job_id: str) -> (bool, str):
+    def delete_job(self, job_id: str) -> Tuple[bool, str]:
         """
         Deletes a job by job ID.
 
@@ -152,7 +152,7 @@ class RayJobClient:
         """
         return self.rayJobClient.get_address()
 
-    def get_job_info(self, job_id: str):
+    def get_job_info(self, job_id: str) -> JobDetails:
         """
         Fetches information about a job by job ID.
 
@@ -204,7 +204,7 @@ class RayJobClient:
         """
         return self.rayJobClient.list_jobs()
 
-    def stop_job(self, job_id: str) -> (bool, str):
+    def stop_job(self, job_id: str) -> tuple[bool, str]:
         """
         Stops a running job by job ID.
 
@@ -223,7 +223,7 @@ class RayJobClient:
             message = f"Failed to stop Job, {job_id} could have already completed."
         return stop_job_status, message
 
-    def tail_job_logs(self, job_id: str) -> Iterator[str]:
+    def tail_job_logs(self, job_id: str) -> AsyncIterator[str]:
         """
         Continuously streams the logs of a job.
 
@@ -232,7 +232,7 @@ class RayJobClient:
                 The unique identifier of the job.
 
         Returns:
-            Iterator[str]:
-                An iterator that yields log entries in real-time.
+            AsyncIterator[str]:
+                An async iterator that yields log entries in real-time.
         """
         return self.rayJobClient.tail_job_logs(job_id=job_id)

@@ -23,6 +23,7 @@ spec:
     rayStartParams:
       block: 'true'
       dashboard-host: 0.0.0.0
+      num-cpus: '2'
       num-gpus: '0'
       resources: '"{}"'
     serviceType: ClusterIP
@@ -84,13 +85,14 @@ spec:
             name: odh-trusted-ca-bundle
             optional: true
           name: odh-ca-cert
-  rayVersion: 2.52.1
+  rayVersion: ${ray_version}
   workerGroupSpecs:
   - groupName: small-group-default-cluster
     maxReplicas: 1
     minReplicas: 1
     rayStartParams:
       block: 'true'
+      num-cpus: '1'
       num-gpus: '0'
       resources: '"{}"'
     replicas: 1

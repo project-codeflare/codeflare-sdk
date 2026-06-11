@@ -53,7 +53,7 @@ class TestGetCurrentNamespace:
         assert result is None
         # Should see both error messages: in-cluster failure and kubeconfig fallback
         mock_print.assert_any_call("Unable to find current namespace")
-        mock_print.assert_any_call("trying to gather from current context")
+        mock_print.assert_any_call("Trying to gather namespace from current context")
 
     def test_get_current_namespace_incluster_file_open_error(self):
         """Test handling of file open errors when reading service account namespace."""
@@ -76,7 +76,7 @@ class TestGetCurrentNamespace:
         assert result is None
         # Should see both error messages: in-cluster failure and kubeconfig fallback
         mock_print.assert_any_call("Unable to find current namespace")
-        mock_print.assert_any_call("trying to gather from current context")
+        mock_print.assert_any_call("Trying to gather namespace from current context")
 
     def test_get_current_namespace_kubeconfig_success(self):
         """Test successful namespace detection from kubeconfig context."""
@@ -102,7 +102,7 @@ class TestGetCurrentNamespace:
                         result = get_current_namespace()
 
         assert result == "test-namespace"
-        mock_print.assert_called_with("trying to gather from current context")
+        mock_print.assert_called_with("Trying to gather namespace from current context")
 
     def test_get_current_namespace_kubeconfig_no_namespace_in_context(self):
         """Test handling when kubeconfig context has no namespace field."""
@@ -128,7 +128,7 @@ class TestGetCurrentNamespace:
                         result = get_current_namespace()
 
         assert result is None
-        mock_print.assert_called_with("trying to gather from current context")
+        mock_print.assert_called_with("Trying to gather namespace from current context")
 
     def test_get_current_namespace_kubeconfig_config_check_error(self):
         """Test handling when config_check raises an exception."""
@@ -145,7 +145,7 @@ class TestGetCurrentNamespace:
                         result = get_current_namespace()
 
         assert result is None
-        mock_print.assert_called_with("trying to gather from current context")
+        mock_print.assert_called_with("Trying to gather namespace from current context")
         mock_error_handler.assert_called_once()
 
     def test_get_current_namespace_kubeconfig_list_contexts_error(self):
@@ -167,7 +167,7 @@ class TestGetCurrentNamespace:
                             result = get_current_namespace()
 
         assert result is None
-        mock_print.assert_called_with("trying to gather from current context")
+        mock_print.assert_called_with("Trying to gather namespace from current context")
         mock_error_handler.assert_called_once()
 
     def test_get_current_namespace_kubeconfig_key_error(self):
@@ -188,7 +188,7 @@ class TestGetCurrentNamespace:
                         result = get_current_namespace()
 
         assert result is None
-        mock_print.assert_called_with("trying to gather from current context")
+        mock_print.assert_called_with("Trying to gather namespace from current context")
 
     def test_get_current_namespace_fallback_flow(self):
         """Test the complete fallback flow from in-cluster to kubeconfig."""
@@ -215,7 +215,7 @@ class TestGetCurrentNamespace:
                         result = get_current_namespace()
 
         assert result == "fallback-namespace"
-        mock_print.assert_called_with("trying to gather from current context")
+        mock_print.assert_called_with("Trying to gather namespace from current context")
 
     def test_get_current_namespace_complete_failure(self):
         """Test complete failure scenario where no namespace can be detected."""
@@ -232,7 +232,7 @@ class TestGetCurrentNamespace:
                         result = get_current_namespace()
 
         assert result is None
-        mock_print.assert_called_with("trying to gather from current context")
+        mock_print.assert_called_with("Trying to gather namespace from current context")
 
     def test_get_current_namespace_mixed_errors(self):
         """Test scenario with mixed error conditions."""

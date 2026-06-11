@@ -2,7 +2,8 @@ Ray Cluster Interaction
 =======================
 
 The CodeFlare SDK offers multiple ways to interact with Ray Clusters
-including the below methods.
+including the below methods. For submitting batch jobs that create or
+use a Ray cluster, see :doc:`./rayjob`.
 
 get_cluster()
 -------------

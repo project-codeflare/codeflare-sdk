@@ -140,7 +140,7 @@ def main():
             namespace="default",
             label_selector="ray.io/cluster={}".format(cluster_body["metadata"]["name"]),
         )  # getting the pods of the cluster
-        if pod_list != None:
+        if pod_list is not None:
             for pod in pod_list.items:
                 try:
                     # Calling exec and waiting for response

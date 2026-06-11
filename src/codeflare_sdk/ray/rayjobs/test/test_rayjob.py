@@ -18,7 +18,6 @@ from codeflare_sdk.common.utils.constants import RAY_VERSION
 from ray.runtime_env import RuntimeEnv
 
 from codeflare_sdk.ray.rayjobs.rayjob import RayJob
-from codeflare_sdk.ray.cluster.config import ClusterConfiguration
 from codeflare_sdk.ray.rayjobs.config import ManagedClusterConfig
 from kubernetes.client import V1Volume, V1VolumeMount, V1Toleration
 
@@ -80,7 +79,7 @@ def test_rayjob_init_validation_both_provided(auto_mock_setup):
     """
     Test that providing both cluster_name and cluster_config raises error.
     """
-    cluster_config = ClusterConfiguration(name="test-cluster", namespace="test")
+    cluster_config = ManagedClusterConfig()
 
     with pytest.raises(
         ValueError,
@@ -105,13 +104,47 @@ def test_rayjob_init_validation_neither_provided(auto_mock_setup):
         RayJob(job_name="test-job", entrypoint="python test.py")
 
 
+def test_rayjob_init_validation_ttl_with_existing_cluster(auto_mock_setup):
+    """
+    Test that providing ttl_seconds_after_finished with cluster_name raises error.
+    TTL can only be set when creating a new cluster via cluster_config.
+    """
+    with pytest.raises(
+        ValueError,
+        match="❌ Configuration Error: 'ttl_seconds_after_finished' cannot be set when targeting "
+        "an existing cluster \\(via 'cluster_name'\\)",
+    ):
+        RayJob(
+            job_name="test-job",
+            cluster_name="existing-cluster",
+            entrypoint="python test.py",
+            ttl_seconds_after_finished=300,
+        )
+
+
+def test_rayjob_init_ttl_zero_with_existing_cluster_allowed(auto_mock_setup):
+    """
+    Test that ttl_seconds_after_finished=0 is allowed with cluster_name.
+    The validation only checks for non-zero TTL values.
+    """
+    rayjob = RayJob(
+        job_name="test-job",
+        cluster_name="existing-cluster",
+        entrypoint="python test.py",
+        ttl_seconds_after_finished=0,
+        namespace="test-namespace",
+    )
+
+    assert rayjob.name == "test-job"
+    assert rayjob.cluster_name == "existing-cluster"
+    assert rayjob.ttl_seconds_after_finished == 0
+
+
 def test_rayjob_init_with_cluster_config(auto_mock_setup):
     """
     Test RayJob initialization with cluster configuration for auto-creation.
     """
-    cluster_config = ClusterConfiguration(
-        name="auto-cluster", namespace="test-namespace", num_workers=2
-    )
+    cluster_config = ManagedClusterConfig(num_workers=2)
 
     rayjob = RayJob(
         job_name="test-job",
@@ -130,9 +163,7 @@ def test_rayjob_cluster_name_generation(auto_mock_setup):
     """
     Test that cluster names are generated when config has empty name.
     """
-    cluster_config = ClusterConfiguration(
-        name="",  # Empty name should trigger generation
-        namespace="test-namespace",
+    cluster_config = ManagedClusterConfig(
         num_workers=1,
     )
 
@@ -150,9 +181,7 @@ def test_rayjob_cluster_config_namespace_none(auto_mock_setup):
     """
     Test that cluster config namespace is set when None.
     """
-    cluster_config = ClusterConfiguration(
-        name="test-cluster",
-        namespace=None,  # This should be set to job namespace
+    cluster_config = ManagedClusterConfig(
         num_workers=1,
     )
 
@@ -245,7 +274,6 @@ def test_build_rayjob_cr_with_existing_cluster(auto_mock_setup):
         cluster_name="existing-cluster",
         namespace="test-namespace",
         entrypoint="python main.py",
-        ttl_seconds_after_finished=300,
     )
 
     rayjob_cr = rayjob._build_rayjob_cr()
@@ -256,7 +284,6 @@ def test_build_rayjob_cr_with_existing_cluster(auto_mock_setup):
     spec = rayjob_cr["spec"]
     assert spec["entrypoint"] == "python main.py"
     assert spec["shutdownAfterJobFinishes"] is False
-    assert spec["ttlSecondsAfterFinished"] == 300
 
     assert spec["clusterSelector"]["ray.io/cluster"] == "existing-cluster"
     assert "rayClusterSpec" not in spec
@@ -526,12 +553,14 @@ def test_rayjob_with_runtime_env_dict(auto_mock_setup):
 def test_rayjob_with_active_deadline_and_ttl(auto_mock_setup):
     """
     Test RayJob with both active deadline and TTL settings.
+    Note: TTL can only be set when creating a new cluster (via cluster_config).
     """
 
+    cluster_config = ManagedClusterConfig()
     rayjob = RayJob(
         job_name="test-job",
         entrypoint="python -c 'print()'",
-        cluster_name="test-cluster",
+        cluster_config=cluster_config,
         active_deadline_seconds=300,
         ttl_seconds_after_finished=600,
         namespace="test-namespace",
@@ -594,11 +623,13 @@ def test_rayjob_error_handling_invalid_cluster_config(auto_mock_setup):
 def test_rayjob_constructor_parameter_validation(auto_mock_setup):
     """
     Test constructor parameter validation.
+    Note: TTL can only be set when creating a new cluster (via cluster_config).
     """
+    cluster_config = ManagedClusterConfig()
     rayjob = RayJob(
         job_name="test-job",
         entrypoint="python -c 'print()'",
-        cluster_name="test-cluster",
+        cluster_config=cluster_config,
         namespace="test-ns",
         runtime_env=RuntimeEnv(pip=["numpy"]),
         ttl_seconds_after_finished=300,
@@ -607,7 +638,7 @@ def test_rayjob_constructor_parameter_validation(auto_mock_setup):
 
     assert rayjob.name == "test-job"
     assert rayjob.entrypoint == "python -c 'print()'"
-    assert rayjob.cluster_name == "test-cluster"
+    assert rayjob.cluster_name == "test-job-cluster"  # Generated from job name
     assert rayjob.namespace == "test-ns"
     # Check that runtime_env is a RuntimeEnv object and contains pip dependencies
     assert isinstance(rayjob.runtime_env, RuntimeEnv)
@@ -1100,7 +1131,8 @@ def test_rayjob_init_missing_cluster_name_with_no_config(auto_mock_setup):
 
 def test_rayjob_kueue_label_no_default_queue(auto_mock_setup, mocker, caplog):
     """
-    Test RayJob falls back to 'default' queue when no default queue exists.
+    Test RayJob skips Kueue labels when no default queue exists and none specified.
+    This allows jobs to run without Kueue (e.g. when Kueue is not installed).
     """
     mocker.patch(
         "codeflare_sdk.ray.rayjobs.rayjob.get_default_kueue_name",
@@ -1117,15 +1149,18 @@ def test_rayjob_kueue_label_no_default_queue(auto_mock_setup, mocker, caplog):
         entrypoint="python -c 'print()'",
     )
 
-    with caplog.at_level("WARNING"):
+    with caplog.at_level("INFO"):
         rayjob.submit()
 
-    # Verify the submitted job has the fallback label
+    # Verify no Kueue labels are set — job runs without Kueue management
     call_args = mock_api_instance.submit_job.call_args
     submitted_job = call_args.kwargs["job"]
-    assert submitted_job["metadata"]["labels"]["kueue.x-k8s.io/queue-name"] == "default"
+    assert "labels" not in submitted_job["metadata"]
 
-    # Verify warning was logged
+    # Verify suspend is NOT set — job starts immediately
+    assert "suspend" not in submitted_job["spec"]
+
+    # Verify info message was logged
     assert "No default Kueue LocalQueue found" in caplog.text
 
 
@@ -1153,8 +1188,8 @@ def test_rayjob_kueue_explicit_local_queue(auto_mock_setup):
         submitted_job["metadata"]["labels"]["kueue.x-k8s.io/queue-name"]
         == "custom-queue"
     )
-    # Verify suspend is True for new clusters with Kueue
-    assert submitted_job["spec"]["suspend"] is True
+    # Verify suspend is NOT set — Kueue's webhook handles suspension
+    assert "suspend" not in submitted_job["spec"]
 
 
 def test_rayjob_queue_label_explicit_vs_default(auto_mock_setup, mocker):
@@ -1185,8 +1220,8 @@ def test_rayjob_queue_label_explicit_vs_default(auto_mock_setup, mocker):
         submitted_job1["metadata"]["labels"]["kueue.x-k8s.io/queue-name"]
         == "explicit-queue"
     )
-    # New clusters with Kueue should be suspended
-    assert submitted_job1["spec"]["suspend"] is True
+    # Verify suspend is NOT set — Kueue's webhook handles suspension
+    assert "suspend" not in submitted_job1["spec"]
     # Should not call get_default_kueue_name when explicit queue is provided
     mock_get_default.assert_not_called()
 
@@ -1210,8 +1245,8 @@ def test_rayjob_queue_label_explicit_vs_default(auto_mock_setup, mocker):
         submitted_job2["metadata"]["labels"]["kueue.x-k8s.io/queue-name"]
         == "default-queue"
     )
-    # New clusters with Kueue should be suspended
-    assert submitted_job2["spec"]["suspend"] is True
+    # Verify suspend is NOT set — Kueue's webhook handles suspension
+    assert "suspend" not in submitted_job2["spec"]
     # Should call get_default_kueue_name when no explicit queue
     mock_get_default.assert_called_once()
 

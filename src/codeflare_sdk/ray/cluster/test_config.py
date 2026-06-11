@@ -12,19 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
+from pathlib import Path
+
+import pytest
+import yaml
+
 from codeflare_sdk.common.utils.unit_test_support import (
     apply_template,
-    get_example_extended_storage_opts,
-    create_cluster_wrong_type,
     create_cluster_all_config_params,
+    create_cluster_wrong_type,
+    get_example_extended_storage_opts,
     get_template_variables,
 )
-from codeflare_sdk.ray.cluster.cluster import ClusterConfiguration, Cluster
-from pathlib import Path
-import filecmp
-import pytest
-import os
-import yaml
+from codeflare_sdk.ray.cluster.cluster import Cluster, ClusterConfiguration
 
 parent = Path(__file__).resolve().parents[4]  # project directory
 expected_clusters_dir = f"{parent}/tests/test_cluster_yamls"
@@ -77,14 +78,14 @@ def test_config_creation_all_parameters(mocker):
     }
     assert cluster.config.image == "example/ray:tag"
     assert cluster.config.image_pull_secrets == ["secret1", "secret2"]
-    assert cluster.config.write_to_file == True
-    assert cluster.config.verify_tls == True
+    assert cluster.config.write_to_file is True
+    assert cluster.config.verify_tls is True
     assert cluster.config.labels == {"key1": "value1", "key2": "value2"}
     assert cluster.config.worker_extended_resource_requests == {"nvidia.com/gpu": 1}
     assert (
         cluster.config.extended_resource_mapping == expected_extended_resource_mapping
     )
-    assert cluster.config.overwrite_default_resource_mapping == True
+    assert cluster.config.overwrite_default_resource_mapping is True
     assert cluster.config.local_queue == "local-queue-default"
     assert cluster.config.annotations == {
         "app.kubernetes.io/managed-by": "test-prefix",
@@ -94,11 +95,13 @@ def test_config_creation_all_parameters(mocker):
     assert cluster.config.volumes == volumes
     assert cluster.config.volume_mounts == volume_mounts
 
-    assert filecmp.cmp(
-        f"{cluster_dir}test-all-params.yaml",
+    with open(f"{cluster_dir}test-all-params.yaml", "r") as f:
+        actual = yaml.load(f, Loader=yaml.FullLoader)
+    expected = apply_template(
         f"{expected_clusters_dir}/ray/unit-test-all-params.yaml",
-        shallow=True,
+        get_template_variables(),
     )
+    assert actual == expected
 
 
 def test_config_creation_wrong_type():
@@ -197,6 +200,208 @@ def test_ray_usage_stats_enabled(mocker):
     ][0]
     env_vars = {env["name"]: env["value"] for env in head_container["env"]}
     assert env_vars["RAY_USAGE_STATS_ENABLED"] == "1"
+
+
+def test_cluster_name_validation():
+    with pytest.raises(ValueError):
+        ClusterConfiguration(name="TestCluster", namespace="ns")
+    with pytest.raises(ValueError):
+        ClusterConfiguration(name="testcluster-", namespace="ns")
+    with pytest.raises(ValueError):
+        ClusterConfiguration(name="-testcluster", namespace="ns")
+
+
+def test_autoscaling_config_valid():
+    config = ClusterConfiguration(
+        name="autoscale-test",
+        namespace="ns",
+        enable_autoscaling=True,
+        min_workers=1,
+        max_workers=8,
+    )
+    assert config.enable_autoscaling is True
+    assert config.min_workers == 1
+    assert config.max_workers == 8
+
+
+def test_autoscaling_config_zero_min_workers():
+    config = ClusterConfiguration(
+        name="autoscale-zero-min",
+        namespace="ns",
+        enable_autoscaling=True,
+        min_workers=0,
+        max_workers=4,
+    )
+    assert config.min_workers == 0
+    assert config.max_workers == 4
+
+
+def test_autoscaling_config_missing_workers():
+    with pytest.raises(
+        ValueError, match="min_workers and max_workers must be provided"
+    ):
+        ClusterConfiguration(
+            name="autoscale-missing",
+            namespace="ns",
+            enable_autoscaling=True,
+        )
+
+
+def test_autoscaling_config_missing_max_workers():
+    with pytest.raises(
+        ValueError, match="min_workers and max_workers must be provided"
+    ):
+        ClusterConfiguration(
+            name="autoscale-missing-max",
+            namespace="ns",
+            enable_autoscaling=True,
+            min_workers=1,
+        )
+
+
+def test_autoscaling_config_negative_min_workers():
+    with pytest.raises(ValueError, match="min_workers must be >= 0"):
+        ClusterConfiguration(
+            name="autoscale-negative",
+            namespace="ns",
+            enable_autoscaling=True,
+            min_workers=-1,
+            max_workers=4,
+        )
+
+
+def test_autoscaling_config_max_less_than_min():
+    with pytest.raises(ValueError, match="max_workers must be >= min_workers"):
+        ClusterConfiguration(
+            name="autoscale-bad-range",
+            namespace="ns",
+            enable_autoscaling=True,
+            min_workers=5,
+            max_workers=2,
+        )
+
+
+def test_autoscaling_disabled_ignores_workers():
+    with pytest.warns(UserWarning, match="min_workers and max_workers are ignored"):
+        config = ClusterConfiguration(
+            name="no-autoscale",
+            namespace="ns",
+            enable_autoscaling=False,
+            min_workers=1,
+            max_workers=8,
+        )
+    assert config.enable_autoscaling is False
+
+
+def test_autoscaling_spec_generation(mocker):
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch("kubernetes.client.CustomObjectsApi.list_namespaced_custom_object")
+    mocker.patch(
+        "codeflare_sdk.common.kueue.kueue.get_default_kueue_name",
+        return_value=None,
+    )
+
+    cluster = Cluster(
+        ClusterConfiguration(
+            name="autoscale-cluster",
+            namespace="ns",
+            enable_autoscaling=True,
+            min_workers=2,
+            max_workers=10,
+        )
+    )
+
+    spec = cluster.resource_yaml["spec"]
+    assert spec["enableInTreeAutoscaling"] is True
+    worker_group = spec["workerGroupSpecs"][0]
+    assert worker_group["replicas"] == 2
+    assert worker_group["minReplicas"] == 2
+    assert worker_group["maxReplicas"] == 10
+
+
+def test_autoscaling_blocked_when_local_queue_set(mocker):
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch("kubernetes.client.CustomObjectsApi.list_namespaced_custom_object")
+
+    with pytest.raises(
+        ValueError,
+        match="Autoscaling is not supported when Kueue is enabled",
+    ):
+        Cluster(
+            ClusterConfiguration(
+                name="autoscale-kueue-explicit",
+                namespace="ns",
+                enable_autoscaling=True,
+                min_workers=1,
+                max_workers=8,
+                local_queue="my-queue",
+            )
+        )
+
+
+def test_autoscaling_blocked_when_default_queue_exists(mocker):
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch("kubernetes.client.CustomObjectsApi.list_namespaced_custom_object")
+    mocker.patch(
+        "codeflare_sdk.common.kueue.kueue.get_default_kueue_name",
+        return_value="default-queue",
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="Autoscaling is not supported when Kueue is enabled",
+    ):
+        Cluster(
+            ClusterConfiguration(
+                name="autoscale-kueue-default",
+                namespace="ns",
+                enable_autoscaling=True,
+                min_workers=1,
+                max_workers=8,
+            )
+        )
+
+
+def test_autoscaling_allowed_when_no_queue(mocker):
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch("kubernetes.client.CustomObjectsApi.list_namespaced_custom_object")
+    mocker.patch(
+        "codeflare_sdk.common.kueue.kueue.get_default_kueue_name",
+        return_value=None,
+    )
+
+    cluster = Cluster(
+        ClusterConfiguration(
+            name="autoscale-no-kueue",
+            namespace="ns",
+            enable_autoscaling=True,
+            min_workers=1,
+            max_workers=8,
+        )
+    )
+
+    spec = cluster.resource_yaml["spec"]
+    assert spec["enableInTreeAutoscaling"] is True
+
+
+def test_autoscaling_disabled_spec_unchanged(mocker):
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch("kubernetes.client.CustomObjectsApi.list_namespaced_custom_object")
+
+    cluster = Cluster(
+        ClusterConfiguration(
+            name="fixed-cluster",
+            namespace="ns",
+            num_workers=3,
+        )
+    )
+
+    spec = cluster.resource_yaml["spec"]
+    assert spec["enableInTreeAutoscaling"] is False
+    worker_group = spec["workerGroupSpecs"][0]
+    assert worker_group["replicas"] == 3
+    assert worker_group["minReplicas"] == 3
+    assert worker_group["maxReplicas"] == 3
 
 
 # Make sure to always keep this function last

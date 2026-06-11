@@ -16,7 +16,9 @@ updates:
     open-pull-requests-limit: 1
     labels:
       - "dependabot"
+      - "test-additional-notebooks"
       - "test-guided-notebooks"
+      - "test-ui-notebooks"
 
   # pip means poetry in this case, this keeps poetry.lock up to date with constraints in pyproject.toml.
   - package-ecosystem: "pip"
@@ -29,7 +31,9 @@ updates:
     open-pull-requests-limit: 1
     labels:
       - "dependabot"
+      - "test-additional-notebooks"
       - "test-guided-notebooks"
+      - "test-ui-notebooks"
 
   # npm means yarn in this case, this keeps yarn.lock up to date with constraints in package.json.
   - package-ecosystem: "npm"
@@ -42,4 +46,6 @@ updates:
     open-pull-requests-limit: 1
     labels:
       - "dependabot"
+      - "test-additional-notebooks"
+      - "test-guided-notebooks"
       - "test-ui-notebooks"

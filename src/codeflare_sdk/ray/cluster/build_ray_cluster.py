@@ -16,6 +16,7 @@
 This sub-module exists primarily to be used internally by the Cluster object
     (in the cluster sub-module) for RayCluster generation.
 """
+
 from typing import List, Union, Tuple, Dict
 from ...common import _kube_api_error_handling
 from ...common.kubernetes_cluster import get_api_client, config_check
@@ -47,13 +48,28 @@ from kubernetes.client import (
 
 import yaml
 import uuid
-import sys
-import warnings
 import json
 
-from codeflare_sdk.common.utils import constants
 
 FORBIDDEN_CUSTOM_RESOURCE_TYPES = ["GPU", "CPU", "memory"]
+
+
+def _cpu_limit_to_num_cpus(cpu_limit: Union[int, str]) -> str:
+    """Convert a Kubernetes CPU limit to an integer string for Ray's num-cpus.
+
+    Ray auto-detects host CPUs when num-cpus is not set, which can vastly
+    overcount in containerised environments (e.g. KinD on a beefy laptop).
+    Pinning num-cpus to the container CPU limit keeps the autoscaler's view
+    of available resources accurate.
+    """
+    if isinstance(cpu_limit, int):
+        return str(max(cpu_limit, 0))
+    s = str(cpu_limit).strip()
+    if s.endswith("m"):
+        return str(max(int(float(s[:-1]) / 1000), 1))
+    return str(max(int(float(s)), 1))
+
+
 VOLUME_MOUNTS = [
     V1VolumeMount(
         mount_path="/etc/pki/tls/certs/odh-trusted-ca-bundle.crt",
@@ -115,6 +131,28 @@ def build_ray_cluster(cluster: "codeflare_sdk.ray.cluster.Cluster"):
     worker_resources = json.dumps(worker_resources).replace('"', '\\"')
     worker_resources = f'"{worker_resources}"'
 
+    # Determine autoscaling vs fixed-size worker replica settings
+    autoscaling_enabled = cluster.config.enable_autoscaling
+    if autoscaling_enabled:
+        from codeflare_sdk.common.kueue.kueue import get_default_kueue_name
+
+        lq_name = cluster.config.local_queue or get_default_kueue_name(
+            cluster.config.namespace
+        )
+        if lq_name is not None:
+            raise ValueError(
+                "Autoscaling is not supported when Kueue is enabled. "
+                "Please remove the autoscaler configuration from your "
+                "ClusterConfiguration."
+            )
+        worker_replicas = cluster.config.min_workers
+        worker_min_replicas = cluster.config.min_workers
+        worker_max_replicas = cluster.config.max_workers
+    else:
+        worker_replicas = cluster.config.num_workers
+        worker_min_replicas = cluster.config.num_workers
+        worker_max_replicas = cluster.config.num_workers
+
     # Create the Ray Cluster using the V1RayCluster Object
     resource = {
         "apiVersion": "ray.io/v1",
@@ -122,7 +160,7 @@ def build_ray_cluster(cluster: "codeflare_sdk.ray.cluster.Cluster"):
         "metadata": get_metadata(cluster),
         "spec": {
             "rayVersion": RAY_VERSION,
-            "enableInTreeAutoscaling": False,
+            "enableInTreeAutoscaling": autoscaling_enabled,
             "autoscalerOptions": {
                 "upscalingMode": "Default",
                 "idleTimeoutSeconds": 60,
@@ -134,6 +172,7 @@ def build_ray_cluster(cluster: "codeflare_sdk.ray.cluster.Cluster"):
                 "rayStartParams": {
                     "dashboard-host": "0.0.0.0",
                     "block": "true",
+                    "num-cpus": _cpu_limit_to_num_cpus(cluster.config.head_cpu_limits),
                     "num-gpus": str(head_gpu_count),
                     "resources": head_resources,
                 },
@@ -152,12 +191,15 @@ def build_ray_cluster(cluster: "codeflare_sdk.ray.cluster.Cluster"):
             },
             "workerGroupSpecs": [
                 {
-                    "replicas": cluster.config.num_workers,
-                    "minReplicas": cluster.config.num_workers,
-                    "maxReplicas": cluster.config.num_workers,
+                    "replicas": worker_replicas,
+                    "minReplicas": worker_min_replicas,
+                    "maxReplicas": worker_max_replicas,
                     "groupName": f"small-group-{cluster.config.name}",
                     "rayStartParams": {
                         "block": "true",
+                        "num-cpus": _cpu_limit_to_num_cpus(
+                            cluster.config.worker_cpu_limits
+                        ),
                         "num-gpus": str(worker_gpu_count),
                         "resources": worker_resources,
                     },
@@ -187,9 +229,9 @@ def build_ray_cluster(cluster: "codeflare_sdk.ray.cluster.Cluster"):
         gcs_ft_options = {"redisAddress": cluster.config.redis_address}
 
         if cluster.config.external_storage_namespace:
-            gcs_ft_options[
-                "externalStorageNamespace"
-            ] = cluster.config.external_storage_namespace
+            gcs_ft_options["externalStorageNamespace"] = (
+                cluster.config.external_storage_namespace
+            )
 
         if cluster.config.redis_password_secret:
             gcs_ft_options["redisPassword"] = {
@@ -212,7 +254,6 @@ def build_ray_cluster(cluster: "codeflare_sdk.ray.cluster.Cluster"):
     if cluster.config.write_to_file:
         return write_to_file(cluster, resource)  # Writes the file and returns its name
     else:
-        print(f"Yaml resources loaded for {cluster.config.name}")
         return resource  # Returns the Resource as a dict
 
 
@@ -435,28 +476,18 @@ def head_worker_extended_resources_from_cluster(
         resource_type = cluster.config.extended_resource_mapping[k]
         if resource_type in FORBIDDEN_CUSTOM_RESOURCE_TYPES:
             continue
-        head_worker_extended_resources[0][
-            resource_type
-        ] = cluster.config.head_extended_resource_requests[
-            k
-        ] + head_worker_extended_resources[
-            0
-        ].get(
-            resource_type, 0
+        head_worker_extended_resources[0][resource_type] = (
+            cluster.config.head_extended_resource_requests[k]
+            + head_worker_extended_resources[0].get(resource_type, 0)
         )
 
     for k in cluster.config.worker_extended_resource_requests.keys():
         resource_type = cluster.config.extended_resource_mapping[k]
         if resource_type in FORBIDDEN_CUSTOM_RESOURCE_TYPES:
             continue
-        head_worker_extended_resources[1][
-            resource_type
-        ] = cluster.config.worker_extended_resource_requests[
-            k
-        ] + head_worker_extended_resources[
-            1
-        ].get(
-            resource_type, 0
+        head_worker_extended_resources[1][resource_type] = (
+            cluster.config.worker_extended_resource_requests[k]
+            + head_worker_extended_resources[1].get(resource_type, 0)
         )
     return head_worker_extended_resources
 
@@ -467,7 +498,7 @@ def add_queue_label(cluster: "codeflare_sdk.ray.cluster.Cluster", labels: dict):
     The add_queue_label() function updates the given base labels with the local queue label if Kueue exists on the Cluster
     """
     lq_name = cluster.config.local_queue or get_default_local_queue(cluster, labels)
-    if lq_name == None:
+    if lq_name is None:
         return
     elif not local_queue_exists(cluster):
         # ValueError removed to pass validation to validating admission policy
@@ -559,8 +590,20 @@ def write_to_file(cluster: "codeflare_sdk.ray.cluster.Cluster", resource: dict):
     if not os.path.exists(directory_path):
         os.makedirs(directory_path)
 
+    # Convert resource to JSON and back to sanitize Pydantic undefined values
+    # This is a workaround for PyYAML not being able to serialize Pydantic v2 models
+    # used by Kubernetes client v33+
+    try:
+        import json
+
+        resource_json = json.dumps(resource, default=str)
+        sanitized_resource = json.loads(resource_json)
+    except (TypeError, ValueError):
+        # If JSON serialization fails, use the resource as-is
+        sanitized_resource = resource
+
     with open(output_file_name, "w") as outfile:
-        yaml.dump(resource, outfile, default_flow_style=False)
+        yaml.dump(sanitized_resource, outfile, default_flow_style=False)
 
     print(f"Written to: {output_file_name}")
     return output_file_name

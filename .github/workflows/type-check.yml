@@ -1,0 +1,30 @@
+name: Type Check
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+
+jobs:
+  mypy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install poetry
+        run: pip install poetry
+
+      - name: Install dependencies with poetry
+        run: |
+          poetry config virtualenvs.create false
+          poetry lock
+          poetry install --with dev
+
+      - name: Run mypy
+        run: mypy src/codeflare_sdk/ --config-file pyproject.toml

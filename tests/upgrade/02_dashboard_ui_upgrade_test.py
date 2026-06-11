@@ -86,6 +86,74 @@ class TestDistributedWorkloadsUIPreUpgrade:
         driver = selenium_driver
         dw_page = DistributedWorkloadsPage(driver)
 
+        # First, verify the cluster exists via Kubernetes API
+        print(
+            f"\n=== Verifying cluster '{CLUSTER_NAME}' exists in namespace '{NAMESPACE}' ==="
+        )
+        try:
+            from kubernetes import client
+            from kubernetes.client.rest import ApiException
+
+            # Get the custom objects API to check for RayCluster
+            api_instance = client.CustomObjectsApi()
+
+            try:
+                # Try to get the RayCluster resource
+                ray_cluster = api_instance.get_namespaced_custom_object(
+                    group="ray.io",
+                    version="v1",
+                    namespace=NAMESPACE,
+                    plural="rayclusters",
+                    name=CLUSTER_NAME,
+                )
+
+                # Check the cluster status
+                cluster_status = ray_cluster.get("status", {})
+                cluster_state = cluster_status.get("state", "Unknown")
+                print(
+                    f"✓ Found RayCluster '{CLUSTER_NAME}' with state: {cluster_state}"
+                )
+
+                # If cluster is not ready, provide helpful information
+                if cluster_state not in ["ready", "Ready"]:
+                    print(
+                        f"⚠️  WARNING: Cluster state is '{cluster_state}', not 'ready'"
+                    )
+                    print("This might affect UI visibility. Cluster conditions:")
+                    conditions = cluster_status.get("conditions", [])
+                    for condition in conditions:
+                        condition_type = condition.get("type", "Unknown")
+                        condition_status = condition.get("status", "Unknown")
+                        condition_reason = condition.get("reason", "")
+                        print(
+                            f"  - {condition_type}: {condition_status} ({condition_reason})"
+                        )
+
+            except ApiException as e:
+                if e.status == 404:
+                    print(
+                        f"✗ ERROR: RayCluster '{CLUSTER_NAME}' not found in namespace '{NAMESPACE}'"
+                    )
+                    print(
+                        "This suggests the pre-upgrade cluster creation test failed or didn't run."
+                    )
+                    print("The UI test cannot proceed without an existing cluster.")
+                    raise AssertionError(
+                        f"RayCluster '{CLUSTER_NAME}' does not exist in namespace '{NAMESPACE}'. "
+                        "Ensure the pre-upgrade cluster creation test runs successfully first."
+                    )
+                else:
+                    print(f"✗ ERROR: Failed to check RayCluster: {e}")
+                    raise
+
+        except Exception as e:
+            print(
+                f"WARNING: Could not verify cluster existence via Kubernetes API: {e}"
+            )
+            print(
+                "Proceeding with UI test, but this might be why the cluster is not visible."
+            )
+
         # Navigate to Workload Metrics page (under Observe & monitor)
         print("\n=== Navigating to Workload Metrics page ===")
         dw_page.navigate()
@@ -97,23 +165,23 @@ class TestDistributedWorkloadsUIPreUpgrade:
         # Verify cluster is Running or Admitted
         # (needs to be clarified with dw team - in the past the status was "Running")
         print("\n=== Verifying cluster is in Running or Admitted state ===")
-        assert (
-            dw_page.verify_cluster_running()
-        ), f"Cluster in {NAMESPACE} should be in Running or Admitted state before upgrade"
+        assert dw_page.verify_cluster_running(), (
+            f"Cluster in {NAMESPACE} should be in Running or Admitted state before upgrade"
+        )
 
         # Click Project Metrics tab and verify metrics are visible
         print("\n=== Checking Project Metrics tab ===")
         dw_page.click_project_metrics_tab()
-        assert (
-            dw_page.verify_metrics_visible()
-        ), "Resource metrics should be visible on Project Metrics tab"
+        assert dw_page.verify_metrics_visible(), (
+            "Resource metrics should be visible on Project Metrics tab"
+        )
 
         # Click Workload Status tab and verify cluster appears in the list
         print("\n=== Checking Workload Status tab ===")
         dw_page.click_workload_status_tab()
-        assert dw_page.verify_cluster_in_workload_list(
-            CLUSTER_NAME
-        ), f"Cluster '{CLUSTER_NAME}' should appear in workload list with Running or Admitted status"
+        assert dw_page.verify_cluster_in_workload_list(CLUSTER_NAME), (
+            f"Cluster '{CLUSTER_NAME}' should appear in workload list with Running or Admitted status"
+        )
 
         print("\n=== Pre-upgrade UI verification completed successfully ===")
 
@@ -153,23 +221,23 @@ class TestDistributedWorkloadsUIPostUpgrade:
         print(
             "\n=== Verifying cluster is still in Running or Admitted state after upgrade ==="
         )
-        assert (
-            dw_page.verify_cluster_running()
-        ), f"Cluster in {NAMESPACE} should still be in Running or Admitted state after upgrade"
+        assert dw_page.verify_cluster_running(), (
+            f"Cluster in {NAMESPACE} should still be in Running or Admitted state after upgrade"
+        )
 
         # Click Project Metrics tab and verify metrics are still accessible
         print("\n=== Checking Project Metrics tab ===")
         dw_page.click_project_metrics_tab()
-        assert (
-            dw_page.verify_metrics_visible()
-        ), "Resource metrics should still be visible on Project Metrics tab after upgrade"
+        assert dw_page.verify_metrics_visible(), (
+            "Resource metrics should still be visible on Project Metrics tab after upgrade"
+        )
 
         # Click Workload Status tab and verify cluster still appears in the list
         print("\n=== Checking Workload Status tab ===")
         dw_page.click_workload_status_tab()
-        assert dw_page.verify_cluster_in_workload_list(
-            CLUSTER_NAME
-        ), f"Cluster '{CLUSTER_NAME}' should still appear in workload list with Running or Admitted status after upgrade"
+        assert dw_page.verify_cluster_in_workload_list(CLUSTER_NAME), (
+            f"Cluster '{CLUSTER_NAME}' should still appear in workload list with Running or Admitted status after upgrade"
+        )
 
         print("\n=== Post-upgrade UI verification completed successfully ===")
         print(

@@ -10,9 +10,8 @@ from codeflare_sdk import (
     Cluster,
     ClusterConfiguration,
 )
-from codeflare_sdk import RayJob, TokenAuthentication
+from codeflare_sdk import RayJob
 from codeflare_sdk.ray.rayjobs.status import CodeflareRayJobStatus
-from codeflare_sdk.vendored.python_client.kuberay_job_api import RayjobApi
 
 
 @pytest.mark.tier1
@@ -23,6 +22,9 @@ class TestRayJobExistingCluster:
         initialize_kubernetes_client(self)
 
     def teardown_method(self):
+        # Clean up authentication if needed
+        if hasattr(self, "auth_instance"):
+            cleanup_authentication(self.auth_instance)
         delete_namespace(self)
         delete_kueue_resources(self)
 
@@ -35,12 +37,11 @@ class TestRayJobExistingCluster:
         cluster_name = "kueue-cluster"
 
         if is_openshift():
-            auth = TokenAuthentication(
-                token=run_oc_command(["whoami", "--show-token=true"]),
-                server=run_oc_command(["whoami", "--show-server=true"]),
-                skip_tls=True,
-            )
-            auth.login()
+            # Set up authentication based on detected method
+            auth_instance = authenticate_for_tests()
+
+            # Store auth instance for cleanup
+            self.auth_instance = auth_instance
 
         resources = get_platform_appropriate_resources()
 
@@ -67,8 +68,11 @@ class TestRayJobExistingCluster:
         cluster.apply()
 
         # Wait for cluster to be ready (with Kueue admission)
+        # On KinD, disable dashboard check as HTTPRoute/Route is not available
         print(f"Waiting for cluster '{cluster_name}' to be ready...")
-        cluster.wait_ready(timeout=600)
+        wait_ready_with_stuck_detection(
+            cluster, timeout=600, dashboard_check=is_openshift()
+        )
         print(f"✓ Cluster '{cluster_name}' is ready")
 
         # RayJob with explicit local_queue (will be ignored for existing clusters)

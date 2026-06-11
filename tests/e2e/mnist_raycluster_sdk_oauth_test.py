@@ -5,7 +5,6 @@ from time import sleep
 from codeflare_sdk import (
     Cluster,
     ClusterConfiguration,
-    TokenAuthentication,
 )
 from codeflare_sdk.ray.client import RayJobClient
 
@@ -23,6 +22,9 @@ class TestRayClusterSDKOauth:
         initialize_kubernetes_client(self)
 
     def teardown_method(self):
+        # Clean up authentication if needed
+        if hasattr(self, "auth_instance"):
+            cleanup_authentication(self.auth_instance)
         delete_namespace(self)
         delete_kueue_resources(self)
 
@@ -35,12 +37,11 @@ class TestRayClusterSDKOauth:
     def run_mnist_raycluster_sdk_oauth(self):
         ray_image = get_ray_image()
 
-        auth = TokenAuthentication(
-            token=run_oc_command(["whoami", "--show-token=true"]),
-            server=run_oc_command(["whoami", "--show-server=true"]),
-            skip_tls=True,
-        )
-        auth.login()
+        # Set up authentication based on detected method
+        auth_instance = authenticate_for_tests()
+
+        # Store auth instance for cleanup
+        self.auth_instance = auth_instance
 
         cluster = Cluster(
             ClusterConfiguration(
@@ -63,7 +64,7 @@ class TestRayClusterSDKOauth:
 
         cluster.status()
 
-        cluster.wait_ready()
+        wait_ready_with_stuck_detection(cluster)
 
         cluster.status()
 
@@ -75,7 +76,59 @@ class TestRayClusterSDKOauth:
 
     # Assertions
 
+    def _is_ray_cluster_auth_enabled(self, cluster):
+        """
+        Check if the Ray cluster has authentication enabled.
+
+        Returns:
+            bool: True if authentication is enabled, False otherwise
+        """
+        try:
+            # Get the Ray cluster custom resource
+            ray_cluster = get_ray_cluster(cluster.config.name, cluster.config.namespace)
+            if not ray_cluster:
+                print(
+                    f"Warning: Could not find Ray cluster {cluster.config.name} in namespace {cluster.config.namespace}"
+                )
+                return False
+
+            # Check for authentication annotations
+            annotations = ray_cluster.get("metadata", {}).get("annotations", {})
+            auth_annotation = annotations.get(
+                "odh.ray.io/secure-trusted-network", "false"
+            )
+
+            if auth_annotation.lower() == "true":
+                print("Ray cluster has authentication enabled via annotation")
+                return True
+
+            # Check for auth options in spec
+            spec = ray_cluster.get("spec", {})
+            auth_options = spec.get("authOptions")
+            if auth_options and auth_options.get("mode"):
+                print(f"Ray cluster has authentication configured: {auth_options}")
+                return True
+
+            print("Ray cluster does not have authentication enabled")
+            return False
+
+        except Exception as e:
+            print(f"Error checking Ray cluster authentication: {e}")
+            # Default to assuming authentication is enabled to be safe
+            return True
+
     def assert_jobsubmit_withoutLogin(self, cluster):
+        # Get authentication config to check method
+        auth_config = get_authentication_config()
+
+        # For BYOIDC clusters, skip the unauthenticated test
+        # BYOIDC authentication is handled at the gateway level and doesn't follow
+        # the same patterns as legacy OAuth authentication
+        if auth_config["method"] == "byoidc":
+            print("Skipping unauthenticated job submission test for BYOIDC cluster")
+            print("BYOIDC authentication is enforced at the gateway level")
+            return
+
         dashboard_url = cluster.cluster_dashboard_uri()
 
         # Verify that job submission is actually blocked by attempting to submit without auth
@@ -144,18 +197,18 @@ class TestRayClusterSDKOauth:
                     submission_blocked = True
 
         if not submission_blocked:
-            assert (
-                False
-            ), f"Job submission succeeded without authentication! Status: {response.status_code}, Response: {response.text[:200]}"
+            assert False, (
+                f"Job submission succeeded without authentication! Status: {response.status_code}, Response: {response.text[:200]}"
+            )
 
         # Also verify that RayJobClient cannot be used without authentication
         try:
             client = RayJobClient(address=dashboard_url, verify=False)
             # Try to call a method to trigger the connection and authentication check
             client.list_jobs()
-            assert (
-                False
-            ), "RayJobClient succeeded without authentication - this should not be possible"
+            assert False, (
+                "RayJobClient succeeded without authentication - this should not be possible"
+            )
         except (
             requests.exceptions.JSONDecodeError,
             requests.exceptions.HTTPError,
@@ -167,9 +220,53 @@ class TestRayClusterSDKOauth:
         assert True, "Job submission without authentication was correctly blocked"
 
     def assert_jobsubmit_withlogin(self, cluster):
-        auth_token = run_oc_command(["whoami", "--show-token=true"])
         ray_dashboard = cluster.cluster_dashboard_uri()
-        header = {"Authorization": f"Bearer {auth_token}"}
+
+        # Check if the Ray cluster has authentication enabled
+        ray_cluster_auth_enabled = self._is_ray_cluster_auth_enabled(cluster)
+        print(f"Ray cluster authentication enabled: {ray_cluster_auth_enabled}")
+
+        is_byoidc_cluster = is_byoidc_cluster_detected()
+
+        if is_byoidc_cluster:
+            # On BYOIDC clusters oc whoami --show-token=true is unavailable.
+            # Obtain an OIDC id_token via Keycloak password grant (same approach
+            # as Jenkins loginByoidcUser / opendatahub-tests get_oidc_tokens).
+            username = os.environ.get("OCP_ADMIN_USER_USERNAME", "")
+            password = os.environ.get("OCP_ADMIN_USER_PASSWORD", "")
+            if not username or not password:
+                raise RuntimeError(
+                    "OCP_ADMIN_USER_USERNAME and OCP_ADMIN_USER_PASSWORD must be set "
+                    "for BYOIDC job submission"
+                )
+            issuer_url = get_byoidc_issuer_url()
+            id_token, _ = get_oidc_tokens(username, password, issuer_url)
+            if not id_token:
+                raise RuntimeError(
+                    "Failed to obtain OIDC token for Ray Dashboard authentication. "
+                    "Check OCP_ADMIN_USER_PASSWORD."
+                )
+            header = {"Authorization": f"Bearer {id_token}"}
+        elif not ray_cluster_auth_enabled:
+            print(
+                "Ray cluster authentication is disabled - proceeding without auth headers"
+            )
+            header = {}
+        else:
+            try:
+                auth_token = run_oc_command(["whoami", "--show-token=true"])
+                if auth_token:
+                    header = {"Authorization": f"Bearer {auth_token}"}
+                    print("Using bearer token authentication for Ray Dashboard")
+                else:
+                    print("Could not get auth token - proceeding without auth headers")
+                    header = {}
+            except Exception as e:
+                print(
+                    f"Could not get auth token: {e} - proceeding without auth headers"
+                )
+                header = {}
+
         client = RayJobClient(address=ray_dashboard, headers=header, verify=False)
 
         # Verify that no jobs were submitted during the previous unauthenticated test

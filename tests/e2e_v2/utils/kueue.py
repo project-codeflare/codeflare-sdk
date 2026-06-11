@@ -15,7 +15,6 @@ from kubernetes import client
 from tests.e2e.support import (
     get_kueue_workload_for_job as _get_kueue_workload_for_job,
     wait_for_kueue_admission as _wait_for_kueue_admission,
-    create_limited_kueue_resources as _create_limited_kueue_resources,
 )
 
 

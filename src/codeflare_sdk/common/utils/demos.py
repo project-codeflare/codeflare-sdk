@@ -5,7 +5,7 @@ package_dir = pathlib.Path(__file__).parent.parent.parent.resolve()
 demo_dir = f"{package_dir}/demo-notebooks"
 
 
-def copy_demo_nbs(dir: str = "./demo-notebooks", overwrite: bool = False):
+def copy_demo_nbs(dir: str = "./demo-notebooks", overwrite: bool = False) -> None:
     """
     Copy the demo notebooks from the package to the current working directory
 

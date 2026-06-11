@@ -3,11 +3,12 @@ Kubernetes utility functions for the CodeFlare SDK.
 """
 
 import os
+from typing import Optional
 from kubernetes import config
 from ..kubernetes_cluster import config_check, _kube_api_error_handling
 
 
-def get_current_namespace():  # pragma: no cover
+def get_current_namespace() -> Optional[str]:  # pragma: no cover
     """
     Retrieves the current Kubernetes namespace.
 
@@ -17,12 +18,14 @@ def get_current_namespace():  # pragma: no cover
     """
     if os.path.isfile("/var/run/secrets/kubernetes.io/serviceaccount/namespace"):
         try:
-            file = open("/var/run/secrets/kubernetes.io/serviceaccount/namespace", "r")
-            active_context = file.readline().strip("\n")
-            return active_context
-        except Exception as e:
+            # Fix for RHOAIENG-54703: use context manager to ensure file is closed
+            with open(
+                "/var/run/secrets/kubernetes.io/serviceaccount/namespace", "r"
+            ) as file:
+                return file.readline().strip("\n")
+        except Exception:
             print("Unable to find current namespace")
-    print("trying to gather from current context")
+    print("Trying to gather namespace from current context")
     try:
         _, active_context = config.list_kube_config_contexts(config_check())
     except Exception as e:

@@ -1,7 +1,6 @@
 from codeflare_sdk import (
     Cluster,
     ClusterConfiguration,
-    TokenAuthentication,
     generate_cert,
 )
 
@@ -20,6 +19,9 @@ class TestRayLocalInteractiveOauth:
         initialize_kubernetes_client(self)
 
     def teardown_method(self):
+        # Clean up authentication if needed
+        if hasattr(self, "auth_instance"):
+            cleanup_authentication(self.auth_instance)
         delete_namespace(self)
         delete_kueue_resources(self)
 
@@ -32,12 +34,11 @@ class TestRayLocalInteractiveOauth:
     def run_local_interactives(self):
         ray_image = get_ray_image()
 
-        auth = TokenAuthentication(
-            token=run_oc_command(["whoami", "--show-token=true"]),
-            server=run_oc_command(["whoami", "--show-server=true"]),
-            skip_tls=True,
-        )
-        auth.login()
+        # Set up authentication based on detected method
+        auth_instance = authenticate_for_tests()
+
+        # Store auth instance for cleanup
+        self.auth_instance = auth_instance
 
         cluster_name = "test-ray-cluster-li"
 
@@ -59,7 +60,7 @@ class TestRayLocalInteractiveOauth:
             )
         )
         cluster.apply()
-        cluster.wait_ready()
+        wait_ready_with_stuck_detection(cluster)
 
         generate_cert.generate_tls_cert(cluster_name, self.namespace)
         generate_cert.export_env(cluster_name, self.namespace)

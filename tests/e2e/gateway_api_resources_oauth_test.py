@@ -18,7 +18,6 @@ from typing import Optional
 from codeflare_sdk import (
     Cluster,
     ClusterConfiguration,
-    TokenAuthentication,
 )
 
 from kubernetes import client
@@ -30,9 +29,9 @@ from support import (
     create_kueue_resources,
     delete_kueue_resources,
     get_ray_image,
-    run_oc_command,
+    authenticate_for_tests,
+    cleanup_authentication,
     # Gateway API helpers
-    get_reference_grant,
     list_reference_grants,
     get_httproutes_for_cluster,
     wait_for_reference_grant,
@@ -44,6 +43,7 @@ from support import (
     verify_reference_grant_spec,
     verify_httproute_spec,
     verify_network_policy_spec,
+    wait_ready_enhanced,
 )
 
 
@@ -61,6 +61,9 @@ class TestGatewayApiResources:
         self.networking_api = client.NetworkingV1Api(self.api_instance.api_client)
 
     def teardown_method(self):
+        # Clean up authentication if needed
+        if hasattr(self, "auth_instance"):
+            cleanup_authentication(self.auth_instance)
         # Only delete namespace if it was created
         if hasattr(self, "namespace"):
             delete_namespace(self)
@@ -80,13 +83,11 @@ class TestGatewayApiResources:
         cluster_name = "gateway-test"
         ray_image = get_ray_image()
 
-        # Authenticate with current user token
-        auth = TokenAuthentication(
-            token=run_oc_command(["whoami", "--show-token=true"]),
-            server=run_oc_command(["whoami", "--show-server=true"]),
-            skip_tls=True,
-        )
-        auth.login()
+        # Set up authentication based on detected method
+        auth_instance = authenticate_for_tests()
+
+        # Store auth instance for cleanup
+        self.auth_instance = auth_instance
 
         cluster = Cluster(
             ClusterConfiguration(
@@ -116,7 +117,7 @@ class TestGatewayApiResources:
             cluster.apply()
 
             # Wait for cluster to be ready
-            cluster.wait_ready()
+            wait_ready_enhanced(cluster)
 
             # Verify ReferenceGrant is created
             reference_grant_name = self.verify_reference_grant_created(cluster_name)
@@ -131,9 +132,9 @@ class TestGatewayApiResources:
             # Verify dashboard is accessible via HTTPRoute
             dashboard_url = cluster.cluster_dashboard_uri()
             assert dashboard_url, "Dashboard URL should be available"
-            assert (
-                "Dashboard not available" not in dashboard_url
-            ), f"Dashboard should be available, got: {dashboard_url}"
+            assert "Dashboard not available" not in dashboard_url, (
+                f"Dashboard should be available, got: {dashboard_url}"
+            )
             print(f"✓ Dashboard URL: {dashboard_url}")
 
         finally:
@@ -192,9 +193,9 @@ class TestGatewayApiResources:
         print(f"✓ ReferenceGrant found: {grant_name}")
 
         # Verify the spec
-        assert verify_reference_grant_spec(
-            reference_grant
-        ), "ReferenceGrant spec validation failed"
+        assert verify_reference_grant_spec(reference_grant), (
+            "ReferenceGrant spec validation failed"
+        )
         print("✓ ReferenceGrant spec is valid")
 
         # Print details
@@ -247,9 +248,9 @@ class TestGatewayApiResources:
             print(f"  HTTPRoute: {route_namespace}/{route_name}")
 
             # Verify spec
-            assert verify_httproute_spec(
-                httproute, cluster_name, self.namespace
-            ), f"HTTPRoute {route_name} spec validation failed"
+            assert verify_httproute_spec(httproute, cluster_name, self.namespace), (
+                f"HTTPRoute {route_name} spec validation failed"
+            )
             print(f"  ✓ HTTPRoute '{route_name}' spec is valid")
 
             # Print details
@@ -324,7 +325,7 @@ class TestGatewayApiResources:
                 for key, value in selector_labels.items()
             )
             if not has_ray_label:
-                print(f"    Warning: Pod selector may not target Ray cluster")
+                print("    Warning: Pod selector may not target Ray cluster")
 
         # Check if Ray-specific ports are allowed
         ray_ports_allowed = expected_ray_ports.intersection(all_allowed_ports)
@@ -415,7 +416,7 @@ class TestGatewayApiResources:
             print("Skipping NetworkPolicy cleanup verification (not found during test)")
 
         # Final summary
-        print(f"\n--- Cleanup Verification Summary ---")
+        print("\n--- Cleanup Verification Summary ---")
         if cleanup_success:
             print("✓ All gateway resources properly cleaned up")
         else:
