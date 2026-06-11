@@ -604,15 +604,15 @@ def test_is_dashboard_ready_url_validation(mocker):
         "cluster_dashboard_uri",
         return_value="Dashboard not available yet, have you run cluster.apply()?",
     )
-    assert (
-        cluster.is_dashboard_ready() is False
-    ), "Should return False when dashboard_uri is an error message"
+    assert cluster.is_dashboard_ready() is False, (
+        "Should return False when dashboard_uri is an error message"
+    )
 
     # Test with None
     mocker.patch.object(cluster, "cluster_dashboard_uri", return_value=None)
-    assert (
-        cluster.is_dashboard_ready() is False
-    ), "Should return False when dashboard_uri is None"
+    assert cluster.is_dashboard_ready() is False, (
+        "Should return False when dashboard_uri is None"
+    )
 
     # Test with valid HTTP URL that returns 200
     mocker.patch.object(
@@ -623,9 +623,9 @@ def test_is_dashboard_ready_url_validation(mocker):
     mock_response = mocker.Mock()
     mock_response.status_code = 200
     mocker.patch("requests.get", return_value=mock_response)
-    assert (
-        cluster.is_dashboard_ready() is True
-    ), "Should return True when dashboard returns 200"
+    assert cluster.is_dashboard_ready() is True, (
+        "Should return True when dashboard returns 200"
+    )
 
     # Test with valid HTTPS URL that returns 302 (OAuth redirect)
     mocker.patch.object(
@@ -634,25 +634,25 @@ def test_is_dashboard_ready_url_validation(mocker):
         return_value="https://dashboard.example.com",
     )
     mock_response.status_code = 302
-    assert (
-        cluster.is_dashboard_ready() is True
-    ), "Should return True when dashboard returns 302 (OAuth redirect)"
+    assert cluster.is_dashboard_ready() is True, (
+        "Should return True when dashboard returns 302 (OAuth redirect)"
+    )
 
     # Test with valid URL that returns 401/403 (auth required)
     mock_response.status_code = 401
-    assert (
-        cluster.is_dashboard_ready() is True
-    ), "Should return True when dashboard returns 401"
+    assert cluster.is_dashboard_ready() is True, (
+        "Should return True when dashboard returns 401"
+    )
     mock_response.status_code = 403
-    assert (
-        cluster.is_dashboard_ready() is True
-    ), "Should return True when dashboard returns 403"
+    assert cluster.is_dashboard_ready() is True, (
+        "Should return True when dashboard returns 403"
+    )
 
     # Test with valid URL that returns 500 (server error)
     mock_response.status_code = 500
-    assert (
-        cluster.is_dashboard_ready() is False
-    ), "Should return False when dashboard returns 500"
+    assert cluster.is_dashboard_ready() is False, (
+        "Should return False when dashboard returns 500"
+    )
 
 
 def test_list_queue_rayclusters(mocker, capsys):
@@ -1204,9 +1204,9 @@ def test_get_dashboard_url_from_httproute(mocker):
     )
 
     result = _get_dashboard_url_from_httproute("test-cluster", "test-ns")
-    assert (
-        result is None
-    ), "Should return None when Gateway has empty listeners and no Route/addresses"
+    assert result is None, (
+        "Should return None when Gateway has empty listeners and no Route/addresses"
+    )
 
     # Test Gateway listener with missing hostname - should try OpenShift Route fallback
     mock_gateway_no_hostname = {
@@ -1250,9 +1250,9 @@ def test_get_dashboard_url_from_httproute(mocker):
     )
 
     result = _get_dashboard_url_from_httproute("test-cluster", "test-ns")
-    assert (
-        result is None
-    ), "Should return None when listener missing hostname and no Route/addresses found"
+    assert result is None, (
+        "Should return None when listener missing hostname and no Route/addresses found"
+    )
 
     # Test case: OpenShift Route found exposing the Gateway - should use Route hostname
     mock_openshift_route = {
@@ -1276,9 +1276,9 @@ def test_get_dashboard_url_from_httproute(mocker):
     expected_url = (
         "https://data-science-gateway.apps.example.com/ray/test-ns/test-cluster"
     )
-    assert (
-        result == expected_url
-    ), f"Should use OpenShift Route hostname when listener missing hostname. Expected {expected_url}, got {result}"
+    assert result == expected_url, (
+        f"Should use OpenShift Route hostname when listener missing hostname. Expected {expected_url}, got {result}"
+    )
 
     # Test case: No listener hostname, no Route, but valid status.addresses - should use address
     mock_gateway_with_address = {
@@ -1305,9 +1305,9 @@ def test_get_dashboard_url_from_httproute(mocker):
 
     result = _get_dashboard_url_from_httproute("test-cluster", "test-ns")
     expected_url = "https://gateway.external.example.com/ray/test-ns/test-cluster"
-    assert (
-        result == expected_url
-    ), f"Should use status.addresses when no listener hostname or Route. Expected {expected_url}, got {result}"
+    assert result == expected_url, (
+        f"Should use status.addresses when no listener hostname or Route. Expected {expected_url}, got {result}"
+    )
 
     # Test case: status.addresses with internal cluster DNS - should skip and return None
     mock_gateway_internal_address = {
@@ -1334,9 +1334,9 @@ def test_get_dashboard_url_from_httproute(mocker):
     )
 
     result = _get_dashboard_url_from_httproute("test-cluster", "test-ns")
-    assert (
-        result is None
-    ), "Should return None when status.addresses contains only internal cluster DNS"
+    assert result is None, (
+        "Should return None when status.addresses contains only internal cluster DNS"
+    )
 
     # Test case: OpenShift Route lookup throws exception - should continue to status.addresses fallback
     mock_gateway_no_hostname_with_address = {
@@ -1372,9 +1372,9 @@ def test_get_dashboard_url_from_httproute(mocker):
 
     result = _get_dashboard_url_from_httproute("test-cluster", "test-ns")
     expected_url = "https://gateway.fallback.example.com/ray/test-ns/test-cluster"
-    assert (
-        result == expected_url
-    ), f"Should fallback to status.addresses when Route lookup fails. Expected {expected_url}, got {result}"
+    assert result == expected_url, (
+        f"Should fallback to status.addresses when Route lookup fails. Expected {expected_url}, got {result}"
+    )
 
     # Test non-404 ApiException - should be re-raised then caught by outer handler
     # The function is designed to return None for any unexpected errors via outer try-catch
@@ -1390,9 +1390,9 @@ def test_get_dashboard_url_from_httproute(mocker):
 
     # Should return None (the inner handler re-raises, outer handler catches and returns None)
     result = _get_dashboard_url_from_httproute("test-cluster", "test-ns")
-    assert (
-        result is None
-    ), "Should return None when non-404 exception occurs (caught by outer handler)"
+    assert result is None, (
+        "Should return None when non-404 exception occurs (caught by outer handler)"
+    )
 
     # Real-world scenario: Cluster-wide permissions denied, falls back to namespace search
     # This simulates a regular data scientist without cluster-admin permissions
@@ -1433,12 +1433,12 @@ def test_get_dashboard_url_from_httproute(mocker):
     )
     assert result == expected_url, f"Expected {expected_url}, got {result}"
     # Verify cluster's own namespace is searched first
-    assert (
-        namespaces_searched[0] == "test-ns"
-    ), f"Cluster's own namespace should be searched first, but got: {namespaces_searched}"
-    assert (
-        "redhat-ods-applications" in namespaces_searched
-    ), "Should search redhat-ods-applications namespace"
+    assert namespaces_searched[0] == "test-ns", (
+        f"Cluster's own namespace should be searched first, but got: {namespaces_searched}"
+    )
+    assert "redhat-ods-applications" in namespaces_searched, (
+        "Should search redhat-ods-applications namespace"
+    )
     assert "opendatahub" in namespaces_searched, "Should search opendatahub namespace"
 
     # Test case: HTTPRoute found in cluster's own namespace
@@ -1461,9 +1461,9 @@ def test_get_dashboard_url_from_httproute(mocker):
     result = _get_dashboard_url_from_httproute("test-cluster", "test-ns")
     assert result == expected_url, f"Expected {expected_url}, got {result}"
     # Should find HTTPRoute in first namespace searched (cluster's own)
-    assert namespaces_searched == [
-        "test-ns"
-    ], f"Should stop after finding HTTPRoute in cluster's own namespace, but searched: {namespaces_searched}"
+    assert namespaces_searched == ["test-ns"], (
+        f"Should stop after finding HTTPRoute in cluster's own namespace, but searched: {namespaces_searched}"
+    )
 
     # Test case: Some namespaces fail with ApiException, but search continues
     namespaces_searched.clear()
@@ -1498,9 +1498,9 @@ def test_get_dashboard_url_from_httproute(mocker):
     assert result == expected_url, f"Expected {expected_url}, got {result}"
     # Verify that search continued despite ApiExceptions
     assert "test-ns" in namespaces_searched, "Should try cluster's own namespace first"
-    assert (
-        "redhat-ods-applications" in namespaces_searched
-    ), "Should try redhat-ods-applications despite earlier failure"
+    assert "redhat-ods-applications" in namespaces_searched, (
+        "Should try redhat-ods-applications despite earlier failure"
+    )
     assert "opendatahub" in namespaces_searched, "Should find HTTPRoute in opendatahub"
 
     # Real-world scenario: Gateway not found (404) - should return None
@@ -1528,6 +1528,165 @@ def test_get_dashboard_url_from_httproute(mocker):
 
     result = _get_dashboard_url_from_httproute("test-cluster", "test-ns")
     assert result is None, "Should return None when Gateway not found (404)"
+
+
+def test_get_dashboard_url_gatewayconfig_fallback(mocker):
+    """
+    Test GatewayConfig CR fallback for hostname resolution when Gateway listeners
+    and OpenShift Routes don't provide a hostname.
+    """
+    from codeflare_sdk.ray.cluster.cluster import _get_dashboard_url_from_httproute
+
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+
+    mock_httproute = {
+        "metadata": {"name": "test-cluster", "namespace": "test-ns"},
+        "spec": {
+            "parentRefs": [
+                {
+                    "group": "gateway.networking.k8s.io",
+                    "kind": "Gateway",
+                    "name": "data-science-gateway",
+                    "namespace": "openshift-ingress",
+                }
+            ]
+        },
+    }
+
+    mock_gateway_no_hostname = {
+        "metadata": {"name": "data-science-gateway", "namespace": "openshift-ingress"},
+        "spec": {"listeners": [{"name": "https", "port": 443, "protocol": "HTTPS"}]},
+    }
+
+    mock_gatewayconfig = {
+        "spec": {
+            "subdomain": "my-gateway",
+            "domain": "apps.cluster.example.com",
+        }
+    }
+
+    def mock_list_cluster(group, version, plural, label_selector):
+        if plural == "httproutes":
+            return {"items": [mock_httproute]}
+        raise Exception(f"Unexpected plural: {plural}")
+
+    def mock_get_namespaced(group, version, namespace, plural, name):
+        if plural == "gateways":
+            return mock_gateway_no_hostname
+        raise Exception(f"Unexpected plural: {plural}")
+
+    def mock_list_namespaced(group, version, namespace, plural, label_selector=None):
+        if plural == "routes":
+            return {"items": []}
+        raise Exception(f"Unexpected plural: {plural}")
+
+    def mock_get_cluster(group, version, plural, name):
+        if plural == "gatewayconfigs":
+            return mock_gatewayconfig
+        raise Exception(f"Unexpected plural: {plural}")
+
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_cluster_custom_object",
+        side_effect=mock_list_cluster,
+    )
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.get_namespaced_custom_object",
+        side_effect=mock_get_namespaced,
+    )
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
+        side_effect=mock_list_namespaced,
+    )
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.get_cluster_custom_object",
+        side_effect=mock_get_cluster,
+    )
+
+    # GatewayConfig with both subdomain and domain
+    result = _get_dashboard_url_from_httproute("test-cluster", "test-ns")
+    expected = "https://my-gateway.apps.cluster.example.com/ray/test-ns/test-cluster"
+    assert result == expected, f"Expected {expected}, got {result}"
+
+    # GatewayConfig with domain but no subdomain — defaults to "data-science-gateway"
+    mock_gatewayconfig_no_sub = {
+        "spec": {
+            "domain": "apps.cluster.example.com",
+        }
+    }
+
+    def mock_get_cluster_no_sub(group, version, plural, name):
+        if plural == "gatewayconfigs":
+            return mock_gatewayconfig_no_sub
+        raise Exception(f"Unexpected plural: {plural}")
+
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.get_cluster_custom_object",
+        side_effect=mock_get_cluster_no_sub,
+    )
+
+    result = _get_dashboard_url_from_httproute("test-cluster", "test-ns")
+    expected = (
+        "https://data-science-gateway.apps.cluster.example.com/ray/test-ns/test-cluster"
+    )
+    assert result == expected, f"Expected {expected}, got {result}"
+
+    # GatewayConfig with empty subdomain string — defaults to "data-science-gateway"
+    mock_gatewayconfig_empty_sub = {
+        "spec": {
+            "subdomain": "  ",
+            "domain": "apps.cluster.example.com",
+        }
+    }
+
+    def mock_get_cluster_empty_sub(group, version, plural, name):
+        if plural == "gatewayconfigs":
+            return mock_gatewayconfig_empty_sub
+        raise Exception(f"Unexpected plural: {plural}")
+
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.get_cluster_custom_object",
+        side_effect=mock_get_cluster_empty_sub,
+    )
+
+    result = _get_dashboard_url_from_httproute("test-cluster", "test-ns")
+    expected = (
+        "https://data-science-gateway.apps.cluster.example.com/ray/test-ns/test-cluster"
+    )
+    assert result == expected, f"Expected {expected}, got {result}"
+
+    # GatewayConfig with no domain — should fall through to status.addresses
+    mock_gatewayconfig_no_domain = {
+        "spec": {
+            "subdomain": "my-gateway",
+        }
+    }
+
+    def mock_get_cluster_no_domain(group, version, plural, name):
+        if plural == "gatewayconfigs":
+            return mock_gatewayconfig_no_domain
+        raise Exception(f"Unexpected plural: {plural}")
+
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.get_cluster_custom_object",
+        side_effect=mock_get_cluster_no_domain,
+    )
+
+    result = _get_dashboard_url_from_httproute("test-cluster", "test-ns")
+    assert result is None, "Should return None when GatewayConfig has no domain"
+
+    # GatewayConfig lookup fails — should fall through to status.addresses
+    def mock_get_cluster_exception(group, version, plural, name):
+        if plural == "gatewayconfigs":
+            raise Exception("GatewayConfig not found")
+        raise Exception(f"Unexpected plural: {plural}")
+
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.get_cluster_custom_object",
+        side_effect=mock_get_cluster_exception,
+    )
+
+    result = _get_dashboard_url_from_httproute("test-cluster", "test-ns")
+    assert result is None, "Should return None when GatewayConfig lookup fails"
 
 
 def test_cluster_dashboard_uri_httproute_first(mocker):
@@ -1581,9 +1740,9 @@ def test_cluster_dashboard_uri_httproute_first(mocker):
     cluster = create_cluster(mocker)
     result = cluster.cluster_dashboard_uri()
     expected = "https://ray-dashboard-unit-test-cluster-ns.apps.cluster.awsroute.org"
-    assert (
-        result == expected
-    ), f"Should fall back to OpenShift Route. Expected {expected}, got {result}"
+    assert result == expected, (
+        f"Should fall back to OpenShift Route. Expected {expected}, got {result}"
+    )
 
 
 def test_map_to_ray_cluster_httproute(mocker):
@@ -1609,9 +1768,9 @@ def test_map_to_ray_cluster_httproute(mocker):
     rc = get_ray_obj("ray.io", "v1", "ns", "rayclusters")["items"][0]
     result = _map_to_ray_cluster(rc)
 
-    assert (
-        result.dashboard == httproute_url
-    ), f"Expected HTTPRoute URL, got {result.dashboard}"
+    assert result.dashboard == httproute_url, (
+        f"Expected HTTPRoute URL, got {result.dashboard}"
+    )
 
     # Test with HTTPRoute not available - should fall back to OpenShift Route
     mocker.patch(
@@ -1638,9 +1797,9 @@ def test_map_to_ray_cluster_httproute(mocker):
     result = _map_to_ray_cluster(rc)
 
     expected_fallback = "http://ray-dashboard-test-cluster-a.apps.example.com"
-    assert (
-        result.dashboard == expected_fallback
-    ), f"Expected OpenShift Route fallback URL, got {result.dashboard}"
+    assert result.dashboard == expected_fallback, (
+        f"Expected OpenShift Route fallback URL, got {result.dashboard}"
+    )
 
 
 def test_check_tls_certs_exist_warning(mocker, capsys, tmp_path):
