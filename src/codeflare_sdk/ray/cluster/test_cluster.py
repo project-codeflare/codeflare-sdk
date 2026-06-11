@@ -1202,6 +1202,10 @@ def test_get_dashboard_url_from_httproute(mocker):
         "kubernetes.client.CustomObjectsApi.list_namespaced_custom_object",
         side_effect=mock_list_empty_routes,
     )
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.get_cluster_custom_object",
+        side_effect=Exception("No GatewayConfig"),
+    )
 
     result = _get_dashboard_url_from_httproute("test-cluster", "test-ns")
     assert result is None, (
