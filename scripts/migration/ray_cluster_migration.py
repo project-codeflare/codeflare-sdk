@@ -31,11 +31,8 @@ REQUIREMENTS:
 
 USAGE EXAMPLES:
 
-    # Step 1: Backup - All clusters (you'll be prompted for backup directory)
+    # Step 1: Backup - All clusters
     python ray_cluster_migration.py pre-upgrade
-
-    # Step 1: Backup - With specific directory
-    python ray_cluster_migration.py pre-upgrade ./my-backup-dir
 
     # Step 1: Backup - Specific namespace
     python ray_cluster_migration.py pre-upgrade --namespace my-ns
@@ -43,7 +40,9 @@ USAGE EXAMPLES:
     # Step 1: Backup - Single cluster
     python ray_cluster_migration.py pre-upgrade --cluster my-cluster --namespace my-ns
 
-    # ... Perform RHOAI upgrade ...
+    Backups are saved to $RHOAI_UPGRADE_BACKUP_DIR/ray/ (default: /tmp/rhoai-upgrade-backup/ray/)
+
+     # ... Perform RHOAI upgrade ...
 
     # Step 2: Migrate - Start with the same single cluster
     python ray_cluster_migration.py post-upgrade --cluster my-cluster --namespace my-ns --dry-run
@@ -84,44 +83,78 @@ from kubernetes import client, config
 from kubernetes.dynamic import DynamicClient
 from kubernetes.client.rest import ApiException
 
+# Same env as codeflare-sdk tests/upgrade/migration_support.py (default: suppress).
+_SUPPRESS_TLS_WARNINGS_ENV = "RAY_CLUSTER_MIGRATION_SUPPRESS_TLS_WARNINGS"
+
+
+def _configure_tls_warning_suppression() -> None:
+    value = os.environ.get(_SUPPRESS_TLS_WARNINGS_ENV, "1").strip().lower()
+    if value in ("0", "false", "no", "off"):
+        return
+    try:
+        import urllib3
+
+        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+    except Exception:
+        pass
+
+
+_configure_tls_warning_suppression()
+
+RHOAI_UPGRADE_BACKUP_DIR = os.environ.get(
+    "RHOAI_UPGRADE_BACKUP_DIR", "/tmp/rhoai-upgrade-backup"
+)
+
 # Field manager identifier for server-side apply
 CF_SDK_FIELD_MANAGER = "codeflare-sdk"
 
-# Annotation that marks a cluster as migrated
+# Annotation that marks a cluster as migrated (post-upgrade)
 SECURE_NETWORK_ANNOTATION = "odh.ray.io/secure-trusted-network"
+
+# Annotation that marks a cluster as having had pre-upgrade backup taken
+PRE_UPGRADE_BACKUP_ANNOTATION = "odh.ray.io/pre-upgrade-backup-taken"
 
 # Gateway API constants
 GATEWAY_API_GROUP = "gateway.networking.k8s.io"
 GATEWAY_API_VERSION = "v1"
 
 
+def _confirm(prompt: str, auto_confirm: bool = False) -> bool:
+    """
+    Prompt for yes/no confirmation.
+
+    Returns:
+        True if the user confirmed (or auto_confirm), False otherwise.
+    """
+    if auto_confirm:
+        return True
+    response = input(prompt).strip().lower()
+    return response in ["yes", "y"]
+
+
 def config_check():
     """
-    Check and load the Kubernetes config from the default location.
+    Check and load the Kubernetes config.
 
-    This function checks if a Kubernetes config file exists at the default path
-    (~/.kube/config). If none is provided, it tries to load in-cluster config.
+    Resolution order:
+    1. KUBECONFIG environment variable (may contain multiple paths)
+    2. ~/.kube/config
+    3. In-cluster config (when running inside a Kubernetes pod)
 
     Raises:
         RuntimeError: If no valid credentials or config file is found.
     """
-    home_directory = os.path.expanduser("~")
-
-    # Try to load kube config if not already loaded
     try:
-        # First try to load from default location
-        if os.path.isfile(f"{home_directory}/.kube/config"):
-            config.load_kube_config()
-        # Then try in-cluster config
-        elif "KUBERNETES_PORT" in os.environ:
+        config.load_kube_config()
+    except config.ConfigException:
+        try:
             config.load_incluster_config()
-        else:
+        except config.ConfigException:
             raise RuntimeError(
                 "No Kubernetes configuration found. Please ensure you have a valid "
-                "~/.kube/config file or are running in a Kubernetes cluster."
+                "kubeconfig (via KUBECONFIG env var or ~/.kube/config) "
+                "or are running in a Kubernetes cluster."
             )
-    except config.ConfigException as e:
-        raise RuntimeError(f"Failed to load Kubernetes configuration: {e}")
 
 
 def get_api_client() -> client.ApiClient:
@@ -264,6 +297,228 @@ def _suspend_cluster(
         name=name,
         body=patch_body,
     )
+
+
+def _remove_pre_upgrade_backup_annotation(
+    api_instance, name: str, namespace: str
+) -> None:
+    """
+    Remove the pre-upgrade backup annotation from a RayCluster after successful migration.
+    No-op if the annotation is not present. Logs a warning on failure (non-fatal).
+    """
+    try:
+        rc = api_instance.get_namespaced_custom_object(
+            group="ray.io",
+            version="v1",
+            namespace=namespace,
+            plural="rayclusters",
+            name=name,
+        )
+        annotations = rc.get("metadata", {}).get("annotations") or {}
+        if PRE_UPGRADE_BACKUP_ANNOTATION not in annotations:
+            return
+        api_instance.patch_namespaced_custom_object(
+            group="ray.io",
+            version="v1",
+            namespace=namespace,
+            plural="rayclusters",
+            name=name,
+            body={"metadata": {"annotations": {PRE_UPGRADE_BACKUP_ANNOTATION: None}}},
+        )
+    except Exception as e:
+        print(
+            f"  Warning: could not remove pre-upgrade backup annotation from {name}: {e}"
+        )
+
+
+def _set_enable_ingress_false(api_instance, name: str, namespace: str) -> None:
+    """
+    Set spec.headGroupSpec.enableIngress to false on a RayCluster.
+    If the field is missing or not already false, it is added or updated to false.
+    Used during pre-upgrade so that when new KubeRay is deployed it picks up the change
+    immediately, without waiting for the user to run post-upgrade.
+    No-op if enableIngress is already false. Logs a warning on failure (non-fatal).
+    """
+    try:
+        rc = api_instance.get_namespaced_custom_object(
+            group="ray.io",
+            version="v1",
+            namespace=namespace,
+            plural="rayclusters",
+            name=name,
+        )
+        head_spec = (rc.get("spec") or {}).get("headGroupSpec") or {}
+        if head_spec.get("enableIngress") is False:
+            return
+        was_true = head_spec.get("enableIngress") is True
+        if was_true:
+            print(
+                f"  [{name}] enableIngress was true; setting to false. "
+                "Post RHOAI migration the existing route will be removed in favour of Gateway API access."
+            )
+        api_instance.patch_namespaced_custom_object(
+            group="ray.io",
+            version="v1",
+            namespace=namespace,
+            plural="rayclusters",
+            name=name,
+            body={"spec": {"headGroupSpec": {"enableIngress": False}}},
+        )
+    except Exception as e:
+        print(f"  Warning: could not set enableIngress to false for {name}: {e}")
+
+
+def _is_route_owned_by_ray_cluster(route: dict) -> bool:
+    """
+    Return True if the Route has an ownerReference to a RayCluster (ray.io/v1).
+    """
+    refs = route.get("metadata", {}).get("ownerReferences") or []
+    for ref in refs:
+        if ref.get("kind") == "RayCluster" and (
+            ref.get("apiVersion") == "ray.io/v1"
+            or (ref.get("apiVersion") or "").endswith("ray.io/v1")
+        ):
+            return True
+    return False
+
+
+def _collect_ray_owned_routes(
+    api_instance, namespaces: List[str]
+) -> List[Tuple[str, str]]:
+    """
+    List OpenShift Routes in the given namespaces that have an ownerReference
+    to a RayCluster (ray.io/v1).
+
+    Returns:
+        [(namespace, route_name), ...]
+    """
+    owned = []
+    for ns in namespaces:
+        if not ns:
+            continue
+        try:
+            resp = api_instance.list_namespaced_custom_object(
+                group="route.openshift.io",
+                version="v1",
+                namespace=ns,
+                plural="routes",
+            )
+        except ApiException as e:
+            if e.status == 404 or "Unknown" in (e.reason or ""):
+                continue
+            if e.status == 403:
+                continue
+            raise
+        for route in resp.get("items", []):
+            if not _is_route_owned_by_ray_cluster(route):
+                continue
+            name = route.get("metadata", {}).get("name")
+            if name:
+                owned.append((ns, name))
+    return owned
+
+
+def _wait_for_no_ray_owned_routes(
+    api_instance,
+    namespaces: List[str],
+    timeout_seconds: int = 120,
+    poll_interval: int = 3,
+) -> bool:
+    """
+    Poll until no Ray-owned OpenShift Routes remain in the given namespaces.
+    Re-deletes routes if the operator recreates them while enableIngress settles.
+
+    Returns:
+        True if no Ray-owned routes remain, False on timeout.
+    """
+    elapsed = 0
+    logged_waiting = False
+
+    while elapsed < timeout_seconds:
+        remaining = _collect_ray_owned_routes(api_instance, namespaces)
+        if not remaining:
+            if logged_waiting:
+                print("  Ray-owned Routes removed.")
+            return True
+
+        if not logged_waiting:
+            print("Pre-upgrade step: Waiting for Ray-owned Routes to be removed...")
+            logged_waiting = True
+
+        for ns, name in remaining:
+            try:
+                api_instance.delete_namespaced_custom_object(
+                    group="route.openshift.io",
+                    version="v1",
+                    namespace=ns,
+                    plural="routes",
+                    name=name,
+                )
+            except ApiException as e:
+                if e.status != 404:
+                    print(f"  Warning: could not delete Route {ns}/{name}: {e.reason}")
+
+        time.sleep(poll_interval)
+        elapsed += poll_interval
+
+    remaining = _collect_ray_owned_routes(api_instance, namespaces)
+    print(
+        f"  Warning: timed out after {timeout_seconds}s waiting for Ray-owned "
+        "Routes to be removed:"
+    )
+    for ns, name in remaining:
+        print(f"    - {ns}/{name}")
+    return False
+
+
+def _delete_routes_owned_by_ray_clusters(
+    api_instance, namespaces: List[str]
+) -> Tuple[int, List[Tuple[str, str]]]:
+    """
+    In each given namespace, list OpenShift Routes and delete any that have an
+    ownerReference to a RayCluster (ray.io/v1). Used during pre-upgrade so the
+    old enableIngress-created Route is removed before the RHOAI upgrade.
+
+    Returns:
+        (deleted_count, [(namespace, route_name), ...])
+    """
+    deleted = []
+    for ns in namespaces:
+        if not ns:
+            continue
+        try:
+            resp = api_instance.list_namespaced_custom_object(
+                group="route.openshift.io",
+                version="v1",
+                namespace=ns,
+                plural="routes",
+            )
+        except ApiException as e:
+            if e.status == 404 or "Unknown" in (e.reason or ""):
+                continue
+            if e.status == 403:
+                continue
+            raise
+        items = resp.get("items", [])
+        for route in items:
+            if not _is_route_owned_by_ray_cluster(route):
+                continue
+            name = route.get("metadata", {}).get("name")
+            if not name:
+                continue
+            try:
+                api_instance.delete_namespaced_custom_object(
+                    group="route.openshift.io",
+                    version="v1",
+                    namespace=ns,
+                    plural="routes",
+                    name=name,
+                )
+                deleted.append((ns, name))
+            except ApiException as e:
+                if e.status != 404:
+                    print(f"  Warning: could not delete Route {ns}/{name}: {e.reason}")
+    return len(deleted), deleted
 
 
 def _wait_for_cluster_suspended(
@@ -886,65 +1141,100 @@ def _check_cert_manager_installed(api_client) -> Tuple[bool, str]:
     return False, "cert-manager not detected"
 
 
-def _check_codeflare_operator_status(api_client) -> Tuple[bool, str]:
+def _set_dsc_codeflare_removed(api_client) -> Tuple[bool, str]:
     """
-    Check if the codeflare-operator is set to Removed or not present in the DataScienceCluster.
+    Set the codeflare component to Removed in the DataScienceCluster (if present and not already Removed).
+    Performed as part of pre-upgrade so the user does not need to do this step manually.
 
     Returns:
-        Tuple[bool, str]: (is_removed_or_not_present, message)
+        Tuple[bool, str]: (success, message)
     """
     try:
         custom_api = client.CustomObjectsApi(api_client)
-
-        # List DataScienceClusters
         dscs = custom_api.list_cluster_custom_object(
             group="datasciencecluster.opendatahub.io",
             version="v1",
             plural="datascienceclusters",
         )
-
         if not dscs.get("items"):
-            return True, "No DataScienceCluster found (OK to proceed)"
+            return True, "No DataScienceCluster found (nothing to update)."
 
-        # Check the first DSC (typically there's only one)
         dsc = dscs["items"][0]
         dsc_name = dsc.get("metadata", {}).get("name", "unknown")
-
-        # Check if codeflare component exists in the DSC
+        dsc_namespace = (dsc.get("metadata") or {}).get("namespace", "")
         components = dsc.get("spec", {}).get("components", {})
 
         if "codeflare" not in components:
-            # codeflare not present in DSC - this is OK (common after RHOAI 3.x upgrade)
-            return True, f"codeflare not present in DSC '{dsc_name}' (OK to proceed)"
-
-        # Get codeflare managementState from spec
-        codeflare_state = components.get("codeflare", {}).get("managementState", "")
-
-        if codeflare_state.lower() == "removed":
-            return True, f"codeflare is Removed in DSC '{dsc_name}'"
-        elif codeflare_state.lower() == "unmanaged":
-            return True, f"codeflare is Unmanaged in DSC '{dsc_name}'"
-        elif codeflare_state.lower() == "managed":
-            return (
-                False,
-                f"codeflare is Managed in DSC '{dsc_name}' (should be Removed)",
-            )
-        elif not codeflare_state:
-            # codeflare entry exists but managementState not set - treat as OK
             return (
                 True,
-                f"codeflare present without managementState in DSC '{dsc_name}' (OK to proceed)",
+                f"Codeflare not present in DataScienceCluster '{dsc_name}' (nothing to update).",
+            )
+
+        codeflare_state = (components.get("codeflare") or {}).get("managementState", "")
+        if (codeflare_state or "").lower() == "removed":
+            return (
+                True,
+                f"Codeflare is already Removed in DataScienceCluster '{dsc_name}'.",
+            )
+
+        patch = {"spec": {"components": {"codeflare": {"managementState": "Removed"}}}}
+        if dsc_namespace:
+            custom_api.patch_namespaced_custom_object(
+                group="datasciencecluster.opendatahub.io",
+                version="v1",
+                namespace=dsc_namespace,
+                plural="datascienceclusters",
+                name=dsc_name,
+                body=patch,
             )
         else:
-            return False, f"codeflare is '{codeflare_state}' in DSC '{dsc_name}'"
+            custom_api.patch_cluster_custom_object(
+                group="datasciencecluster.opendatahub.io",
+                version="v1",
+                plural="datascienceclusters",
+                name=dsc_name,
+                body=patch,
+            )
+        return True, f"Set codeflare to Removed in DataScienceCluster '{dsc_name}'."
+    except ApiException as e:
+        return False, f"Failed to set codeflare to Removed: {e.reason}"
+    except Exception as e:
+        return False, f"Failed to set codeflare to Removed: {str(e)}"
 
+
+def _check_rayclusters_present(api_client) -> Tuple[bool, str]:
+    """
+    Report how many RayClusters exist on the cluster (cluster-wide).
+    When none are found, the message explicitly tells the user they do not need
+    to run any Ray migration steps.
+
+    Returns:
+        Tuple[bool, str]: (always True, informational message)
+    """
+    try:
+        custom_api = client.CustomObjectsApi(api_client)
+        result = custom_api.list_cluster_custom_object(
+            group="ray.io",
+            version="v1",
+            plural="rayclusters",
+        )
+        items = result.get("items", [])
+        count = len(items)
+        if count == 0:
+            return (
+                True,
+                "No RayClusters on cluster — no Ray migration required for this upgrade.",
+            )
+        return True, f"{count} RayCluster(s) on cluster."
     except ApiException as e:
         if e.status == 404:
-            return True, "DataScienceCluster CRD not found (OK to proceed)"
-        else:
-            return True, f"Could not check DataScienceCluster (skipping): {e.reason}"
+            return (
+                True,
+                "No RayClusters on cluster (RayCluster CRD not installed) — no Ray migration required.",
+            )
+        return True, f"Could not list RayClusters (skipping): {e.reason}"
     except Exception as e:
-        return True, f"Could not check DataScienceCluster (skipping): {str(e)}"
+        return True, f"Could not list RayClusters (skipping): {str(e)}"
 
 
 def _check_permission(
@@ -1007,9 +1297,25 @@ def _run_pre_upgrade_checks(api_client) -> List[Dict[str, any]]:
     # Permission checks for pre-upgrade
     permission_checks = [
         ("list", "namespaces", "", "List namespaces"),
+        ("get", "namespaces", "", "Get namespaces"),
         ("list", "rayclusters", "ray.io", "List RayClusters"),
         ("get", "rayclusters", "ray.io", "Get RayClusters"),
-        ("update", "rayclusters", "ray.io", "Update RayClusters"),
+        ("patch", "rayclusters", "ray.io", "Patch RayClusters"),
+        ("list", "routes", "route.openshift.io", "List Routes"),
+        ("delete", "routes", "route.openshift.io", "Delete Routes"),
+        (
+            "list",
+            "datascienceclusters",
+            "datasciencecluster.opendatahub.io",
+            "List DataScienceClusters",
+        ),
+        (
+            "patch",
+            "datascienceclusters",
+            "datasciencecluster.opendatahub.io",
+            "Patch DataScienceClusters",
+        ),
+        ("get", "customresourcedefinitions", "apiextensions.k8s.io", "Get CRDs"),
     ]
 
     all_permissions_ok = True
@@ -1026,7 +1332,7 @@ def _run_pre_upgrade_checks(api_client) -> List[Dict[str, any]]:
             "name": "Permissions",
             "passed": all_permissions_ok,
             "message": (
-                "All required permissions granted"
+                "All required permissions to perform the ray upgrade are available to this user."
                 if all_permissions_ok
                 else "Missing permissions"
             ),
@@ -1054,17 +1360,15 @@ def _run_pre_upgrade_checks(api_client) -> List[Dict[str, any]]:
         }
     )
 
-    # Check codeflare-operator status in DSC
-    codeflare_ok, codeflare_msg = _check_codeflare_operator_status(api_client)
+    # Informational last: how many RayClusters exist (and that none = no migration needed)
+    rayclusters_ok, rayclusters_msg = _check_rayclusters_present(api_client)
     checks.append(
         {
-            "name": "codeflare-operator",
-            "passed": codeflare_ok,
-            "message": codeflare_msg,
-            "required": True,
-            "help": "Set codeflare to Removed in your DataScienceCluster before upgrading: "
-            "oc patch datasciencecluster <name> --type merge -p "
-            '\'{"spec":{"components":{"codeflare":{"managementState":"Removed"}}}}\'',
+            "name": "RayClusters",
+            "passed": rayclusters_ok,
+            "message": rayclusters_msg,
+            "required": False,
+            "help": "",
         }
     )
 
@@ -1214,10 +1518,7 @@ def _post_upgrade_from_backup(
         print("  - All running pods, jobs, and workloads will be terminated.")
         print("  - Existing job state and logs will be lost.")
         print("  - The cluster will be recreated from the backup configuration.")
-        response = (
-            input("\nProceed with restore from backup? (yes/no): ").strip().lower()
-        )
-        if response not in ["yes", "y"]:
+        if not _confirm("\nProceed with restore from backup? (yes/no): ", auto_confirm):
             print("Restore cancelled.")
             return {"migrated": 0, "skipped": 0, "failed": 0}
         print()
@@ -1311,28 +1612,52 @@ def _post_upgrade_from_backup(
                 body=doc,
             )
 
-            # Wait for cluster to become ready
-            print(f"  [{name}] Waiting for cluster to become ready...")
-            cluster_ready = _wait_for_cluster_ready(
-                api_instance, core_api, name, ns, timeout_seconds=300
-            )
+            # Check if cluster is suspended - suspended clusters don't need readiness check
+            is_suspended = doc.get("spec", {}).get("suspend", False)
 
-            if cluster_ready:
-                # Cluster is ready, get the route URL
-                route_url = _get_cluster_route(api_instance, name, ns)
+            if is_suspended:
+                # Suspended clusters don't have pods, so skip pod readiness check
+                print(f"  [OK] Restored from backup: {name} (ns: {ns}) [SUSPENDED]")
+                print(
+                    "       Note: Suspended clusters may become active after restore."
+                )
+                print("       Verify cluster state and re-suspend if needed.")
+                if not dry_run:
+                    _remove_pre_upgrade_backup_annotation(api_instance, name, ns)
+                migrated_count += 1
+                successfully_migrated.append({"name": name, "namespace": ns})
+            else:
+                # Wait for route to be available (indicates operator has reconciled)
+                print(f"  [{name}] Waiting for route to become available...")
+                route_url = None
+                route_timeout = 90  # seconds
+                route_poll_interval = 5
+                route_elapsed = 0
+
+                while route_elapsed < route_timeout:
+                    route_url = _get_cluster_route(api_instance, name, ns)
+                    if route_url:
+                        break
+                    time.sleep(route_poll_interval)
+                    route_elapsed += route_poll_interval
+
                 if route_url:
                     print(f"  [OK] Restored from backup: {name} (ns: {ns})")
                     print(f"       Dashboard: {route_url}")
+                    print(
+                        "       Pods will become ready when quota/resources are available."
+                    )
                 else:
                     print(f"  [OK] Restored from backup: {name} (ns: {ns})")
                     print("       Dashboard: Route not yet available (check later)")
-            else:
-                print(
-                    f"  [OK] Restored from backup: {name} (ns: {ns}) - cluster starting up"
-                )
+                    print(
+                        "       Pods will become ready when quota/resources are available."
+                    )
 
-            migrated_count += 1
-            successfully_migrated.append({"name": name, "namespace": ns})
+                if not dry_run:
+                    _remove_pre_upgrade_backup_annotation(api_instance, name, ns)
+                migrated_count += 1
+                successfully_migrated.append({"name": name, "namespace": ns})
 
         except Exception as e:
             print(f"  [FAIL] {name} (ns: {ns}): {e}")
@@ -1347,12 +1672,13 @@ def _post_upgrade_from_backup(
         print("Restore from Backup Summary:")
         print(f"  Restored: {migrated_count}")
     print(f"  Failed: {failed_count}")
+    if failed_count:
+        print("  Please verify failed clusters and revisit as needed.")
 
     return {"restored": migrated_count, "skipped": 0, "failed": failed_count}
 
 
 def pre_upgrade(
-    output_dir: Optional[str] = None,
     cluster_name: Optional[str] = None,
     namespace: Optional[str] = None,
 ) -> List[str]:
@@ -1365,34 +1691,37 @@ def pre_upgrade(
 
     It does NOT delete any clusters - it only creates backup files.
 
+    Backup files are saved to $RHOAI_UPGRADE_BACKUP_DIR/ray/ (default: /tmp/rhoai-upgrade-backup/ray/)
+    with subdirectories for rhoai-2.x and rhoai-3.x compatible configurations.
+
     This operation is idempotent - running it multiple times will simply
     overwrite the backup files.
 
     Args:
-        output_dir: Directory to save backup YAML files (prompts if not provided)
         cluster_name: Specific cluster to backup (requires namespace)
         namespace: Specific namespace to backup (optional)
 
     Returns:
         List[str]: List of backup file paths created
     """
-    # Prompt for output directory if not provided
-    if not output_dir:
-        default_dir = "./raycluster-backups"
-        user_input = input(f"Enter backup directory [{default_dir}]: ").strip()
-        output_dir = user_input if user_input else default_dir
-        print()
+    print("Starting Ray cluster pre-upgrade...")
+    print()
 
+    output_dir = os.path.join(RHOAI_UPGRADE_BACKUP_DIR, "ray")
+
+    print("Connecting to Kubernetes cluster...")
     try:
         config_check()
     except Exception as e:
         raise RuntimeError(f"Failed to connect to Kubernetes cluster: {e}")
+    print("Connected.")
+    print()
 
     api_client = get_api_client()
     api_instance = client.CustomObjectsApi(api_client)
     core_api = client.CoreV1Api(api_client)
 
-    # Run pre-flight checks
+    # Run pre-flight checks before making any cluster modifications
     print("Running pre-upgrade checks...")
     print("-" * 60)
 
@@ -1420,10 +1749,10 @@ def pre_upgrade(
 
     if has_required_failures:
         print("\nPre-upgrade checks failed. Please resolve the issues above before")
-        print("proceeding with the RHOAI upgrade.")
+        print("proceeding with the ray pre-upgrade steps.")
         print()
         print(
-            "WARNING: Proceeding with the RHOAI upgrade without resolving these issues"
+            "CRITICAL: Proceeding with the RHOAI upgrade without resolving these issues"
         )
         print(
             "may result in your Ray infrastructure becoming unavailable or unrecoverable."
@@ -1434,7 +1763,61 @@ def pre_upgrade(
     else:
         print("Pre-upgrade checks completed with warnings.\n")
 
-    # Create output directory if it doesn't exist
+    # Set codeflare to Removed in DataScienceCluster (only after all required checks pass)
+    print("Pre-upgrade step: Setting codeflare to Removed in DataScienceCluster...")
+    codeflare_ok, codeflare_msg = _set_dsc_codeflare_removed(api_client)
+    print(f"  {codeflare_msg}")
+    if not codeflare_ok:
+        print(
+            "  WARNING: Could not update DataScienceCluster. You may need to set codeflare to Removed manually before the RHOAI upgrade."
+        )
+    print()
+
+    # Get clusters based on scope (before creating output directory)
+    clusters = _get_clusters(api_instance, core_api, cluster_name, namespace)
+
+    if not clusters:
+        print("No RayClusters were found in the specified scope.")
+        print(
+            "You do not need to run any post-upgrade Ray migration steps for this RHOAI upgrade."
+        )
+        return []
+
+    namespaces_with_ray = list(
+        {rc.get("metadata", {}).get("namespace") for rc in clusters}
+    )
+
+    # Disable enableIngress before deleting Routes so KubeRay does not recreate them
+    # during the backup phase on a slow/fresh cluster.
+    print("Pre-upgrade step: Setting enableIngress to false on RayClusters...")
+    for rc in clusters:
+        name = rc.get("metadata", {}).get("name", "unknown")
+        ns = rc.get("metadata", {}).get("namespace", "unknown")
+        _set_enable_ingress_false(api_instance, name, ns)
+    print()
+
+    # Remove OpenShift Routes owned by RayClusters (from enableIngress);
+    # post-upgrade uses Gateway API instead.
+    try:
+        n_removed, removed_routes = _delete_routes_owned_by_ray_clusters(
+            api_instance, namespaces_with_ray
+        )
+        if n_removed:
+            print("Pre-upgrade step: Removed OpenShift Route(s) owned by RayClusters:")
+            for ns, rname in removed_routes:
+                print(f"  - {ns}/{rname}")
+            print()
+    except Exception as e:
+        print(f"  Warning: could not remove Routes owned by RayClusters: {e}")
+        print()
+
+    _wait_for_no_ray_owned_routes(api_instance, namespaces_with_ray)
+    print()
+
+    print(f"Backup files will be saved to: {output_dir}")
+    print()
+
+    # Create output directory if it doesn't exist (only when we have clusters to backup)
     if not os.path.exists(output_dir):
         try:
             os.makedirs(output_dir)
@@ -1445,23 +1828,6 @@ def pre_upgrade(
                 "Please check that you have write permissions to the parent directory."
             )
             return []
-
-    # Get clusters based on scope
-    clusters = _get_clusters(api_instance, core_api, cluster_name, namespace)
-
-    if not clusters:
-        print("No RayClusters found to backup")
-        return []
-
-    # Describe the scope
-    if cluster_name:
-        scope_msg = f"cluster '{cluster_name}' in namespace '{namespace}'"
-    elif namespace:
-        scope_msg = f"all clusters in namespace '{namespace}'"
-    else:
-        scope_msg = "all clusters across all namespaces"
-
-    print(f"\nBacking up {len(clusters)} RayCluster(s) ({scope_msg})\n")
 
     # Create subdirectories for RHOAI 2.x and 3.x compatible backups
     rhoai_2x_dir = os.path.join(output_dir, "rhoai-2.x")
@@ -1506,7 +1872,28 @@ def pre_upgrade(
                 yaml.dump(rc_3x, outfile, default_flow_style=False)
 
             saved_files.append(rhoai_3x_filename)
-            print(f"  Backed up: {name} (namespace: {ns})")
+
+            # Mark RayCluster as having had pre-upgrade backup taken
+            try:
+                timestamp = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+                annotations = dict(rc.get("metadata", {}).get("annotations") or {})
+                annotations[PRE_UPGRADE_BACKUP_ANNOTATION] = timestamp
+                api_instance.patch_namespaced_custom_object(
+                    group="ray.io",
+                    version="v1",
+                    namespace=ns,
+                    plural="rayclusters",
+                    name=name,
+                    body={"metadata": {"annotations": annotations}},
+                )
+            except Exception as patch_err:
+                print(
+                    f"  Warning: could not add pre-upgrade annotation to {name}: {patch_err}"
+                )
+
+            # Set enableIngress to false so new KubeRay picks it up immediately after upgrade,
+            # without relying on the user running post-upgrade right away.
+            _set_enable_ingress_false(api_instance, name, ns)
 
         except Exception as e:
             name = rc.get("metadata", {}).get("name", "unknown")
@@ -1514,23 +1901,12 @@ def pre_upgrade(
             continue
 
     print(f"\nBackup complete: {len(saved_files)} RayCluster(s) saved to {output_dir}")
-    print("\nBackup directory structure:")
-    print(f"  {output_dir}/")
-    print(
-        "    rhoai-2.x/  - RHOAI 2.x compatible (use if you did not proceed with the 3.x upgrade)"
-    )
-    print(
-        "    rhoai-3.x/  - RHOAI 3.x compatible (use with post-upgrade --from-backup)"
-    )
-    print()
-    print("WARNING: The 'rhoai-2.x/' backups contain CodeFlare-operator components.")
+    print("\nINFO: The 'rhoai-2.x/' backups contain CodeFlare-operator components.")
     print(
         "         Use 'rhoai-2.x/' ONLY if attempting to restore RayClusters but did not proceed with the RHOAI 3.x upgrade."
     )
     print("         Use 'rhoai-3.x/' for proceeding with the RHOAI 3.x upgrade.")
-    print("\nNext steps:")
-    print("  1. Perform the RHOAI upgrade")
-    print("  2. Run 'post-upgrade' to migrate the RayClusters")
+    print("\nRay Pre Upgrade Steps Completed.")
     return saved_files
 
 
@@ -1657,6 +2033,9 @@ def post_upgrade(
                 print(
                     "WARNING: You are about to migrate ALL clusters across ALL namespaces"
                 )
+            print(
+                "Ensure the upgraded RHOAI dashboard is fully rolled out and available."
+            )
             print("=" * 60)
 
         print(f"\nThe following {len(to_migrate)} cluster(s) will be migrated:")
@@ -1667,15 +2046,18 @@ def post_upgrade(
             "\nIMPORTANT: Migration will cause temporary downtime for each RayCluster."
         )
         print(
-            "  - Pods will be restarted as the KubeRay operator recreates them with the new configuration."
+            "  - Pods will be restarted as the KubeRay operator recreates them with the updated configuration."
         )
         print("  - Existing job state and logs will be lost.")
         print(
             "  - Currently running workloads/jobs will be interrupted and progress lost."
         )
+        print(
+            "  - Kueue-managed suspended RayClusters may become active after migration, potentially"
+        )
+        print("    affecting quota. Re-suspend workloads manually if needed.")
 
-        response = input("\nProceed with migration? (yes/no): ").strip().lower()
-        if response not in ["yes", "y"]:
+        if not _confirm("\nProceed with migration? (yes/no): ", auto_confirm):
             print("Migration cancelled.")
             return {"migrated": 0, "skipped": len(already_migrated), "failed": 0}
         print()
@@ -1768,27 +2150,53 @@ def post_upgrade(
             )
 
             # Step 4: Wait for cluster to become ready (KubeRay handles pod recreation)
-            print(f"  [{name}] Waiting for cluster to become ready...")
-            cluster_ready = _wait_for_cluster_ready(
-                api_instance, core_api, name, ns, timeout_seconds=300
-            )
+            # Check if cluster is suspended - suspended clusters don't need readiness check
+            is_suspended = rc.get("spec", {}).get("suspend", False)
 
-            if cluster_ready:
-                # Cluster is ready, get the route URL
-                route_url = _get_cluster_route(api_instance, name, ns)
+            if is_suspended:
+                # Suspended clusters don't have pods, so skip pod readiness check
+                # Route will be created by the operator when the cluster is unsuspended
+                print(f"  [OK] Migrated: {name} (ns: {ns}) [SUSPENDED]")
+                print(
+                    "       Note: Suspended clusters may become active after migration."
+                )
+                print("       Verify cluster state and re-suspend if needed.")
+                if not dry_run:
+                    _remove_pre_upgrade_backup_annotation(api_instance, name, ns)
+                migrated_count += 1
+                successfully_migrated.append({"name": name, "namespace": ns})
+            else:
+                # Wait for route to be available (indicates operator has reconciled)
+                print(f"  [{name}] Waiting for route to become available...")
+                route_url = None
+                route_timeout = 90  # seconds
+                route_poll_interval = 5
+                route_elapsed = 0
+
+                while route_elapsed < route_timeout:
+                    route_url = _get_cluster_route(api_instance, name, ns)
+                    if route_url:
+                        break
+                    time.sleep(route_poll_interval)
+                    route_elapsed += route_poll_interval
+
                 if route_url:
                     print(f"  [OK] Migrated: {name} (ns: {ns})")
                     print(f"       Dashboard: {route_url}")
+                    print(
+                        "       Pods will become ready when quota/resources are available."
+                    )
                 else:
                     print(f"  [OK] Migrated: {name} (ns: {ns})")
                     print("       Dashboard: Route not yet available (check later)")
-            else:
-                print(
-                    f"  [OK] Migrated: {name} (ns: {ns}) - cluster starting up (may take a moment)"
-                )
+                    print(
+                        "       Pods will become ready when quota/resources are available."
+                    )
 
-            migrated_count += 1
-            successfully_migrated.append({"name": name, "namespace": ns})
+                if not dry_run:
+                    _remove_pre_upgrade_backup_annotation(api_instance, name, ns)
+                migrated_count += 1
+                successfully_migrated.append({"name": name, "namespace": ns})
 
         except Exception as e:
             print(f"  [FAIL] {name} (ns: {ns}): {e}")
@@ -1804,6 +2212,8 @@ def post_upgrade(
         print(f"  Migrated: {migrated_count}")
     print(f"  Skipped (already migrated): {len(already_migrated)}")
     print(f"  Failed: {failed_count}")
+    if failed_count:
+        print("  Please verify failed clusters and revisit as needed.")
 
     return {
         "migrated": migrated_count,
@@ -1879,8 +2289,10 @@ def list_ray_clusters(
                 "memory_limit": head_spec.get("limits", {}).get("memory", "N/A"),
             }
 
-            worker_spec = rc["spec"]["workerGroupSpecs"][0]
-            num_workers = worker_spec.get("replicas", 0)
+            worker_group_specs = rc["spec"]["workerGroupSpecs"]
+            num_workers = sum(ws.get("replicas", 0) for ws in worker_group_specs)
+            # Use first worker group for resource display (when multiple groups, resources may differ)
+            worker_spec = worker_group_specs[0]
             worker_container_resources = worker_spec["template"]["spec"]["containers"][
                 0
             ]["resources"]
@@ -1924,7 +2336,7 @@ def list_ray_clusters(
     else:
         print("RayCluster Migration Status:\n")
         print(
-            f"{'Name':<25} {'Namespace':<18} {'Status':<12} {'Workers':<8} {'Migration Status':<30}"
+            f"{'RayCluster Name':<25} {'Namespace':<18} {'Status':<12} {'Workers':<8} {'Migration Status':<30}"
         )
         print("-" * 100)
 
@@ -2012,8 +2424,7 @@ def delete_ray_clusters(
             print(f"  - {name} (namespace: {ns})")
 
         print("\nThis operation is IRREVERSIBLE!")
-        response = input("\nDelete these clusters? (yes/no): ").strip().lower()
-        if response not in ["yes", "y"]:
+        if not _confirm("\nDelete these clusters? (yes/no): ", auto_confirm):
             print("Delete cancelled.")
             return {"deleted": 0, "failed": 0}
         print()
@@ -2203,11 +2614,8 @@ RECOMMENDED MIGRATION WORKFLOW:
 
   1. BEFORE UPGRADE - Backup your clusters:
 
-     # Backup all clusters (you'll be prompted for backup directory)
+     # Backup all clusters
      %(prog)s pre-upgrade
-
-     # Or specify the backup directory directly
-     %(prog)s pre-upgrade ./my-backup-dir
 
      # Backup a specific namespace
      %(prog)s pre-upgrade --namespace my-ns
@@ -2215,7 +2623,9 @@ RECOMMENDED MIGRATION WORKFLOW:
      # Backup a single cluster
      %(prog)s pre-upgrade --cluster my-cluster --namespace my-ns
 
-  2. PERFORM THE RHOAI UPGRADE
+     Backups are saved to $RHOAI_UPGRADE_BACKUP_DIR/ray/ (default: /tmp/rhoai-upgrade-backup/ray/)
+
+   2. PERFORM THE RHOAI UPGRADE
 
   3. AFTER UPGRADE - Migrate your clusters:
 
@@ -2246,13 +2656,8 @@ All operations are idempotent and safe to run multiple times.
         "pre-upgrade",
         help="Backup RayCluster configurations BEFORE the RHOAI upgrade",
         description="Runs pre-flight checks and creates backup YAML files of your "
-        "RayCluster configurations. Run this BEFORE performing the RHOAI upgrade.",
-    )
-    pre_parser.add_argument(
-        "output_dir",
-        nargs="?",
-        default=None,
-        help="Directory to save backup YAML files (you'll be prompted if not provided)",
+        "RayCluster configurations. Run this BEFORE performing the RHOAI upgrade. "
+        "Backups are saved to $RHOAI_UPGRADE_BACKUP_DIR/ray/ (default: /tmp/rhoai-upgrade-backup/ray/).",
     )
     pre_parser.add_argument(
         "--cluster",
@@ -2387,7 +2792,6 @@ All operations are idempotent and safe to run multiple times.
     try:
         if args.command == "pre-upgrade":
             pre_upgrade(
-                output_dir=args.output_dir,
                 cluster_name=args.cluster_name,
                 namespace=args.namespace,
             )
