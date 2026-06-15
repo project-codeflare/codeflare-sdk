@@ -50,6 +50,8 @@ coverage = "7.6.4"
 pytest-mock = "3.11.1"
 pytest-timeout = "2.3.1"
 jupyterlab = "4.3.1"
+selenium = "^4.21"
+webdriver-manager = "^4.0"
 
 [tool.pytest.ini_options]
 filterwarnings = [
@@ -59,7 +61,10 @@ filterwarnings = [
 markers = [
     "kind",
     "openshift",
-    "nvidia_gpu"
+    "nvidia_gpu",
+    "pre_upgrade: Tests to run before upgrade",
+    "post_upgrade: Tests to run after upgrade",
+    "ui: UI tests requiring Selenium",
 ]
 addopts = "--timeout=900"
 testpaths = ["src/codeflare_sdk"]
