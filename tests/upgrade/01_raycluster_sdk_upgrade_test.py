@@ -11,11 +11,12 @@ from codeflare_sdk.ray.cluster.cluster import get_cluster
 
 from codeflare_sdk.common import _kube_api_error_handling
 
-namespace = "test-ns-rayupgrade"
-# Global variables for kueue resources
-cluster_queue = "cluster-queue-mnist"
-flavor = "default-flavor-mnist"
-local_queue = "local-queue-mnist"
+from tests.upgrade.constants import (
+    CLUSTER_QUEUE as cluster_queue,
+    LOCAL_QUEUE as local_queue,
+    NAMESPACE as namespace,
+    RESOURCE_FLAVOR as flavor,
+)
 
 
 # Creates a Ray cluster
@@ -120,7 +121,7 @@ class TestMnistJobSubmit:
         self.auth_instance = auth_instance
 
         self.namespace = namespace
-        self.cluster = get_cluster("mnist", self.namespace)
+        self.cluster = get_cluster("mnist", self.namespace, verify_tls=False)
         if not self.cluster:
             raise RuntimeError("TestRayClusterUp needs to be run before this test")
 
