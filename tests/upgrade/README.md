@@ -181,6 +181,23 @@ Post-upgrade job tests use `is_byoidc_cluster_detected()` from `tests/e2e/suppor
 
 On **htpasswd/LDAP** QE clusters, job tests use `oc whoami --show-token=true` with `OCP_ADMIN_USER_*` — not Keycloak password grant.
 
+## Disconnected clusters (post-upgrade job submission)
+
+Full MNIST installs torch via pip and may fetch datasets from the public internet. On disconnected clusters that fails unless mirrors are configured.
+
+Post-upgrade and tier1 MNIST job tests use `get_mnist_job_submission_spec()` from `tests/e2e/support.py`:
+
+| Job | When |
+|-----|------|
+| **`upgrade_job_smoke.py`** (no pip) | Disconnected / mirror-only cluster without PyPI + S3 env |
+| **`mnist.py`** (full pip + training) | Connected cluster, or disconnected with `PIP_INDEX_URL` (non-pypi.org) **and** `AWS_DEFAULT_ENDPOINT` set |
+
+**Detection order:** `USE_SMOKE_JOB` / `UPGRADE_USE_SMOKE_JOB` override → MNIST prerequisites → `DISCONNECTED_CLUSTER` / `IS_DISCONNECTED_CLUSTER` (Jenkins) → API URL `-dis-` heuristic (last resort).
+
+Registry image mirrors (`ImageDigestMirrorSet` / `ICSP`) are **not** used for detection — connected OpenShift clusters often have them without blocking pip.
+
+Set `USE_SMOKE_JOB=false` or `UPGRADE_USE_SMOKE_JOB=false` to force full MNIST when mirrors are configured. Set `DISCONNECTED_CLUSTER=true` in the test env file for explicit lab config (aligns with Jenkins `IS_DISCONNECTED_CLUSTER`).
+
 ---
 
 ## Migration script

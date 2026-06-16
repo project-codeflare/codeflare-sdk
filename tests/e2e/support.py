@@ -157,6 +157,130 @@ def get_setup_env_variables(**kwargs):
     return env_vars
 
 
+def _env_flag_enabled(name):
+    return os.environ.get(name, "").strip().lower() in ("1", "true", "yes")
+
+
+def _env_flag_disabled(name):
+    return os.environ.get(name, "").strip().lower() in ("0", "false", "no", "off")
+
+
+def _disconnected_cluster_signals():
+    """Return True when the cluster is likely disconnected / air-gapped."""
+    if _env_flag_enabled("DISCONNECTED_CLUSTER") or _env_flag_enabled(
+        "IS_DISCONNECTED_CLUSTER"
+    ):
+        return True
+    try:
+        server = (run_oc_command(["whoami", "--show-server=true"]) or "").lower()
+        if "-dis-" in server or "disconnected" in server:
+            return True
+    except Exception:
+        pass
+    return False
+
+
+def _mnist_prerequisites_met():
+    """
+    Return True when full MNIST can run (pip packages + dataset reachable).
+
+    Connected labs may use public PyPI and MNIST mirrors with no extra env.
+    Disconnected labs need internal PIP_INDEX_URL and AWS_DEFAULT_ENDPOINT (MinIO).
+    """
+    if not _disconnected_cluster_signals():
+        return True
+
+    pip_url = (os.environ.get("PIP_INDEX_URL") or "").strip()
+    aws_endpoint = (os.environ.get("AWS_DEFAULT_ENDPOINT") or "").strip()
+    pip_ok = bool(pip_url) and "pypi.org" not in pip_url
+    aws_ok = bool(aws_endpoint)
+    if pip_ok and aws_ok:
+        print(
+            "Disconnected cluster with PIP mirror and S3 endpoint configured; "
+            "using full MNIST job"
+        )
+        return True
+    return False
+
+
+def use_smoke_job():
+    """
+    Use a lightweight Ray job when full MNIST is not viable.
+
+    Detection order (first match wins):
+      1. USE_SMOKE_JOB / UPGRADE_USE_SMOKE_JOB=true|false (explicit override)
+      2. Full MNIST prerequisites met (connected, or disconnected with mirrors)
+      3. DISCONNECTED_CLUSTER / IS_DISCONNECTED_CLUSTER env (Jenkins)
+      4. API server URL heuristic (-dis- / disconnected), last resort
+
+    ImageDigestMirrorSet / ICSP are intentionally not used: many connected
+    OpenShift clusters mirror container registries without blocking pip/PyPI.
+    """
+    for name in ("USE_SMOKE_JOB", "UPGRADE_USE_SMOKE_JOB"):
+        if _env_flag_enabled(name):
+            print(f"{name} enabled; using smoke job (no pip install)")
+            return True
+        if _env_flag_disabled(name):
+            print(f"{name} disabled; using full MNIST job")
+            return False
+
+    if _mnist_prerequisites_met():
+        return False
+
+    if _env_flag_enabled("DISCONNECTED_CLUSTER") or _env_flag_enabled(
+        "IS_DISCONNECTED_CLUSTER"
+    ):
+        print(
+            "Disconnected cluster env set without PIP/S3 mirrors; "
+            "using smoke job (no pip install)"
+        )
+        return True
+
+    try:
+        server = (run_oc_command(["whoami", "--show-server=true"]) or "").lower()
+        if "-dis-" in server or "disconnected" in server:
+            print(
+                "Detected disconnected cluster from API server URL; "
+                "using smoke job (no pip install)"
+            )
+            return True
+    except Exception:
+        pass
+
+    return False
+
+
+def use_upgrade_smoke_job():
+    """Backward-compatible alias for upgrade tests."""
+    return use_smoke_job()
+
+
+def get_mnist_job_submission_spec(**kwargs):
+    """Return entrypoint and runtime_env for tier1 / upgrade MNIST job submission tests."""
+    env_vars = get_setup_env_variables(**kwargs)
+    if use_smoke_job():
+        return {
+            "entrypoint": "python upgrade_job_smoke.py",
+            "runtime_env": {
+                "working_dir": "./tests/e2e/",
+                "env_vars": env_vars,
+            },
+        }
+    return {
+        "entrypoint": "python mnist.py",
+        "runtime_env": {
+            "working_dir": "./tests/e2e/",
+            "pip": "./tests/e2e/mnist_pip_requirements.txt",
+            "env_vars": env_vars,
+        },
+    }
+
+
+def get_upgrade_job_submission_spec():
+    """Backward-compatible alias for post-upgrade job submission tests."""
+    return get_mnist_job_submission_spec()
+
+
 def random_choice():
     alphabet = string.ascii_lowercase + string.digits
     return "".join(random.choices(alphabet, k=5))
@@ -694,18 +818,12 @@ def assert_get_cluster_and_jobsubmit(
         client = cluster.job_client
 
     # Submit a job and get the submission ID
-    env_vars = (
-        get_setup_env_variables(ACCELERATOR=accelerator)
-        if accelerator
-        else get_setup_env_variables()
-    )
+    spec_kwargs = {"ACCELERATOR": accelerator} if accelerator else {}
+    job_spec = get_mnist_job_submission_spec(**spec_kwargs)
+    print(f"Submitting job: {job_spec['entrypoint']}")
     submission_id = client.submit_job(
-        entrypoint="python mnist.py",
-        runtime_env={
-            "working_dir": "./tests/e2e/",
-            "pip": "./tests/e2e/mnist_pip_requirements.txt",
-            "env_vars": env_vars,
-        },
+        entrypoint=job_spec["entrypoint"],
+        runtime_env=job_spec["runtime_env"],
         entrypoint_num_cpus=1 if number_of_gpus is None else None,
         entrypoint_num_gpus=number_of_gpus,
     )
