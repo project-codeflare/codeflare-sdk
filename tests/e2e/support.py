@@ -165,43 +165,11 @@ def _env_flag_disabled(name):
     return os.environ.get(name, "").strip().lower() in ("0", "false", "no", "off")
 
 
-def _has_registry_mirror_configured():
-    """
-    Detect mirror-only registry layout typical of disconnected OpenShift installs.
-
-    Checks ImageDigestMirrorSet (OCP 4.14+) and ImageContentSourcePolicy (legacy).
-    """
-    try:
-        from kubernetes import client as k8s_client
-
-        custom_api = k8s_client.CustomObjectsApi()
-        mirror_types = [
-            ("config.openshift.io", "v1", "imagedigestmirrorsets"),
-            ("operator.openshift.io", "v1alpha1", "imagecontentsourcepolicies"),
-        ]
-        for group, version, plural in mirror_types:
-            try:
-                result = custom_api.list_cluster_custom_object(
-                    group=group,
-                    version=version,
-                    plural=plural,
-                )
-                if result.get("items"):
-                    return True
-            except Exception:
-                continue
-    except Exception:
-        pass
-    return False
-
-
 def _disconnected_cluster_signals():
     """Return True when the cluster is likely disconnected / air-gapped."""
     if _env_flag_enabled("DISCONNECTED_CLUSTER") or _env_flag_enabled(
         "IS_DISCONNECTED_CLUSTER"
     ):
-        return True
-    if _has_registry_mirror_configured():
         return True
     try:
         server = (run_oc_command(["whoami", "--show-server=true"]) or "").lower()
@@ -212,7 +180,7 @@ def _disconnected_cluster_signals():
     return False
 
 
-def _upgrade_mnist_prerequisites_met():
+def _mnist_prerequisites_met():
     """
     Return True when full MNIST can run (pip packages + dataset reachable).
 
@@ -229,34 +197,34 @@ def _upgrade_mnist_prerequisites_met():
     if pip_ok and aws_ok:
         print(
             "Disconnected cluster with PIP mirror and S3 endpoint configured; "
-            "using full MNIST upgrade job"
+            "using full MNIST job"
         )
         return True
     return False
 
 
-def use_upgrade_smoke_job():
+def use_smoke_job():
     """
-    Use a lightweight Ray job for upgrade tests when full MNIST is not viable.
-
-    Full MNIST pulls torch/pytorch via pip and may download datasets from the
-    public internet — both fail on disconnected clusters without mirrors.
+    Use a lightweight Ray job when full MNIST is not viable.
 
     Detection order (first match wins):
-      1. UPGRADE_USE_SMOKE_JOB=true|false (explicit override)
+      1. USE_SMOKE_JOB / UPGRADE_USE_SMOKE_JOB=true|false (explicit override)
       2. Full MNIST prerequisites met (connected, or disconnected with mirrors)
       3. DISCONNECTED_CLUSTER / IS_DISCONNECTED_CLUSTER env (Jenkins)
-      4. ImageDigestMirrorSet / ImageContentSourcePolicy on cluster
-      5. API server URL heuristic (-dis- / disconnected), last resort
-    """
-    if _env_flag_enabled("UPGRADE_USE_SMOKE_JOB"):
-        print("UPGRADE_USE_SMOKE_JOB enabled; using upgrade smoke job")
-        return True
-    if _env_flag_disabled("UPGRADE_USE_SMOKE_JOB"):
-        print("UPGRADE_USE_SMOKE_JOB disabled; using full MNIST upgrade job")
-        return False
+      4. API server URL heuristic (-dis- / disconnected), last resort
 
-    if _upgrade_mnist_prerequisites_met():
+    ImageDigestMirrorSet / ICSP are intentionally not used: many connected
+    OpenShift clusters mirror container registries without blocking pip/PyPI.
+    """
+    for name in ("USE_SMOKE_JOB", "UPGRADE_USE_SMOKE_JOB"):
+        if _env_flag_enabled(name):
+            print(f"{name} enabled; using smoke job (no pip install)")
+            return True
+        if _env_flag_disabled(name):
+            print(f"{name} disabled; using full MNIST job")
+            return False
+
+    if _mnist_prerequisites_met():
         return False
 
     if _env_flag_enabled("DISCONNECTED_CLUSTER") or _env_flag_enabled(
@@ -264,14 +232,7 @@ def use_upgrade_smoke_job():
     ):
         print(
             "Disconnected cluster env set without PIP/S3 mirrors; "
-            "using upgrade smoke job (no pip install)"
-        )
-        return True
-
-    if _has_registry_mirror_configured():
-        print(
-            "Registry mirror detected (ImageDigestMirrorSet/ICSP) without "
-            "PIP/S3 mirrors; using upgrade smoke job (no pip install)"
+            "using smoke job (no pip install)"
         )
         return True
 
@@ -280,7 +241,7 @@ def use_upgrade_smoke_job():
         if "-dis-" in server or "disconnected" in server:
             print(
                 "Detected disconnected cluster from API server URL; "
-                "using upgrade smoke job (no pip install)"
+                "using smoke job (no pip install)"
             )
             return True
     except Exception:
@@ -289,16 +250,20 @@ def use_upgrade_smoke_job():
     return False
 
 
-def get_upgrade_job_submission_spec():
-    """
-    Return entrypoint and runtime_env for post-upgrade job submission tests.
-    """
-    if use_upgrade_smoke_job():
+def use_upgrade_smoke_job():
+    """Backward-compatible alias for upgrade tests."""
+    return use_smoke_job()
+
+
+def get_mnist_job_submission_spec(**kwargs):
+    """Return entrypoint and runtime_env for tier1 / upgrade MNIST job submission tests."""
+    env_vars = get_setup_env_variables(**kwargs)
+    if use_smoke_job():
         return {
             "entrypoint": "python upgrade_job_smoke.py",
             "runtime_env": {
                 "working_dir": "./tests/e2e/",
-                "env_vars": get_setup_env_variables(),
+                "env_vars": env_vars,
             },
         }
     return {
@@ -306,9 +271,14 @@ def get_upgrade_job_submission_spec():
         "runtime_env": {
             "working_dir": "./tests/e2e/",
             "pip": "./tests/e2e/mnist_pip_requirements.txt",
-            "env_vars": get_setup_env_variables(),
+            "env_vars": env_vars,
         },
     }
+
+
+def get_upgrade_job_submission_spec(**kwargs):
+    """Backward-compatible alias for post-upgrade job submission tests."""
+    return get_mnist_job_submission_spec(**kwargs)
 
 
 def random_choice():
@@ -831,18 +801,12 @@ def assert_get_cluster_and_jobsubmit(
     client = cluster.job_client
 
     # Submit a job and get the submission ID
-    env_vars = (
-        get_setup_env_variables(ACCELERATOR=accelerator)
-        if accelerator
-        else get_setup_env_variables()
-    )
+    spec_kwargs = {"ACCELERATOR": accelerator} if accelerator else {}
+    job_spec = get_mnist_job_submission_spec(**spec_kwargs)
+    print(f"Submitting job: {job_spec['entrypoint']}")
     submission_id = client.submit_job(
-        entrypoint="python mnist.py",
-        runtime_env={
-            "working_dir": "./tests/e2e/",
-            "pip": "./tests/e2e/mnist_pip_requirements.txt",
-            "env_vars": env_vars,
-        },
+        entrypoint=job_spec["entrypoint"],
+        runtime_env=job_spec["runtime_env"],
         entrypoint_num_cpus=1 if number_of_gpus is None else None,
         entrypoint_num_gpus=number_of_gpus,
     )
