@@ -1,3 +1,4 @@
+import json
 import os
 import random
 import string
@@ -140,6 +141,141 @@ def get_setup_env_variables(**kwargs):
             "AWS_STORAGE_BUCKET_MNIST_DIR"
         )
     return env_vars
+
+
+def _env_flag_enabled(name):
+    return os.environ.get(name, "").strip().lower() in ("1", "true", "yes")
+
+
+def _env_flag_disabled(name):
+    return os.environ.get(name, "").strip().lower() in ("0", "false", "no", "off")
+
+
+def _has_registry_mirror_configured():
+    """
+    Detect mirror-only registry layout typical of disconnected OpenShift installs.
+    """
+    try:
+        custom_api = client.CustomObjectsApi()
+        mirror_types = [
+            ("config.openshift.io", "v1", "imagedigestmirrorsets"),
+            ("operator.openshift.io", "v1alpha1", "imagecontentsourcepolicies"),
+        ]
+        for group, version, plural in mirror_types:
+            try:
+                result = custom_api.list_cluster_custom_object(
+                    group=group,
+                    version=version,
+                    plural=plural,
+                )
+                if result.get("items"):
+                    return True
+            except Exception:
+                continue
+    except Exception:
+        pass
+    return False
+
+
+def _disconnected_cluster_signals():
+    """Return True when the cluster is likely disconnected / air-gapped."""
+    if _env_flag_enabled("DISCONNECTED_CLUSTER") or _env_flag_enabled(
+        "IS_DISCONNECTED_CLUSTER"
+    ):
+        return True
+    if _has_registry_mirror_configured():
+        return True
+    try:
+        server = (run_oc_command(["whoami", "--show-server=true"]) or "").lower()
+        if "-dis-" in server or "disconnected" in server:
+            return True
+    except Exception:
+        pass
+    return False
+
+
+def _upgrade_mnist_prerequisites_met():
+    """
+    Return True when full MNIST can run (pip packages + dataset reachable).
+    """
+    if not _disconnected_cluster_signals():
+        return True
+
+    pip_url = (os.environ.get("PIP_INDEX_URL") or "").strip()
+    aws_endpoint = (os.environ.get("AWS_DEFAULT_ENDPOINT") or "").strip()
+    pip_ok = bool(pip_url) and "pypi.org" not in pip_url
+    aws_ok = bool(aws_endpoint)
+    if pip_ok and aws_ok:
+        print(
+            "Disconnected cluster with PIP mirror and S3 endpoint configured; "
+            "using full MNIST upgrade job"
+        )
+        return True
+    return False
+
+
+def use_upgrade_smoke_job():
+    """
+    Use a lightweight Ray job for upgrade tests when full MNIST is not viable.
+    """
+    if _env_flag_enabled("UPGRADE_USE_SMOKE_JOB"):
+        print("UPGRADE_USE_SMOKE_JOB enabled; using upgrade smoke job")
+        return True
+    if _env_flag_disabled("UPGRADE_USE_SMOKE_JOB"):
+        print("UPGRADE_USE_SMOKE_JOB disabled; using full MNIST upgrade job")
+        return False
+
+    if _upgrade_mnist_prerequisites_met():
+        return False
+
+    if _env_flag_enabled("DISCONNECTED_CLUSTER") or _env_flag_enabled(
+        "IS_DISCONNECTED_CLUSTER"
+    ):
+        print(
+            "Disconnected cluster env set without PIP/S3 mirrors; "
+            "using upgrade smoke job (no pip install)"
+        )
+        return True
+
+    if _has_registry_mirror_configured():
+        print(
+            "Registry mirror detected (ImageDigestMirrorSet/ICSP) without "
+            "PIP/S3 mirrors; using upgrade smoke job (no pip install)"
+        )
+        return True
+
+    try:
+        server = (run_oc_command(["whoami", "--show-server=true"]) or "").lower()
+        if "-dis-" in server or "disconnected" in server:
+            print(
+                "Detected disconnected cluster from API server URL; "
+                "using upgrade smoke job (no pip install)"
+            )
+            return True
+    except Exception:
+        pass
+
+    return False
+
+
+def get_upgrade_job_submission_spec():
+    """Return entrypoint and runtime_env for post-upgrade job submission tests."""
+    if use_upgrade_smoke_job():
+        return {
+            "entrypoint": "python upgrade_job_smoke.py",
+            "runtime_env": {
+                "working_dir": "./tests/e2e/",
+                "env_vars": get_setup_env_variables(),
+            },
+        }
+    return {
+        "entrypoint": "python mnist.py",
+        "runtime_env": {
+            "working_dir": "./tests/e2e/",
+            "pip": "./tests/e2e/mnist_pip_requirements.txt",
+            "env_vars": get_setup_env_variables(),
+        },
+    }
 
 
 def random_choice():
@@ -1399,3 +1535,118 @@ def verify_network_policy_spec(
                         result["allowed_ports"].append(port.port)
 
     return result
+
+
+def is_byoidc_cluster_detected():
+    """
+    BYOIDC cluster detection by checking OpenShift cluster Authentication resource.
+    """
+    try:
+        custom_api = client.CustomObjectsApi()
+        auth_resource = custom_api.get_cluster_custom_object(
+            group="config.openshift.io",
+            version="v1",
+            plural="authentications",
+            name="cluster",
+        )
+
+        spec = auth_resource.get("spec", {})
+
+        if (spec.get("type") or "").upper() == "OIDC":
+            print("Detected BYOIDC cluster: Authentication spec.type is OIDC")
+            return True
+
+        if "oidcProviders" in spec and spec["oidcProviders"]:
+            for provider in spec["oidcProviders"]:
+                issuer_url = provider.get("issuer", {}).get("issuerURL", "")
+                if "keycloak" in issuer_url.lower() and (
+                    "rh-ods.com" in issuer_url or "qe.rh-ods.com" in issuer_url
+                ):
+                    print(f"Detected BYOIDC cluster with OIDC issuer: {issuer_url}")
+                    return True
+
+        if spec.get("webhookTokenAuthenticators"):
+            for webhook in spec["webhookTokenAuthenticators"]:
+                if webhook.get("kubeConfig", {}):
+                    print("Detected BYOIDC cluster with webhook token authenticator")
+                    return True
+
+        status = auth_resource.get("status", {})
+        oidc_clients_blob = json.dumps(status.get("oidcClients", []))
+        if "oc-cli" in oidc_clients_blob:
+            print("Detected BYOIDC cluster from status.oidcClients (oc-cli client)")
+            return True
+
+        print("No BYOIDC indicators found in cluster Authentication resource")
+        return False
+
+    except Exception as e:
+        print(f"Could not check cluster authentication method: {e}")
+        return False
+
+
+def get_byoidc_issuer_url():
+    """Get OIDC issuer URL from cluster Authentication resource."""
+    try:
+        custom_api = client.CustomObjectsApi()
+        auth_resource = custom_api.get_cluster_custom_object(
+            group="config.openshift.io",
+            version="v1",
+            plural="authentications",
+            name="cluster",
+        )
+
+        spec = auth_resource.get("spec", {})
+        if "oidcProviders" in spec and spec["oidcProviders"]:
+            for provider in spec["oidcProviders"]:
+                issuer_url = provider.get("issuer", {}).get("issuerURL", "")
+                if issuer_url:
+                    return issuer_url
+
+        return "https://keycloak.qe.rh-ods.com"
+
+    except Exception as e:
+        print(f"Could not get OIDC issuer URL from cluster: {e}")
+        return "https://keycloak.qe.rh-ods.com"
+
+
+def get_oidc_tokens(username, password, issuer_url):
+    """Get OIDC tokens (id_token and refresh_token) for a user."""
+    try:
+        import requests
+
+        if "/realms/" in issuer_url:
+            token_url = f"{issuer_url}/protocol/openid-connect/token"
+        else:
+            token_url = f"{issuer_url}/realms/openshift/protocol/openid-connect/token"
+
+        print(f"Requesting OIDC tokens from: {token_url}")
+
+        data = {
+            "grant_type": "password",
+            "client_id": "oc-cli",
+            "username": username,
+            "password": password,
+            "scope": "openid profile email",
+        }
+
+        response = requests.post(token_url, data=data, verify=False, timeout=30)
+
+        if response.status_code == 200:
+            token_data = response.json()
+            id_token = token_data.get("id_token")
+            refresh_token = token_data.get("refresh_token")
+
+            if id_token and refresh_token:
+                print("✓ Successfully obtained OIDC tokens")
+                return id_token, refresh_token
+            print("ERROR: Token response missing id_token or refresh_token")
+            return None, None
+
+        print(f"ERROR: Token request failed with status {response.status_code}")
+        print(f"Response: {response.text}")
+        return None, None
+
+    except Exception as e:
+        print(f"Error getting OIDC tokens: {e}")
+        return None, None
