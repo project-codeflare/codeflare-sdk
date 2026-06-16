@@ -166,13 +166,10 @@ class TestMnistJobSubmit:
         else:
             api_url = dashboard_url + "/api/jobs/"
 
+        job_spec = get_upgrade_job_submission_spec()
         jobdata = {
-            "entrypoint": "python mnist.py",
-            "runtime_env": {
-                "working_dir": "./tests/e2e/",
-                "pip": "./tests/e2e/mnist_pip_requirements.txt",
-                "env_vars": get_setup_env_variables(),
-            },
+            "entrypoint": job_spec["entrypoint"],
+            "runtime_env": job_spec["runtime_env"],
         }
 
         response = requests.post(
@@ -251,14 +248,13 @@ class TestMnistJobSubmit:
         header = {"Authorization": f"Bearer {auth_token}"}
         client = RayJobClient(address=ray_dashboard, headers=header, verify=False)
 
+        job_spec = get_upgrade_job_submission_spec()
+        print(f"Submitting upgrade job: {job_spec['entrypoint']}")
+
         # Submit the job
         submission_id = client.submit_job(
-            entrypoint="python mnist.py",
-            runtime_env={
-                "working_dir": "./tests/e2e/",
-                "pip": "./tests/e2e/mnist_pip_requirements.txt",
-                "env_vars": get_setup_env_variables(),
-            },
+            entrypoint=job_spec["entrypoint"],
+            runtime_env=job_spec["runtime_env"],
         )
         print(f"Submitted job with ID: {submission_id}")
         done = False
@@ -283,9 +279,10 @@ class TestMnistJobSubmit:
         client.delete_job(submission_id)
 
     def assert_job_completion(self, status):
-        if status == "SUCCEEDED":
-            print(f"Job has completed: '{status}'")
+        status_value = getattr(status, "value", status)
+        if status_value == "SUCCEEDED":
+            print(f"Job has completed: '{status_value}'")
             assert True
         else:
-            print(f"Job has completed: '{status}'")
+            print(f"Job has completed: '{status_value}'")
             assert False
