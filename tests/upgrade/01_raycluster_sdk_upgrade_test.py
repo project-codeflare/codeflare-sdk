@@ -249,7 +249,7 @@ class TestMnistJobSubmit:
         client = RayJobClient(address=ray_dashboard, headers=header, verify=False)
 
         job_spec = get_upgrade_job_submission_spec()
-        print(f"Submitting upgrade job: {job_spec['entrypoint']}")
+        print(f"Submitting job: {job_spec['entrypoint']}")
 
         # Submit the job
         submission_id = client.submit_job(
