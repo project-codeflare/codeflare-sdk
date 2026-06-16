@@ -89,13 +89,10 @@ class TestRayClusterSDKOauth:
             # API endpoint is directly under the hostname
             api_url = dashboard_url + "/api/jobs/"
 
+        job_spec = get_mnist_job_submission_spec()
         jobdata = {
-            "entrypoint": "python mnist.py",
-            "runtime_env": {
-                "working_dir": "./tests/e2e/",
-                "pip": "./tests/e2e/mnist_pip_requirements.txt",
-                "env_vars": get_setup_env_variables(),
-            },
+            "entrypoint": job_spec["entrypoint"],
+            "runtime_env": job_spec["runtime_env"],
         }
 
         # Try to submit a job without authentication
@@ -189,13 +186,11 @@ class TestRayClusterSDKOauth:
                 "Verified: No jobs exist from the previous unauthenticated submission attempt."
             )
 
+        job_spec = get_mnist_job_submission_spec()
+        print(f"Submitting job: {job_spec['entrypoint']}")
         submission_id = client.submit_job(
-            entrypoint="python mnist.py",
-            runtime_env={
-                "working_dir": "./tests/e2e/",
-                "pip": "./tests/e2e/mnist_pip_requirements.txt",
-                "env_vars": get_setup_env_variables(),
-            },
+            entrypoint=job_spec["entrypoint"],
+            runtime_env=job_spec["runtime_env"],
             entrypoint_num_cpus=1,
         )
         print(f"Submitted job with ID: {submission_id}")
@@ -221,9 +216,10 @@ class TestRayClusterSDKOauth:
         client.delete_job(submission_id)
 
     def assert_job_completion(self, status):
-        if status == "SUCCEEDED":
-            print(f"Job has completed: '{status}'")
+        status_value = getattr(status, "value", status)
+        if status_value == "SUCCEEDED":
+            print(f"Job has completed: '{status_value}'")
             assert True
         else:
-            print(f"Job has completed: '{status}'")
+            print(f"Job has completed: '{status_value}'")
             assert False
