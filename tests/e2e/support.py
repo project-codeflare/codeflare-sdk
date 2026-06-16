@@ -157,6 +157,160 @@ def get_setup_env_variables(**kwargs):
     return env_vars
 
 
+def _env_flag_enabled(name):
+    return os.environ.get(name, "").strip().lower() in ("1", "true", "yes")
+
+
+def _env_flag_disabled(name):
+    return os.environ.get(name, "").strip().lower() in ("0", "false", "no", "off")
+
+
+def _has_registry_mirror_configured():
+    """
+    Detect mirror-only registry layout typical of disconnected OpenShift installs.
+
+    Checks ImageDigestMirrorSet (OCP 4.14+) and ImageContentSourcePolicy (legacy).
+    """
+    try:
+        from kubernetes import client as k8s_client
+
+        custom_api = k8s_client.CustomObjectsApi()
+        mirror_types = [
+            ("config.openshift.io", "v1", "imagedigestmirrorsets"),
+            ("operator.openshift.io", "v1alpha1", "imagecontentsourcepolicies"),
+        ]
+        for group, version, plural in mirror_types:
+            try:
+                result = custom_api.list_cluster_custom_object(
+                    group=group,
+                    version=version,
+                    plural=plural,
+                )
+                if result.get("items"):
+                    return True
+            except Exception:
+                continue
+    except Exception:
+        pass
+    return False
+
+
+def _disconnected_cluster_signals():
+    """Return True when the cluster is likely disconnected / air-gapped."""
+    if _env_flag_enabled("DISCONNECTED_CLUSTER") or _env_flag_enabled(
+        "IS_DISCONNECTED_CLUSTER"
+    ):
+        return True
+    if _has_registry_mirror_configured():
+        return True
+    try:
+        server = (run_oc_command(["whoami", "--show-server=true"]) or "").lower()
+        if "-dis-" in server or "disconnected" in server:
+            return True
+    except Exception:
+        pass
+    return False
+
+
+def _upgrade_mnist_prerequisites_met():
+    """
+    Return True when full MNIST can run (pip packages + dataset reachable).
+
+    Connected labs may use public PyPI and MNIST mirrors with no extra env.
+    Disconnected labs need internal PIP_INDEX_URL and AWS_DEFAULT_ENDPOINT (MinIO).
+    """
+    if not _disconnected_cluster_signals():
+        return True
+
+    pip_url = (os.environ.get("PIP_INDEX_URL") or "").strip()
+    aws_endpoint = (os.environ.get("AWS_DEFAULT_ENDPOINT") or "").strip()
+    pip_ok = bool(pip_url) and "pypi.org" not in pip_url
+    aws_ok = bool(aws_endpoint)
+    if pip_ok and aws_ok:
+        print(
+            "Disconnected cluster with PIP mirror and S3 endpoint configured; "
+            "using full MNIST upgrade job"
+        )
+        return True
+    return False
+
+
+def use_upgrade_smoke_job():
+    """
+    Use a lightweight Ray job for upgrade tests when full MNIST is not viable.
+
+    Full MNIST pulls torch/pytorch via pip and may download datasets from the
+    public internet — both fail on disconnected clusters without mirrors.
+
+    Detection order (first match wins):
+      1. UPGRADE_USE_SMOKE_JOB=true|false (explicit override)
+      2. Full MNIST prerequisites met (connected, or disconnected with mirrors)
+      3. DISCONNECTED_CLUSTER / IS_DISCONNECTED_CLUSTER env (Jenkins)
+      4. ImageDigestMirrorSet / ImageContentSourcePolicy on cluster
+      5. API server URL heuristic (-dis- / disconnected), last resort
+    """
+    if _env_flag_enabled("UPGRADE_USE_SMOKE_JOB"):
+        print("UPGRADE_USE_SMOKE_JOB enabled; using upgrade smoke job")
+        return True
+    if _env_flag_disabled("UPGRADE_USE_SMOKE_JOB"):
+        print("UPGRADE_USE_SMOKE_JOB disabled; using full MNIST upgrade job")
+        return False
+
+    if _upgrade_mnist_prerequisites_met():
+        return False
+
+    if _env_flag_enabled("DISCONNECTED_CLUSTER") or _env_flag_enabled(
+        "IS_DISCONNECTED_CLUSTER"
+    ):
+        print(
+            "Disconnected cluster env set without PIP/S3 mirrors; "
+            "using upgrade smoke job (no pip install)"
+        )
+        return True
+
+    if _has_registry_mirror_configured():
+        print(
+            "Registry mirror detected (ImageDigestMirrorSet/ICSP) without "
+            "PIP/S3 mirrors; using upgrade smoke job (no pip install)"
+        )
+        return True
+
+    try:
+        server = (run_oc_command(["whoami", "--show-server=true"]) or "").lower()
+        if "-dis-" in server or "disconnected" in server:
+            print(
+                "Detected disconnected cluster from API server URL; "
+                "using upgrade smoke job (no pip install)"
+            )
+            return True
+    except Exception:
+        pass
+
+    return False
+
+
+def get_upgrade_job_submission_spec():
+    """
+    Return entrypoint and runtime_env for post-upgrade job submission tests.
+    """
+    if use_upgrade_smoke_job():
+        return {
+            "entrypoint": "python upgrade_job_smoke.py",
+            "runtime_env": {
+                "working_dir": "./tests/e2e/",
+                "env_vars": get_setup_env_variables(),
+            },
+        }
+    return {
+        "entrypoint": "python mnist.py",
+        "runtime_env": {
+            "working_dir": "./tests/e2e/",
+            "pip": "./tests/e2e/mnist_pip_requirements.txt",
+            "env_vars": get_setup_env_variables(),
+        },
+    }
+
+
 def random_choice():
     alphabet = string.ascii_lowercase + string.digits
     return "".join(random.choices(alphabet, k=5))
