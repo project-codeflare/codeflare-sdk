@@ -71,6 +71,8 @@ class TestRayJobExistingCluster:
         cluster.wait_ready(timeout=600)
         print(f"✓ Cluster '{cluster_name}' is ready")
 
+        self.job_api = RayjobApi()
+
         # RayJob with explicit local_queue (will be ignored for existing clusters)
         # Kueue does not manage RayJobs targeting existing clusters
         rayjob_explicit = RayJob(
@@ -92,12 +94,16 @@ class TestRayJobExistingCluster:
         )
 
         try:
-            # Test RayJob with explicit queue
             assert rayjob_explicit.submit() == "job-explicit-queue"
+            unsuspend_existing_cluster_rayjob(
+                self.job_api, rayjob_explicit.name, rayjob_explicit.namespace
+            )
             self._wait_completion(rayjob_explicit)
 
-            # Test RayJob with default queue
             assert rayjob_default.submit() == "job-default-queue"
+            unsuspend_existing_cluster_rayjob(
+                self.job_api, rayjob_default.name, rayjob_default.namespace
+            )
             self._wait_completion(rayjob_default)
         finally:
             rayjob_explicit.delete()

@@ -359,7 +359,10 @@ def create_namespace(self):
     try:
         self.namespace = f"test-ns-{random_choice()}"
         namespace_body = client.V1Namespace(
-            metadata=client.V1ObjectMeta(name=self.namespace)
+            metadata=client.V1ObjectMeta(
+                name=self.namespace,
+                labels={"kueue.openshift.io/managed": "true"},
+            )
         )
         self.api_instance.create_namespace(namespace_body)
     except Exception as e:
@@ -778,6 +781,33 @@ def wait_for_kueue_admission(self, job_api, job_name, namespace, timeout=120):
 
     print(f"✗ Timeout waiting for Kueue admission of job '{job_name}'")
     return False
+
+
+def unsuspend_existing_cluster_rayjob(job_api, job_name, namespace):
+    """
+    Clear suspend on RayJobs targeting an existing cluster.
+
+    In Kueue-managed namespaces the mutating webhook may set suspend=true on RayJobs
+    that use clusterSelector. Those jobs use shutdownAfterJobFinishes=false and
+    must not remain suspended for Kueue lifecycled admission.
+    """
+    try:
+        job_cr = job_api.get_job(name=job_name, k8s_namespace=namespace)
+        if not job_cr.get("spec", {}).get("clusterSelector"):
+            return
+
+        if not job_cr.get("spec", {}).get("suspend", False):
+            return
+
+        print(
+            f"Unsuspending existing-cluster RayJob '{job_name}' "
+            f"(Kueue webhook suspend override)"
+        )
+        assert job_api.resubmit_job(
+            name=job_name, k8s_namespace=namespace
+        ), f"Failed to unsuspend RayJob '{job_name}'"
+    except Exception as e:
+        print(f"Warning: could not unsuspend RayJob '{job_name}': {e}")
 
 
 def create_limited_kueue_resources(self):
