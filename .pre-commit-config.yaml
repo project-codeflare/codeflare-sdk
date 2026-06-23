@@ -15,3 +15,10 @@ repos:
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix]
       - id: ruff-format
+-   repo: https://github.com/PyCQA/bandit
+    rev: 1.9.4
+    hooks:
+      - id: bandit
+        args: ["-c", "pyproject.toml"]
+        additional_dependencies: ["bandit[toml]"]
+        exclude: "(^tests/|vendored/|^demo-notebooks/|^ui-tests/|test_.*\\.py$|conftest\\.py$|unit_test_support\\.py$)"

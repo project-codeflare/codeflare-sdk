@@ -35,6 +35,13 @@ updates:
       - "test-guided-notebooks"
       - "test-ui-notebooks"
 
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependabot"
+
   # npm means yarn in this case, this keeps yarn.lock up to date with constraints in package.json.
   - package-ecosystem: "npm"
     directory: "/ui-tests"

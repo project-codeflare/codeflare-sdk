@@ -1,0 +1,35 @@
+name: Dependency Audit
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  schedule:
+    - cron: '15 3 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  pip-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install poetry and export plugin
+        run: pip install poetry poetry-plugin-export
+
+      - name: Export requirements
+        run: poetry export -f requirements.txt --without-hashes -o requirements.txt
+
+      - name: Run pip-audit
+        uses: pypa/gh-action-pip-audit@v1
+        with:
+          inputs: requirements.txt

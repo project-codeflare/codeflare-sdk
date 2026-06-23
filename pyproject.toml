@@ -169,6 +169,13 @@ module = [
 ]
 ignore_errors = true
 
+[tool.bandit]
+skips = [
+    "B104",  # binding to 0.0.0.0 is intentional for Ray dashboard in K8s pods
+    "B108",  # /tmp paths are inside submitter pods, not host filesystem
+    "B110",  # try/except/pass used intentionally for optional K8s API checks
+]
+
 [build-system]
 requires = ["poetry-core>=1.6.0"]
 build-backend = "poetry.core.masonry.api"
