@@ -48,9 +48,9 @@ class TestRayClusterAutoscalingSDKOauth:
         # Verify initial state: 1 worker (min_workers)
         wait_for_worker_count(self, cluster_name, lambda n: n == 1, timeout_s=600)
 
-        # Trigger scale-up via load script in head pod (async)
+        # Trigger scale-up: 3 tasks @ 1 CPU each exceeds head(1) + worker(1) = 2 CPUs
         load_proc = run_autoscaling_load_in_head_pod(
-            self, cluster_name, tasks=2, sleep_s=180
+            self, cluster_name, tasks=3, sleep_s=180
         )
 
         # Verify scale-up while load is still running
