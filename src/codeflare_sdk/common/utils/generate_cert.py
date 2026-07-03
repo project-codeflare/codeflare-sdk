@@ -294,6 +294,18 @@ def generate_tls_cert(
     service_dns = f"{head_svc_name}.{namespace}.svc"
     service_dns_cluster_local = f"{head_svc_name}.{namespace}.svc.cluster.local"
 
+    # Build the AKI from the CA's actual SKI when available (preferred),
+    # falling back to recomputation for CAs without an SKI extension.
+    try:
+        ca_ski = ca_cert_obj.extensions.get_extension_for_class(
+            x509.SubjectKeyIdentifier
+        ).value
+        aki = x509.AuthorityKeyIdentifier.from_issuer_subject_key_identifier(ca_ski)
+    except x509.ExtensionNotFound:
+        aki = x509.AuthorityKeyIdentifier.from_issuer_public_key(
+            ca_cert_obj.public_key()
+        )
+
     one_day = datetime.timedelta(1, 0, 0)
     tls_cert = (
         x509.CertificateBuilder()
@@ -354,12 +366,7 @@ def generate_tls_cert(
             x509.SubjectKeyIdentifier.from_public_key(key.public_key()),
             critical=False,
         )
-        .add_extension(
-            x509.AuthorityKeyIdentifier.from_issuer_public_key(
-                ca_cert_obj.public_key()
-            ),
-            critical=False,
-        )
+        .add_extension(aki, critical=False)
         .sign(
             ca_private_key,
             hashes.SHA256(),

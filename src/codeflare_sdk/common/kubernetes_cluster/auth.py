@@ -133,9 +133,13 @@ class TokenAuthentication(Authentication):
         # Legacy implementation (kube-authkit doesn't support direct token auth)
         try:
             configuration = client.Configuration()
-            configuration.api_key_prefix["authorization"] = "Bearer"
             configuration.host = self.server
-            configuration.api_key["authorization"] = self.token
+            # Set both key names for cross-version compatibility:
+            # kubernetes client <=35 looks up by header name ("authorization"),
+            # kubernetes client >=36 looks up by scheme name ("BearerToken").
+            for key in ("authorization", "BearerToken"):
+                configuration.api_key[key] = self.token
+                configuration.api_key_prefix[key] = "Bearer"
 
             if self.skip_tls:
                 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -150,7 +154,9 @@ class TokenAuthentication(Authentication):
             config_path = None
             return "Logged into %s" % self.server
         except client.ApiException as e:
+            api_client = None
             _kube_api_error_handling(e)
+            raise
 
     def logout(self) -> str:
         """
