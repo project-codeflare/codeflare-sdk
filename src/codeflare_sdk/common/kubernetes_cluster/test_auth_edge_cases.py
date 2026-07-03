@@ -119,19 +119,16 @@ def test_client_with_cert_valid_file(mocker, tmp_path):
 
 
 def test_token_auth_exception_handling(mocker):
-    """Test TokenAuthentication.login() handles ApiException."""
+    """Test TokenAuthentication.login() handles ApiException and re-raises."""
     from kubernetes.client import ApiException
 
-    # Create real instances but mock the method that raises exception
     mock_auth_instance = mocker.MagicMock()
     mock_auth_instance.get_api_group.side_effect = ApiException(
         status=401, reason="Unauthorized"
     )
 
-    # Patch only AuthenticationApi's __init__ to return our mock
     mocker.patch("kubernetes.client.AuthenticationApi", return_value=mock_auth_instance)
 
-    # Mock error handling
     mock_error_handler = mocker.patch(
         "codeflare_sdk.common.kubernetes_cluster.auth._kube_api_error_handling"
     )
@@ -139,8 +136,74 @@ def test_token_auth_exception_handling(mocker):
     with pytest.warns(DeprecationWarning):
         auth = TokenAuthentication(token="test", server="https://test:6443")
 
-    # login() should call error handler when ApiException occurs
+    with pytest.raises(ApiException):
+        auth.login()
+
+    assert mock_error_handler.called
+
+
+def test_token_auth_login_uses_bearer_token_key(mocker):
+    """Test that login() sets both 'authorization' and 'BearerToken' api_key entries.
+
+    kubernetes client <=35 resolves the prefix via the header name ("authorization"),
+    while >=36 uses the security-scheme name ("BearerToken").  Setting both keys
+    ensures the Bearer prefix is always applied, regardless of client version.
+    """
+    captured_configs = []
+
+    original_init = client.ApiClient.__init__
+
+    def capture_config(self, configuration=None, *args, **kwargs):
+        if configuration is not None:
+            captured_configs.append(configuration)
+        return original_init(self, configuration, *args, **kwargs)
+
+    mocker.patch.object(client.ApiClient, "__init__", capture_config)
+    mocker.patch.object(client.ApiClient, "call_api", return_value=None)
+    mocker.patch("kubernetes.client.AuthenticationApi")
+
+    with pytest.warns(DeprecationWarning):
+        auth = TokenAuthentication(
+            token="sha256~testtoken",
+            server="https://api.test:6443",
+            skip_tls=True,
+        )
+
     auth.login()
 
-    # Verify error handler was called
-    assert mock_error_handler.called
+    assert len(captured_configs) == 1
+    config = captured_configs[0]
+
+    for key in ("authorization", "BearerToken"):
+        assert key in config.api_key, f"api_key missing '{key}'"
+        assert config.api_key[key] == "sha256~testtoken"
+        assert key in config.api_key_prefix, f"api_key_prefix missing '{key}'"
+        assert config.api_key_prefix[key] == "Bearer"
+
+    auth_settings = config.auth_settings()
+    bearer = auth_settings.get("BearerToken", {})
+    assert bearer["value"] == "Bearer sha256~testtoken"
+
+
+def test_token_auth_login_resets_api_client_on_failure(mocker):
+    """Test that login() resets the global api_client on auth failure."""
+    from kubernetes.client import ApiException
+    import codeflare_sdk.common.kubernetes_cluster.auth as auth_module
+
+    mock_auth_instance = mocker.MagicMock()
+    mock_auth_instance.get_api_group.side_effect = ApiException(
+        status=403, reason="Forbidden"
+    )
+
+    mocker.patch("kubernetes.client.AuthenticationApi", return_value=mock_auth_instance)
+    mocker.patch(
+        "codeflare_sdk.common.kubernetes_cluster.auth._kube_api_error_handling"
+    )
+
+    with pytest.warns(DeprecationWarning):
+        auth = TokenAuthentication(token="bad-token", server="https://test:6443")
+
+    with pytest.raises(ApiException):
+        auth.login()
+
+    assert auth_module.api_client is None
