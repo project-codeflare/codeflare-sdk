@@ -398,3 +398,91 @@ jobs:
           retention-days: 10
           path: |
             ${{ env.TEMP_DIR }}/**/*.log
+
+  verify-6_autoscaling:
+    if: ${{ contains(github.event.pull_request.labels.*.name, 'test-guided-notebooks') }}
+    runs-on: ubuntu-latest-4core
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Checkout common repo code
+        uses: actions/checkout@v4
+        with:
+          repository: 'project-codeflare/codeflare-common'
+          ref: 'main'
+          path: 'common'
+
+      - name: Set up specific Python version
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip' # caching pip dependencies
+
+      - name: Setup and start KinD cluster
+        uses: ./common/github-actions/kind
+
+      - name: Deploy KubeRay
+        id: deploy
+        run: |
+          # Autoscaling is not supported with Kueue (see RHAIRFE-909). Deploy KubeRay only.
+          echo "Installing KubeRay ${KUBERAY_VERSION} from opendatahub-io..."
+          kubectl create -k "github.com/opendatahub-io/kuberay/ray-operator/config/default?ref=${KUBERAY_VERSION}"
+          kubectl wait --timeout=120s --for=condition=Available=true deployment kuberay-operator
+
+      - name: Setup Guided notebooks execution
+        run: |
+          echo "Installing papermill and dependencies..."
+          pip install poetry papermill ipython ipykernel
+          # Disable virtualenv due to problems using packaged in virtualenv in papermill
+          poetry config virtualenvs.create false
+
+          echo "Installing SDK..."
+          poetry install --with test,docs
+
+      - name: Run 6_autoscaling.ipynb
+        run: |
+          set -euo pipefail
+
+          # Remove auth cell, as KinD uses kubeconfig and doesn't need explicit authentication
+          jq -r 'del(.cells[] | select(.source[] | contains("Authenticate to your Kubernetes/OpenShift cluster using kube-authkit")))' 6_autoscaling.ipynb > 6_autoscaling.ipynb.tmp && mv 6_autoscaling.ipynb.tmp 6_autoscaling.ipynb
+          # KinD uses the default namespace (no Kueue in this job)
+          sed -i 's/NAMESPACE = \\"rhods-notebooks\\"/NAMESPACE = \\"default\\"/' 6_autoscaling.ipynb
+          # KinD-friendly resources and Ray image
+          sed -i 's/head_memory_requests=7,/head_memory_requests=2,/' 6_autoscaling.ipynb
+          sed -i 's/head_memory_limits=8,/head_memory_limits=4,/' 6_autoscaling.ipynb
+          sed -i 's/worker_memory_requests=5,/worker_memory_requests=1,/' 6_autoscaling.ipynb
+          sed -i 's/worker_memory_limits=6,/worker_memory_limits=4,/' 6_autoscaling.ipynb
+          sed -i 's|write_to_file=False,|write_to_file=False, image=\\"rayproject/ray:2.55.1\\",|' 6_autoscaling.ipynb
+          sed -i 's|# verify_tls=False,  # Uncomment if your cluster uses self-signed API certs|verify_tls=False,|' 6_autoscaling.ipynb
+          # Disable dashboard check as KinD doesn't have HTTPRoute/Route configured
+          sed -i 's/cluster.wait_ready()/cluster.wait_ready(dashboard_check=False)/' 6_autoscaling.ipynb
+          # Shorter load job for CI runtime
+          sed -i 's/LOAD_SLEEP_S = 180/LOAD_SLEEP_S = 60/' 6_autoscaling.ipynb
+          # Run notebook
+          poetry run papermill 6_autoscaling.ipynb 6_autoscaling_out.ipynb --log-output --execution-timeout 1800
+        working-directory: demo-notebooks/guided-demos
+
+      - name: Print KubeRay operator logs
+        if: always() && steps.deploy.outcome == 'success'
+        run: |
+          echo "Printing KubeRay operator logs"
+          kubectl logs --tail -1 -l app.kubernetes.io/name=kuberay | tee ${TEMP_DIR}/kuberay.log
+
+      - name: Export all KinD pod logs
+        uses: ./common/github-actions/kind-export-logs
+        if: always() && steps.deploy.outcome == 'success'
+        with:
+          output-directory: ${TEMP_DIR}
+
+      - name: Upload logs
+        uses: actions/upload-artifact@v4
+        if: always() && steps.deploy.outcome == 'success'
+        with:
+          name: logs-6_autoscaling
+          retention-days: 10
+          path: |
+            ${{ env.TEMP_DIR }}/**/*.log
