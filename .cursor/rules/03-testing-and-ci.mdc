@@ -85,6 +85,7 @@ coverage report -m
 
 ### Guided notebooks (label: test-guided-notebooks)
 - KinD + Kueue + KubeRay; no GPU. Notebooks: 0_basic_ray, 4_rayjob_existing_cluster, 5_submit_rayjob_cr. Run with papermill (see Demo notebooks below).
+- **6_autoscaling**: KinD + KubeRay only (no Kueue — autoscaling is incompatible with Kueue; see RHAIRFE-909).
 
 ### UI notebooks (labels: test-guided-notebooks or test-ui-notebooks)
 - Job: verify-3_widget_example. Playwright (chromium) in `ui-tests/`; notebook `demo-notebooks/guided-demos/3_widget_example.ipynb`.
@@ -103,6 +104,7 @@ coverage report -m
 | 0_basic_ray.ipynb | Guided | KinD: namespace='default', dashboard_check=False, remove auth cells |
 | 4_rayjob_existing_cluster.ipynb | Guided | KinD: namespace='default', GPU 0, remove oc login cell |
 | 5_submit_rayjob_cr.ipynb | Guided | KinD: namespace='default', remove oc login cell |
+| 6_autoscaling.ipynb | Guided | KinD: KubeRay only (no Kueue), namespace='default', rayproject image, verify_tls=False, dashboard_check=False, shorter load job, 1800s timeout |
 | 3_widget_example.ipynb | UI | Playwright in ui-tests/; namespace='default', view_clusters('default'), remove auth cells |
 
 **Skipped in CI** (require mTLS/OpenShift): local_interactive.ipynb, ray_job_client.ipynb.

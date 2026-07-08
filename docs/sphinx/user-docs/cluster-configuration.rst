@@ -61,6 +61,49 @@ By default, Ray usage statistics collection is **disabled** in Ray Clusters crea
 
 This will automatically set the ``RAY_USAGE_STATS_ENABLED`` environment variable to ``1`` for all Ray pods in the cluster. If you do not set this parameter, usage statistics will remain disabled (``RAY_USAGE_STATS_ENABLED=0``).
 
+In-tree Autoscaling
+-------------------
+
+Ray cluster autoscaling allows worker nodes to scale up when workload demand exceeds current capacity, and scale down when workers are idle. Enable it on ``ClusterConfiguration`` with ``enable_autoscaling=True`` and set the worker bounds with ``min_workers`` and ``max_workers``.
+
+When autoscaling is enabled, the SDK sets ``enableInTreeAutoscaling`` on the RayCluster and maps ``min_workers`` / ``max_workers`` to ``workerGroupSpecs.minReplicas`` and ``workerGroupSpecs.maxReplicas``. The ``num_workers`` parameter is not used in this mode.
+
+.. list-table::
+   :header-rows: 1
+   :widths: auto
+
+   * - Parameter
+     - Description
+   * - ``enable_autoscaling``
+     - Boolean to enable Ray in-tree autoscaling (default ``False``)
+   * - ``min_workers``
+     - Minimum number of worker nodes (required when autoscaling is enabled)
+   * - ``max_workers``
+     - Maximum number of worker nodes (required when autoscaling is enabled; must be >= ``min_workers``)
+
+Example configuration:
+
+.. code:: python
+
+   from codeflare_sdk import Cluster, ClusterConfiguration
+
+   cluster = Cluster(ClusterConfiguration(
+       name='autoscale-ray',
+       namespace='default',
+       enable_autoscaling=True,
+       min_workers=1,
+       max_workers=4,
+       head_cpu_requests=1,
+       head_cpu_limits=1,
+       worker_cpu_requests=1,
+       worker_cpu_limits=1,
+   ))
+
+.. note::
+   Autoscaling is **not supported when Kueue manages Ray clusters in your namespace**. If you set ``local_queue`` or your namespace has a default Kueue LocalQueue, the SDK raises an error when ``enable_autoscaling=True``. Elastic Ray jobs with Kueue are tracked in `RHAIRFE-909 <https://redhat.atlassian.net/browse/RHAIRFE-909>`__.
+
+For a step-by-step example that demonstrates scale-up and scale-down, see the ``6_autoscaling.ipynb`` guided demo in ``demo-notebooks/guided-demos/``.
+
 The ``labels={"exampleLabel": "example"}`` parameter can be used to
 apply additional labels to the RayCluster resource.
 
