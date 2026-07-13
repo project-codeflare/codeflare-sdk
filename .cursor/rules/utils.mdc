@@ -1,0 +1,43 @@
+---
+description: Conventions and guardrails for shared utilities
+globs: src/codeflare_sdk/common/utils/**
+---
+
+# common/utils (utils layer)
+
+Shared constants, K8s helpers, image selection, validation, TLS cert generation, and test support.
+Foundation layer — must not depend on Ray feature modules (`ray.cluster`, `ray.rayjobs`).
+
+## Key Modules
+
+| Module | Purpose |
+|---|---|
+| `constants.py` | `RAY_VERSION`, `MOUNT_PATH`, runtime image maps |
+| `utils.py` | `update_image`, `get_ray_image_for_python_version` |
+| `validation.py` | `validate_ray_version_compatibility` |
+| `k8s_utils.py` | `get_current_namespace` (only symbol in `__init__.py` `__all__`) |
+| `generate_cert.py` | TLS certificate generation for Ray dashboards |
+| `demos.py` | `copy_demo_nbs` notebook helper |
+| `unit_test_support.py` | Test fixtures — excluded from pytest collection |
+
+## Package `__init__.py`
+
+Only exports `get_current_namespace`. Other utilities (`generate_cert`, `demos`) are imported as
+submodules at the package root (`codeflare_sdk/__init__.py`). When adding new shared helpers,
+consider whether they belong in `__all__` or stay internal.
+
+## Import Boundaries
+
+- Must NOT import from `codeflare_sdk.ray` (CI-enforced via import-linter)
+- Exception: `unit_test_support.py` imports `ray.cluster` for test fixtures (grandfathered in linter config)
+- Must NOT import from `codeflare_sdk.vendored`
+- May import from `common.kubernetes_cluster`
+
+## Consumers
+
+Ray layers (`ray/cluster`, `ray/rayjobs`) import utils submodules directly today. Prefer expanding
+`common/utils/__init__.py` exports over adding new deep imports from `constants`, `utils`, or `validation`.
+
+## Commands
+
+- Unit tests: colocated `test_*.py` files in this directory

@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "package": "codeflare_sdk",
+  "description": "Machine-readable registry of the public SDK surface. Source of truth for exports is src/codeflare_sdk/__init__.py.",
+  "design_doc": "docs/designs/CodeFlare-SDK-design-doc.md",
+  "exports": {
+    "cluster": {
+      "module": "codeflare_sdk.ray.cluster",
+      "symbols": [
+        "Cluster",
+        "ClusterConfiguration",
+        "RayClusterStatus",
+        "CodeFlareClusterStatus",
+        "RayCluster",
+        "get_cluster",
+        "list_all_queued",
+        "list_all_clusters"
+      ]
+    },
+    "rayjobs": {
+      "module": "codeflare_sdk.ray.rayjobs",
+      "symbols": [
+        "RayJob",
+        "ManagedClusterConfig",
+        "RayJobDeploymentStatus",
+        "CodeflareRayJobStatus",
+        "RayJobInfo"
+      ],
+      "root_re_exports": [
+        "RayJob",
+        "ManagedClusterConfig"
+      ]
+    },
+    "client": {
+      "module": "codeflare_sdk.ray.client",
+      "symbols": [
+        "RayJobClient"
+      ]
+    },
+    "auth": {
+      "module": "codeflare_sdk.common.kubernetes_cluster",
+      "symbols": [
+        "Authentication",
+        "KubeConfiguration",
+        "TokenAuthentication",
+        "KubeConfigFileAuthentication",
+        "set_api_client",
+        "AuthConfig",
+        "get_k8s_client"
+      ],
+      "notes": "AuthConfig and get_k8s_client are optional (kube-authkit); exported when available."
+    },
+    "kueue": {
+      "module": "codeflare_sdk.common.kueue",
+      "symbols": [
+        "list_local_queues"
+      ]
+    },
+    "widgets": {
+      "module": "codeflare_sdk.common.widgets",
+      "symbols": [
+        "view_clusters"
+      ]
+    },
+    "utils": {
+      "module": "codeflare_sdk.common.utils",
+      "symbols": [
+        "generate_cert",
+        "copy_demo_nbs",
+        "get_current_namespace"
+      ],
+      "notes": "get_current_namespace is exported via common.utils; generate_cert and copy_demo_nbs are re-exported at package root."
+    },
+    "meta": {
+      "symbols": [
+        "__version__"
+      ]
+    }
+  },
+  "internal_modules": {
+    "do_not_import_directly": [
+      "codeflare_sdk.common.utils.constants",
+      "codeflare_sdk.common.utils.utils",
+      "codeflare_sdk.common.utils.validation",
+      "codeflare_sdk.common.utils.generate_cert",
+      "codeflare_sdk.common.kubernetes_cluster.kube_api_helpers",
+      "codeflare_sdk.vendored"
+    ],
+    "notes": "Ray layers currently import some internal utils submodules directly. Prefer package-level imports from codeflare_sdk or codeflare_sdk.common.utils where possible."
+  }
+}

@@ -129,6 +129,15 @@ ruff check path/to/file.py
 Export new public classes and functions in `src/codeflare_sdk/__init__.py`.
 Do not add public API without listing it there.
 
+### Public API Surface
+
+The machine-readable registry of all public exports is at `docs/api/public-surface.json`.
+It mirrors `src/codeflare_sdk/__init__.py` and subpackage `__init__.py` exports.
+When adding or removing public symbols, update both the Python `__init__.py` and the JSON registry.
+
+Design-level architecture: `docs/designs/CodeFlare-SDK-design-doc.md`.
+User-facing Sphinx docs: `docs/sphinx/`.
+
 ### Vendored Code
 
 The `src/codeflare_sdk/vendored/` directory contains a vendored KubeRay Python
@@ -144,6 +153,21 @@ vendored modules — use the SDK's own wrappers.
 - Use safe access (`.get()`, `try/except`) when parsing Custom Resource dicts
 - Reuse existing enums (e.g., `RayClusterStatus`) — do not introduce new
   string-based status fields for concepts already modeled
+
+### Import Boundaries
+
+Layer boundaries are enforced in CI via import-linter (`.importlinter`), run in the
+`lint` workflow and via pre-commit (`PYTHONPATH=src lint-imports`).
+
+- `ray.client.ray_jobs` is isolated — no imports from `common`, other `ray` layers, or `vendored`
+- Foundation utils (`common.utils.*` production modules) must not import `ray`
+- `common.kueue` and `common.kubernetes_cluster` auth helpers must not import `ray`
+- `vendored` may only be imported from `ray.rayjobs.rayjob` (all other listed production modules forbidden)
+
+Additional boundaries are documented in path-scoped rules (`.cursor/rules/`, `.claude/rules/`):
+
+- `cluster` ↔ `widgets` circular dependency (prose-only, pending refactor)
+- Ray layers should prefer package-level `common.utils` imports over deep submodule imports (prose-only)
 
 ## Testing
 
@@ -210,6 +234,11 @@ Real examples for the most common change types. Follow these patterns, not descr
   papermill. See `.cursor/rules/03-testing-and-ci.mdc` for KinD adaptations
   (namespace, auth removal, dashboard_check=False).
 
+## Context File Maintenance
+
+Context files (`.cursor/rules/`, `.claude/rules/`, `AGENTS.md`) are living documents.
+See the "Maintaining AI Context" section in CONTRIBUTING.md for the update process.
+
 ## Cursor Rules (extended guidance)
 
 This repository has more detailed AI coding rules in `.cursor/rules/`:
@@ -217,3 +246,8 @@ This repository has more detailed AI coding rules in `.cursor/rules/`:
 - `.cursor/rules/01-project-context.mdc` — Grounding, personas, hallucination avoidance
 - `.cursor/rules/02-python-standards.mdc` — Python style, canonical examples, common pitfalls
 - `.cursor/rules/03-testing-and-ci.mdc` — CI workflows, demo notebooks, KinD adaptations
+- `.cursor/rules/cluster.mdc` — Ray cluster layer (`src/codeflare_sdk/ray/cluster/`)
+- `.cursor/rules/rayjobs.mdc` — RayJob layer (`src/codeflare_sdk/ray/rayjobs/`)
+- `.cursor/rules/utils.mdc` — Shared utilities (`src/codeflare_sdk/common/utils/`)
+
+Claude Code uses equivalent rules in `.claude/rules/` (same body content, different frontmatter).
