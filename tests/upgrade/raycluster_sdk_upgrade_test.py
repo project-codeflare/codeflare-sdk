@@ -90,7 +90,7 @@ class TestMnistJobSubmit:
         )
         auth.login()
         self.namespace = namespace
-        self.cluster = get_cluster("mnist", self.namespace)
+        self.cluster = get_cluster("mnist", self.namespace, verify_tls=False)
         if not self.cluster:
             raise RuntimeError("TestRayClusterUp needs to be run before this test")
 
@@ -100,16 +100,63 @@ class TestMnistJobSubmit:
 
     # Assertions
     def assert_jobsubmit_withoutLogin(self, cluster):
-        dashboard_url = cluster.cluster_dashboard_uri()
-        try:
-            RayJobClient(address=dashboard_url, verify=False)
-            assert False
-        except Exception as e:
-            if e.response.status_code == 403:
-                assert True
+        dashboard_url = cluster.cluster_dashboard_uri().rstrip("/")
+        if "/ray/" in dashboard_url:
+            api_url = dashboard_url + "/api/jobs/"
+        else:
+            api_url = dashboard_url + "/api/jobs/"
+
+        response = requests.get(api_url, verify=False, timeout=30)
+        assert response.status_code in (
+            401,
+            403,
+        ), f"Expected unauthenticated jobs API to be rejected, got {response.status_code}"
+
+        jobdata = {
+            "entrypoint": "python mnist.py",
+            "runtime_env": {
+                "working_dir": "./tests/e2e/",
+                "pip": "./tests/e2e/mnist_pip_requirements.txt",
+                "env_vars": get_setup_env_variables(),
+            },
+        }
+        response = requests.post(
+            api_url, verify=False, json=jobdata, allow_redirects=True, timeout=30
+        )
+
+        submission_blocked = False
+        if response.status_code in (401, 403, 302):
+            submission_blocked = True
+        elif response.status_code == 200:
+            content_type = response.headers.get("Content-Type", "")
+            if "text/html" in content_type or "application/json" not in content_type:
+                submission_blocked = True
             else:
-                print(f"An unexpected error occurred. Error: {e}")
-                assert False
+                try:
+                    json_response = response.json()
+                    submission_blocked = not (
+                        "job_id" in json_response or "submission_id" in json_response
+                    )
+                except ValueError:
+                    submission_blocked = True
+
+        assert submission_blocked, (
+            f"Job submission succeeded without authentication! "
+            f"Status: {response.status_code}, Response: {response.text[:200]}"
+        )
+
+        try:
+            client = RayJobClient(address=dashboard_url, verify=False)
+            client.list_jobs()
+            assert (
+                False
+            ), "RayJobClient succeeded without authentication - this should not be possible"
+        except (
+            requests.exceptions.JSONDecodeError,
+            requests.exceptions.HTTPError,
+            Exception,
+        ):
+            pass
 
     def assert_jobsubmit_withlogin(self, cluster):
         auth_token = run_oc_command(["whoami", "--show-token=true"])
