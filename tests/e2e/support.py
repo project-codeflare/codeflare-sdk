@@ -74,15 +74,48 @@ def random_choice():
     return "".join(random.choices(alphabet, k=5))
 
 
+def _create_openshift_project(namespace):
+    result = subprocess.run(
+        ["oc", "new-project", namespace],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"Failed to create OpenShift project '{namespace}': "
+            f"{result.stderr or result.stdout}"
+        )
+
+
+def _delete_openshift_project(namespace):
+    subprocess.run(
+        ["oc", "delete", "project", namespace, "--wait=false"],
+        capture_output=True,
+        text=True,
+    )
+
+
 def create_namespace(self):
+    self.namespace = f"test-ns-{random_choice()}"
     try:
-        self.namespace = f"test-ns-{random_choice()}"
         namespace_body = client.V1Namespace(
             metadata=client.V1ObjectMeta(name=self.namespace)
         )
         self.api_instance.create_namespace(namespace_body)
     except Exception as e:
-        return RuntimeError(e)
+        if isinstance(e, client.exceptions.ApiException) and e.status in (403, 401):
+            print(
+                f"Direct namespace create failed (status {e.status}); "
+                f"trying 'oc new-project {self.namespace}' ..."
+            )
+            try:
+                _create_openshift_project(self.namespace)
+                return
+            except RuntimeError as oc_err:
+                _kube_api_error_handling(e)
+                raise oc_err from e
+        _kube_api_error_handling(e)
+        raise
 
 
 def create_new_resource_flavor(self, num_flavors, with_labels, with_tolerations):
@@ -128,12 +161,32 @@ def create_namespace_with_name(self, namespace_name):
                 f"Warning: Namespace '{namespace_name}' already exists, continuing..."
             )
             return
-        return _kube_api_error_handling(e)
+        if isinstance(e, client.exceptions.ApiException) and e.status in (403, 401):
+            print(
+                f"Direct namespace create failed (status {e.status}); "
+                f"trying 'oc new-project {self.namespace}' ..."
+            )
+            try:
+                _create_openshift_project(self.namespace)
+                return
+            except RuntimeError as oc_err:
+                _kube_api_error_handling(e)
+                raise oc_err from e
+        _kube_api_error_handling(e)
+        raise
 
 
 def delete_namespace(self):
-    if hasattr(self, "namespace"):
+    if not hasattr(self, "namespace"):
+        return
+    try:
         self.api_instance.delete_namespace(self.namespace)
+    except client.exceptions.ApiException as e:
+        if e.status in (403, 404):
+            _delete_openshift_project(self.namespace)
+            return
+        _kube_api_error_handling(e)
+        raise
 
 
 def initialize_kubernetes_client(self):
