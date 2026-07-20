@@ -27,3 +27,6 @@ jobs:
 
       - name: Run ruff linter
         run: ruff check .
+
+      - name: Run import boundary checks
+        run: lint-imports
