@@ -228,8 +228,8 @@ Real examples for the most common change types. Follow these patterns, not descr
 
 ### Updating example notebooks
 
-- Guided demos: `demo-notebooks/guided-demos/` (7 notebooks: `0_basic_ray` through
-  `6_autoscaling`)
+- Guided demos: `demo-notebooks/guided-demos/` (8 notebooks: `0_basic_ray` through
+  `7_rayjob_checkpointing_example`)
 - CI workflow: `.github/workflows/guided_notebook_tests.yaml` — runs on KinD via
   papermill. See `.cursor/rules/03-testing-and-ci.mdc` for KinD adaptations
   (namespace, auth removal, dashboard_check=False).

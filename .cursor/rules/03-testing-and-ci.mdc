@@ -86,6 +86,7 @@ coverage report -m
 ### Guided notebooks (label: test-guided-notebooks)
 - KinD + Kueue + KubeRay; no GPU. Notebooks: 0_basic_ray, 4_rayjob_existing_cluster, 5_submit_rayjob_cr. Run with papermill (see Demo notebooks below).
 - **6_autoscaling**: KinD + KubeRay only (no Kueue — autoscaling is incompatible with Kueue; see RHAIRFE-909).
+- **7_rayjob_checkpointing_example**: not run in CI (requires S3 Data Connection and OpenShift/RHOAI workbench; see Demo notebooks below).
 
 ### UI notebooks (labels: test-guided-notebooks or test-ui-notebooks)
 - Job: verify-3_widget_example. Playwright (chromium) in `ui-tests/`; notebook `demo-notebooks/guided-demos/3_widget_example.ipynb`.
@@ -107,7 +108,9 @@ coverage report -m
 | 6_autoscaling.ipynb | Guided | KinD: KubeRay only (no Kueue), namespace='default', rayproject image, verify_tls=False, dashboard_check=False, shorter load job, 1800s timeout |
 | 3_widget_example.ipynb | UI | Playwright in ui-tests/; namespace='default', view_clusters('default'), remove auth cells |
 
-**Skipped in CI** (require mTLS/OpenShift): local_interactive.ipynb, ray_job_client.ipynb.
+**Skipped in CI**:
+- `local_interactive.ipynb`, `ray_job_client.ipynb` — require mTLS/OpenShift (not available in KinD).
+- `7_rayjob_checkpointing_example.ipynb` — requires S3 Data Connection and OpenShift/RHOAI workbench credentials.
 
 ### KinD-specific adaptations (CI applies these)
 - **Auth**: Remove cells that do auth/login (e.g. "Create authentication object for user permissions", `auth.logout()`, `oc login`) — KinD doesn't support token auth the same way.
