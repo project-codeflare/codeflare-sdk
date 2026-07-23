@@ -48,7 +48,8 @@ def train_func(config):
     transform = transforms.Compose(
         [transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))]
     )
-    train_dataset = datasets.MNIST(
+    # FashionMNIST: same API as MNIST, more reliable download mirrors for demos.
+    train_dataset = datasets.FashionMNIST(
         "/tmp/data", train=True, download=True, transform=transform
     )
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
