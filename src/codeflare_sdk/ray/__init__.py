@@ -1,3 +1,5 @@
+from .config import RayClusterConfig
+
 from .client import (
     RayJobClient,
 )
