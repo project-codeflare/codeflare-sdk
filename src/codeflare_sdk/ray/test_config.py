@@ -224,6 +224,10 @@ class TestNameValidation:
         cfg = RayClusterConfig(name=None)
         assert cfg.name is None
 
+    def test_name_empty_string_rejected(self):
+        with pytest.raises(ValidationError, match="RFC 1123"):
+            RayClusterConfig(name="")
+
     def test_name_default_none(self):
         cfg = RayClusterConfig()
         assert cfg.name is None

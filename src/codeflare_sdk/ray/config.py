@@ -23,7 +23,7 @@ model with KubeRay CRD-aligned naming. Consumed by workload wrappers
 
 import re
 import warnings
-from typing import Optional, Union
+from typing import Dict, List, Optional, Union
 
 from kubernetes.client import V1Toleration, V1Volume, V1VolumeMount
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -155,16 +155,16 @@ class RayClusterConfig(BaseModel):
     head_cpu_limits: Union[int, str] = 2
     head_memory_requests: Union[int, str] = 8
     head_memory_limits: Union[int, str] = 8
-    head_accelerators: dict[str, Union[str, int]] = Field(default_factory=dict)
-    head_tolerations: Optional[list[V1Toleration]] = None
+    head_accelerators: Dict[str, Union[str, int]] = Field(default_factory=dict)
+    head_tolerations: Optional[List[V1Toleration]] = None
 
     # --- Worker node resources (flat, single worker group) ---
     worker_cpu_requests: Union[int, str] = 1
     worker_cpu_limits: Union[int, str] = 1
     worker_memory_requests: Union[int, str] = 2
     worker_memory_limits: Union[int, str] = 2
-    worker_accelerators: dict[str, Union[str, int]] = Field(default_factory=dict)
-    worker_tolerations: Optional[list[V1Toleration]] = None
+    worker_accelerators: Dict[str, Union[str, int]] = Field(default_factory=dict)
+    worker_tolerations: Optional[List[V1Toleration]] = None
     num_workers: int = 1
 
     # --- Autoscaling ---
@@ -173,24 +173,24 @@ class RayClusterConfig(BaseModel):
     max_workers: Optional[int] = None
 
     # --- Accelerator mapping ---
-    accelerator_configs: dict[str, str] = Field(
+    accelerator_configs: Dict[str, str] = Field(
         default_factory=lambda: DEFAULT_ACCELERATORS.copy()
     )
 
     # --- Environment and images ---
-    envs: dict[str, str] = Field(default_factory=dict)
+    envs: Dict[str, str] = Field(default_factory=dict)
     image: str = ""
-    image_pull_secrets: list[str] = Field(default_factory=list)
+    image_pull_secrets: List[str] = Field(default_factory=list)
 
     # --- Kueue integration ---
     local_queue: Optional[str] = None
     priority_class: Optional[str] = None
 
     # --- Kubernetes metadata ---
-    labels: dict[str, str] = Field(default_factory=dict)
-    annotations: dict[str, str] = Field(default_factory=dict)
-    volumes: list[V1Volume] = Field(default_factory=list)
-    volume_mounts: list[V1VolumeMount] = Field(default_factory=list)
+    labels: Dict[str, str] = Field(default_factory=dict)
+    annotations: Dict[str, str] = Field(default_factory=dict)
+    volumes: List[V1Volume] = Field(default_factory=list)
+    volume_mounts: List[V1VolumeMount] = Field(default_factory=list)
 
     # --- Cluster behavior ---
     write_to_file: bool = False
@@ -200,7 +200,7 @@ class RayClusterConfig(BaseModel):
     # --- GCS fault tolerance ---
     enable_gcs_ft: bool = False
     redis_address: Optional[str] = None
-    redis_password_secret: Optional[dict[str, str]] = None
+    redis_password_secret: Optional[Dict[str, str]] = None
     external_storage_namespace: Optional[str] = None
 
     # ---- Field validators ----

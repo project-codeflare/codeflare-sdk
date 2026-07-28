@@ -1,5 +1,3 @@
-from .config import RayClusterConfig
-
 from .client import (
     RayJobClient,
 )
@@ -22,3 +20,5 @@ from .cluster import (
     CodeFlareClusterStatus,
     RayCluster,
 )
+
+from .config import RayClusterConfig
