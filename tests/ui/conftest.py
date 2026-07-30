@@ -820,6 +820,29 @@ def login_to_dashboard(selenium_driver, dashboard_url, test_credentials):
 
         print(f"Successfully logged in to RHOAI Dashboard using {login_page_type} flow")
 
+        # Dismiss first-login / what's-new modals that block side-nav clicks
+        try:
+            from selenium.webdriver.common.keys import Keys
+
+            close_selectors = [
+                "button[aria-label='Close']",
+                ".pf-v6-c-modal-box button.pf-v6-c-button.pf-m-plain",
+                ".pf-v5-c-modal-box button.pf-v5-c-button.pf-m-plain",
+                "[role='dialog'] button[aria-label='Close']",
+            ]
+            for selector in close_selectors:
+                for btn in driver.find_elements(By.CSS_SELECTOR, selector):
+                    try:
+                        if btn.is_displayed():
+                            print(f"Dismissing dashboard modal via {selector}")
+                            btn.click()
+                            time.sleep(0.5)
+                    except Exception:
+                        continue
+            driver.find_element(By.TAG_NAME, "body").send_keys(Keys.ESCAPE)
+        except Exception as dismiss_err:
+            print(f"Note: no dashboard modal dismissed after login: {dismiss_err}")
+
     except Exception as e:
         print(f"Login failed: {e}")
         # Take screenshot for debugging

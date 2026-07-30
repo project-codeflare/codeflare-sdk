@@ -179,13 +179,10 @@ def create_limited_cluster_queue(
         flavor_name: Name of the ResourceFlavor to use.
         is_openshift: Whether running on OpenShift (affects memory quota).
     """
-    # Adjust quota based on platform - matching old e2e/support.py logic
-    if is_openshift:
-        cpu_quota = 3
-        memory_quota = "15Gi"
-    else:
-        cpu_quota = 3
-        memory_quota = "10Gi"
+    # Match e2e/support.py: fit one head-only job (~7Gi) but not two (~14Gi).
+    # Quotas are the same on both platforms (is_openshift kept for call-site compatibility).
+    cpu_quota = 3
+    memory_quota = "10Gi"
 
     cluster_queue_body = {
         "apiVersion": "kueue.x-k8s.io/v1beta1",

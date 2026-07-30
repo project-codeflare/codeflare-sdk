@@ -377,8 +377,13 @@ def ensure_nodes_labeled_for_flavors(self, num_flavors, with_labels):
 def create_namespace(self):
     try:
         self.namespace = f"test-ns-{random_choice()}"
+        # RHBoK/OpenShift Kueue only manages namespaces with this label
+        # (see kueue-manager-config managedJobsNamespaceSelector).
         namespace_body = client.V1Namespace(
-            metadata=client.V1ObjectMeta(name=self.namespace)
+            metadata=client.V1ObjectMeta(
+                name=self.namespace,
+                labels={"kueue.openshift.io/managed": "true"},
+            )
         )
         self.api_instance.create_namespace(namespace_body)
     except Exception as e:
@@ -963,16 +968,12 @@ def create_limited_kueue_resources(self):
     )
     self.resource_flavors = [resource_flavor]
 
-    # Create a cluster queue with very limited resources
-    # Adjust quota based on platform - OpenShift needs more memory
-    if is_openshift():
-        # MODH images need more memory, so higher quota but still limited to allow only 1 job
-        cpu_quota = 3
-        memory_quota = "15Gi"  # One job needs ~8Gi head, allow some buffer
-    else:
-        # Standard Ray images - one job needs ~8G head + 500m submitter
-        cpu_quota = 3
-        memory_quota = "10Gi"  # Enough for one job (8G head + submitter), but not two
+    # Create a cluster queue with very limited resources.
+    # Jobs use head_memory_requests=7 (see get_platform_appropriate_resources) and
+    # num_workers=0, so quota must fit one job (~7Gi) but not two (~14Gi).
+    # 15Gi previously allowed both jobs (7+7=14 < 15) and broke queueing assertions.
+    cpu_quota = 3
+    memory_quota = "10Gi"
 
     cluster_queue_name = f"limited-cq-{random_choice()}"
     cluster_queue_json = {
