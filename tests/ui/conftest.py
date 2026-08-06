@@ -469,7 +469,11 @@ def handle_openshift_oauth_login(driver, test_credentials):
                         print(
                             "No preferred IDP found, skipping IDP selection, will try direct login form"
                         )
-                else:
+
+                # Click whichever IDP was selected (Strategies 1-4). Previously the click
+                # lived in an `else` of `if not selected_idp`, so Strategy 4 selections
+                # never clicked and left the browser on the OAuth authorize page.
+                if selected_idp:
                     print(f"Clicking identity provider button: {selected_idp[1]}")
                     selected_idp[0].click()
 
@@ -501,6 +505,15 @@ def handle_openshift_oauth_login(driver, test_credentials):
 
                     print(f"Final URL after IDP redirect: {driver.current_url}")
                     print(f"Page title after redirect: {driver.title}")
+
+                    if (
+                        "oauth/authorize" in driver.current_url
+                        and "login/" not in driver.current_url
+                    ):
+                        raise RuntimeError(
+                            "IDP click did not leave the OAuth authorize page; "
+                            f"still at {driver.current_url}"
+                        )
         except Exception as e:
             print(f"No identity provider selection needed or failed to handle: {e}")
 
@@ -788,12 +801,27 @@ def login_to_dashboard(selenium_driver, dashboard_url, test_credentials):
 
         for i in range(8):  # Try for up to 40 seconds (8 * 5 seconds)
             time.sleep(5)
-            print(f"Attempt {i+1}/8 - Current URL: {driver.current_url}")
-            print(f"Attempt {i+1}/8 - Page title: {driver.title}")
+            current_url = driver.current_url
+            page_title = driver.title
+            print(f"Attempt {i+1}/8 - Current URL: {current_url}")
+            print(f"Attempt {i+1}/8 - Page title: {page_title}")
 
-            # Check if page title indicates we're on the dashboard
-            if "Red Hat OpenShift AI" in driver.title or "OpenShift" in driver.title:
-                print(f"Dashboard loaded successfully (title: {driver.title})")
+            # Reject failed OAuth / still-on-login pages (do not treat bare
+            # "OpenShift" in the login page title as dashboard success).
+            if "access_denied" in current_url or (
+                "/login" in current_url and "oauth-openshift" in current_url
+            ):
+                raise RuntimeError(
+                    "OAuth login failed or still on the login page. "
+                    f"URL: {current_url}, title: {page_title}"
+                )
+
+            title_lower = page_title.lower()
+            on_login_title = title_lower.startswith("login") or "sign in" in title_lower
+            if "Red Hat OpenShift AI" in page_title or (
+                "OpenShift AI" in page_title and not on_login_title
+            ):
+                print(f"Dashboard loaded successfully (title: {page_title})")
                 dashboard_loaded = True
                 break
 
@@ -819,6 +847,29 @@ def login_to_dashboard(selenium_driver, dashboard_url, test_credentials):
             )
 
         print(f"Successfully logged in to RHOAI Dashboard using {login_page_type} flow")
+
+        # Dismiss first-login / what's-new modals that block side-nav clicks
+        try:
+            from selenium.webdriver.common.keys import Keys
+
+            close_selectors = [
+                "button[aria-label='Close']",
+                ".pf-v6-c-modal-box button.pf-v6-c-button.pf-m-plain",
+                ".pf-v5-c-modal-box button.pf-v5-c-button.pf-m-plain",
+                "[role='dialog'] button[aria-label='Close']",
+            ]
+            for selector in close_selectors:
+                for btn in driver.find_elements(By.CSS_SELECTOR, selector):
+                    try:
+                        if btn.is_displayed():
+                            print(f"Dismissing dashboard modal via {selector}")
+                            btn.click()
+                            time.sleep(0.5)
+                    except Exception:
+                        continue
+            driver.find_element(By.TAG_NAME, "body").send_keys(Keys.ESCAPE)
+        except Exception as dismiss_err:
+            print(f"Note: no dashboard modal dismissed after login: {dismiss_err}")
 
     except Exception as e:
         print(f"Login failed: {e}")

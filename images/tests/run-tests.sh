@@ -167,16 +167,28 @@ if [ "$CLUSTER_IS_BYOIDC" = "false" ]; then
     fi
 fi
 
-# Method 2: Check for OIDC providers in Authentication resource (fallback)
+# Method 2: OIDC providers with Keycloak / QE BYOIDC issuer URLs only.
+# Do NOT treat every oidcProviders entry as BYOIDC.
 if [ "$CLUSTER_IS_BYOIDC" = "false" ]; then
     OIDC_ISSUER=$(timeout 10 oc get authentication cluster -o jsonpath='{.spec.oidcProviders[*].issuer.issuerURL}' 2>/dev/null) || true
-    if [ -n "$OIDC_ISSUER" ]; then
-        echo "Detected BYOIDC cluster: Authentication has oidcProviders with issuerURL: $OIDC_ISSUER"
+    if echo "$OIDC_ISSUER" | grep -qi "keycloak" && echo "$OIDC_ISSUER" | grep -Eqi "rh-ods\.com|qe\.rh-ods\.com"; then
+        echo "Detected BYOIDC cluster: Authentication has BYOIDC oidcProviders issuerURL: $OIDC_ISSUER"
         CLUSTER_IS_BYOIDC=true
     fi
 fi
 
-# Method 3: Check for oidcClients in Authentication status (another fallback)
+# Method 3: External webhookTokenAuthenticators (plural). Ignore the singular
+# IntegratedOAuth webhookTokenAuthenticator present on standard clusters.
+if [ "$CLUSTER_IS_BYOIDC" = "false" ]; then
+    WEBHOOK=$(timeout 10 oc get authentication cluster -o jsonpath='{.spec.webhookTokenAuthenticators[*].kubeConfig.name}' 2>/dev/null) || true
+    if [ -n "$WEBHOOK" ]; then
+        echo "Detected BYOIDC cluster: Authentication has webhookTokenAuthenticators"
+        CLUSTER_IS_BYOIDC=true
+    fi
+fi
+
+# Method 4: oidcClients with oc-cli client id (BYOIDC-specific).
+# componentName "cli" alone is a false positive on standard OpenShift / ROSA.
 if [ "$CLUSTER_IS_BYOIDC" = "false" ]; then
     if timeout 10 oc get authentication cluster -o jsonpath='{.status.oidcClients}' 2>/dev/null | grep -q "oc-cli"; then
         echo "Detected BYOIDC cluster: Authentication status has oidcClients with oc-cli"
@@ -184,13 +196,9 @@ if [ "$CLUSTER_IS_BYOIDC" = "false" ]; then
     fi
 fi
 
-# Method 4: Check OAuth resource for openID identity provider (legacy OIDC setup)
-if [ "$CLUSTER_IS_BYOIDC" = "false" ]; then
-    if timeout 10 oc get oauth cluster -o jsonpath='{.spec.identityProviders[*].type}' 2>/dev/null | grep -qi "OpenID"; then
-        echo "Detected BYOIDC cluster: OAuth has OpenID identity provider"
-        CLUSTER_IS_BYOIDC=true
-    fi
-fi
+# NOTE: Do NOT treat OAuth identityProviders type=OpenID as BYOIDC.
+# ROSA Classic commonly has redhat-sso (OpenID) alongside htpasswd/LDAP while still
+# using IntegratedOAuth. Align with tests/e2e/support.py::is_byoidc_cluster_detected.
 
 # Set authentication method based purely on cluster type
 if [ "$CLUSTER_IS_BYOIDC" = "true" ]; then
