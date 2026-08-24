@@ -125,63 +125,8 @@ class TestMnistJobSubmit:
             raise RuntimeError("TestRayClusterUp needs to be run before this test")
 
     def _is_byoidc_cluster(self):
-        """
-        BYOIDC cluster detection by checking OpenShift cluster Authentication resource.
-        Detection is based solely on cluster state — no environment variable fallback.
-        """
-        try:
-            auth_resource = self.custom_api.get_cluster_custom_object(
-                group="config.openshift.io",
-                version="v1",
-                plural="authentications",
-                name="cluster",
-            )
-
-            spec = auth_resource.get("spec", {})
-
-            # Check oidcProviders for BYOIDC-specific issuer URL patterns
-            if "oidcProviders" in spec and spec["oidcProviders"]:
-                for provider in spec["oidcProviders"]:
-                    issuer_url = provider.get("issuer", {}).get("issuerURL", "")
-                    if (
-                        "keycloak" in issuer_url.lower()
-                        and (
-                            "rh-ods.com" in issuer_url or "qe.rh-ods.com" in issuer_url
-                        )
-                    ) or "realms/openshift" in issuer_url:
-                        print(f"Detected BYOIDC cluster with OIDC issuer: {issuer_url}")
-                        return True
-
-            # Check webhookTokenAuthenticators
-            if (
-                "webhookTokenAuthenticators" in spec
-                and spec["webhookTokenAuthenticators"]
-            ):
-                for webhook in spec["webhookTokenAuthenticators"]:
-                    if webhook.get("kubeConfig", {}):
-                        print(
-                            "Detected BYOIDC cluster with webhook token authenticator"
-                        )
-                        return True
-
-            # Check status.oidcClients for cli component (BYOIDC-specific).
-            # clientID is nested under currentOIDCClients[]; componentName=="cli" is
-            # simpler and always present when BYOIDC is active.
-            status = auth_resource.get("status", {})
-            if "oidcClients" in status and status["oidcClients"]:
-                for client in status["oidcClients"]:
-                    if client.get("componentName") == "cli":
-                        print(
-                            "Detected BYOIDC cluster from status.oidcClients (cli component)"
-                        )
-                        return True
-
-            print("No BYOIDC indicators found in cluster Authentication resource")
-            return False
-
-        except Exception as e:
-            print(f"Could not check cluster authentication method: {e}")
-            return False
+        """BYOIDC detection — same rules as tests.e2e.support.is_byoidc_cluster_detected."""
+        return is_byoidc_cluster_detected()
 
     def test_mnist_job_submission(self):
         self.assert_jobsubmit_withoutLogin(self.cluster)
