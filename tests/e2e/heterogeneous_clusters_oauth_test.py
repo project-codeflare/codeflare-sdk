@@ -12,7 +12,6 @@ from support import *
 
 @pytest.mark.skip(reason="Temporarily skipped due to needed investigation")
 @pytest.mark.openshift
-@pytest.mark.tier1
 class TestHeterogeneousClustersOauth:
     def setup_method(self):
         initialize_kubernetes_client(self)
