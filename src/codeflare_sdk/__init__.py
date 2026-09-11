@@ -9,7 +9,6 @@ from .ray import (
     list_all_clusters,
     RayJobClient,
     RayJob,
-    ManagedClusterConfig,
 )
 
 from .common.widgets import view_clusters

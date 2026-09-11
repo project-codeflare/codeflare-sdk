@@ -120,7 +120,7 @@ class ClusterConfiguration:
             The storage namespace to use for GCS fault tolerance. By default, KubeRay sets it to the UID of RayCluster.
     """
 
-    name: str
+    name: Optional[str] = None
     namespace: Optional[str] = None
     head_cpu_requests: Union[int, str] = 1
     head_cpu_limits: Union[int, str] = 2
@@ -202,7 +202,8 @@ class ClusterConfiguration:
         self._validate_extended_resource_requests(
             self.worker_extended_resource_requests
         )
-        _validate_cluster_name(self.name)
+        if self.name is not None:
+            _validate_cluster_name(self.name)
 
     def _combine_extended_resource_mapping(self):
         if overwritten := set(self.extended_resource_mapping.keys()).intersection(

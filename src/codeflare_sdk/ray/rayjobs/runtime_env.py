@@ -12,7 +12,10 @@ from codeflare_sdk.common.utils.constants import MOUNT_PATH
 from kubernetes import client
 from ray.runtime_env import RuntimeEnv
 
-from codeflare_sdk.ray.rayjobs.config import ManagedClusterConfig
+from codeflare_sdk.ray.rayjobs.config import (
+    validate_secret_size,
+    build_file_secret_spec,
+)
 from ...common.kubernetes_cluster.auth import get_api_client
 
 # Use TYPE_CHECKING to avoid circular import at runtime
@@ -389,15 +392,12 @@ def create_file_secret(
     """
     Create Secret with owner reference for local files.
     """
-    # Use a basic config builder for Secret creation
-    config_builder = ManagedClusterConfig()
-
     # Filter out metadata keys (like __entrypoint_path__) from Secret data
     secret_files = {k: v for k, v in files.items() if not k.startswith("__")}
 
     # Validate and build Secret spec
-    config_builder.validate_secret_size(secret_files)
-    secret_spec = config_builder.build_file_secret_spec(
+    validate_secret_size(secret_files)
+    secret_spec = build_file_secret_spec(
         job_name=job.name, namespace=job.namespace, files=secret_files
     )
 
