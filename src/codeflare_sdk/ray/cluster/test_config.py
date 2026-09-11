@@ -202,6 +202,33 @@ def test_ray_usage_stats_enabled(mocker):
     assert env_vars["RAY_USAGE_STATS_ENABLED"] == "1"
 
 
+def test_config_name_optional_defaults_to_none():
+    """ClusterConfiguration can be created without a name."""
+    config = ClusterConfiguration()
+    assert config.name is None
+
+
+def test_config_name_none_skips_rfc1123_validation():
+    """No RFC 1123 validation when name is None."""
+    config = ClusterConfiguration(namespace="test-ns", num_workers=2)
+    assert config.name is None
+
+
+def test_config_name_set_still_validates_rfc1123():
+    """RFC 1123 validation still runs when name is provided."""
+    with pytest.raises(ValueError):
+        ClusterConfiguration(name="INVALID_NAME")
+
+
+def test_cluster_init_requires_name(mocker):
+    """Cluster.__init__ raises ValueError when config.name is None."""
+    mocker.patch("codeflare_sdk.ray.cluster.cluster.config_check")
+    mocker.patch("codeflare_sdk.ray.cluster.cluster.get_api_client")
+    config = ClusterConfiguration(namespace="test-ns")
+    with pytest.raises(ValueError, match="name is required"):
+        Cluster(config)
+
+
 def test_cluster_name_validation():
     with pytest.raises(ValueError):
         ClusterConfiguration(name="TestCluster", namespace="ns")

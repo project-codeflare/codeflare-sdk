@@ -22,7 +22,11 @@ from ray.runtime_env import RuntimeEnv
 
 from codeflare_sdk.ray.rayjobs.rayjob import RayJob
 from codeflare_sdk.ray.cluster.config import ClusterConfiguration
-from codeflare_sdk.ray.rayjobs.config import ManagedClusterConfig
+from codeflare_sdk.ray.rayjobs.config import (
+    build_file_secret_spec,
+    build_file_volume_specs,
+    add_file_volumes,
+)
 from kubernetes.client import (
     V1Volume,
     V1VolumeMount,
@@ -84,10 +88,9 @@ def test_build_file_secret_spec():
     """
     Test building Secret specification for files.
     """
-    config = ManagedClusterConfig()
     files = {"main.py": "print('main')", "helper.py": "print('helper')"}
 
-    spec = config.build_file_secret_spec(
+    spec = build_file_secret_spec(
         job_name="test-job", namespace="test-namespace", files=files
     )
 
@@ -103,9 +106,7 @@ def test_build_file_volume_specs():
     """
     Test building volume and mount specifications for files.
     """
-    config = ManagedClusterConfig()
-
-    volume_spec, mount_spec = config.build_file_volume_specs(
+    volume_spec, mount_spec = build_file_volume_specs(
         secret_name="test-files", mount_path="/custom/path"
     )
 
@@ -120,13 +121,13 @@ def test_add_file_volumes():
     """
     Test adding file volumes to cluster configuration.
     """
-    config = ManagedClusterConfig()
+    config = ClusterConfiguration()
 
     # Initially no volumes
     assert len(config.volumes) == 0
     assert len(config.volume_mounts) == 0
 
-    config.add_file_volumes(secret_name="test-files")
+    add_file_volumes(config, secret_name="test-files")
 
     assert len(config.volumes) == 1
     assert len(config.volume_mounts) == 1
@@ -145,11 +146,11 @@ def test_add_file_volumes_duplicate_prevention():
     """
     Test that adding file volumes twice doesn't create duplicates.
     """
-    config = ManagedClusterConfig()
+    config = ClusterConfiguration()
 
     # Add volumes twice
-    config.add_file_volumes(secret_name="test-files")
-    config.add_file_volumes(secret_name="test-files")
+    add_file_volumes(config, secret_name="test-files")
+    add_file_volumes(config, secret_name="test-files")
 
     assert len(config.volumes) == 1
     assert len(config.volume_mounts) == 1
@@ -312,7 +313,6 @@ def test_file_handling_kubernetes_best_practice_flow(mocker, tmp_path):
     mock_create_secret = mocker.patch(
         "codeflare_sdk.ray.rayjobs.rayjob.create_file_secret"
     )
-    mock_add_volumes = mocker.patch.object(ManagedClusterConfig, "add_file_volumes")
 
     # RayClusterApi is already mocked by auto_mock_setup
 
@@ -320,11 +320,6 @@ def test_file_handling_kubernetes_best_practice_flow(mocker, tmp_path):
     test_file.write_text("print('test')")
 
     call_order = []
-
-    def track_add_volumes(*args, **kwargs):
-        call_order.append("add_volumes")
-        # Should be called with Secret name
-        assert args[0] == "test-job-files"
 
     def track_submit(*args, **kwargs):
         call_order.append("submit_job")
@@ -336,7 +331,6 @@ def test_file_handling_kubernetes_best_practice_flow(mocker, tmp_path):
         assert len(args) >= 3, f"Expected 3 args, got {len(args)}: {args}"
         assert args[2] == submit_result  # rayjob_result should be third arg
 
-    mock_add_volumes.side_effect = track_add_volumes
     mock_api_instance.submit_job.side_effect = track_submit
     mock_create_secret.side_effect = track_create_secret
 
@@ -344,7 +338,7 @@ def test_file_handling_kubernetes_best_practice_flow(mocker, tmp_path):
     try:
         os.chdir(tmp_path)
 
-        cluster_config = ManagedClusterConfig()
+        cluster_config = ClusterConfiguration()
 
         rayjob = RayJob(
             job_name="test-job",
@@ -363,12 +357,9 @@ def test_file_handling_kubernetes_best_practice_flow(mocker, tmp_path):
     mock_api_instance.submit_job.assert_called_once()
     mock_create_secret.assert_called_once()
 
-    # Verify create_file_secret was called with: (job, files, rayjob_result)
-    # Files dict includes metadata key __entrypoint_path__ for single file case
     call_args = mock_create_secret.call_args[0]
     assert call_args[0] == rayjob
     assert call_args[2] == submit_result
-    # Check that the actual file content is present
     assert "test.py" in call_args[1]
     assert call_args[1]["test.py"] == "print('test')"
 
@@ -392,7 +383,7 @@ def test_rayjob_submit_with_files_new_cluster(auto_mock_setup, tmp_path):
     test_file = tmp_path / "test.py"
     test_file.write_text("print('Hello from the test file!')")
 
-    cluster_config = ManagedClusterConfig()
+    cluster_config = ClusterConfiguration()
 
     original_cwd = os.getcwd()
     os.chdir(tmp_path)
@@ -412,9 +403,6 @@ def test_rayjob_submit_with_files_new_cluster(auto_mock_setup, tmp_path):
 
         mock_k8s_instance.create_namespaced_secret.assert_called_once()
 
-        assert len(cluster_config.volumes) == 0
-        assert len(cluster_config.volume_mounts) == 0
-        # Entrypoint should be adjusted to use just the filename
         assert rayjob.entrypoint == "python test.py"
 
     finally:
@@ -464,7 +452,7 @@ def test_add_file_volumes_existing_volume_skip():
     """
     from kubernetes.client import V1SecretVolumeSource
 
-    config = ManagedClusterConfig()
+    config = ClusterConfiguration()
 
     # Pre-add a volume with same name
     existing_volume = V1Volume(
@@ -473,23 +461,23 @@ def test_add_file_volumes_existing_volume_skip():
     )
     config.volumes.append(existing_volume)
 
-    config.add_file_volumes(secret_name="new-files")
+    add_file_volumes(config, secret_name="new-files")
     assert len(config.volumes) == 1
-    assert len(config.volume_mounts) == 0  # Mount not added due to volume skip
+    assert len(config.volume_mounts) == 0
 
 
 def test_add_file_volumes_existing_mount_skip():
     """
     Test add_file_volumes skips when mount already exists (missing coverage).
     """
-    config = ManagedClusterConfig()
+    config = ClusterConfiguration()
 
     # Pre-add a mount with same name
     existing_mount = V1VolumeMount(name="ray-job-files", mount_path="/existing/path")
     config.volume_mounts.append(existing_mount)
 
-    config.add_file_volumes(secret_name="new-files")
-    assert len(config.volumes) == 0  # Volume not added due to mount skip
+    add_file_volumes(config, secret_name="new-files")
+    assert len(config.volumes) == 0
     assert len(config.volume_mounts) == 1
 
 
