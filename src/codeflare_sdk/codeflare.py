@@ -30,6 +30,7 @@ Usage:
 
 import logging
 from dataclasses import dataclass, field
+import builtins
 from typing import Optional
 
 from kube_authkit import AuthConfig, get_k8s_client
@@ -110,7 +111,7 @@ class ClusterHandler:
         ns = namespace or self._sdk.config.namespace or "default"
         return get_cluster(cluster_name=name, namespace=ns, **kwargs)
 
-    def list(self, namespace: Optional[str] = None) -> list:
+    def list(self, namespace: Optional[str] = None) -> builtins.list:
         """List all Ray clusters in a namespace.
 
         Args:
@@ -122,7 +123,7 @@ class ClusterHandler:
         ns = namespace or self._sdk.config.namespace or "default"
         return list_all_clusters(ns, print_to_console=False)
 
-    def list_queued(self, namespace: Optional[str] = None) -> list:
+    def list_queued(self, namespace: Optional[str] = None) -> builtins.list:
         """List all queued Ray clusters in a namespace.
 
         Args:
