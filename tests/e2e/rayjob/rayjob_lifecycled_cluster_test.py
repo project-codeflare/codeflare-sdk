@@ -7,7 +7,7 @@ import tempfile
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from support import *
 
-from codeflare_sdk import RayJob, ManagedClusterConfig
+from codeflare_sdk import RayJob, ClusterConfiguration
 
 from kubernetes import client
 from codeflare_sdk.vendored.python_client.kuberay_job_api import RayjobApi
@@ -38,7 +38,7 @@ class TestRayJobLifecycledCluster:
         # Get platform-appropriate resource configurations
         resources = get_platform_appropriate_resources()
 
-        cluster_config = ManagedClusterConfig(
+        cluster_config = ClusterConfiguration(
             head_cpu_requests=resources["head_cpu_requests"],
             head_cpu_limits=resources["head_cpu_limits"],
             head_memory_requests=resources["head_memory_requests"],
@@ -118,7 +118,7 @@ class TestRayJobLifecycledCluster:
         # Get platform-appropriate resource configurations
         resources = get_platform_appropriate_resources()
 
-        cluster_config = ManagedClusterConfig(
+        cluster_config = ClusterConfiguration(
             head_cpu_requests=resources["head_cpu_requests"],
             head_cpu_limits=resources["head_cpu_limits"],
             head_memory_requests=resources["head_memory_requests"],
