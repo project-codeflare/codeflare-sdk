@@ -453,8 +453,14 @@ def handle_openshift_oauth_login(driver, test_credentials):
                         f"Multiple IDPs found but couldn't determine which to use. Available: {[text for _, text, _ in all_idp_buttons]}"
                     )
 
-                    # Smart fallback: prefer cluster-admin, htpasswd, or admin over redhat-sso
-                    preferred_idps = ["cluster-admin", "htpasswd", "admin", "kube"]
+                    # TEST_USER on QE clusters is typically LDAP; prefer that over htpasswd.
+                    preferred_idps = [
+                        "ldap",
+                        "cluster-admin",
+                        "htpasswd",
+                        "admin",
+                        "kube",
+                    ]
                     for preferred in preferred_idps:
                         for elem, text, href in all_idp_buttons:
                             if preferred in text.lower():
@@ -464,12 +470,12 @@ def handle_openshift_oauth_login(driver, test_credentials):
                         if selected_idp:
                             break
 
-                    # If still no match, skip IDP selection
                     if not selected_idp:
                         print(
                             "No preferred IDP found, skipping IDP selection, will try direct login form"
                         )
-                else:
+
+                if selected_idp:
                     print(f"Clicking identity provider button: {selected_idp[1]}")
                     selected_idp[0].click()
 
@@ -791,9 +797,18 @@ def login_to_dashboard(selenium_driver, dashboard_url, test_credentials):
             print(f"Attempt {i + 1}/8 - Current URL: {driver.current_url}")
             print(f"Attempt {i + 1}/8 - Page title: {driver.title}")
 
-            # Check if page title indicates we're on the dashboard
-            if "Red Hat OpenShift AI" in driver.title or "OpenShift" in driver.title:
-                print(f"Dashboard loaded successfully (title: {driver.title})")
+            # Login pages also contain "OpenShift" in the title; require dashboard, not OAuth.
+            title = driver.title or ""
+            url = driver.current_url or ""
+            on_login_page = (
+                "login" in title.lower()
+                or "oauth-openshift" in url
+                or "reason=access_denied" in url
+            )
+            if not on_login_page and (
+                "Red Hat OpenShift AI" in title or "OpenShift AI" in title
+            ):
+                print(f"Dashboard loaded successfully (title: {title})")
                 dashboard_loaded = True
                 break
 
