@@ -322,6 +322,14 @@ def test_autoscaling_spec_generation(mocker):
 def test_autoscaling_blocked_when_local_queue_set(mocker):
     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch("kubernetes.client.CustomObjectsApi.list_namespaced_custom_object")
+    mocker.patch(
+        "codeflare_sdk.common.kueue.kueue.kueue_supports_elastic_workloads",
+        return_value=False,
+    )
+    mocker.patch(
+        "codeflare_sdk.common.kueue.kueue.is_rhoai_kueue_managed",
+        return_value=False,
+    )
 
     with pytest.raises(
         ValueError,
@@ -346,6 +354,14 @@ def test_autoscaling_blocked_when_default_queue_exists(mocker):
         "codeflare_sdk.common.kueue.kueue.get_default_kueue_name",
         return_value="default-queue",
     )
+    mocker.patch(
+        "codeflare_sdk.common.kueue.kueue.kueue_supports_elastic_workloads",
+        return_value=False,
+    )
+    mocker.patch(
+        "codeflare_sdk.common.kueue.kueue.is_rhoai_kueue_managed",
+        return_value=False,
+    )
 
     with pytest.raises(
         ValueError,
@@ -354,6 +370,67 @@ def test_autoscaling_blocked_when_default_queue_exists(mocker):
         Cluster(
             ClusterConfiguration(
                 name="autoscale-kueue-default",
+                namespace="ns",
+                enable_autoscaling=True,
+                min_workers=1,
+                max_workers=8,
+            )
+        )
+
+
+def test_autoscaling_allowed_when_kueue_rhbok_14(mocker):
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch("kubernetes.client.CustomObjectsApi.list_namespaced_custom_object")
+    mocker.patch(
+        "codeflare_sdk.common.kueue.kueue.get_default_kueue_name",
+        return_value="default-queue",
+    )
+    mocker.patch(
+        "codeflare_sdk.common.kueue.kueue.kueue_supports_elastic_workloads",
+        return_value=True,
+    )
+    mocker.patch(
+        "codeflare_sdk.common.kueue.kueue.is_rhoai_kueue_managed",
+        return_value=False,
+    )
+
+    cluster = Cluster(
+        ClusterConfiguration(
+            name="autoscale-kueue-rhbok14",
+            namespace="ns",
+            enable_autoscaling=True,
+            min_workers=1,
+            max_workers=8,
+        )
+    )
+
+    spec = cluster.resource_yaml["spec"]
+    assert spec["enableInTreeAutoscaling"] is True
+
+
+def test_autoscaling_blocked_when_rhoai_managed_kueue(mocker):
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch("kubernetes.client.CustomObjectsApi.list_namespaced_custom_object")
+    mocker.patch(
+        "codeflare_sdk.common.kueue.kueue.get_default_kueue_name",
+        return_value="default-queue",
+    )
+    mocker.patch(
+        "codeflare_sdk.common.kueue.kueue.kueue_supports_elastic_workloads",
+        return_value=True,
+    )
+    mocker.patch(
+        "codeflare_sdk.common.kueue.kueue.is_rhoai_kueue_managed",
+        return_value=True,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="Autoscaling is not supported when Kueue is enabled",
+    ):
+        Cluster(
+            ClusterConfiguration(
+                name="autoscale-rhoai-managed-kueue",
                 namespace="ns",
                 enable_autoscaling=True,
                 min_workers=1,

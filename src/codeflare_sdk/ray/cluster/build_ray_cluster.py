@@ -134,17 +134,11 @@ def build_ray_cluster(cluster: "codeflare_sdk.ray.cluster.Cluster"):
     # Determine autoscaling vs fixed-size worker replica settings
     autoscaling_enabled = cluster.config.enable_autoscaling
     if autoscaling_enabled:
-        from codeflare_sdk.common.kueue.kueue import get_default_kueue_name
+        from codeflare_sdk.common.kueue.kueue import validate_autoscaling_with_kueue
 
-        lq_name = cluster.config.local_queue or get_default_kueue_name(
-            cluster.config.namespace
+        validate_autoscaling_with_kueue(
+            cluster.config.namespace, cluster.config.local_queue
         )
-        if lq_name is not None:
-            raise ValueError(
-                "Autoscaling is not supported when Kueue is enabled. "
-                "Please remove the autoscaler configuration from your "
-                "ClusterConfiguration."
-            )
         worker_replicas = cluster.config.min_workers
         worker_min_replicas = cluster.config.min_workers
         worker_max_replicas = cluster.config.max_workers
