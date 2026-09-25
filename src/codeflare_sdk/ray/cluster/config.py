@@ -99,8 +99,9 @@ class ClusterConfiguration:
             A list of V1VolumeMount objects to add to the Cluster
         enable_autoscaling:
             A boolean indicating whether to enable Ray in-tree autoscaling. When True,
-            min_workers and max_workers must also be set. Cannot be used with Kueue
-            (local_queue) until upstream KEP-77 graduates.
+            min_workers and max_workers must also be set. With Kueue (local_queue or a
+            default LocalQueue), autoscaling is allowed only when Red Hat Build of Kueue
+            (Unmanaged) is >= 1.4; RHOAI-managed Kueue still blocks autoscaling.
         min_workers:
             Minimum number of workers when autoscaling is enabled. Maps to
             workerGroupSpecs.replicas and workerGroupSpecs.minReplicas.

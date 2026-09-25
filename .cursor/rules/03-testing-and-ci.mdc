@@ -85,7 +85,7 @@ coverage report -m
 
 ### Guided notebooks (label: test-guided-notebooks)
 - KinD + Kueue + KubeRay; no GPU. Notebooks: 0_basic_ray, 4_rayjob_existing_cluster, 5_submit_rayjob_cr. Run with papermill (see Demo notebooks below).
-- **6_autoscaling**: KinD + KubeRay only (no Kueue — autoscaling is incompatible with Kueue; see RHAIRFE-909).
+- **6_autoscaling**: KinD + KubeRay only (no Kueue — CI KinD has no RHBOK 1.4+; autoscaling with Kueue needs Unmanaged RHBOK >= 1.4).
 - **7_rayjob_checkpointing_example**: not run in CI (requires S3 Data Connection and OpenShift/RHOAI workbench; see Demo notebooks below).
 
 ### UI notebooks (labels: test-guided-notebooks or test-ui-notebooks)

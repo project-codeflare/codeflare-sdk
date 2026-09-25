@@ -25,10 +25,15 @@ import filecmp
 from pathlib import Path
 from .kueue import (
     get_default_kueue_name,
+    get_kueue_operator_version,
+    is_rhoai_kueue_managed,
+    kueue_supports_elastic_workloads,
+    validate_autoscaling_with_kueue,
     list_local_queues,
     local_queue_exists,
     add_queue_label,
     priority_class_exists,
+    AUTOSCALING_WITH_KUEUE_ERROR,
 )
 
 parent = Path(__file__).resolve().parents[4]  # project directory
@@ -167,6 +172,269 @@ def test_list_local_queues_no_status(mocker):
     assert list_local_queues("ns", flavors=["default"]) == [
         {"name": "c", "flavors": ["default"]},
     ]
+
+
+def test_get_kueue_operator_version_found(mocker):
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+    mock_api = mocker.patch("kubernetes.client.CustomObjectsApi")
+    mock_api.return_value.list_cluster_custom_object.return_value = {
+        "items": [
+            {"metadata": {"name": "other-operator.v1.0.0"}},
+            {"metadata": {"name": "kueue-operator.v1.4.0"}},
+        ]
+    }
+
+    assert get_kueue_operator_version() == "1.4.0"
+
+
+def test_get_kueue_operator_version_not_installed(mocker):
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+    mock_api = mocker.patch("kubernetes.client.CustomObjectsApi")
+    mock_api.return_value.list_cluster_custom_object.return_value = {"items": []}
+
+    assert get_kueue_operator_version() is None
+
+
+def test_is_rhoai_kueue_managed_true(mocker):
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+    mock_api = mocker.patch("kubernetes.client.CustomObjectsApi")
+    mock_api.return_value.list_cluster_custom_object.return_value = {
+        "items": [
+            {
+                "spec": {
+                    "components": {"kueue": {"managementState": "Managed"}},
+                }
+            }
+        ]
+    }
+
+    assert is_rhoai_kueue_managed() is True
+
+
+def test_validate_autoscaling_with_kueue_allows_rhbok_14(mocker):
+    mocker.patch(
+        "codeflare_sdk.common.kueue.kueue.get_default_kueue_name",
+        return_value="default-queue",
+    )
+    mocker.patch(
+        "codeflare_sdk.common.kueue.kueue.is_rhoai_kueue_managed",
+        return_value=False,
+    )
+    mocker.patch(
+        "codeflare_sdk.common.kueue.kueue.kueue_supports_elastic_workloads",
+        return_value=True,
+    )
+
+    validate_autoscaling_with_kueue("ns", None)
+
+
+def test_validate_autoscaling_with_kueue_blocks_managed(mocker):
+    mocker.patch(
+        "codeflare_sdk.common.kueue.kueue.get_default_kueue_name",
+        return_value="default-queue",
+    )
+    mocker.patch(
+        "codeflare_sdk.common.kueue.kueue.is_rhoai_kueue_managed",
+        return_value=True,
+    )
+
+    with pytest.raises(
+        ValueError, match="Autoscaling is not supported when Kueue is enabled"
+    ):
+        validate_autoscaling_with_kueue("ns", None)
+
+
+def test_get_kueue_operator_version_api_not_found(mocker):
+    from kubernetes.client import ApiException
+
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+    mock_api = mocker.patch("kubernetes.client.CustomObjectsApi")
+    mock_api.return_value.list_cluster_custom_object.side_effect = ApiException(
+        status=404
+    )
+
+    assert get_kueue_operator_version() is None
+
+
+def test_get_kueue_operator_version_api_forbidden(mocker):
+    from kubernetes.client import ApiException
+
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+    mock_api = mocker.patch("kubernetes.client.CustomObjectsApi")
+    mock_api.return_value.list_cluster_custom_object.side_effect = ApiException(
+        status=403
+    )
+
+    assert get_kueue_operator_version() is None
+
+
+def test_get_kueue_operator_version_empty_suffix(mocker):
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+    mock_api = mocker.patch("kubernetes.client.CustomObjectsApi")
+    mock_api.return_value.list_cluster_custom_object.return_value = {
+        "items": [{"metadata": {"name": "kueue-operator."}}]
+    }
+
+    assert get_kueue_operator_version() is None
+
+
+def test_get_kueue_operator_version_strips_v_prefix(mocker):
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+    mock_api = mocker.patch("kubernetes.client.CustomObjectsApi")
+    mock_api.return_value.list_cluster_custom_object.return_value = {
+        "items": [{"metadata": {"name": "kueue-operator.v1.5.1"}}]
+    }
+
+    assert get_kueue_operator_version() == "1.5.1"
+
+
+def test_is_rhoai_kueue_managed_false_when_unmanaged(mocker):
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+    mock_api = mocker.patch("kubernetes.client.CustomObjectsApi")
+    mock_api.return_value.list_cluster_custom_object.return_value = {
+        "items": [
+            {
+                "spec": {
+                    "components": {"kueue": {"managementState": "Unmanaged"}},
+                }
+            }
+        ]
+    }
+
+    assert is_rhoai_kueue_managed() is False
+
+
+def test_is_rhoai_kueue_managed_false_when_no_dsc(mocker):
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+    mock_api = mocker.patch("kubernetes.client.CustomObjectsApi")
+    mock_api.return_value.list_cluster_custom_object.return_value = {"items": []}
+
+    assert is_rhoai_kueue_managed() is False
+
+
+def test_is_rhoai_kueue_managed_false_when_dsc_api_forbidden(mocker):
+    from kubernetes.client import ApiException
+
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+    mock_api = mocker.patch("kubernetes.client.CustomObjectsApi")
+    mock_api.return_value.list_cluster_custom_object.side_effect = ApiException(
+        status=403
+    )
+
+    assert is_rhoai_kueue_managed() is False
+
+
+def test_get_kueue_operator_version_handles_unexpected_api_error(mocker):
+    from kubernetes.client import ApiException
+
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+    mock_api = mocker.patch("kubernetes.client.CustomObjectsApi")
+    mock_api.return_value.list_cluster_custom_object.side_effect = ApiException(
+        status=500
+    )
+    mock_handle = mocker.patch(
+        "codeflare_sdk.common.kueue.kueue._kube_api_error_handling",
+        return_value=None,
+    )
+
+    assert get_kueue_operator_version() is None
+    mock_handle.assert_called_once()
+
+
+def test_is_rhoai_kueue_managed_handles_unexpected_api_error(mocker):
+    from kubernetes.client import ApiException
+
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+    mock_api = mocker.patch("kubernetes.client.CustomObjectsApi")
+    mock_api.return_value.list_cluster_custom_object.side_effect = ApiException(
+        status=500
+    )
+    mock_handle = mocker.patch(
+        "codeflare_sdk.common.kueue.kueue._kube_api_error_handling",
+        return_value=None,
+    )
+
+    assert is_rhoai_kueue_managed() is None
+    mock_handle.assert_called_once()
+
+
+def test_kueue_supports_elastic_workloads_true(mocker):
+    mocker.patch(
+        "codeflare_sdk.common.kueue.kueue.get_kueue_operator_version",
+        return_value="1.4.0",
+    )
+
+    assert kueue_supports_elastic_workloads() is True
+
+
+def test_kueue_supports_elastic_workloads_false_below_minimum(mocker):
+    mocker.patch(
+        "codeflare_sdk.common.kueue.kueue.get_kueue_operator_version",
+        return_value="1.3.9",
+    )
+
+    assert kueue_supports_elastic_workloads() is False
+
+
+def test_kueue_supports_elastic_workloads_false_when_operator_missing(mocker):
+    mocker.patch(
+        "codeflare_sdk.common.kueue.kueue.get_kueue_operator_version",
+        return_value=None,
+    )
+
+    assert kueue_supports_elastic_workloads() is False
+
+
+def test_kueue_supports_elastic_workloads_false_invalid_version(mocker, caplog):
+    mocker.patch(
+        "codeflare_sdk.common.kueue.kueue.get_kueue_operator_version",
+        return_value="not-a-version",
+    )
+
+    assert kueue_supports_elastic_workloads() is False
+    assert "Unrecognized kueue-operator version" in caplog.text
+
+
+def test_validate_autoscaling_with_kueue_skips_when_no_queue(mocker):
+    mocker.patch(
+        "codeflare_sdk.common.kueue.kueue.get_default_kueue_name",
+        return_value=None,
+    )
+
+    validate_autoscaling_with_kueue("ns", None)
+
+
+def test_validate_autoscaling_with_kueue_blocks_old_rhbok(mocker):
+    mocker.patch(
+        "codeflare_sdk.common.kueue.kueue.get_default_kueue_name",
+        return_value="default-queue",
+    )
+    mocker.patch(
+        "codeflare_sdk.common.kueue.kueue.is_rhoai_kueue_managed",
+        return_value=False,
+    )
+    mocker.patch(
+        "codeflare_sdk.common.kueue.kueue.get_kueue_operator_version",
+        return_value="1.2.0",
+    )
+
+    with pytest.raises(
+        ValueError, match="Autoscaling is not supported when Kueue is enabled"
+    ):
+        validate_autoscaling_with_kueue("ns", None)
+
+
+def test_validate_autoscaling_with_kueue_uses_explicit_local_queue(mocker):
+    mocker.patch(
+        "codeflare_sdk.common.kueue.kueue.is_rhoai_kueue_managed",
+        return_value=False,
+    )
+    mocker.patch(
+        "codeflare_sdk.common.kueue.kueue.get_kueue_operator_version",
+        return_value="1.4.0",
+    )
+
+    validate_autoscaling_with_kueue("ns", "my-queue")
 
 
 def test_get_default_kueue_name_found(mocker):

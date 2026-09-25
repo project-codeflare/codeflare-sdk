@@ -14,6 +14,7 @@
 
 from typing import Optional, List
 import logging
+from packaging.version import InvalidVersion, Version
 from codeflare_sdk.common import _kube_api_error_handling
 from codeflare_sdk.common.kubernetes_cluster.auth import config_check, get_api_client
 from kubernetes import client
@@ -22,6 +23,18 @@ from kubernetes.client.exceptions import ApiException
 from ...common.utils import get_current_namespace
 
 logger = logging.getLogger(__name__)
+
+_KUEUE_OPERATOR_NAME_PREFIX = "kueue-operator."
+_MIN_RHBOK_ELASTIC_VERSION = Version("1.4.0")
+_DSC_GROUP = "datasciencecluster.opendatahub.io"
+_DSC_VERSION = "v1"
+_DSC_PLURAL = "datascienceclusters"
+
+AUTOSCALING_WITH_KUEUE_ERROR = (
+    "Autoscaling is not supported when Kueue is enabled. "
+    "Please remove the autoscaler configuration from your "
+    "ClusterConfiguration."
+)
 
 
 def _fetch_local_queues(namespace: str) -> dict:
@@ -67,6 +80,101 @@ def _find_default_queue_name(local_queues: dict) -> Optional[str]:
         ):
             return lq["metadata"]["name"]
     return None
+
+
+def get_kueue_operator_version() -> Optional[str]:
+    """
+    Return the installed Red Hat Build of Kueue (kueue-operator) version, if present.
+
+    Version is read from OperatorCondition objects (name ``kueue-operator.<version>``),
+    matching the OpenShift Kueue operator packaging.
+    """
+    config_check()
+    api_instance = client.CustomObjectsApi(get_api_client())
+    try:
+        conditions = api_instance.list_cluster_custom_object(
+            group="operators.coreos.com",
+            version="v2",
+            plural="operatorconditions",
+        )
+    except ApiException as e:
+        if e.status in (404, 403):
+            return None
+        return _kube_api_error_handling(e)
+
+    for item in conditions.get("items", []):
+        name = item.get("metadata", {}).get("name", "")
+        if not name.startswith(_KUEUE_OPERATOR_NAME_PREFIX):
+            continue
+        version = name[len(_KUEUE_OPERATOR_NAME_PREFIX) :].lstrip("v")
+        return version or None
+    return None
+
+
+def is_rhoai_kueue_managed() -> bool:
+    """
+    True when RHOAI controls Kueue via DataScienceCluster (managementState Managed).
+
+    Autoscaling remains blocked for this case until RHOAI-managed Kueue is validated
+    for elastic Ray workloads; RHBOK (Unmanaged) >= 1.4 is allowed separately.
+    """
+    config_check()
+    api_instance = client.CustomObjectsApi(get_api_client())
+    try:
+        dscs = api_instance.list_cluster_custom_object(
+            group=_DSC_GROUP,
+            version=_DSC_VERSION,
+            plural=_DSC_PLURAL,
+        )
+    except ApiException as e:
+        if e.status in (404, 403):
+            return False
+        return _kube_api_error_handling(e)
+
+    items = dscs.get("items") or []
+    if not items:
+        return False
+
+    kueue_component = items[0].get("spec", {}).get("components", {}).get("kueue") or {}
+    management_state = (kueue_component.get("managementState") or "").lower()
+    return management_state == "managed"
+
+
+def kueue_supports_elastic_workloads() -> bool:
+    """True when the cluster's kueue-operator is RHBOK >= 1.4."""
+    version_str = get_kueue_operator_version()
+    if not version_str:
+        return False
+    try:
+        return Version(version_str) >= _MIN_RHBOK_ELASTIC_VERSION
+    except InvalidVersion:
+        logger.warning(
+            "Unrecognized kueue-operator version '%s'; treating elastic workloads as unsupported",
+            version_str,
+        )
+        return False
+
+
+def validate_autoscaling_with_kueue(
+    namespace: Optional[str], local_queue: Optional[str]
+) -> None:
+    """
+    Raise ValueError when autoscaling is incompatible with detected Kueue usage.
+
+    Allows autoscaling with Kueue when RHBOK (Unmanaged) is >= 1.4; blocks when
+    RHOAI-managed Kueue is enabled or the operator is older than 1.4.
+    """
+    lq_name = local_queue or get_default_kueue_name(namespace)
+    if lq_name is None:
+        return
+
+    if is_rhoai_kueue_managed():
+        raise ValueError(AUTOSCALING_WITH_KUEUE_ERROR)
+
+    if kueue_supports_elastic_workloads():
+        return
+
+    raise ValueError(AUTOSCALING_WITH_KUEUE_ERROR)
 
 
 def get_default_kueue_name(namespace: str) -> Optional[str]:

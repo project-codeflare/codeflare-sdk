@@ -100,7 +100,7 @@ Example configuration:
    ))
 
 .. note::
-   Autoscaling is **not supported when Kueue manages Ray clusters in your namespace**. If you set ``local_queue`` or your namespace has a default Kueue LocalQueue, the SDK raises an error when ``enable_autoscaling=True``. Elastic Ray jobs with Kueue are tracked in `RHAIRFE-909 <https://redhat.atlassian.net/browse/RHAIRFE-909>`__.
+   If you set ``local_queue`` or your namespace has a default Kueue LocalQueue, autoscaling is allowed when Red Hat Build of Kueue (DSC Kueue **Unmanaged**) is version **1.4** or newer. Autoscaling remains blocked when RHOAI **manages** Kueue via the DataScienceCluster, or when the installed kueue-operator is older than 1.4.
 
 For a step-by-step example that demonstrates scale-up and scale-down, see the ``6_autoscaling.ipynb`` guided demo in ``demo-notebooks/guided-demos/``.
 
