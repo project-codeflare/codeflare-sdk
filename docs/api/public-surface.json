@@ -31,6 +31,15 @@
         "ManagedClusterConfig"
       ]
     },
+    "config": {
+      "module": "codeflare_sdk.ray.config",
+      "symbols": [
+        "RayClusterConfig"
+      ],
+      "root_re_exports": [
+        "RayClusterConfig"
+      ]
+    },
     "client": {
       "module": "codeflare_sdk.ray.client",
       "symbols": [

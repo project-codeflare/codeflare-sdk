@@ -60,6 +60,7 @@ source_modules =
     codeflare_sdk.ray.cluster.status
     codeflare_sdk.ray.cluster.pretty_print
     codeflare_sdk.ray.client.ray_jobs
+    codeflare_sdk.ray.config
 forbidden_modules =
     codeflare_sdk.vendored
 ignore_imports =

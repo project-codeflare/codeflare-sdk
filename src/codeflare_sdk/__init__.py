@@ -4,6 +4,7 @@ from .ray import (
     RayClusterStatus,
     CodeFlareClusterStatus,
     RayCluster,
+    RayClusterConfig,
     get_cluster,
     list_all_queued,
     list_all_clusters,
