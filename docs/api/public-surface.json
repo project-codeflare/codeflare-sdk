@@ -21,14 +21,12 @@
       "module": "codeflare_sdk.ray.rayjobs",
       "symbols": [
         "RayJob",
-        "ManagedClusterConfig",
         "RayJobDeploymentStatus",
         "CodeflareRayJobStatus",
         "RayJobInfo"
       ],
       "root_re_exports": [
-        "RayJob",
-        "ManagedClusterConfig"
+        "RayJob"
       ]
     },
     "client": {
