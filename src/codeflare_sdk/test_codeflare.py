@@ -25,8 +25,6 @@ class TestSDKConfig:
         from codeflare_sdk.codeflare import SDKConfig
 
         config = SDKConfig()
-        assert config.retries == 3
-        assert config.timeout == 300
         assert config.namespace is None
         assert config.log_level == "WARNING"
         assert isinstance(config.auth, AuthConfig)
@@ -37,46 +35,18 @@ class TestSDKConfig:
         auth = AuthConfig(method="kubeconfig")
         config = SDKConfig(
             auth=auth,
-            retries=5,
-            timeout=600,
             namespace="my-ns",
             log_level="DEBUG",
         )
-        assert config.retries == 5
-        assert config.timeout == 600
         assert config.namespace == "my-ns"
         assert config.log_level == "DEBUG"
         assert config.auth is auth
-
-    def test_negative_retries_raises(self):
-        from codeflare_sdk.codeflare import SDKConfig
-
-        with pytest.raises(ValueError, match="retries"):
-            SDKConfig(retries=-1)
-
-    def test_zero_timeout_raises(self):
-        from codeflare_sdk.codeflare import SDKConfig
-
-        with pytest.raises(ValueError, match="timeout"):
-            SDKConfig(timeout=0)
-
-    def test_negative_timeout_raises(self):
-        from codeflare_sdk.codeflare import SDKConfig
-
-        with pytest.raises(ValueError, match="timeout"):
-            SDKConfig(timeout=-10)
 
     def test_invalid_log_level_raises(self):
         from codeflare_sdk.codeflare import SDKConfig
 
         with pytest.raises(ValueError, match="log_level"):
             SDKConfig(log_level="INVALID")
-
-    def test_zero_retries_allowed(self):
-        from codeflare_sdk.codeflare import SDKConfig
-
-        config = SDKConfig(retries=0)
-        assert config.retries == 0
 
 
 class TestCodeflare:

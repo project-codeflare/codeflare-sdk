@@ -163,6 +163,11 @@ def set_api_client(new_client: client.ApiClient) -> None:
     This is an internal function called by Codeflare.__init__().
     Users should use the Codeflare class instead of calling this directly.
 
+    Unlike the previous implementation, this no longer probes the cluster
+    with AuthenticationApi.get_api_group() — validation is handled upstream
+    by kube-authkit. Misconfigured clients will fail on the first real API
+    call rather than at init time.
+
     Args:
         new_client: The Kubernetes API client instance to use.
     """

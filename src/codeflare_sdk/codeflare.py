@@ -53,23 +53,15 @@ class SDKConfig:
 
     Args:
         auth: kube-authkit AuthConfig for Kubernetes authentication.
-        retries: Number of retries for K8s API calls.
-        timeout: Default timeout in seconds for blocking operations.
-        namespace: Default namespace for all operations. Auto-detected if not set.
+        namespace: Default namespace for all operations. Falls back to 'default' if not set.
         log_level: Logging level for the codeflare_sdk logger.
     """
 
     auth: AuthConfig = field(default_factory=lambda: AuthConfig(method="auto"))
-    retries: int = 3
-    timeout: int = 300
     namespace: Optional[str] = None
     log_level: str = "WARNING"
 
     def __post_init__(self):
-        if self.retries < 0:
-            raise ValueError("retries must be >= 0")
-        if self.timeout <= 0:
-            raise ValueError("timeout must be > 0")
         if self.log_level not in _VALID_LOG_LEVELS:
             raise ValueError(
                 f"log_level must be one of {_VALID_LOG_LEVELS}, got '{self.log_level}'"
@@ -192,6 +184,10 @@ class Codeflare:
 
     Authenticates to Kubernetes via kube-authkit and provides
     namespace-accessor handlers for clusters and jobs.
+
+    Note: The K8s API client is stored as module-level state. Creating
+    multiple Codeflare instances in the same process is supported, but
+    only the most recently created instance's client is active.
 
     Args:
         config: SDK configuration. Defaults to auto-detection.
