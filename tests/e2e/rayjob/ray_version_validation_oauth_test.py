@@ -8,7 +8,7 @@ from support import *
 
 from codeflare_sdk import (
     RayJob,
-    ManagedClusterConfig,
+    ClusterConfiguration,
 )
 
 
@@ -23,9 +23,9 @@ class TestRayJobRayVersionValidationOauth:
 
     def _create_basic_managed_cluster_config(
         self, ray_image: str
-    ) -> ManagedClusterConfig:
+    ) -> ClusterConfiguration:
         """Helper method to create basic managed cluster configuration."""
-        return ManagedClusterConfig(
+        return ClusterConfiguration(
             head_cpu_requests="500m",
             head_cpu_limits="500m",
             head_memory_requests=1,

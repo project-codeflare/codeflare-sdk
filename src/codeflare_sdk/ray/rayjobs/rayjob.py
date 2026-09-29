@@ -33,7 +33,8 @@ from codeflare_sdk.common.utils.constants import MOUNT_PATH
 from codeflare_sdk.common.utils.utils import get_ray_image_for_python_version
 from codeflare_sdk.vendored.python_client.kuberay_job_api import RayjobApi
 from codeflare_sdk.vendored.python_client.kuberay_cluster_api import RayClusterApi
-from codeflare_sdk.ray.rayjobs.config import ManagedClusterConfig
+from codeflare_sdk.ray.cluster.config import ClusterConfiguration
+from codeflare_sdk.ray.rayjobs.config import build_ray_cluster_spec
 from codeflare_sdk.ray.rayjobs.runtime_env import (
     create_file_secret,
     extract_all_local_files,
@@ -68,7 +69,7 @@ class RayJob:
         job_name: str,
         entrypoint: str,
         cluster_name: Optional[str] = None,
-        cluster_config: Optional[ManagedClusterConfig] = None,
+        cluster_config: Optional[ClusterConfiguration] = None,
         namespace: Optional[str] = None,
         runtime_env: Optional[Union[RuntimeEnv, Dict[str, Any]]] = None,
         ttl_seconds_after_finished: int = 0,
@@ -324,8 +325,8 @@ class RayJob:
 
         # Configure cluster: either use existing or create new
         if self._cluster_config is not None:
-            ray_cluster_spec = self._cluster_config.build_ray_cluster_spec(
-                cluster_name=self.cluster_name
+            ray_cluster_spec = build_ray_cluster_spec(
+                config=self._cluster_config, cluster_name=self.cluster_name
             )
 
             logger.info(

@@ -59,6 +59,11 @@ class Cluster:
         """
         self.config = config
         self._job_submission_client = None
+        if self.config is not None and self.config.name is None:
+            raise ValueError(
+                "ClusterConfiguration.name is required when creating a Cluster. "
+                "Provide a name in your ClusterConfiguration."
+            )
         if self.config is None:
             warnings.warn(
                 "Please provide a ClusterConfiguration to initialise the Cluster object"
