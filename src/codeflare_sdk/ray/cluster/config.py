@@ -54,6 +54,50 @@ def _validate_cluster_name(name: str):
         )
 
 
+_MEMORY_BINARY_UNITS = {
+    "Ki": 1024,
+    "Mi": 1024**2,
+    "Gi": 1024**3,
+    "Ti": 1024**4,
+    "Pi": 1024**5,
+    "Ei": 1024**6,
+}
+
+_MEMORY_DECIMAL_UNITS = {
+    "k": 1000,
+    "K": 1000,
+    "M": 1000**2,
+    "G": 1000**3,
+    "T": 1000**4,
+    "P": 1000**5,
+    "E": 1000**6,
+}
+
+
+def _parse_cpu(value: Union[int, str]) -> float:
+    """Parse a Kubernetes CPU quantity to a comparable float (cores)."""
+    if isinstance(value, (int, float)):
+        return float(value)
+    s = str(value).strip()
+    if s.endswith("m"):
+        return float(s[:-1]) / 1000
+    return float(s)
+
+
+def _parse_memory(value: Union[int, str]) -> float:
+    """Parse a Kubernetes memory quantity to a comparable float (bytes)."""
+    if isinstance(value, (int, float)):
+        return float(value)
+    s = str(value).strip()
+    for suffix, multiplier in _MEMORY_BINARY_UNITS.items():
+        if s.endswith(suffix):
+            return float(s[: -len(suffix)]) * multiplier
+    for suffix, multiplier in _MEMORY_DECIMAL_UNITS.items():
+        if s.endswith(suffix):
+            return float(s[:-1]) * multiplier
+    return float(s)
+
+
 @dataclass
 class ClusterConfiguration:
     """
@@ -198,6 +242,7 @@ class ClusterConfiguration:
         self._validate_types()
         self._memory_to_string()
         self._str_mem_no_unit_add_GB()
+        self._validate_resource_requests()
         self._combine_extended_resource_mapping()
         self._validate_extended_resource_requests(self.head_extended_resource_requests)
         self._validate_extended_resource_requests(
@@ -246,6 +291,23 @@ class ClusterConfiguration:
                 warnings.warn(
                     "min_workers and max_workers are ignored when enable_autoscaling is False",
                     UserWarning,
+                )
+
+    def _validate_resource_requests(self):
+        """Validate that resource requests do not exceed their corresponding limits."""
+        pairs = [
+            ("head_cpu_requests", "head_cpu_limits", _parse_cpu),
+            ("head_memory_requests", "head_memory_limits", _parse_memory),
+            ("worker_cpu_requests", "worker_cpu_limits", _parse_cpu),
+            ("worker_memory_requests", "worker_memory_limits", _parse_memory),
+        ]
+        for req_name, lim_name, parser in pairs:
+            req_val = parser(getattr(self, req_name))
+            lim_val = parser(getattr(self, lim_name))
+            if req_val > lim_val:
+                raise ValueError(
+                    f"'{req_name}' ({getattr(self, req_name)}) must not exceed "
+                    f"'{lim_name}' ({getattr(self, lim_name)})"
                 )
 
     def _str_mem_no_unit_add_GB(self):

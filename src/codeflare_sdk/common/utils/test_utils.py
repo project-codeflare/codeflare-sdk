@@ -24,23 +24,22 @@ from codeflare_sdk.common.utils.utils import (
 )
 from codeflare_sdk.common.utils.constants import (
     SUPPORTED_PYTHON_VERSIONS,
-    CUDA_PY311_RUNTIME_IMAGE,
     CUDA_PY312_RUNTIME_IMAGE,
 )
 
 
-def test_update_image_with_empty_string_python_311(mocker):
-    """Test that update_image() with empty string returns default image for Python 3.11."""
-    # Mock sys.version_info to simulate Python 3.11
+def test_update_image_with_empty_string_python_311_unsupported(mocker):
+    """Test that update_image() warns for Python 3.11 (no default image)."""
     VersionInfo = namedtuple(
         "version_info", ["major", "minor", "micro", "releaselevel", "serial"]
     )
     mocker.patch("sys.version_info", VersionInfo(3, 11, 0, "final", 0))
+    warn_mock = mocker.patch("warnings.warn")
 
-    # Test with empty image (should use default for Python 3.11)
     image = update_image("")
-    assert image == CUDA_PY311_RUNTIME_IMAGE
-    assert image == SUPPORTED_PYTHON_VERSIONS["3.11"]
+    warn_mock.assert_called_once()
+    assert "No default Ray image defined for 3.11" in warn_mock.call_args[0][0]
+    assert image is None
 
 
 def test_update_image_with_empty_string_python_312(mocker):
@@ -57,17 +56,18 @@ def test_update_image_with_empty_string_python_312(mocker):
     assert image == SUPPORTED_PYTHON_VERSIONS["3.12"]
 
 
-def test_update_image_with_none_python_311(mocker):
-    """Test that update_image() with None returns default image for Python 3.11."""
-    # Mock sys.version_info to simulate Python 3.11
+def test_update_image_with_none_python_311_unsupported(mocker):
+    """Test that update_image() with None warns for Python 3.11 (no default image)."""
     VersionInfo = namedtuple(
         "version_info", ["major", "minor", "micro", "releaselevel", "serial"]
     )
     mocker.patch("sys.version_info", VersionInfo(3, 11, 0, "final", 0))
+    warn_mock = mocker.patch("warnings.warn")
 
-    # Test with None image (should use default for Python 3.11)
     image = update_image(None)
-    assert image == CUDA_PY311_RUNTIME_IMAGE
+    warn_mock.assert_called_once()
+    assert "No default Ray image defined for 3.11" in warn_mock.call_args[0][0]
+    assert image is None
 
 
 def test_update_image_with_none_python_312(mocker):
@@ -100,7 +100,7 @@ def test_update_image_with_unsupported_python_version(mocker):
     # Assert that the warning was called with the expected message
     warn_mock.assert_called_once()
     assert "No default Ray image defined for 3.8" in warn_mock.call_args[0][0]
-    assert "3.11, 3.12" in warn_mock.call_args[0][0]
+    assert "3.12" in warn_mock.call_args[0][0]
 
     # Assert that no image was set since the Python version is not supported
     assert image is None
@@ -124,10 +124,10 @@ def test_update_image_with_provided_image_empty_string():
     assert image == custom_image
 
 
-def test_get_ray_image_for_python_version_explicit_311():
-    """Test get_ray_image_for_python_version() with explicit Python 3.11."""
-    image = get_ray_image_for_python_version("3.11")
-    assert image == CUDA_PY311_RUNTIME_IMAGE
+def test_get_ray_image_for_python_version_explicit_311_unsupported():
+    """Test get_ray_image_for_python_version() returns None for Python 3.11."""
+    image = get_ray_image_for_python_version("3.11", warn_on_unsupported=False)
+    assert image == CUDA_PY312_RUNTIME_IMAGE
 
 
 def test_get_ray_image_for_python_version_explicit_312():
@@ -136,17 +136,18 @@ def test_get_ray_image_for_python_version_explicit_312():
     assert image == CUDA_PY312_RUNTIME_IMAGE
 
 
-def test_get_ray_image_for_python_version_auto_detect_311(mocker):
-    """Test get_ray_image_for_python_version() auto-detects Python 3.11."""
-    # Mock sys.version_info to simulate Python 3.11
+def test_get_ray_image_for_python_version_auto_detect_311_unsupported(mocker):
+    """Test get_ray_image_for_python_version() warns for auto-detected Python 3.11."""
     VersionInfo = namedtuple(
         "version_info", ["major", "minor", "micro", "releaselevel", "serial"]
     )
     mocker.patch("sys.version_info", VersionInfo(3, 11, 0, "final", 0))
+    warn_mock = mocker.patch("warnings.warn")
 
-    # Test with None (should auto-detect)
     image = get_ray_image_for_python_version()
-    assert image == CUDA_PY311_RUNTIME_IMAGE
+    warn_mock.assert_called_once()
+    assert "No default Ray image defined for 3.11" in warn_mock.call_args[0][0]
+    assert image is None
 
 
 def test_get_ray_image_for_python_version_auto_detect_312(mocker):
@@ -197,13 +198,11 @@ def test_get_ray_image_for_python_version_unsupported_silent_fallback():
 
 def test_get_ray_image_for_python_version_none_defaults_to_current(mocker):
     """Test that passing None to get_ray_image_for_python_version() uses current Python."""
-    # Mock sys.version_info to simulate Python 3.11
     VersionInfo = namedtuple(
         "version_info", ["major", "minor", "micro", "releaselevel", "serial"]
     )
-    mocker.patch("sys.version_info", VersionInfo(3, 11, 5, "final", 0))
+    mocker.patch("sys.version_info", VersionInfo(3, 12, 0, "final", 0))
 
-    # Passing None should detect the mocked version
     image = get_ray_image_for_python_version(None, warn_on_unsupported=True)
 
-    assert image == CUDA_PY311_RUNTIME_IMAGE
+    assert image == CUDA_PY312_RUNTIME_IMAGE
