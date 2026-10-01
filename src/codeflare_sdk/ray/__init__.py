@@ -19,3 +19,5 @@ from .cluster import (
     CodeFlareClusterStatus,
     RayCluster,
 )
+
+from .config import RayClusterConfig
