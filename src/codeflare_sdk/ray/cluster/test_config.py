@@ -508,6 +508,122 @@ def test_autoscaling_disabled_spec_unchanged(mocker):
     assert worker_group["maxReplicas"] == 3
 
 
+def test_resource_requests_exceed_limits_head_cpu():
+    with pytest.raises(
+        ValueError, match="'head_cpu_requests'.*must not exceed.*'head_cpu_limits'"
+    ):
+        ClusterConfiguration(
+            name="test", namespace="ns", head_cpu_requests=4, head_cpu_limits=2
+        )
+
+
+def test_resource_requests_exceed_limits_head_memory():
+    with pytest.raises(
+        ValueError,
+        match="'head_memory_requests'.*must not exceed.*'head_memory_limits'",
+    ):
+        ClusterConfiguration(
+            name="test", namespace="ns", head_memory_requests=10, head_memory_limits=8
+        )
+
+
+def test_resource_requests_exceed_limits_worker_cpu():
+    with pytest.raises(
+        ValueError, match="'worker_cpu_requests'.*must not exceed.*'worker_cpu_limits'"
+    ):
+        ClusterConfiguration(
+            name="test", namespace="ns", worker_cpu_requests=4, worker_cpu_limits=2
+        )
+
+
+def test_resource_requests_exceed_limits_worker_memory():
+    with pytest.raises(
+        ValueError,
+        match="'worker_memory_requests'.*must not exceed.*'worker_memory_limits'",
+    ):
+        ClusterConfiguration(
+            name="test",
+            namespace="ns",
+            worker_memory_requests=8,
+            worker_memory_limits=6,
+        )
+
+
+def test_resource_requests_exceed_limits_head_cpu_default_limit():
+    """The exact scenario from RHOAIENG-59338: head_cpu_requests > default head_cpu_limits."""
+    with pytest.raises(
+        ValueError, match="'head_cpu_requests'.*must not exceed.*'head_cpu_limits'"
+    ):
+        ClusterConfiguration(name="test", namespace="ns", head_cpu_requests=4)
+
+
+def test_resource_requests_exceed_limits_string_units():
+    with pytest.raises(
+        ValueError, match="'head_cpu_requests'.*must not exceed.*'head_cpu_limits'"
+    ):
+        ClusterConfiguration(
+            name="test",
+            namespace="ns",
+            head_cpu_requests="3000m",
+            head_cpu_limits="1000m",
+        )
+
+
+def test_resource_requests_exceed_limits_memory_string_units():
+    with pytest.raises(
+        ValueError,
+        match="'head_memory_requests'.*must not exceed.*'head_memory_limits'",
+    ):
+        ClusterConfiguration(
+            name="test",
+            namespace="ns",
+            head_memory_requests="16Gi",
+            head_memory_limits="8Gi",
+        )
+
+
+def test_resource_requests_equal_limits_valid():
+    config = ClusterConfiguration(
+        name="test", namespace="ns", head_cpu_requests=2, head_cpu_limits=2
+    )
+    assert config.head_cpu_requests == 2
+    assert config.head_cpu_limits == 2
+
+
+def test_resource_requests_below_limits_valid():
+    config = ClusterConfiguration(
+        name="test",
+        namespace="ns",
+        head_cpu_requests=1,
+        head_cpu_limits=4,
+        head_memory_requests=4,
+        head_memory_limits=16,
+        worker_cpu_requests=1,
+        worker_cpu_limits=2,
+        worker_memory_requests=2,
+        worker_memory_limits=8,
+    )
+    assert config.head_cpu_requests == 1
+    assert config.head_cpu_limits == 4
+
+
+def test_resource_requests_mixed_units_valid():
+    config = ClusterConfiguration(
+        name="test", namespace="ns", head_cpu_requests="500m", head_cpu_limits=1
+    )
+    assert config.head_cpu_requests == "500m"
+    assert config.head_cpu_limits == 1
+
+
+def test_resource_requests_mixed_units_invalid():
+    with pytest.raises(
+        ValueError, match="'head_cpu_requests'.*must not exceed.*'head_cpu_limits'"
+    ):
+        ClusterConfiguration(
+            name="test", namespace="ns", head_cpu_requests="1500m", head_cpu_limits=1
+        )
+
+
 # Make sure to always keep this function last
 def test_cleanup():
     os.remove(f"{cluster_dir}test-all-params.yaml")
