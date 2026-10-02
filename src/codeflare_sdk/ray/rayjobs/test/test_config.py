@@ -555,6 +555,51 @@ def test_build_spec_additional_group_with_image_pull_secrets(mocker):
     assert secrets[0].name == "my-secret"
 
 
+def test_build_spec_additional_group_labels_merge(mocker):
+    """Labels from cluster config and worker group are merged on pod template."""
+    mocker.patch(
+        "codeflare_sdk.ray.rayjobs.config.update_image",
+        return_value="ray:latest",
+    )
+    config = ClusterConfiguration(
+        labels={"team": "ml", "env": "prod"},
+        additional_worker_groups=[
+            WorkerGroup(
+                group_name="labeled",
+                replicas=1,
+                labels={"team": "inference", "accelerator": "gpu"},
+            ),
+        ],
+    )
+    spec = build_ray_cluster_spec(config, "test-job")
+
+    extra_group = spec["workerGroupSpecs"][1]
+    pod_labels = extra_group["template"].metadata.labels
+    assert pod_labels["team"] == "inference"
+    assert pod_labels["env"] == "prod"
+    assert pod_labels["accelerator"] == "gpu"
+
+
+def test_build_spec_additional_group_empty_tolerations(mocker):
+    """Empty tolerations list opts out of inheritance."""
+    mocker.patch(
+        "codeflare_sdk.ray.rayjobs.config.update_image",
+        return_value="ray:latest",
+    )
+    config = ClusterConfiguration(
+        worker_tolerations=[
+            V1Toleration(key="default-key", operator="Exists", effect="NoSchedule")
+        ],
+        additional_worker_groups=[
+            WorkerGroup(group_name="no-tol", replicas=1, tolerations=[]),
+        ],
+    )
+    spec = build_ray_cluster_spec(config, "test-job")
+
+    extra_group = spec["workerGroupSpecs"][1]
+    assert extra_group["template"].spec.tolerations is None
+
+
 def test_build_spec_no_additional_groups(mocker):
     """No additional groups means only the default worker group."""
     mocker.patch(

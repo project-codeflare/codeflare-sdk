@@ -301,7 +301,12 @@ def _build_worker_container(config: ClusterConfiguration) -> V1Container:
 
 
 def _build_pod_template(
-    container, tolerations, image_pull_secrets, volumes, annotations
+    container,
+    tolerations,
+    image_pull_secrets,
+    volumes,
+    annotations,
+    labels=None,
 ) -> V1PodTemplateSpec:
     pod_spec = V1PodSpec(
         containers=[container],
@@ -313,7 +318,12 @@ def _build_pod_template(
         pod_spec.image_pull_secrets = [
             V1LocalObjectReference(name=s) for s in image_pull_secrets
         ]
-    metadata = V1ObjectMeta(annotations=annotations) if annotations else None
+    metadata = None
+    if annotations or labels:
+        metadata = V1ObjectMeta(
+            annotations=annotations if annotations else None,
+            labels=labels if labels else None,
+        )
     return V1PodTemplateSpec(metadata=metadata, spec=pod_spec)
 
 
@@ -429,6 +439,8 @@ def _build_additional_worker_group_spec(
     if merged_envs:
         container.env = [V1EnvVar(name=k, value=v) for k, v in merged_envs.items()]
 
+    merged_labels = {**config.labels, **wg.labels}
+
     return {
         "replicas": replicas,
         "minReplicas": min_replicas,
@@ -446,5 +458,6 @@ def _build_additional_worker_group_spec(
             image_pull_secrets=config.image_pull_secrets,
             volumes=config.volumes,
             annotations=config.annotations,
+            labels=merged_labels,
         ),
     }

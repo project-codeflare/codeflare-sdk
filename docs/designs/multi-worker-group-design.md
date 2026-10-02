@@ -80,13 +80,14 @@ When a `WorkerGroup` omits a field, it inherits from `ClusterConfiguration`:
 |-------|----------|
 | `envs` | `{**cluster_config.envs, **group.envs}` — group wins on key conflict |
 | `labels` | `{**cluster_config.labels, **group.labels}` — group wins on key conflict |
-| `tolerations` | If set on group, use group's. If `None`, inherit `cluster_config.worker_tolerations`. |
+| `tolerations` | If set on group (including `[]`), use group's. If `None`, inherit `cluster_config.worker_tolerations`. Setting `tolerations=[]` explicitly opts out of inheritance. |
 | `image` | If set on group, use group's. If `None`, inherit `cluster_config.image`. |
 
 ## Validation
 
 - `group_name` is required (omitting raises `TypeError`).
 - `group_name` values must be unique across all additional worker groups.
+- `group_name` must not collide with the default worker group name (`small-group-{cluster_name}`).
 - `gpu_count` without `gpu_type` raises `ValueError`.
 - `gpu_type` without `gpu_count` raises `ValueError`.
 - `min_replicas` and `max_replicas` must satisfy `min_replicas <= max_replicas` when both are set.
@@ -131,6 +132,14 @@ workerGroupSpecs:
               - name: MODEL_SHARD
                 value: "0"
 ```
+
+### Autoscaling interaction
+
+Additional worker groups emit `minReplicas`/`maxReplicas` independently of the cluster-level `enable_autoscaling` flag. When `min_replicas`/`max_replicas` are `None`, they default to `replicas` (fixed size). When set, KubeRay will autoscale the group if `enableInTreeAutoscaling` is `True` on the cluster. Users setting per-group autoscaling ranges should also enable `enable_autoscaling=True` on `ClusterConfiguration`.
+
+### Extended resources beyond GPU
+
+v1 exposes `gpu_type`/`gpu_count` for the common GPU case. Heterogeneous accelerator groups (custom extended resources beyond GPU) require using the primary worker group's `worker_extended_resource_requests` dict. This can be extended in a future iteration.
 
 ### Fields intentionally excluded from v1
 

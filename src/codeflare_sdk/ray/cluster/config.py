@@ -315,6 +315,7 @@ class ClusterConfiguration:
     def _validate_additional_worker_groups(self):
         if not self.additional_worker_groups:
             return
+        default_group_name = f"small-group-{self.name}" if self.name else None
         names = set()
         for wg in self.additional_worker_groups:
             if not isinstance(wg, WorkerGroup):
@@ -323,6 +324,10 @@ class ClusterConfiguration:
                 )
             if wg.group_name in names:
                 raise ValueError(f"Duplicate worker group name: '{wg.group_name}'")
+            if default_group_name and wg.group_name == default_group_name:
+                raise ValueError(
+                    f"Worker group name '{wg.group_name}' conflicts with the default worker group name"
+                )
             names.add(wg.group_name)
 
     def _validate_autoscaling(self):

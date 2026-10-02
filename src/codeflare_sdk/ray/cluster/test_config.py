@@ -615,6 +615,19 @@ def test_cluster_config_duplicate_group_names():
         )
 
 
+def test_cluster_config_group_name_collides_with_default():
+    with pytest.raises(
+        ValueError, match="conflicts with the default worker group name"
+    ):
+        ClusterConfiguration(
+            name="my-cluster",
+            namespace="ns",
+            additional_worker_groups=[
+                WorkerGroup(group_name="small-group-my-cluster", replicas=2),
+            ],
+        )
+
+
 def test_cluster_config_invalid_worker_group_type():
     with pytest.raises(TypeError, match="additional_worker_groups"):
         ClusterConfiguration(
@@ -811,6 +824,30 @@ def test_additional_worker_group_with_image_pull_secrets(mocker):
     secrets = extra_group["template"]["spec"]["imagePullSecrets"]
     assert len(secrets) == 1
     assert secrets[0]["name"] == "my-registry-secret"
+
+
+def test_additional_worker_group_empty_tolerations_opts_out(mocker):
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch("kubernetes.client.CustomObjectsApi.list_namespaced_custom_object")
+
+    from kubernetes.client import V1Toleration
+
+    cluster = Cluster(
+        ClusterConfiguration(
+            name="no-tol-inherit",
+            namespace="ns",
+            worker_tolerations=[
+                V1Toleration(key="default-key", operator="Exists", effect="NoSchedule")
+            ],
+            additional_worker_groups=[
+                WorkerGroup(group_name="no-tol", replicas=1, tolerations=[]),
+            ],
+        )
+    )
+
+    spec = cluster.resource_yaml["spec"]
+    extra_group = spec["workerGroupSpecs"][1]
+    assert extra_group["template"]["spec"].get("tolerations") is None
 
 
 def test_additional_worker_group_labels_merge(mocker):
