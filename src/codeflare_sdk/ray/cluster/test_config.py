@@ -791,6 +791,55 @@ def test_additional_worker_groups_empty_by_default(mocker):
     assert len(spec["workerGroupSpecs"]) == 1
 
 
+def test_additional_worker_group_with_image_pull_secrets(mocker):
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch("kubernetes.client.CustomObjectsApi.list_namespaced_custom_object")
+
+    cluster = Cluster(
+        ClusterConfiguration(
+            name="pull-secrets",
+            namespace="ns",
+            image_pull_secrets=["my-registry-secret"],
+            additional_worker_groups=[
+                WorkerGroup(group_name="with-secrets", replicas=1),
+            ],
+        )
+    )
+
+    spec = cluster.resource_yaml["spec"]
+    extra_group = spec["workerGroupSpecs"][1]
+    secrets = extra_group["template"]["spec"]["imagePullSecrets"]
+    assert len(secrets) == 1
+    assert secrets[0]["name"] == "my-registry-secret"
+
+
+def test_additional_worker_group_labels_merge(mocker):
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch("kubernetes.client.CustomObjectsApi.list_namespaced_custom_object")
+
+    cluster = Cluster(
+        ClusterConfiguration(
+            name="label-merge",
+            namespace="ns",
+            labels={"team": "ml", "env": "prod"},
+            additional_worker_groups=[
+                WorkerGroup(
+                    group_name="labeled",
+                    replicas=1,
+                    labels={"team": "inference", "accelerator": "gpu"},
+                ),
+            ],
+        )
+    )
+
+    spec = cluster.resource_yaml["spec"]
+    extra_group = spec["workerGroupSpecs"][1]
+    pod_labels = extra_group["template"]["metadata"]["labels"]
+    assert pod_labels["team"] == "inference"
+    assert pod_labels["env"] == "prod"
+    assert pod_labels["accelerator"] == "gpu"
+
+
 # Make sure to always keep this function last
 def test_cleanup():
     os.remove(f"{cluster_dir}test-all-params.yaml")
