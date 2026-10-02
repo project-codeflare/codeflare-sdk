@@ -12,6 +12,7 @@ from .rayjobs import (
 from .cluster import (
     Cluster,
     ClusterConfiguration,
+    WorkerGroup,
     get_cluster,
     list_all_queued,
     list_all_clusters,

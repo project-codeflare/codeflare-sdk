@@ -11,3 +11,5 @@ from .cluster import (
     list_all_queued,
     list_all_clusters,
 )
+
+from .config import WorkerGroup
