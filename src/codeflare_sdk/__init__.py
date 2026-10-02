@@ -1,6 +1,7 @@
 from .ray import (
     Cluster,
     ClusterConfiguration,
+    WorkerGroup,
     RayClusterStatus,
     CodeFlareClusterStatus,
     RayCluster,

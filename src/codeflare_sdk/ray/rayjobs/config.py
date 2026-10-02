@@ -43,7 +43,7 @@ from kubernetes.client import (
 
 from ...common.utils.constants import MOUNT_PATH, RAY_VERSION
 from ...common.utils.utils import update_image
-from codeflare_sdk.ray.cluster.config import ClusterConfiguration
+from codeflare_sdk.ray.cluster.config import ClusterConfiguration, WorkerGroup
 
 logger = logging.getLogger(__name__)
 
@@ -173,6 +173,11 @@ def build_ray_cluster_spec(
             }
         ],
     }
+
+    for wg in config.additional_worker_groups:
+        ray_cluster_spec["workerGroupSpecs"].append(
+            _build_additional_worker_group_spec(config, wg)
+        )
 
     return ray_cluster_spec
 
@@ -373,3 +378,73 @@ def add_file_volumes(
     logger.info(
         f"Added file volume '{secret_name}' to cluster config: mount_path={mount_path}"
     )
+
+
+def _build_additional_worker_group_spec(
+    config: ClusterConfiguration, wg: WorkerGroup
+) -> dict:
+    """Build a single workerGroupSpec dict from a WorkerGroup for embedding in a RayJob."""
+    replicas = wg.replicas
+    min_replicas = wg.min_replicas if wg.min_replicas is not None else replicas
+    max_replicas = wg.max_replicas if wg.max_replicas is not None else replicas
+
+    gpu_count = wg.gpu_count or 0
+    extended_resources = {}
+    if wg.gpu_type and wg.gpu_count:
+        extended_resources[wg.gpu_type] = wg.gpu_count
+
+    ray_resources: dict = {}
+    if wg.gpu_type and wg.gpu_count:
+        mapping = config.extended_resource_mapping
+        rtype = mapping.get(wg.gpu_type, "GPU")
+        if rtype not in {"GPU", "CPU", "memory"}:
+            ray_resources[rtype] = wg.gpu_count
+    ray_resources_str = _format_resources_param(ray_resources)
+
+    image = wg.image if wg.image else update_image(config.image)
+    merged_envs = {**config.envs, **wg.envs}
+    tolerations = (
+        wg.tolerations if wg.tolerations is not None else config.worker_tolerations
+    )
+
+    container = V1Container(
+        name="machine-learning",
+        image=image,
+        image_pull_policy="Always",
+        lifecycle=V1Lifecycle(
+            pre_stop=V1LifecycleHandler(
+                _exec=V1ExecAction(["/bin/sh", "-c", "ray stop"])
+            )
+        ),
+        resources=_build_resource_requirements(
+            wg.cpu_requests,
+            wg.cpu_limits,
+            wg.memory_requests,
+            wg.memory_limits,
+            extended_resources or None,
+        ),
+        volume_mounts=_merge_storage(config.volume_mounts, _ODH_VOLUME_MOUNTS),
+    )
+
+    if merged_envs:
+        container.env = [V1EnvVar(name=k, value=v) for k, v in merged_envs.items()]
+
+    return {
+        "replicas": replicas,
+        "minReplicas": min_replicas,
+        "maxReplicas": max_replicas,
+        "groupName": wg.group_name,
+        "rayStartParams": {
+            "block": "true",
+            "num-cpus": _cpu_limit_to_num_cpus(wg.cpu_limits),
+            "num-gpus": str(gpu_count),
+            "resources": ray_resources_str,
+        },
+        "template": _build_pod_template(
+            container=container,
+            tolerations=tolerations,
+            image_pull_secrets=config.image_pull_secrets,
+            volumes=config.volumes,
+            annotations=config.annotations,
+        ),
+    }
