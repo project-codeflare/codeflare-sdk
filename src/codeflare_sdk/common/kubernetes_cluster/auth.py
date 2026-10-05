@@ -73,6 +73,7 @@ def _bound_to_api_client(method):
 
     return wrapper
 
+
 WORKBENCH_CA_CERT_PATH = "/etc/pki/tls/custom-certs/ca-bundle.crt"
 
 

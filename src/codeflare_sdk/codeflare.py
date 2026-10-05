@@ -164,9 +164,7 @@ class ClusterHandler:
             List of queued RayCluster objects.
         """
         ns = _resolve_namespace(namespace, self._sdk)
-        return list_all_queued(
-            ns, print_to_console=False, api_client=self._sdk.client
-        )
+        return list_all_queued(ns, print_to_console=False, api_client=self._sdk.client)
 
 
 class JobHandler:
