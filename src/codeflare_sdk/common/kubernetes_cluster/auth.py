@@ -19,6 +19,9 @@ Authentication is handled exclusively via kube-authkit's AuthConfig.
 Use the Codeflare class as the primary entrypoint.
 """
 
+import contextlib
+import contextvars
+import functools
 import os
 from typing import Optional
 
@@ -31,6 +34,44 @@ global api_client
 api_client = None
 global config_path
 config_path = None
+
+# Client bound to the current operation, used in preference to the module-level
+# global. This is what keeps objects created through one Codeflare instance from
+# being hijacked by a later instance (RHOAIENG-98754). It is a ContextVar rather
+# than a plain attribute so that the many helpers which resolve the client
+# themselves — build_ray_cluster, the Kueue helpers, cert generation — pick it up
+# without each needing to thread a client parameter through.
+_active_api_client: contextvars.ContextVar = contextvars.ContextVar(
+    "codeflare_active_api_client", default=None
+)
+
+
+@contextlib.contextmanager
+def _use_api_client(new_client):
+    """Bind ``new_client`` for the duration of the block.
+
+    Passing ``None`` is a no-op, which is what preserves legacy behaviour for
+    objects constructed without an explicit client.
+    """
+    if new_client is None:
+        yield
+        return
+    token = _active_api_client.set(new_client)
+    try:
+        yield
+    finally:
+        _active_api_client.reset(token)
+
+
+def _bound_to_api_client(method):
+    """Run a method with ``self._api_client`` bound as the active client."""
+
+    @functools.wraps(method)
+    def wrapper(self, *args, **kwargs):
+        with _use_api_client(getattr(self, "_api_client", None)):
+            return method(self, *args, **kwargs)
+
+    return wrapper
 
 WORKBENCH_CA_CERT_PATH = "/etc/pki/tls/custom-certs/ca-bundle.crt"
 
@@ -145,10 +186,18 @@ def get_api_client() -> client.ApiClient:
     This function returns the current API client instance if already loaded,
     or creates a new API client with the default configuration.
 
+    Resolution order:
+    1. The client bound to the current operation via ``_use_api_client``.
+    2. The module-level client set by ``set_api_client`` (legacy fallback).
+    3. A freshly constructed default client.
+
     Returns:
         client.ApiClient:
             The Kubernetes API client object.
     """
+    scoped = _active_api_client.get()
+    if scoped is not None:
+        return scoped
     if api_client is not None:
         return api_client
     to_return = client.ApiClient()

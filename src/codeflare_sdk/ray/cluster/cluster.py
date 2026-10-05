@@ -30,7 +30,12 @@ from kubernetes.dynamic import DynamicClient
 from ray.job_submission import JobSubmissionClient
 
 from ...common import _kube_api_error_handling
-from ...common.kubernetes_cluster.auth import config_check, get_api_client
+from ...common.kubernetes_cluster.auth import (
+    _bound_to_api_client,
+    _use_api_client,
+    config_check,
+    get_api_client,
+)
 from ...common.utils import get_current_namespace
 from ...common.widgets.widgets import cluster_apply_down_buttons, is_notebook
 from . import pretty_print
@@ -50,13 +55,28 @@ class Cluster:
     Note that currently, the underlying implementation is a Ray cluster.
     """
 
-    def __init__(self, config: ClusterConfiguration):
+    def __init__(
+        self,
+        config: ClusterConfiguration,
+        api_client: Optional[client.ApiClient] = None,
+    ):
         """
         Create the resource cluster object by passing in a ClusterConfiguration
         (defined in the config sub-module). A RayCluster will then be generated
         based off of the configured resources to represent the desired cluster
         request.
+
+        Args:
+            config: The cluster configuration.
+            api_client: Kubernetes API client this cluster should use for every
+                operation. When ``None`` the cluster resolves the process-wide
+                client at call time, which preserves legacy behaviour.
         """
+        self._api_client = api_client
+        with _use_api_client(api_client):
+            self._init(config)
+
+    def _init(self, config: ClusterConfiguration):
         self.config = config
         self._job_submission_client = None
         if self.config is not None and self.config.name is None:
@@ -77,6 +97,7 @@ class Cluster:
         if is_notebook():
             cluster_apply_down_buttons(self)
 
+    @_bound_to_api_client
     def get_dynamic_client(self) -> DynamicClient:  # pragma: no cover
         return DynamicClient(get_api_client())
 
@@ -97,6 +118,7 @@ class Cluster:
         return _is_openshift_cluster() and self.config.verify_tls
 
     @property
+    @_bound_to_api_client
     def job_client(self):
         self._check_tls_certs_exist()
         _ = get_api_client()  # Initialize API client
@@ -114,6 +136,7 @@ class Cluster:
             )
         return self._job_submission_client
 
+    @_bound_to_api_client
     def create_resource(self) -> None:
         """
         Called upon cluster object creation, creates a RayCluster yaml based on
@@ -130,6 +153,7 @@ class Cluster:
         return build_ray_cluster(self)
 
     # creates a new cluster with the provided or default spec
+    @_bound_to_api_client
     def up(self) -> None:
         """
         Applies the Cluster yaml, pushing the resource request onto
@@ -166,6 +190,7 @@ class Cluster:
             return _kube_api_error_handling(e)
 
     # Applies a new cluster with the provided or default spec
+    @_bound_to_api_client
     def apply(self, force: bool = False, timeout: int = 300) -> None:
         """
         Applies the Cluster yaml using server-side apply.
@@ -233,6 +258,7 @@ class Cluster:
                 "Run cluster.wait_ready() to complete setup."
             )
 
+    @_bound_to_api_client
     def _generate_tls_certs_with_wait(self, timeout: int = 300) -> bool:
         """
         Waits for the CA secret to be created and generates TLS certificates.
@@ -283,6 +309,7 @@ class Cluster:
             )
             return False
 
+    @_bound_to_api_client
     def _ca_secret_exists(self) -> bool:
         """
         Checks if the CA secret for this cluster exists.
@@ -303,6 +330,7 @@ class Cluster:
         except Exception:
             return False
 
+    @_bound_to_api_client
     def _throw_for_no_raycluster(self):
         api_instance = client.CustomObjectsApi(get_api_client())
         try:
@@ -321,6 +349,7 @@ class Cluster:
             _kube_api_error_handling(e)
             raise RuntimeError("Failed to get RayCluster CustomResourceDefinition.")
 
+    @_bound_to_api_client
     def down(self) -> None:
         """
         Deletes the RayCluster, scaling-down and deleting all resources
@@ -346,6 +375,7 @@ class Cluster:
         except Exception as e:  # pragma: no cover
             return _kube_api_error_handling(e)
 
+    @_bound_to_api_client
     def status(
         self, print_to_console: bool = True
     ) -> Tuple[CodeFlareClusterStatus, bool]:
@@ -384,6 +414,7 @@ class Cluster:
 
         return status, ready
 
+    @_bound_to_api_client
     def is_dashboard_ready(self) -> bool:
         """
         Checks if the cluster's dashboard is ready and accessible.
@@ -433,6 +464,7 @@ class Cluster:
         else:
             return False
 
+    @_bound_to_api_client
     def wait_ready(
         self, timeout: Optional[int] = None, dashboard_check: bool = True
     ) -> None:
@@ -511,6 +543,7 @@ class Cluster:
             sleep(5)
             time += 5
 
+    @_bound_to_api_client
     def details(self, print_to_console: bool = True) -> RayCluster:
         """
         Retrieves details about the Ray Cluster.
@@ -532,6 +565,7 @@ class Cluster:
             pretty_print.print_clusters([cluster])
         return cluster
 
+    @_bound_to_api_client
     def _check_tls_certs_exist(self):
         """
         Check if TLS certificates exist and print helpful warning if not.
@@ -582,6 +616,7 @@ class Cluster:
         self._check_tls_certs_exist()
         return f"ray://{self.config.name}-head-svc.{self.config.namespace}.svc:10001"
 
+    @_bound_to_api_client
     def refresh_certificates(self) -> None:
         """
         Refreshes TLS certificates by removing old ones and generating new ones.
@@ -614,6 +649,7 @@ class Cluster:
 
         print(f"✓ TLS certificates refreshed for '{self.config.name}'")
 
+    @_bound_to_api_client
     def cluster_dashboard_uri(self) -> str:
         """
         Returns a string containing the cluster's dashboard URI.
@@ -673,18 +709,21 @@ class Cluster:
                 return f"{protocol}://{ingress.spec.rules[0].host}"
         return "Dashboard not available yet, have you run cluster.apply()? Run cluster.details() to check if it's ready."
 
+    @_bound_to_api_client
     def list_jobs(self) -> List[Dict]:
         """
         This method accesses the head ray node in your cluster and lists the running jobs.
         """
         return self.job_client.list_jobs()
 
+    @_bound_to_api_client
     def job_status(self, job_id: str) -> str:
         """
         This method accesses the head ray node in your cluster and returns the job status for the provided job id.
         """
         return self.job_client.get_job_status(job_id)
 
+    @_bound_to_api_client
     def job_logs(self, job_id: str) -> str:
         """
         This method accesses the head ray node in your cluster and returns the logs for the provided job id.
@@ -717,6 +756,7 @@ class Cluster:
 
         return head_extended_resources, worker_extended_resources
 
+    @_bound_to_api_client
     def local_client_url(self) -> str:
         """
         Constructs the URL for the local Ray client.
@@ -751,12 +791,21 @@ class Cluster:
 
 
 def list_all_clusters(
-    namespace: str, print_to_console: bool = True
+    namespace: str,
+    print_to_console: bool = True,
+    api_client: Optional[client.ApiClient] = None,
 ) -> List[RayCluster]:
     """
     Returns (and prints by default) a list of all clusters in a given namespace.
+
+    Args:
+        namespace: The namespace to list clusters from.
+        print_to_console: Whether to pretty-print the result.
+        api_client: Kubernetes API client to use. ``None`` resolves the
+            process-wide client, preserving legacy behaviour.
     """
-    clusters = _get_ray_clusters(namespace)
+    with _use_api_client(api_client):
+        clusters = _get_ray_clusters(namespace)
     if print_to_console:
         pretty_print.print_clusters(clusters)
     return clusters
@@ -797,7 +846,11 @@ def _get_kueue_workload_for_cluster(
         return None
 
 
-def list_all_queued(namespace: str, print_to_console: bool = True) -> List[RayCluster]:
+def list_all_queued(
+    namespace: str,
+    print_to_console: bool = True,
+    api_client: Optional[client.ApiClient] = None,
+) -> List[RayCluster]:
     """
     Returns (and prints by default) a list of all currently queued-up Ray Clusters
     in a given namespace.
@@ -805,26 +858,27 @@ def list_all_queued(namespace: str, print_to_console: bool = True) -> List[RayCl
     A cluster is considered queued if it has an associated Kueue Workload that has
     not been admitted yet (workload.status.admission is None or empty).
     """
-    # Fix for RHOAIENG-54734: Check Kueue Workload admission status instead of
-    # RayCluster state. The previous approach incorrectly inferred queue status
-    # from RayCluster state, which doesn't reliably indicate Kueue admission.
-    all_clusters = _get_ray_clusters(namespace)
-    queued_clusters = []
+    with _use_api_client(api_client):
+        # Fix for RHOAIENG-54734: Check Kueue Workload admission status instead of
+        # RayCluster state. The previous approach incorrectly inferred queue status
+        # from RayCluster state, which doesn't reliably indicate Kueue admission.
+        all_clusters = _get_ray_clusters(namespace)
+        queued_clusters = []
 
-    for cluster in all_clusters:
-        workload = _get_kueue_workload_for_cluster(cluster.name, namespace)
+        for cluster in all_clusters:
+            workload = _get_kueue_workload_for_cluster(cluster.name, namespace)
 
-        if workload:
-            # Check if workload has been admitted by Kueue
-            admission = workload.get("status", {}).get("admission")
-            if not admission:
-                # No admission field = workload not admitted yet = still queued
-                queued_clusters.append(cluster)
-        # If no workload exists, cluster is not using Kueue, so it's not "queued"
+            if workload:
+                # Check if workload has been admitted by Kueue
+                admission = workload.get("status", {}).get("admission")
+                if not admission:
+                    # No admission field = workload not admitted yet = still queued
+                    queued_clusters.append(cluster)
+            # If no workload exists, cluster is not using Kueue, so it's not "queued"
 
-    if print_to_console:
-        pretty_print.print_ray_clusters_status(queued_clusters)
-    return queued_clusters
+        if print_to_console:
+            pretty_print.print_ray_clusters_status(queued_clusters)
+        return queued_clusters
 
 
 def get_cluster(
@@ -832,6 +886,7 @@ def get_cluster(
     namespace: str = "default",
     verify_tls: bool = True,
     write_to_file: bool = False,
+    api_client: Optional[client.ApiClient] = None,
 ) -> "Cluster":
     """
     Retrieves an existing Ray Cluster as a Cluster object.
@@ -857,107 +912,108 @@ def get_cluster(
         Exception:
             If the Ray Cluster cannot be found or does not exist.
     """
-    config_check()
-    api_instance = client.CustomObjectsApi(get_api_client())
-    # Get the Ray Cluster
-    try:
-        resource = api_instance.get_namespaced_custom_object(
-            group="ray.io",
-            version="v1",
-            namespace=namespace,
-            plural="rayclusters",
-            name=cluster_name,
-        )
-    except Exception as e:
-        return _kube_api_error_handling(e)
+    with _use_api_client(api_client):
+        config_check()
+        api_instance = client.CustomObjectsApi(get_api_client())
+        # Get the Ray Cluster
+        try:
+            resource = api_instance.get_namespaced_custom_object(
+                group="ray.io",
+                version="v1",
+                namespace=namespace,
+                plural="rayclusters",
+                name=cluster_name,
+            )
+        except Exception as e:
+            return _kube_api_error_handling(e)
 
-    (
-        head_extended_resources,
-        worker_extended_resources,
-    ) = Cluster._head_worker_extended_resources_from_rc_dict(resource)
+        (
+            head_extended_resources,
+            worker_extended_resources,
+        ) = Cluster._head_worker_extended_resources_from_rc_dict(resource)
 
-    # Fix for RHOAIENG-54729: Handle head-only clusters (no workers)
-    enable_autoscaling = resource["spec"].get("enableInTreeAutoscaling", False)
-    min_workers = None
-    max_workers = None
+        # Fix for RHOAIENG-54729: Handle head-only clusters (no workers)
+        enable_autoscaling = resource["spec"].get("enableInTreeAutoscaling", False)
+        min_workers = None
+        max_workers = None
 
-    if len(resource["spec"].get("workerGroupSpecs", [])) > 0:
-        worker_group = resource["spec"]["workerGroupSpecs"][0]
-        num_workers = worker_group["minReplicas"]
-        worker_cpu_limits = worker_group["template"]["spec"]["containers"][0][
-            "resources"
-        ]["limits"]["cpu"]
-        worker_cpu_requests = worker_group["template"]["spec"]["containers"][0][
-            "resources"
-        ]["requests"]["cpu"]
-        worker_memory_limits = worker_group["template"]["spec"]["containers"][0][
-            "resources"
-        ]["limits"]["memory"]
-        worker_memory_requests = worker_group["template"]["spec"]["containers"][0][
-            "resources"
-        ]["requests"]["memory"]
+        if len(resource["spec"].get("workerGroupSpecs", [])) > 0:
+            worker_group = resource["spec"]["workerGroupSpecs"][0]
+            num_workers = worker_group["minReplicas"]
+            worker_cpu_limits = worker_group["template"]["spec"]["containers"][0][
+                "resources"
+            ]["limits"]["cpu"]
+            worker_cpu_requests = worker_group["template"]["spec"]["containers"][0][
+                "resources"
+            ]["requests"]["cpu"]
+            worker_memory_limits = worker_group["template"]["spec"]["containers"][0][
+                "resources"
+            ]["limits"]["memory"]
+            worker_memory_requests = worker_group["template"]["spec"]["containers"][0][
+                "resources"
+            ]["requests"]["memory"]
 
-        if enable_autoscaling:
-            min_workers = worker_group.get("minReplicas", num_workers)
-            max_workers = worker_group.get("maxReplicas", num_workers)
-    else:
-        # Head-only cluster - use defaults for worker specs
-        num_workers = 0
-        worker_cpu_limits = 0
-        worker_cpu_requests = 0
-        worker_memory_limits = 0
-        worker_memory_requests = 0
-
-    # Create a Cluster Configuration with just the necessary provided parameters
-    cluster_config = ClusterConfiguration(
-        name=cluster_name,
-        namespace=namespace,
-        verify_tls=verify_tls,
-        write_to_file=write_to_file,
-        head_cpu_limits=resource["spec"]["headGroupSpec"]["template"]["spec"][
-            "containers"
-        ][0]["resources"]["limits"]["cpu"],
-        head_cpu_requests=resource["spec"]["headGroupSpec"]["template"]["spec"][
-            "containers"
-        ][0]["resources"]["requests"]["cpu"],
-        head_memory_limits=resource["spec"]["headGroupSpec"]["template"]["spec"][
-            "containers"
-        ][0]["resources"]["limits"]["memory"],
-        head_memory_requests=resource["spec"]["headGroupSpec"]["template"]["spec"][
-            "containers"
-        ][0]["resources"]["requests"]["memory"],
-        num_workers=num_workers,
-        worker_cpu_limits=worker_cpu_limits,
-        worker_cpu_requests=worker_cpu_requests,
-        worker_memory_limits=worker_memory_limits,
-        worker_memory_requests=worker_memory_requests,
-        head_extended_resource_requests=head_extended_resources,
-        worker_extended_resource_requests=worker_extended_resources,
-        enable_autoscaling=enable_autoscaling,
-        min_workers=min_workers,
-        max_workers=max_workers,
-    )
-
-    # Ignore the warning here for the lack of a ClusterConfiguration
-    with warnings.catch_warnings():
-        warnings.filterwarnings(
-            "ignore",
-            message="Please provide a ClusterConfiguration to initialise the Cluster object",
-        )
-        cluster = Cluster(None)
-        cluster.config = cluster_config
-
-        # Remove auto-generated fields like creationTimestamp, uid and etc.
-        remove_autogenerated_fields(resource)
-
-        if write_to_file:
-            cluster.resource_yaml = write_cluster_to_file(cluster, resource)
+            if enable_autoscaling:
+                min_workers = worker_group.get("minReplicas", num_workers)
+                max_workers = worker_group.get("maxReplicas", num_workers)
         else:
-            # Update the Cluster's resource_yaml to reflect the retrieved Ray Cluster
-            cluster.resource_yaml = resource
-            print(f"Yaml resources loaded for {cluster.config.name}")
+            # Head-only cluster - use defaults for worker specs
+            num_workers = 0
+            worker_cpu_limits = 0
+            worker_cpu_requests = 0
+            worker_memory_limits = 0
+            worker_memory_requests = 0
 
-        return cluster
+        # Create a Cluster Configuration with just the necessary provided parameters
+        cluster_config = ClusterConfiguration(
+            name=cluster_name,
+            namespace=namespace,
+            verify_tls=verify_tls,
+            write_to_file=write_to_file,
+            head_cpu_limits=resource["spec"]["headGroupSpec"]["template"]["spec"][
+                "containers"
+            ][0]["resources"]["limits"]["cpu"],
+            head_cpu_requests=resource["spec"]["headGroupSpec"]["template"]["spec"][
+                "containers"
+            ][0]["resources"]["requests"]["cpu"],
+            head_memory_limits=resource["spec"]["headGroupSpec"]["template"]["spec"][
+                "containers"
+            ][0]["resources"]["limits"]["memory"],
+            head_memory_requests=resource["spec"]["headGroupSpec"]["template"]["spec"][
+                "containers"
+            ][0]["resources"]["requests"]["memory"],
+            num_workers=num_workers,
+            worker_cpu_limits=worker_cpu_limits,
+            worker_cpu_requests=worker_cpu_requests,
+            worker_memory_limits=worker_memory_limits,
+            worker_memory_requests=worker_memory_requests,
+            head_extended_resource_requests=head_extended_resources,
+            worker_extended_resource_requests=worker_extended_resources,
+            enable_autoscaling=enable_autoscaling,
+            min_workers=min_workers,
+            max_workers=max_workers,
+        )
+
+        # Ignore the warning here for the lack of a ClusterConfiguration
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore",
+                message="Please provide a ClusterConfiguration to initialise the Cluster object",
+            )
+            cluster = Cluster(None, api_client=api_client)
+            cluster.config = cluster_config
+
+            # Remove auto-generated fields like creationTimestamp, uid and etc.
+            remove_autogenerated_fields(resource)
+
+            if write_to_file:
+                cluster.resource_yaml = write_cluster_to_file(cluster, resource)
+            else:
+                # Update the Cluster's resource_yaml to reflect the retrieved Ray Cluster
+                cluster.resource_yaml = resource
+                print(f"Yaml resources loaded for {cluster.config.name}")
+
+            return cluster
 
 
 def remove_autogenerated_fields(resource):

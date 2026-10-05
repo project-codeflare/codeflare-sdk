@@ -41,7 +41,12 @@ from codeflare_sdk.ray.rayjobs.runtime_env import (
     process_runtime_env,
 )
 
-from ...common.kubernetes_cluster.auth import config_check, get_api_client
+from ...common.kubernetes_cluster.auth import (
+    _bound_to_api_client,
+    _use_api_client,
+    config_check,
+    get_api_client,
+)
 from ...common.utils import get_current_namespace
 from ...common.utils.validation import validate_ray_version_compatibility
 
@@ -76,6 +81,7 @@ class RayJob:
         active_deadline_seconds: Optional[int] = None,
         local_queue: Optional[str] = None,
         priority_class: Optional[str] = None,
+        api_client: Optional[client.ApiClient] = None,
     ):
         """
         Initialize a RayJob instance.
@@ -94,6 +100,9 @@ class RayJob:
             active_deadline_seconds: Maximum time the job can run before being terminated (optional)
             local_queue: The Kueue LocalQueue to submit the job to (optional)
             priority_class: The Kueue WorkloadPriorityClass name for preemption control (optional).
+            api_client: Kubernetes API client this job should use for every
+                operation. When ``None`` the job resolves the process-wide
+                client at call time, which preserves legacy behaviour.
 
         Note:
             - True if cluster_config is provided (new cluster will be cleaned up)
@@ -103,8 +112,10 @@ class RayJob:
         """
         if cluster_name is None and cluster_config is None:
             raise ValueError(
-                "❌ Configuration Error: You must provide either 'cluster_name' (for existing cluster) "
-                "or 'cluster_config' (to create new cluster), but not both."
+                "❌ Configuration Error: a RayJob needs an execution target. Provide "
+                "exactly one of:\n"
+                "• 'cluster_name' to run on an existing cluster\n"
+                "• 'cluster_config' to have the job create and manage its own cluster"
             )
 
         if cluster_name is not None and cluster_config is not None:
@@ -172,8 +183,10 @@ class RayJob:
             self.cluster_name = cluster_name
             logger.info(f"Using existing cluster: {self.cluster_name}")
 
-        config_check()
-        k8s_client = get_api_client()
+        self._api_client = api_client
+        with _use_api_client(api_client):
+            config_check()
+            k8s_client = get_api_client()
         self._api = RayjobApi()
         self._api.api = client.CustomObjectsApi(k8s_client)
         self._cluster_api = RayClusterApi()
@@ -182,6 +195,7 @@ class RayJob:
 
         logger.info(f"Initialized RayJob: {self.name} in namespace: {self.namespace}")
 
+    @_bound_to_api_client
     def submit(self) -> str:
         if not self.entrypoint:
             raise ValueError("Entrypoint must be provided to submit a RayJob")
@@ -210,6 +224,7 @@ class RayJob:
         else:
             raise RuntimeError(f"Failed to submit RayJob {self.name}")
 
+    @_bound_to_api_client
     def stop(self) -> bool:
         """
         Suspend the Ray job.
@@ -221,6 +236,7 @@ class RayJob:
         else:
             raise RuntimeError(f"Failed to stop the RayJob {self.name}")
 
+    @_bound_to_api_client
     def resubmit(self) -> bool:
         """
         Resubmit the Ray job.
@@ -231,6 +247,7 @@ class RayJob:
         else:
             raise RuntimeError(f"Failed to resubmit the RayJob {self.name}")
 
+    @_bound_to_api_client
     def delete(self) -> bool:
         """
         Delete the Ray job.
@@ -247,6 +264,7 @@ class RayJob:
             logger.info(f"RayJob {self.name} already deleted or does not exist")
             return True
 
+    @_bound_to_api_client
     def _build_rayjob_cr(self) -> Dict[str, Any]:
         """
         Build the RayJob custom resource specification using native RayJob capabilities.
@@ -343,6 +361,7 @@ class RayJob:
 
         return rayjob_cr
 
+    @_bound_to_api_client
     def _build_submitter_pod_template(
         self, files: Dict[str, str], secret_name: str
     ) -> Dict[str, Any]:
@@ -452,6 +471,7 @@ class RayJob:
         )
         return submitter_pod_template
 
+    @_bound_to_api_client
     def _validate_ray_version_compatibility(self):
         """
         Validate Ray version compatibility for cluster_config image.
@@ -461,6 +481,7 @@ class RayJob:
         if self._cluster_config is not None:
             self._validate_cluster_config_image()
 
+    @_bound_to_api_client
     def _validate_cluster_config_image(self):
         """
         Validate that the Ray version in cluster_config image matches the SDK's Ray version.
@@ -488,6 +509,7 @@ class RayJob:
         elif is_warning:
             warnings.warn(f"Cluster config image: {message}")
 
+    @_bound_to_api_client
     def _validate_priority_class(self):
         """
         Validate that the priority class exists in the cluster (best effort).
@@ -517,6 +539,7 @@ class RayJob:
                 # exists is True - validation passed
                 logger.debug(f"Priority class '{self.priority_class}' verified.")
 
+    @_bound_to_api_client
     def _validate_working_dir_entrypoint(self):
         """
         Validate entrypoint file configuration.
@@ -611,6 +634,7 @@ class RayJob:
                     f"Please ensure the file exists at the specified path."
                 )
 
+    @_bound_to_api_client
     def status(
         self, print_to_console: bool = True
     ) -> Tuple[CodeflareRayJobStatus, bool]:
