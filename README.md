@@ -31,39 +31,24 @@ CodeFlare SDK uses [kube-authkit](https://github.com/opendatahub-io/kube-authkit
 ### Quick Start
 
 ```python
-from kube_authkit import get_k8s_client, AuthConfig
-from codeflare_sdk import set_api_client, Cluster, ClusterConfiguration
+from codeflare_sdk import Codeflare, SDKConfig
 
-# Option 1: Auto-detect authentication (recommended - no explicit auth needed!)
-cluster = Cluster(ClusterConfiguration(
-    name='my-cluster',
-    num_workers=2,
-))
+# Option 1: Auto-detect authentication (recommended)
+cf = Codeflare()
+cluster = cf.clusters.create(name="my-cluster", num_workers=2)
 cluster.apply()
 
-# Option 2: OIDC authentication
-auth_config = AuthConfig(
-    method="oidc",
-    oidc_issuer="https://your-oidc-provider.com",
-    client_id="your-client-id",
-    use_device_flow=True
-)
-api_client = get_k8s_client(config=auth_config)
-set_api_client(api_client)  # Register with CodeFlare SDK
+# Option 2: Explicit auth config (OIDC, token, etc.)
+from kube_authkit import AuthConfig
 
-# Option 3: OpenShift OAuth with token
-auth_config = AuthConfig(
-    k8s_api_host="https://api.example.com:6443",
-    token="your-token"
-)
-api_client = get_k8s_client(config=auth_config)
-set_api_client(api_client)  # Register with CodeFlare SDK
-
-# Now create your cluster
-cluster = Cluster(ClusterConfiguration(
-    name='my-cluster',
-    num_workers=2,
+cf = Codeflare(config=SDKConfig(
+    auth=AuthConfig(
+        k8s_api_host="https://api.example.com:6443",
+        token="your-token",
+    ),
+    namespace="my-project",
 ))
+cluster = cf.clusters.create(name="my-cluster", num_workers=2)
 cluster.apply()
 ```
 
@@ -82,19 +67,22 @@ auth.login()
 **New recommended approach:**
 ```python
 # ✅ Recommended - Auto-detection (no explicit auth needed!)
-from codeflare_sdk import Cluster, ClusterConfiguration
-cluster = Cluster(ClusterConfiguration(name="my-cluster"))
+from codeflare_sdk import Codeflare
+
+cf = Codeflare()
+cluster = cf.clusters.create(name="my-cluster", num_workers=2)
 
 # ✅ For OIDC or OpenShift OAuth with token
-from kube_authkit import AuthConfig, get_k8s_client
-from codeflare_sdk import set_api_client
+from codeflare_sdk import Codeflare, SDKConfig
+from kube_authkit import AuthConfig
 
-auth_config = AuthConfig(
-    k8s_api_host="https://api.example.com:6443",
-    token="your-token"
-)
-api_client = get_k8s_client(config=auth_config)
-set_api_client(api_client)  # Register with CodeFlare SDK
+cf = Codeflare(config=SDKConfig(
+    auth=AuthConfig(
+        k8s_api_host="https://api.example.com:6443",
+        token="your-token",
+    ),
+))
+cluster = cf.clusters.create(name="my-cluster", num_workers=2)
 ```
 
 ## Development
