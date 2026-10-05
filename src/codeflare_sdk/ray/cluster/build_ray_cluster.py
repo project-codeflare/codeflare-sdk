@@ -214,6 +214,11 @@ def build_ray_cluster(cluster: "codeflare_sdk.ray.cluster.Cluster"):
         },
     }
 
+    for wg in cluster.config.additional_worker_groups:
+        resource["spec"]["workerGroupSpecs"].append(
+            _build_worker_group_spec(cluster, wg)
+        )
+
     if cluster.config.enable_gcs_ft:
         if not cluster.config.redis_address:
             raise ValueError(
@@ -601,6 +606,109 @@ def write_to_file(cluster: "codeflare_sdk.ray.cluster.Cluster", resource: dict):
 
     print(f"Written to: {output_file_name}")
     return output_file_name
+
+
+def _build_worker_group_spec(
+    cluster: "codeflare_sdk.ray.cluster.Cluster",
+    wg: "codeflare_sdk.ray.cluster.config.WorkerGroup",
+) -> dict:
+    """Build a single workerGroupSpec dict from a WorkerGroup."""
+    replicas = wg.replicas
+    min_replicas = wg.min_replicas if wg.min_replicas is not None else replicas
+    max_replicas = wg.max_replicas if wg.max_replicas is not None else replicas
+
+    # GPU handling
+    gpu_count = wg.gpu_count or 0
+    extended_resources = {}
+    if wg.gpu_type and wg.gpu_count:
+        extended_resources[wg.gpu_type] = wg.gpu_count
+
+    # Ray custom resources (non-GPU extended resources)
+    ray_resources = {}
+    if wg.gpu_type and wg.gpu_count:
+        mapping = cluster.config.extended_resource_mapping
+        rtype = mapping.get(wg.gpu_type, "GPU")
+        if rtype not in FORBIDDEN_CUSTOM_RESOURCE_TYPES:
+            ray_resources[rtype] = wg.gpu_count
+    ray_resources_str = json.dumps(ray_resources).replace('"', '\\"')
+    ray_resources_str = f'"{ray_resources_str}"'
+
+    # Image inheritance
+    image = wg.image if wg.image else update_image(cluster.config.image)
+
+    # Env merge: cluster-level defaults, group overrides
+    merged_envs = {**cluster.config.envs, **wg.envs}
+
+    # Tolerations inheritance
+    tolerations = (
+        wg.tolerations
+        if wg.tolerations is not None
+        else cluster.config.worker_tolerations
+    )
+
+    # Build container
+    container = V1Container(
+        name="machine-learning",
+        image=image,
+        image_pull_policy="Always",
+        lifecycle=V1Lifecycle(
+            pre_stop=V1LifecycleHandler(
+                _exec=V1ExecAction(["/bin/sh", "-c", "ray stop"])
+            )
+        ),
+        resources=get_resources(
+            wg.cpu_requests,
+            wg.cpu_limits,
+            wg.memory_requests,
+            wg.memory_limits,
+            extended_resources or None,
+        ),
+        volume_mounts=generate_custom_storage(
+            cluster.config.volume_mounts, VOLUME_MOUNTS
+        ),
+    )
+
+    if merged_envs:
+        container.env = [V1EnvVar(name=k, value=v) for k, v in merged_envs.items()]
+
+    # Labels merge: cluster-level defaults, group overrides
+    merged_labels = {**cluster.config.labels, **wg.labels}
+
+    pod_spec = V1PodSpec(
+        containers=[container],
+        volumes=generate_custom_storage(cluster.config.volumes, VOLUMES),
+        tolerations=tolerations or None,
+    )
+
+    if cluster.config.image_pull_secrets:
+        pod_spec.image_pull_secrets = generate_image_pull_secrets(cluster)
+
+    # Pod template metadata with merged annotations and labels
+    pod_metadata = None
+    if cluster.config.annotations or merged_labels:
+        pod_metadata = V1ObjectMeta(
+            annotations=cluster.config.annotations
+            if cluster.config.annotations
+            else None,
+            labels=merged_labels if merged_labels else None,
+        )
+
+    return {
+        "replicas": replicas,
+        "minReplicas": min_replicas,
+        "maxReplicas": max_replicas,
+        "groupName": wg.group_name,
+        "rayStartParams": {
+            "block": "true",
+            "num-cpus": _cpu_limit_to_num_cpus(wg.cpu_limits),
+            "num-gpus": str(gpu_count),
+            "resources": ray_resources_str,
+        },
+        "template": V1PodTemplateSpec(
+            metadata=pod_metadata,
+            spec=pod_spec,
+        ),
+    }
 
 
 def gen_names(name):

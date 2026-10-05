@@ -15,7 +15,7 @@
 """
 The config sub-module contains the definition of the ClusterConfiguration dataclass,
 which is used to specify resource requirements and other details when creating a
-Cluster object.
+Cluster object. It also defines WorkerGroup for multi-worker-group clusters.
 """
 
 import pathlib
@@ -52,6 +52,85 @@ def _validate_cluster_name(name: str):
             "Cluster name must be a valid RFC 1123 subdomain "
             "(lowercase, numbers, hyphens/dots; start and end with letter or number)."
         )
+
+
+@dataclass
+class WorkerGroup:
+    """
+    Defines an additional worker group with its own resource profile.
+
+    Used in ClusterConfiguration.additional_worker_groups to create
+    heterogeneous clusters with multiple workerGroupSpecs in the
+    KubeRay RayCluster CR.
+
+    Args:
+        group_name:
+            Required. Unique name for this worker group. Maps to groupName in the CRD.
+        replicas:
+            Number of worker pods in this group.
+        min_replicas:
+            Minimum replicas for autoscaling. If None, equals replicas.
+        max_replicas:
+            Maximum replicas for autoscaling. If None, equals replicas.
+        cpu_requests:
+            CPU requests per worker pod.
+        cpu_limits:
+            CPU limits per worker pod.
+        memory_requests:
+            Memory requests per worker pod. Int values treated as GB.
+        memory_limits:
+            Memory limits per worker pod. Int values treated as GB.
+        gpu_type:
+            Extended resource key, e.g. "nvidia.com/gpu". Requires gpu_count.
+        gpu_count:
+            Number of GPUs per worker. Requires gpu_type.
+        image:
+            Container image. None inherits from ClusterConfiguration.image.
+        envs:
+            Per-group environment variables. Merged over cluster-level (group wins on conflict).
+        labels:
+            Pod labels for this worker group. Merged over cluster-level (group wins on conflict).
+        tolerations:
+            Pod tolerations. None inherits from ClusterConfiguration.worker_tolerations.
+    """
+
+    group_name: str
+    replicas: int = 1
+    min_replicas: Optional[int] = None
+    max_replicas: Optional[int] = None
+    cpu_requests: Union[int, str] = 1
+    cpu_limits: Union[int, str] = 1
+    memory_requests: Union[int, str] = 3
+    memory_limits: Union[int, str] = 6
+    gpu_type: Optional[str] = None
+    gpu_count: Optional[int] = None
+    image: Optional[str] = None
+    envs: Dict[str, str] = field(default_factory=dict)
+    labels: Dict[str, str] = field(default_factory=dict)
+    tolerations: Optional[List[V1Toleration]] = None
+
+    def __post_init__(self):
+        if self.gpu_type and self.gpu_count is None:
+            raise ValueError(
+                f"WorkerGroup '{self.group_name}': gpu_count is required when gpu_type is set"
+            )
+        if self.gpu_count is not None and not self.gpu_type:
+            raise ValueError(
+                f"WorkerGroup '{self.group_name}': gpu_type is required when gpu_count is set"
+            )
+        if self.min_replicas is not None and self.max_replicas is not None:
+            if self.min_replicas > self.max_replicas:
+                raise ValueError(
+                    f"WorkerGroup '{self.group_name}': max_replicas must be >= min_replicas"
+                )
+        if isinstance(self.memory_requests, int):
+            self.memory_requests = f"{self.memory_requests}G"
+        if isinstance(self.memory_limits, int):
+            self.memory_limits = f"{self.memory_limits}G"
+        if isinstance(self.memory_requests, str) and self.memory_requests.isdecimal():
+            self.memory_requests = f"{self.memory_requests}G"
+        if isinstance(self.memory_limits, str) and self.memory_limits.isdecimal():
+            self.memory_limits = f"{self.memory_limits}G"
 
 
 @dataclass
@@ -155,6 +234,7 @@ class ClusterConfiguration:
     annotations: Dict[str, str] = field(default_factory=dict)
     volumes: list[V1Volume] = field(default_factory=list)
     volume_mounts: list[V1VolumeMount] = field(default_factory=list)
+    additional_worker_groups: List[WorkerGroup] = field(default_factory=list)
     enable_gcs_ft: bool = False
     enable_usage_stats: bool = False
     redis_address: Optional[str] = None
@@ -205,6 +285,7 @@ class ClusterConfiguration:
         )
         if self.name is not None:
             _validate_cluster_name(self.name)
+        self._validate_additional_worker_groups()
 
     def _combine_extended_resource_mapping(self):
         if overwritten := set(self.extended_resource_mapping.keys()).intersection(
@@ -230,6 +311,24 @@ class ClusterConfiguration:
                 raise ValueError(
                     f"extended resource '{k}' not found in extended_resource_mapping, available resources are {list(self.extended_resource_mapping.keys())}, to add more supported resources use extended_resource_mapping. i.e. extended_resource_mapping = {{'{k}': 'FOO_BAR'}}"
                 )
+
+    def _validate_additional_worker_groups(self):
+        if not self.additional_worker_groups:
+            return
+        default_group_name = f"small-group-{self.name}" if self.name else None
+        names = set()
+        for wg in self.additional_worker_groups:
+            if not isinstance(wg, WorkerGroup):
+                raise TypeError(
+                    f"additional_worker_groups entries must be WorkerGroup instances, got {type(wg)}"
+                )
+            if wg.group_name in names:
+                raise ValueError(f"Duplicate worker group name: '{wg.group_name}'")
+            if default_group_name and wg.group_name == default_group_name:
+                raise ValueError(
+                    f"Worker group name '{wg.group_name}' conflicts with the default worker group name"
+                )
+            names.add(wg.group_name)
 
     def _validate_autoscaling(self):
         if self.enable_autoscaling:

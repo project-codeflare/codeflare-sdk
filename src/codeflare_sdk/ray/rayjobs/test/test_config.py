@@ -15,7 +15,7 @@
 """Tests for rayjobs config module: build_ray_cluster_spec and file volume helpers."""
 
 import pytest
-from codeflare_sdk.ray.cluster.config import ClusterConfiguration
+from codeflare_sdk.ray.cluster.config import ClusterConfiguration, WorkerGroup
 from codeflare_sdk.ray.rayjobs.config import (
     build_ray_cluster_spec,
     validate_secret_size,
@@ -343,3 +343,269 @@ def test_add_file_volumes_skips_duplicate_mount():
     add_file_volumes(config, "new-secret")
     assert len(config.volumes) == 0
     assert len(config.volume_mounts) == 1
+
+
+# --- Additional worker group tests for rayjobs ---
+
+
+def test_build_spec_with_additional_worker_groups(mocker):
+    """Additional worker groups produce extra workerGroupSpecs entries."""
+    mocker.patch(
+        "codeflare_sdk.ray.rayjobs.config.update_image",
+        return_value="ray:default",
+    )
+    config = ClusterConfiguration(
+        num_workers=2,
+        image="ray:default",
+        envs={"CLUSTER_VAR": "base"},
+        additional_worker_groups=[
+            WorkerGroup(
+                group_name="gpu-workers",
+                replicas=3,
+                cpu_requests=4,
+                cpu_limits=4,
+                memory_requests="16G",
+                memory_limits="32G",
+                gpu_type="nvidia.com/gpu",
+                gpu_count=2,
+                image="ray:gpu",
+                envs={"MODEL": "llama", "CLUSTER_VAR": "override"},
+                tolerations=[
+                    V1Toleration(
+                        key="nvidia.com/gpu",
+                        operator="Exists",
+                        effect="NoSchedule",
+                    )
+                ],
+            ),
+        ],
+    )
+    spec = build_ray_cluster_spec(config, "test-job")
+
+    assert len(spec["workerGroupSpecs"]) == 2
+
+    gpu_group = spec["workerGroupSpecs"][1]
+    assert gpu_group["groupName"] == "gpu-workers"
+    assert gpu_group["replicas"] == 3
+    assert gpu_group["minReplicas"] == 3
+    assert gpu_group["maxReplicas"] == 3
+
+    container = gpu_group["template"].spec.containers[0]
+    assert container.image == "ray:gpu"
+    assert container.resources.limits["nvidia.com/gpu"] == 2
+    assert container.resources.requests["nvidia.com/gpu"] == 2
+    assert container.resources.requests["cpu"] == 4
+    assert container.resources.requests["memory"] == "16G"
+
+    env_vars = {e.name: e.value for e in container.env}
+    assert env_vars["CLUSTER_VAR"] == "override"
+    assert env_vars["MODEL"] == "llama"
+    assert env_vars["RAY_USAGE_STATS_ENABLED"] == "0"
+
+    assert gpu_group["rayStartParams"]["num-gpus"] == "2"
+    assert gpu_group["rayStartParams"]["num-cpus"] == "4"
+
+    tolerations = gpu_group["template"].spec.tolerations
+    assert len(tolerations) == 1
+    assert tolerations[0].key == "nvidia.com/gpu"
+
+
+def test_build_spec_additional_group_inherits_image(mocker):
+    """Worker group with image=None inherits cluster-level image."""
+    mocker.patch(
+        "codeflare_sdk.ray.rayjobs.config.update_image",
+        return_value="ray:inherited",
+    )
+    config = ClusterConfiguration(
+        image="ray:base",
+        additional_worker_groups=[
+            WorkerGroup(group_name="no-image", replicas=1),
+        ],
+    )
+    spec = build_ray_cluster_spec(config, "test-job")
+
+    extra_group = spec["workerGroupSpecs"][1]
+    container = extra_group["template"].spec.containers[0]
+    assert container.image == "ray:inherited"
+
+
+def test_build_spec_additional_group_inherits_tolerations(mocker):
+    """Worker group with tolerations=None inherits cluster-level worker_tolerations."""
+    mocker.patch(
+        "codeflare_sdk.ray.rayjobs.config.update_image",
+        return_value="ray:latest",
+    )
+    config = ClusterConfiguration(
+        worker_tolerations=[
+            V1Toleration(key="default-key", operator="Exists", effect="NoSchedule")
+        ],
+        additional_worker_groups=[
+            WorkerGroup(group_name="inherit-tol", replicas=1),
+        ],
+    )
+    spec = build_ray_cluster_spec(config, "test-job")
+
+    extra_group = spec["workerGroupSpecs"][1]
+    tolerations = extra_group["template"].spec.tolerations
+    assert len(tolerations) == 1
+    assert tolerations[0].key == "default-key"
+
+
+def test_build_spec_additional_group_autoscaling(mocker):
+    """Worker group with min/max replicas produces correct spec."""
+    mocker.patch(
+        "codeflare_sdk.ray.rayjobs.config.update_image",
+        return_value="ray:latest",
+    )
+    config = ClusterConfiguration(
+        additional_worker_groups=[
+            WorkerGroup(
+                group_name="scaling",
+                replicas=2,
+                min_replicas=1,
+                max_replicas=10,
+            ),
+        ],
+    )
+    spec = build_ray_cluster_spec(config, "test-job")
+
+    extra_group = spec["workerGroupSpecs"][1]
+    assert extra_group["replicas"] == 2
+    assert extra_group["minReplicas"] == 1
+    assert extra_group["maxReplicas"] == 10
+
+
+def test_build_spec_additional_group_no_gpu(mocker):
+    """Worker group without GPU produces num-gpus=0."""
+    mocker.patch(
+        "codeflare_sdk.ray.rayjobs.config.update_image",
+        return_value="ray:latest",
+    )
+    config = ClusterConfiguration(
+        additional_worker_groups=[
+            WorkerGroup(group_name="cpu-only", replicas=4),
+        ],
+    )
+    spec = build_ray_cluster_spec(config, "test-job")
+
+    extra_group = spec["workerGroupSpecs"][1]
+    assert extra_group["rayStartParams"]["num-gpus"] == "0"
+
+
+def test_build_spec_additional_group_no_envs(mocker):
+    """Worker group with no envs and no cluster envs produces no env list."""
+    mocker.patch(
+        "codeflare_sdk.ray.rayjobs.config.update_image",
+        return_value="ray:latest",
+    )
+    config = ClusterConfiguration(
+        envs={},
+        enable_usage_stats=False,
+        additional_worker_groups=[
+            WorkerGroup(group_name="bare", replicas=1),
+        ],
+    )
+    spec = build_ray_cluster_spec(config, "test-job")
+
+    extra_group = spec["workerGroupSpecs"][1]
+    container = extra_group["template"].spec.containers[0]
+    env_vars = {e.name: e.value for e in container.env}
+    assert env_vars["RAY_USAGE_STATS_ENABLED"] == "0"
+
+
+def test_build_spec_multiple_additional_groups(mocker):
+    """Multiple additional worker groups all appear in spec."""
+    mocker.patch(
+        "codeflare_sdk.ray.rayjobs.config.update_image",
+        return_value="ray:latest",
+    )
+    config = ClusterConfiguration(
+        additional_worker_groups=[
+            WorkerGroup(group_name="group-a", replicas=2),
+            WorkerGroup(group_name="group-b", replicas=3),
+            WorkerGroup(group_name="group-c", replicas=1),
+        ],
+    )
+    spec = build_ray_cluster_spec(config, "test-job")
+
+    assert len(spec["workerGroupSpecs"]) == 4
+    group_names = [g["groupName"] for g in spec["workerGroupSpecs"]]
+    assert "group-a" in group_names
+    assert "group-b" in group_names
+    assert "group-c" in group_names
+
+
+def test_build_spec_additional_group_with_image_pull_secrets(mocker):
+    """Image pull secrets from cluster config are applied to additional groups."""
+    mocker.patch(
+        "codeflare_sdk.ray.rayjobs.config.update_image",
+        return_value="ray:latest",
+    )
+    config = ClusterConfiguration(
+        image_pull_secrets=["my-secret"],
+        additional_worker_groups=[
+            WorkerGroup(group_name="with-secrets", replicas=1),
+        ],
+    )
+    spec = build_ray_cluster_spec(config, "test-job")
+
+    extra_group = spec["workerGroupSpecs"][1]
+    secrets = extra_group["template"].spec.image_pull_secrets
+    assert len(secrets) == 1
+    assert secrets[0].name == "my-secret"
+
+
+def test_build_spec_additional_group_labels_merge(mocker):
+    """Labels from cluster config and worker group are merged on pod template."""
+    mocker.patch(
+        "codeflare_sdk.ray.rayjobs.config.update_image",
+        return_value="ray:latest",
+    )
+    config = ClusterConfiguration(
+        labels={"team": "ml", "env": "prod"},
+        additional_worker_groups=[
+            WorkerGroup(
+                group_name="labeled",
+                replicas=1,
+                labels={"team": "inference", "accelerator": "gpu"},
+            ),
+        ],
+    )
+    spec = build_ray_cluster_spec(config, "test-job")
+
+    extra_group = spec["workerGroupSpecs"][1]
+    pod_labels = extra_group["template"].metadata.labels
+    assert pod_labels["team"] == "inference"
+    assert pod_labels["env"] == "prod"
+    assert pod_labels["accelerator"] == "gpu"
+
+
+def test_build_spec_additional_group_empty_tolerations(mocker):
+    """Empty tolerations list opts out of inheritance."""
+    mocker.patch(
+        "codeflare_sdk.ray.rayjobs.config.update_image",
+        return_value="ray:latest",
+    )
+    config = ClusterConfiguration(
+        worker_tolerations=[
+            V1Toleration(key="default-key", operator="Exists", effect="NoSchedule")
+        ],
+        additional_worker_groups=[
+            WorkerGroup(group_name="no-tol", replicas=1, tolerations=[]),
+        ],
+    )
+    spec = build_ray_cluster_spec(config, "test-job")
+
+    extra_group = spec["workerGroupSpecs"][1]
+    assert extra_group["template"].spec.tolerations is None
+
+
+def test_build_spec_no_additional_groups(mocker):
+    """No additional groups means only the default worker group."""
+    mocker.patch(
+        "codeflare_sdk.ray.rayjobs.config.update_image",
+        return_value="ray:latest",
+    )
+    config = ClusterConfiguration()
+    spec = build_ray_cluster_spec(config, "test-job")
+    assert len(spec["workerGroupSpecs"]) == 1

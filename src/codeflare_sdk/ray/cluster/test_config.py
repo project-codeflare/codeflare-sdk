@@ -26,6 +26,7 @@ from codeflare_sdk.common.utils.unit_test_support import (
     get_template_variables,
 )
 from codeflare_sdk.ray.cluster.cluster import Cluster, ClusterConfiguration
+from codeflare_sdk.ray.cluster.config import WorkerGroup
 
 parent = Path(__file__).resolve().parents[4]  # project directory
 expected_clusters_dir = f"{parent}/tests/test_cluster_yamls"
@@ -506,6 +507,374 @@ def test_autoscaling_disabled_spec_unchanged(mocker):
     assert worker_group["replicas"] == 3
     assert worker_group["minReplicas"] == 3
     assert worker_group["maxReplicas"] == 3
+
+
+# --- WorkerGroup tests ---
+
+
+def test_worker_group_basic():
+    wg = WorkerGroup(group_name="gpu-workers", replicas=2)
+    assert wg.group_name == "gpu-workers"
+    assert wg.replicas == 2
+    assert wg.min_replicas is None
+    assert wg.max_replicas is None
+    assert wg.cpu_requests == 1
+    assert wg.cpu_limits == 1
+    assert wg.memory_requests == "3G"
+    assert wg.memory_limits == "6G"
+    assert wg.gpu_type is None
+    assert wg.gpu_count is None
+    assert wg.image is None
+    assert wg.envs == {}
+    assert wg.labels == {}
+    assert wg.tolerations is None
+
+
+def test_worker_group_memory_int_to_string():
+    wg = WorkerGroup(group_name="mem-test", memory_requests=16, memory_limits=32)
+    assert wg.memory_requests == "16G"
+    assert wg.memory_limits == "32G"
+
+
+def test_worker_group_memory_str_no_unit():
+    wg = WorkerGroup(group_name="mem-str", memory_requests="8", memory_limits="16")
+    assert wg.memory_requests == "8G"
+    assert wg.memory_limits == "16G"
+
+
+def test_worker_group_memory_str_with_unit():
+    wg = WorkerGroup(group_name="mem-unit", memory_requests="8Gi", memory_limits="16Gi")
+    assert wg.memory_requests == "8Gi"
+    assert wg.memory_limits == "16Gi"
+
+
+def test_worker_group_gpu():
+    wg = WorkerGroup(
+        group_name="gpu-group",
+        gpu_type="nvidia.com/gpu",
+        gpu_count=4,
+    )
+    assert wg.gpu_type == "nvidia.com/gpu"
+    assert wg.gpu_count == 4
+
+
+def test_worker_group_gpu_type_without_count():
+    with pytest.raises(ValueError, match="gpu_count is required"):
+        WorkerGroup(group_name="bad-gpu", gpu_type="nvidia.com/gpu")
+
+
+def test_worker_group_gpu_count_without_type():
+    with pytest.raises(ValueError, match="gpu_type is required"):
+        WorkerGroup(group_name="bad-gpu", gpu_count=2)
+
+
+def test_worker_group_min_max_replicas():
+    wg = WorkerGroup(group_name="scaling", replicas=2, min_replicas=1, max_replicas=8)
+    assert wg.min_replicas == 1
+    assert wg.max_replicas == 8
+
+
+def test_worker_group_max_less_than_min():
+    with pytest.raises(ValueError, match="max_replicas must be >= min_replicas"):
+        WorkerGroup(group_name="bad-range", min_replicas=5, max_replicas=2)
+
+
+def test_worker_group_group_name_required():
+    with pytest.raises(TypeError):
+        WorkerGroup()
+
+
+def test_cluster_config_additional_worker_groups():
+    config = ClusterConfiguration(
+        name="multi-group",
+        namespace="ns",
+        additional_worker_groups=[
+            WorkerGroup(group_name="cpu-workers", replicas=4),
+            WorkerGroup(
+                group_name="gpu-workers",
+                replicas=2,
+                gpu_type="nvidia.com/gpu",
+                gpu_count=4,
+            ),
+        ],
+    )
+    assert len(config.additional_worker_groups) == 2
+    assert config.additional_worker_groups[0].group_name == "cpu-workers"
+    assert config.additional_worker_groups[1].group_name == "gpu-workers"
+
+
+def test_cluster_config_duplicate_group_names():
+    with pytest.raises(ValueError, match="Duplicate worker group name"):
+        ClusterConfiguration(
+            name="dup-groups",
+            namespace="ns",
+            additional_worker_groups=[
+                WorkerGroup(group_name="same-name", replicas=2),
+                WorkerGroup(group_name="same-name", replicas=4),
+            ],
+        )
+
+
+def test_cluster_config_group_name_collides_with_default():
+    with pytest.raises(
+        ValueError, match="conflicts with the default worker group name"
+    ):
+        ClusterConfiguration(
+            name="my-cluster",
+            namespace="ns",
+            additional_worker_groups=[
+                WorkerGroup(group_name="small-group-my-cluster", replicas=2),
+            ],
+        )
+
+
+def test_cluster_config_invalid_worker_group_type():
+    with pytest.raises(TypeError, match="additional_worker_groups"):
+        ClusterConfiguration(
+            name="bad-type",
+            namespace="ns",
+            additional_worker_groups=[{"group_name": "not-a-dataclass"}],
+        )
+
+
+def test_additional_worker_groups_in_yaml(mocker):
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch("kubernetes.client.CustomObjectsApi.list_namespaced_custom_object")
+
+    from kubernetes.client import V1Toleration
+
+    cluster = Cluster(
+        ClusterConfiguration(
+            name="multi-group-cluster",
+            namespace="ns",
+            num_workers=2,
+            image="quay.io/rhoai/ray:default",
+            envs={"CLUSTER_VAR": "base"},
+            labels={"team": "ml"},
+            additional_worker_groups=[
+                WorkerGroup(
+                    group_name="gpu-inference",
+                    replicas=3,
+                    cpu_requests=4,
+                    cpu_limits=4,
+                    memory_requests="16G",
+                    memory_limits="32G",
+                    gpu_type="nvidia.com/gpu",
+                    gpu_count=2,
+                    image="quay.io/rhoai/ray:gpu",
+                    envs={"MODEL": "llama", "CLUSTER_VAR": "override"},
+                    labels={"accelerator": "gpu", "team": "inference"},
+                    tolerations=[
+                        V1Toleration(
+                            key="nvidia.com/gpu",
+                            operator="Exists",
+                            effect="NoSchedule",
+                        )
+                    ],
+                ),
+            ],
+        )
+    )
+
+    spec = cluster.resource_yaml["spec"]
+    assert len(spec["workerGroupSpecs"]) == 2
+
+    # First group is the default from flat fields
+    default_group = spec["workerGroupSpecs"][0]
+    assert default_group["groupName"] == "small-group-multi-group-cluster"
+    assert default_group["replicas"] == 2
+
+    # Second group is from additional_worker_groups
+    gpu_group = spec["workerGroupSpecs"][1]
+    assert gpu_group["groupName"] == "gpu-inference"
+    assert gpu_group["replicas"] == 3
+    assert gpu_group["minReplicas"] == 3
+    assert gpu_group["maxReplicas"] == 3
+
+    # Check image
+    gpu_container = gpu_group["template"]["spec"]["containers"][0]
+    assert gpu_container["image"] == "quay.io/rhoai/ray:gpu"
+
+    # Check GPU resources
+    assert gpu_container["resources"]["limits"]["nvidia.com/gpu"] == 2
+    assert gpu_container["resources"]["requests"]["nvidia.com/gpu"] == 2
+
+    # Check CPU/memory
+    assert gpu_container["resources"]["requests"]["cpu"] == 4
+    assert gpu_container["resources"]["limits"]["cpu"] == 4
+    assert gpu_container["resources"]["requests"]["memory"] == "16G"
+    assert gpu_container["resources"]["limits"]["memory"] == "32G"
+
+    # Check env merge (group overrides cluster)
+    env_vars = {e["name"]: e["value"] for e in gpu_container["env"]}
+    assert env_vars["CLUSTER_VAR"] == "override"
+    assert env_vars["MODEL"] == "llama"
+    assert env_vars["RAY_USAGE_STATS_ENABLED"] == "0"
+
+    # Check tolerations
+    tolerations = gpu_group["template"]["spec"]["tolerations"]
+    assert len(tolerations) == 1
+    assert tolerations[0]["key"] == "nvidia.com/gpu"
+
+    # Check ray start params
+    assert gpu_group["rayStartParams"]["num-gpus"] == "2"
+    assert gpu_group["rayStartParams"]["num-cpus"] == "4"
+
+
+def test_additional_worker_group_inherits_image(mocker):
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch("kubernetes.client.CustomObjectsApi.list_namespaced_custom_object")
+
+    cluster = Cluster(
+        ClusterConfiguration(
+            name="inherit-image",
+            namespace="ns",
+            image="quay.io/rhoai/ray:base-image",
+            additional_worker_groups=[
+                WorkerGroup(group_name="no-image-group", replicas=1),
+            ],
+        )
+    )
+
+    spec = cluster.resource_yaml["spec"]
+    extra_group = spec["workerGroupSpecs"][1]
+    container = extra_group["template"]["spec"]["containers"][0]
+    assert container["image"] == "quay.io/rhoai/ray:base-image"
+
+
+def test_additional_worker_group_inherits_tolerations(mocker):
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch("kubernetes.client.CustomObjectsApi.list_namespaced_custom_object")
+
+    from kubernetes.client import V1Toleration
+
+    cluster = Cluster(
+        ClusterConfiguration(
+            name="inherit-tol",
+            namespace="ns",
+            worker_tolerations=[
+                V1Toleration(key="default-key", operator="Exists", effect="NoSchedule")
+            ],
+            additional_worker_groups=[
+                WorkerGroup(group_name="inherit-group", replicas=1),
+            ],
+        )
+    )
+
+    spec = cluster.resource_yaml["spec"]
+    extra_group = spec["workerGroupSpecs"][1]
+    tolerations = extra_group["template"]["spec"]["tolerations"]
+    assert len(tolerations) == 1
+    assert tolerations[0]["key"] == "default-key"
+
+
+def test_additional_worker_group_with_autoscaling(mocker):
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch("kubernetes.client.CustomObjectsApi.list_namespaced_custom_object")
+
+    cluster = Cluster(
+        ClusterConfiguration(
+            name="autoscale-groups",
+            namespace="ns",
+            additional_worker_groups=[
+                WorkerGroup(
+                    group_name="scaling-group",
+                    replicas=2,
+                    min_replicas=1,
+                    max_replicas=10,
+                ),
+            ],
+        )
+    )
+
+    spec = cluster.resource_yaml["spec"]
+    extra_group = spec["workerGroupSpecs"][1]
+    assert extra_group["replicas"] == 2
+    assert extra_group["minReplicas"] == 1
+    assert extra_group["maxReplicas"] == 10
+
+
+def test_additional_worker_groups_empty_by_default(mocker):
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch("kubernetes.client.CustomObjectsApi.list_namespaced_custom_object")
+
+    cluster = Cluster(ClusterConfiguration(name="no-extras", namespace="ns"))
+
+    spec = cluster.resource_yaml["spec"]
+    assert len(spec["workerGroupSpecs"]) == 1
+
+
+def test_additional_worker_group_with_image_pull_secrets(mocker):
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch("kubernetes.client.CustomObjectsApi.list_namespaced_custom_object")
+
+    cluster = Cluster(
+        ClusterConfiguration(
+            name="pull-secrets",
+            namespace="ns",
+            image_pull_secrets=["my-registry-secret"],
+            additional_worker_groups=[
+                WorkerGroup(group_name="with-secrets", replicas=1),
+            ],
+        )
+    )
+
+    spec = cluster.resource_yaml["spec"]
+    extra_group = spec["workerGroupSpecs"][1]
+    secrets = extra_group["template"]["spec"]["imagePullSecrets"]
+    assert len(secrets) == 1
+    assert secrets[0]["name"] == "my-registry-secret"
+
+
+def test_additional_worker_group_empty_tolerations_opts_out(mocker):
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch("kubernetes.client.CustomObjectsApi.list_namespaced_custom_object")
+
+    from kubernetes.client import V1Toleration
+
+    cluster = Cluster(
+        ClusterConfiguration(
+            name="no-tol-inherit",
+            namespace="ns",
+            worker_tolerations=[
+                V1Toleration(key="default-key", operator="Exists", effect="NoSchedule")
+            ],
+            additional_worker_groups=[
+                WorkerGroup(group_name="no-tol", replicas=1, tolerations=[]),
+            ],
+        )
+    )
+
+    spec = cluster.resource_yaml["spec"]
+    extra_group = spec["workerGroupSpecs"][1]
+    assert extra_group["template"]["spec"].get("tolerations") is None
+
+
+def test_additional_worker_group_labels_merge(mocker):
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch("kubernetes.client.CustomObjectsApi.list_namespaced_custom_object")
+
+    cluster = Cluster(
+        ClusterConfiguration(
+            name="label-merge",
+            namespace="ns",
+            labels={"team": "ml", "env": "prod"},
+            additional_worker_groups=[
+                WorkerGroup(
+                    group_name="labeled",
+                    replicas=1,
+                    labels={"team": "inference", "accelerator": "gpu"},
+                ),
+            ],
+        )
+    )
+
+    spec = cluster.resource_yaml["spec"]
+    extra_group = spec["workerGroupSpecs"][1]
+    pod_labels = extra_group["template"]["metadata"]["labels"]
+    assert pod_labels["team"] == "inference"
+    assert pod_labels["env"] == "prod"
+    assert pod_labels["accelerator"] == "gpu"
 
 
 # Make sure to always keep this function last

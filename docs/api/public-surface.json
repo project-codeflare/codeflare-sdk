@@ -9,6 +9,7 @@
       "symbols": [
         "Cluster",
         "ClusterConfiguration",
+        "WorkerGroup",
         "RayClusterStatus",
         "CodeFlareClusterStatus",
         "RayCluster",
