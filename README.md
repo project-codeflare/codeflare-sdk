@@ -30,40 +30,39 @@ CodeFlare SDK uses [kube-authkit](https://github.com/opendatahub-io/kube-authkit
 
 ### Quick Start
 
-```python
-from kube_authkit import get_k8s_client, AuthConfig
-from codeflare_sdk import set_api_client, Cluster, ClusterConfiguration
+`Codeflare` is the single entrypoint. It authenticates and owns the resulting
+Kubernetes client, so clusters and jobs created from it keep using that client.
 
-# Option 1: Auto-detect authentication (recommended - no explicit auth needed!)
-cluster = Cluster(ClusterConfiguration(
-    name='my-cluster',
-    num_workers=2,
-))
-cluster.apply()
+```python
+from kube_authkit import AuthConfig
+from codeflare_sdk import Codeflare, SDKConfig
+
+# Option 1: Auto-detect authentication (kubeconfig or in-cluster service account)
+cf = Codeflare(config=SDKConfig(namespace='my-project'))
 
 # Option 2: OIDC authentication
-auth_config = AuthConfig(
-    method="oidc",
-    oidc_issuer="https://your-oidc-provider.com",
-    client_id="your-client-id",
-    use_device_flow=True
-)
-api_client = get_k8s_client(config=auth_config)
-set_api_client(api_client)  # Register with CodeFlare SDK
+cf = Codeflare(config=SDKConfig(
+    auth=AuthConfig(
+        method="oidc",
+        oidc_issuer="https://your-oidc-provider.com",
+        client_id="your-client-id",
+        use_device_flow=True,
+    ),
+    namespace='my-project',
+))
 
 # Option 3: OpenShift OAuth with token
-auth_config = AuthConfig(
-    k8s_api_host="https://api.example.com:6443",
-    token="your-token"
-)
-api_client = get_k8s_client(config=auth_config)
-set_api_client(api_client)  # Register with CodeFlare SDK
+cf = Codeflare(config=SDKConfig(
+    auth=AuthConfig(
+        method="openshift",
+        k8s_api_host="https://api.example.com:6443",
+        token="your-token",
+    ),
+    namespace='my-project',
+))
 
 # Now create your cluster
-cluster = Cluster(ClusterConfiguration(
-    name='my-cluster',
-    num_workers=2,
-))
+cluster = cf.clusters.create(name='my-cluster', num_workers=2)
 cluster.apply()
 ```
 

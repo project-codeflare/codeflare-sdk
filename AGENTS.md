@@ -196,10 +196,11 @@ Pre-commit hooks enforce:
 
 Real examples for the most common change types. Follow these patterns, not descriptions.
 
-### Adding or modifying ClusterConfiguration / ManagedClusterConfig
+### Adding or modifying ClusterConfiguration
 
-- `ClusterConfiguration` dataclass: `src/codeflare_sdk/ray/cluster/config.py` (line 58)
-- `ManagedClusterConfig` dataclass: `src/codeflare_sdk/ray/rayjobs/config.py` (line 65)
+- `ClusterConfiguration` dataclass: `src/codeflare_sdk/ray/cluster/config.py` (line 218)
+- RayJob spec builder (consumes the same dataclass):
+  `src/codeflare_sdk/ray/rayjobs/config.py` (`build_ray_cluster_spec`, line 96)
 - Tests: `src/codeflare_sdk/ray/cluster/test_config.py` — see `test_config_creation_all_parameters`
   and `test_autoscaling_config_valid` for the pattern.
 
