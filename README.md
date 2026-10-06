@@ -67,36 +67,6 @@ cluster = Cluster(ClusterConfiguration(
 cluster.apply()
 ```
 
-### Migration from Legacy Authentication
-
-If you're using the deprecated `TokenAuthentication` or `KubeConfigFileAuthentication` classes, please see our [Migration Guide](./docs/auth_migration_guide.md) for detailed instructions on updating to kube-authkit.
-
-**Legacy classes (deprecated):**
-```python
-# ⚠️ Deprecated - will be removed in v1.0.0
-from codeflare_sdk import TokenAuthentication
-auth = TokenAuthentication(token="...", server="...")
-auth.login()
-```
-
-**New recommended approach:**
-```python
-# ✅ Recommended - Auto-detection (no explicit auth needed!)
-from codeflare_sdk import Cluster, ClusterConfiguration
-cluster = Cluster(ClusterConfiguration(name="my-cluster"))
-
-# ✅ For OIDC or OpenShift OAuth with token
-from kube_authkit import AuthConfig, get_k8s_client
-from codeflare_sdk import set_api_client
-
-auth_config = AuthConfig(
-    k8s_api_host="https://api.example.com:6443",
-    token="your-token"
-)
-api_client = get_k8s_client(config=auth_config)
-set_api_client(api_client)  # Register with CodeFlare SDK
-```
-
 ## Development
 
 Please see our [CONTRIBUTING.md](./CONTRIBUTING.md) for detailed instructions.
