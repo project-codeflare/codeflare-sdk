@@ -33,6 +33,8 @@ from dataclasses import dataclass, field
 import builtins
 from typing import Any, Dict, Optional, Union
 
+from ray.runtime_env import RuntimeEnv
+
 from kube_authkit import AuthConfig, get_k8s_client
 from .common.kubernetes_cluster.auth import set_api_client
 from .common.utils import get_current_namespace
@@ -54,7 +56,9 @@ class SDKConfig:
 
     Args:
         auth: kube-authkit AuthConfig for Kubernetes authentication.
-        namespace: Default namespace for all operations. Falls back to 'default' if not set.
+        namespace: Default namespace for all operations. When unset, operations
+            fall back to the namespace of the current Kubernetes context, and
+            raise if none can be determined. See _resolve_namespace.
         log_level: Logging level for the codeflare_sdk logger.
     """
 
@@ -181,7 +185,7 @@ class JobHandler:
         *,
         cluster_name: Optional[str] = None,
         cluster_config: Optional[ClusterConfiguration] = None,
-        runtime_env: Optional[Union[Dict[str, Any], Any]] = None,
+        runtime_env: Optional[Union[RuntimeEnv, Dict[str, Any]]] = None,
         ttl_seconds_after_finished: int = 0,
         active_deadline_seconds: Optional[int] = None,
         local_queue: Optional[str] = None,
@@ -236,7 +240,7 @@ class JobHandler:
         *,
         cluster_name: Optional[str] = None,
         cluster_config: Optional[ClusterConfiguration] = None,
-        runtime_env: Optional[Union[Dict[str, Any], Any]] = None,
+        runtime_env: Optional[Union[RuntimeEnv, Dict[str, Any]]] = None,
         ttl_seconds_after_finished: int = 0,
         active_deadline_seconds: Optional[int] = None,
         local_queue: Optional[str] = None,

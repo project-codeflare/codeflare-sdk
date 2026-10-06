@@ -89,9 +89,12 @@ def config_check() -> Optional[str]:
     this path will be used directly.
 
     Priority:
-    1. Existing global api_client (already authenticated)
-    2. kube-authkit auto-detection (kubeconfig, in-cluster, etc.)
-    3. Legacy method (kubeconfig or in-cluster)
+    1. Client bound to the current operation via ``_use_api_client`` (already
+       authenticated; auto-detection is skipped so a scoped call cannot
+       overwrite the module-level client as a side effect)
+    2. Existing global api_client (already authenticated)
+    3. kube-authkit auto-detection (kubeconfig, in-cluster, etc.)
+    4. Legacy method (kubeconfig or in-cluster)
 
     Returns:
         str:

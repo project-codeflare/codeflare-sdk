@@ -116,6 +116,7 @@ class Cluster:
         }
 
     @property
+    @_bound_to_api_client
     def _client_verify_tls(self):
         return _is_openshift_cluster() and self.config.verify_tls
 
@@ -608,6 +609,7 @@ class Cluster:
             )
             print("=" * 70 + "\n")
 
+    @_bound_to_api_client
     def cluster_uri(self) -> str:
         """
         Returns a string containing the cluster's URI.

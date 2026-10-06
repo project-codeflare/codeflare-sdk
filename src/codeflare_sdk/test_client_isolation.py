@@ -32,6 +32,7 @@ def recorded_clients(monkeypatch):
 
     class RecordingCustomObjectsApi:
         def __init__(self, api_client=None):
+            self.api_client = api_client
             seen.append(api_client)
 
         def list_namespaced_custom_object(self, *a, **kw):
@@ -53,6 +54,9 @@ def reset_global_client():
     original_client, original_path = auth.api_client, auth.config_path
     yield
     auth.api_client, auth.config_path = original_client, original_path
+    # _use_api_client's finally should already have reset this; belt and braces
+    # so one leaked scope cannot silently green a later test.
+    assert auth._active_api_client.get() is None, "scoped client leaked"
 
 
 def make_codeflare(mocker, client, namespace="test-ns"):
@@ -358,3 +362,119 @@ class TestFacadePositionalCompat:
         cf.jobs.create("train", "python train.py", "other-ns", cluster_name="c")
 
         assert mock_rayjob.call_args.kwargs["namespace"] == "other-ns"
+
+
+@pytest.fixture
+def recorded_apis_clients(monkeypatch):
+    """Record the ApiClient each ApisApi is constructed with."""
+    seen = []
+
+    class RecordingApisApi:
+        def __init__(self, api_client=None):
+            seen.append(api_client)
+
+        def get_api_versions(self):
+            return type("V", (), {"groups": []})()
+
+    monkeypatch.setattr("kubernetes.client.ApisApi", RecordingApisApi)
+    return seen
+
+
+def two_codeflares(mocker, client_a, client_b):
+    """Build cf_a, then cf_b so cf_b owns the module-level global."""
+    from codeflare_sdk.codeflare import Codeflare, SDKConfig
+
+    mocker.patch(
+        "codeflare_sdk.codeflare.get_k8s_client", side_effect=[client_a, client_b]
+    )
+    cf_a = Codeflare(SDKConfig(namespace="prod"))
+    return cf_a, lambda: Codeflare(SDKConfig(namespace="dev"))
+
+
+class TestReviewNits:
+    """Second review pass on b6b184b."""
+
+    def test_client_verify_tls_is_scoped(self, mocker, recorded_apis_clients):
+        """Reached directly, not only via decorated callers."""
+        client_a = MagicMock(name="client_a")
+        client_b = MagicMock(name="client_b")
+        cf_a, make_cf_b = two_codeflares(mocker, client_a, client_b)
+        cluster = cf_a.clusters.create(name="c", num_workers=1)
+        make_cf_b()
+
+        recorded_apis_clients.clear()
+        cluster._client_verify_tls
+
+        assert recorded_apis_clients, "expected an ApisApi call"
+        assert all(c is client_a for c in recorded_apis_clients)
+        assert client_b not in recorded_apis_clients
+
+    def test_cluster_uri_is_scoped(self, mocker):
+        client_a = MagicMock(name="client_a")
+        cf_a = make_codeflare(mocker, client_a)
+        cluster = cf_a.clusters.create(name="c", num_workers=1)
+
+        seen = []
+        mocker.patch.object(
+            type(cluster),
+            "_check_tls_certs_exist",
+            lambda self: seen.append(auth._active_api_client.get()),
+        )
+
+        cluster.cluster_uri()
+
+        assert seen == [client_a]
+
+    def test_clusters_list_uses_its_client_after_second_codeflare(
+        self, mocker, recorded_clients
+    ):
+        """list() goes through module helpers + ContextVar, not Cluster._api_client."""
+        client_a = MagicMock(name="client_a")
+        client_b = MagicMock(name="client_b")
+        cf_a, make_cf_b = two_codeflares(mocker, client_a, client_b)
+        make_cf_b()
+
+        recorded_clients.clear()
+        cf_a.clusters.list()
+
+        assert recorded_clients, "expected a Kubernetes API call"
+        assert all(c is client_a for c in recorded_clients)
+        assert client_b not in recorded_clients
+
+    def test_clusters_list_queued_uses_its_client_after_second_codeflare(
+        self, mocker, recorded_clients
+    ):
+        client_a = MagicMock(name="client_a")
+        client_b = MagicMock(name="client_b")
+        cf_a, make_cf_b = two_codeflares(mocker, client_a, client_b)
+        make_cf_b()
+
+        recorded_clients.clear()
+        cf_a.clusters.list_queued()
+
+        assert recorded_clients, "expected a Kubernetes API call"
+        assert all(c is client_a for c in recorded_clients)
+        assert client_b not in recorded_clients
+
+    def test_rayjob_api_is_built_on_its_own_client(self, mocker, recorded_clients):
+        """RayJob captures a client at init; that one must be cf_a's."""
+        client_a = MagicMock(name="client_a")
+        client_b = MagicMock(name="client_b")
+        cf_a, make_cf_b = two_codeflares(mocker, client_a, client_b)
+        job = cf_a.jobs.create(
+            name="train", entrypoint="python train.py", cluster_name="existing"
+        )
+        make_cf_b()
+
+        assert job._api.api.api_client is client_a
+
+    def test_facade_runtime_env_type_matches_rayjob(self):
+        """Union[..., Any] collapses to Any and documents nothing."""
+        import typing
+
+        from codeflare_sdk.codeflare import JobHandler
+        from codeflare_sdk.ray.rayjobs.rayjob import RayJob
+
+        facade = typing.get_type_hints(JobHandler.create)["runtime_env"]
+        real = typing.get_type_hints(RayJob.__init__)["runtime_env"]
+        assert facade == real
