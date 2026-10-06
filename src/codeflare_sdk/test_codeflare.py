@@ -21,6 +21,8 @@ from typing import get_overloads, get_type_hints
 from unittest.mock import MagicMock
 from kube_authkit import AuthConfig
 
+from codeflare_sdk.ray.cluster.config import ClusterConfiguration
+
 
 class TestSDKConfig:
     def test_default_config(self):
@@ -144,34 +146,75 @@ class TestClusterHandler:
         return Codeflare(config=SDKConfig(namespace="default-ns"))
 
     def test_create_cluster(self, cf, mocker):
-        """create() returns a Cluster with the right config."""
+        """create() binds the given ClusterConfiguration to this client."""
         mock_cluster_cls = mocker.patch("codeflare_sdk.codeflare.Cluster")
-        mock_cluster_config_cls = mocker.patch(
-            "codeflare_sdk.codeflare.ClusterConfiguration"
-        )
+        config = ClusterConfiguration(name="my-cluster", num_workers=3)
 
-        result = cf.clusters.create(name="my-cluster", num_workers=3)
+        result = cf.clusters.create(config)
 
-        mock_cluster_config_cls.assert_called_once_with(
-            name="my-cluster", namespace="default-ns", num_workers=3
-        )
-        mock_cluster_cls.assert_called_once_with(
-            mock_cluster_config_cls.return_value, api_client=cf.client
-        )
+        passed = mock_cluster_cls.call_args.args[0]
+        assert passed.name == "my-cluster"
+        assert passed.num_workers == 3
+        assert passed.namespace == "default-ns"
+        assert mock_cluster_cls.call_args.kwargs == {"api_client": cf.client}
         assert result is mock_cluster_cls.return_value
 
+    def test_create_cluster_keeps_config_namespace(self, cf, mocker):
+        """A namespace already on the config wins over SDKConfig."""
+        mock_cluster_cls = mocker.patch("codeflare_sdk.codeflare.Cluster")
+        config = ClusterConfiguration(name="my-cluster", namespace="config-ns")
+
+        cf.clusters.create(config)
+
+        assert mock_cluster_cls.call_args.args[0].namespace == "config-ns"
+
     def test_create_cluster_override_namespace(self, cf, mocker):
-        """create() allows namespace override."""
+        """The namespace argument overrides both the config and SDKConfig."""
+        mock_cluster_cls = mocker.patch("codeflare_sdk.codeflare.Cluster")
+        config = ClusterConfiguration(name="my-cluster", namespace="config-ns")
+
+        cf.clusters.create(config, namespace="other-ns")
+
+        assert mock_cluster_cls.call_args.args[0].namespace == "other-ns"
+
+    def test_create_does_not_mutate_the_callers_config(self, cf, mocker):
+        """Injecting the namespace must not reach back into the caller's object."""
+        mock_cluster_cls = mocker.patch("codeflare_sdk.codeflare.Cluster")
+        config = ClusterConfiguration(name="my-cluster")
+
+        cf.clusters.create(config, namespace="one")
+        cf.clusters.create(config, namespace="two")
+
+        assert config.namespace is None
+        namespaces = [c.args[0].namespace for c in mock_cluster_cls.call_args_list]
+        assert namespaces == ["one", "two"]
+
+    def test_create_accepts_a_fully_configured_config(self, cf, mocker):
+        """Namespace injection cannot re-run ClusterConfiguration.__post_init__.
+
+        __post_init__ merges the default accelerator mapping into
+        extended_resource_mapping and then rejects the merged result, so
+        dataclasses.replace() raises on an already-constructed instance.
+        """
+        mock_cluster_cls = mocker.patch("codeflare_sdk.codeflare.Cluster")
+        config = ClusterConfiguration(
+            name="my-cluster",
+            extended_resource_mapping={"custom.com/acc": "ACC"},
+        )
+
+        cf.clusters.create(config, namespace="ns")
+
+        passed = mock_cluster_cls.call_args.args[0]
+        assert passed.namespace == "ns"
+        assert passed.extended_resource_mapping["custom.com/acc"] == "ACC"
+        assert passed.extended_resource_mapping["nvidia.com/gpu"] == "GPU"
+
+    def test_create_requires_a_cluster_name(self, cf, mocker):
+        """A config without a name fails here, with a message naming the field."""
         mocker.patch("codeflare_sdk.codeflare.Cluster")
-        mock_cluster_config_cls = mocker.patch(
-            "codeflare_sdk.codeflare.ClusterConfiguration"
-        )
 
-        cf.clusters.create(name="my-cluster", namespace="other-ns")
-
-        mock_cluster_config_cls.assert_called_once_with(
-            name="my-cluster", namespace="other-ns"
-        )
+        with pytest.raises(ValueError, match="ClusterConfiguration.name is required"):
+            cf.clusters.create(ClusterConfiguration())
 
     def test_get_cluster(self, cf, mocker):
         """get() delegates to get_cluster function."""
@@ -274,13 +317,12 @@ class TestClusterHandler:
         mocker.patch(
             "codeflare_sdk.codeflare.get_current_namespace", return_value="detected"
         )
-        mocker.patch("codeflare_sdk.codeflare.Cluster")
-        mock_config = mocker.patch("codeflare_sdk.codeflare.ClusterConfiguration")
+        mock_cluster_cls = mocker.patch("codeflare_sdk.codeflare.Cluster")
 
         cf = Codeflare(config=SDKConfig(namespace=None))
-        cf.clusters.create(name="test")
+        cf.clusters.create(ClusterConfiguration(name="test"))
 
-        mock_config.assert_called_once_with(name="test", namespace="detected")
+        assert mock_cluster_cls.call_args.args[0].namespace == "detected"
 
 
 class TestJobHandler:
@@ -375,51 +417,38 @@ class TestJobHandler:
 
 
 class TestFacadeTypeSignatures:
-    """RHOAIENG-98954: the facade's kwargs are typed, and stay in sync.
+    """RHOAIENG-98954: the facade's arguments are typed, and stay that way.
 
-    The TypedDicts duplicate names and types that live elsewhere, so these
-    tests are the thing that keeps them honest — a new ClusterConfiguration
-    field or JobHandler parameter fails here instead of silently becoming
-    unreachable through the facade.
+    Cluster creation takes a ClusterConfiguration, so there is nothing to keep
+    in sync there — these tests just stop **kwargs from creeping back in. The
+    job handler does mirror its parameters into the JobOptions TypedDict, and
+    those tests fail when the two drift.
     """
 
-    def _cluster_config_hints(self):
-        from codeflare_sdk.ray.cluster.config import ClusterConfiguration
+    def test_cluster_create_takes_a_configuration_object(self):
+        """RHOAIENG-98954: no **kwargs to mirror — the dataclass is the contract."""
+        from codeflare_sdk.codeflare import ClusterHandler
 
-        hints = get_type_hints(ClusterConfiguration)
-        return {k: v for k, v in hints.items() if k not in ("name", "namespace")}
+        params = inspect.signature(ClusterHandler.create).parameters
 
-    def test_cluster_kwargs_cover_every_configuration_field(self):
-        """ClusterConfigKwargs exposes every field create() can forward."""
-        from codeflare_sdk.codeflare import ClusterConfigKwargs
+        assert list(params) == ["self", "config", "namespace"]
+        assert params["config"].annotation is ClusterConfiguration
+        assert not any(p.kind is inspect.Parameter.VAR_KEYWORD for p in params.values())
 
-        expected = set(self._cluster_config_hints())
-        actual = set(get_type_hints(ClusterConfigKwargs))
+    def test_cluster_get_takes_no_var_keywords(self):
+        """get()'s options are named, so an unknown key fails at the facade."""
+        from codeflare_sdk.codeflare import ClusterHandler
 
-        assert actual - expected == set(), "ClusterConfigKwargs has unknown keys"
-        assert expected - actual == set(), "ClusterConfiguration field not exposed"
+        params = inspect.signature(ClusterHandler.get).parameters
 
-    def test_cluster_kwargs_types_match_configuration(self):
-        """A field's type cannot drift from the dataclass it forwards to."""
-        from codeflare_sdk.codeflare import ClusterConfigKwargs
-
-        expected = self._cluster_config_hints()
-        actual = get_type_hints(ClusterConfigKwargs)
-
-        mismatched = {
-            key: (expected[key], actual[key])
-            for key in expected
-            if key in actual and expected[key] != actual[key]
-        }
-        assert mismatched == {}
-
-    def test_cluster_kwargs_excludes_handler_owned_fields(self):
-        """name and namespace are the handler's to set, not the caller's."""
-        from codeflare_sdk.codeflare import ClusterConfigKwargs
-
-        keys = get_type_hints(ClusterConfigKwargs)
-        assert "name" not in keys
-        assert "namespace" not in keys
+        assert list(params) == [
+            "self",
+            "name",
+            "namespace",
+            "verify_tls",
+            "write_to_file",
+        ]
+        assert not any(p.kind is inspect.Parameter.VAR_KEYWORD for p in params.values())
 
     def test_job_options_match_create_signature(self):
         """JobOptions holds exactly create()'s non-target keyword arguments."""
@@ -464,20 +493,37 @@ class TestFacadeTypeSignatures:
             ]
             assert targets == [{"cluster_name"}, {"cluster_config"}]
 
-    def test_create_still_accepts_every_cluster_kwarg(self, mocker):
-        """The typed keys are real: each one reaches ClusterConfiguration."""
-        from codeflare_sdk.codeflare import ClusterConfigKwargs, Codeflare, SDKConfig
+    def test_cluster_config_reaches_the_facade_unchanged(self, mocker):
+        """Every configured field survives the handler, not just the namespace."""
+        from codeflare_sdk.codeflare import Codeflare, SDKConfig
 
         mocker.patch("codeflare_sdk.codeflare.get_k8s_client")
         mocker.patch("codeflare_sdk.codeflare.set_api_client")
-        mocker.patch("codeflare_sdk.codeflare.Cluster")
-        mock_config = mocker.patch("codeflare_sdk.codeflare.ClusterConfiguration")
+        mock_cluster_cls = mocker.patch("codeflare_sdk.codeflare.Cluster")
 
         cf = Codeflare(config=SDKConfig(namespace="ns"))
-        sentinels = {key: MagicMock() for key in get_type_hints(ClusterConfigKwargs)}
-        cf.clusters.create(name="c", **sentinels)
+        config = ClusterConfiguration(
+            name="c",
+            num_workers=4,
+            enable_autoscaling=True,
+            min_workers=1,
+            max_workers=4,
+            labels={"team": "ml"},
+            image_pull_secrets=["my-secret"],
+        )
 
-        mock_config.assert_called_once_with(name="c", namespace="ns", **sentinels)
+        cf.clusters.create(config)
+
+        passed = mock_cluster_cls.call_args.args[0]
+        for field_name in (
+            "num_workers",
+            "enable_autoscaling",
+            "min_workers",
+            "max_workers",
+            "labels",
+            "image_pull_secrets",
+        ):
+            assert getattr(passed, field_name) == getattr(config, field_name)
 
 
 class TestLegacyAuthRemoved:
@@ -514,6 +560,6 @@ class TestLegacyAuthRemoved:
         """SDKConfig is importable from codeflare_sdk."""
         from codeflare_sdk import SDKConfig  # noqa: F401
 
-    def test_facade_kwarg_types_importable(self):
-        """The TypedDicts are exported so callers can annotate their own wrappers."""
-        from codeflare_sdk import ClusterConfigKwargs, JobOptions  # noqa: F401
+    def test_job_options_importable(self):
+        """JobOptions is exported so callers can annotate their own wrappers."""
+        from codeflare_sdk import JobOptions  # noqa: F401

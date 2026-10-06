@@ -40,7 +40,7 @@ Kubernetes client, so clusters and jobs created from it keep using that client.
 
 ```python
 from kube_authkit import AuthConfig
-from codeflare_sdk import Codeflare, SDKConfig
+from codeflare_sdk import ClusterConfiguration, Codeflare, SDKConfig
 
 # Option 1: Auto-detect authentication (kubeconfig or in-cluster service account)
 cf = Codeflare(config=SDKConfig(namespace='my-project'))
@@ -66,8 +66,9 @@ cf = Codeflare(config=SDKConfig(
     namespace='my-project',
 ))
 
-# Now create your cluster
-cluster = cf.clusters.create(name='my-cluster', num_workers=2)
+# Now create your cluster. Every SDK entrypoint that takes a cluster
+# description takes the same ClusterConfiguration object.
+cluster = cf.clusters.create(ClusterConfiguration(name='my-cluster', num_workers=2))
 cluster.apply()
 ```
 

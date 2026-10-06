@@ -23,10 +23,9 @@
       "symbols": [
         "Codeflare",
         "SDKConfig",
-        "ClusterConfigKwargs",
         "JobOptions"
       ],
-      "notes": "Single entrypoint. ClusterConfigKwargs and JobOptions are TypedDicts describing the keyword arguments of cf.clusters.create() and the cf.jobs.create()/submit() overloads; they carry no runtime behaviour."
+      "notes": "Single entrypoint. JobOptions is a TypedDict describing the shared keyword arguments of the cf.jobs.create()/submit() overloads; it carries no runtime behaviour."
     },
     "rayjobs": {
       "module": "codeflare_sdk.ray.rayjobs",

@@ -10,12 +10,15 @@ objects bound to that client. The lower-level `Cluster` / `RayJob` classes
 remain public and usable directly.
 
 ```python
-from codeflare_sdk import Codeflare, SDKConfig
+from codeflare_sdk import ClusterConfiguration, Codeflare, SDKConfig
 
 cf = Codeflare(config=SDKConfig(namespace="my-project"))
-cluster = cf.clusters.create(name="my-cluster", num_workers=2)
+cluster = cf.clusters.create(ClusterConfiguration(name="my-cluster", num_workers=2))
 cluster.apply()
 ```
+
+`ClusterConfiguration` is the one way to describe a cluster: `cf.clusters.create()`,
+`cf.jobs.create(cluster_config=...)` and `Cluster()` all take it.
 
 ## Repository Structure
 
@@ -167,8 +170,7 @@ still lists `Authentication`, `KubeConfiguration`, `TokenAuthentication` and
 (tracked in RHOAIENG-98754, pending a decision on restoring compatibility shims).
 
 The `codeflare` entry covers the single entrypoint: `Codeflare`, `SDKConfig`,
-and the `ClusterConfigKwargs` / `JobOptions` TypedDicts that type the handler
-keyword arguments.
+and the `JobOptions` TypedDict shared by the `cf.jobs` overloads.
 
 Design-level architecture: `docs/designs/CodeFlare-SDK-design-doc.md`.
 User-facing Sphinx docs: `docs/sphinx/`.
@@ -275,11 +277,14 @@ Real examples for the most common change types. Follow these patterns, not descr
     (`build_ray_cluster_spec`, line 96)
 
   A field added to only one builder is silently dropped by the other path.
-- A new field must also be added to `ClusterConfigKwargs` in
-  `src/codeflare_sdk/codeflare.py`, the TypedDict that types
-  `cf.clusters.create(**kwargs)`. Otherwise the field is unreachable through the
-  facade for anyone running a type checker. `test_codeflare.py::TestFacadeTypeSignatures`
-  fails when the two drift (RHOAIENG-98954).
+- Nothing to add on the facade side: `cf.clusters.create()` takes a
+  `ClusterConfiguration` rather than `**kwargs`, so a new field reaches it for
+  free (RHOAIENG-98954).
+- `__post_init__` is **not idempotent** — it merges the default accelerator
+  mapping into `extended_resource_mapping` and then rejects the merged result.
+  `dataclasses.replace()` on a configured instance therefore raises. Use
+  `copy.copy()` and set the attribute, as `ClusterHandler.create` does when it
+  injects the namespace.
 - Tests: `src/codeflare_sdk/ray/cluster/test_config.py` — see `test_config_creation_all_parameters`
   and `test_autoscaling_config_valid` for the pattern.
 

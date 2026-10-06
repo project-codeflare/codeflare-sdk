@@ -16,7 +16,7 @@
 Single entrypoint for the CodeFlare SDK.
 
 Usage:
-    from codeflare_sdk import Codeflare, SDKConfig
+    from codeflare_sdk import ClusterConfiguration, Codeflare, SDKConfig
     from kube_authkit import AuthConfig
 
     cf = Codeflare(config=SDKConfig(
@@ -24,16 +24,18 @@ Usage:
         namespace="my-project",
     ))
 
-    cluster = cf.clusters.create(name="my-cluster", num_workers=4)
+    cluster = cf.clusters.create(
+        ClusterConfiguration(name="my-cluster", num_workers=4)
+    )
     cluster.apply()
 """
 
+import copy
 import logging
 from dataclasses import dataclass, field
 import builtins
-from typing import Any, Dict, List, Optional, TypedDict, Union, Unpack, overload
+from typing import Any, Dict, Optional, TypedDict, Union, Unpack, overload
 
-from kubernetes.client import V1Toleration, V1Volume, V1VolumeMount
 from ray.runtime_env import RuntimeEnv
 
 from kube_authkit import AuthConfig, get_k8s_client
@@ -45,7 +47,7 @@ from .ray.cluster.cluster import (
     list_all_clusters,
     list_all_queued,
 )
-from .ray.cluster.config import ClusterConfiguration, WorkerGroup
+from .ray.cluster.config import ClusterConfiguration
 from .ray.rayjobs.rayjob import RayJob
 
 _VALID_LOG_LEVELS = ("CRITICAL", "DEBUG", "ERROR", "INFO", "WARNING")
@@ -100,69 +102,6 @@ def _resolve_namespace(namespace: Optional[str], sdk: "Codeflare") -> str:
     )
 
 
-class ClusterConfigKwargs(TypedDict, total=False):
-    """Keyword arguments accepted by :meth:`ClusterHandler.create`.
-
-    Mirrors every :class:`~codeflare_sdk.ray.cluster.config.ClusterConfiguration`
-    field except ``name`` and ``namespace``, which the handler supplies itself.
-    See that dataclass for what each field means and what it defaults to; this
-    TypedDict exists so the keys are visible to type checkers and IDE completion
-    instead of disappearing into ``**kwargs``.
-
-    ``test_facade_kwargs_match_cluster_configuration`` fails if the two drift.
-    """
-
-    # Head node
-    head_cpu_requests: Union[int, str]
-    head_cpu_limits: Union[int, str]
-    head_memory_requests: Union[int, str]
-    head_memory_limits: Union[int, str]
-    head_extended_resource_requests: Dict[str, Union[str, int]]
-    head_tolerations: Optional[List[V1Toleration]]
-
-    # Worker nodes
-    num_workers: int
-    worker_cpu_requests: Union[int, str]
-    worker_cpu_limits: Union[int, str]
-    worker_memory_requests: Union[int, str]
-    worker_memory_limits: Union[int, str]
-    worker_extended_resource_requests: Dict[str, Union[str, int]]
-    worker_tolerations: Optional[List[V1Toleration]]
-    additional_worker_groups: List[WorkerGroup]
-
-    # Autoscaling
-    enable_autoscaling: bool
-    min_workers: Optional[int]
-    max_workers: Optional[int]
-
-    # Pod spec
-    image: str
-    image_pull_secrets: List[str]
-    envs: Dict[str, str]
-    labels: Dict[str, str]
-    annotations: Dict[str, str]
-    volumes: list[V1Volume]
-    volume_mounts: list[V1VolumeMount]
-
-    # Extended resources
-    extended_resource_mapping: Dict[str, str]
-    overwrite_default_resource_mapping: bool
-
-    # Scheduling
-    local_queue: Optional[str]
-
-    # GCS fault tolerance
-    enable_gcs_ft: bool
-    redis_address: Optional[str]
-    redis_password_secret: Optional[Dict[str, str]]
-    external_storage_namespace: Optional[str]
-
-    # Misc
-    write_to_file: bool
-    verify_tls: bool
-    enable_usage_stats: bool
-
-
 class JobOptions(TypedDict, total=False):
     """Optional keyword arguments shared by the :class:`JobHandler` overloads.
 
@@ -188,31 +127,46 @@ class ClusterHandler:
 
     def create(
         self,
-        name: str,
+        config: ClusterConfiguration,
         namespace: Optional[str] = None,
-        **kwargs: Unpack[ClusterConfigKwargs],
     ) -> "Cluster":
         """Create a new Cluster object (does not apply it to K8s yet).
+
+        Takes a :class:`~codeflare_sdk.ray.cluster.config.ClusterConfiguration`,
+        the same object ``cf.jobs.create(cluster_config=...)`` and ``Cluster()``
+        take, so there is one way to describe a cluster across the SDK.
 
         The returned Cluster is bound to this Codeflare instance's Kubernetes
         client, so later operations on it are unaffected by any other Codeflare
         instance created afterwards.
 
         Args:
-            name: Cluster name.
-            namespace: K8s namespace. See namespace resolution precedence in
-                :func:`_resolve_namespace`.
-            **kwargs: Any ClusterConfiguration field except name and namespace.
-                Typed by :class:`ClusterConfigKwargs`, so a misspelled or
-                unsupported key is a type error rather than a surprise at call
-                time.
+            config: Cluster configuration. ``config.name`` is required.
+            namespace: K8s namespace, overriding ``config.namespace``. See
+                namespace resolution precedence in :func:`_resolve_namespace`.
 
         Returns:
             Cluster instance ready for .apply().
+
+        Raises:
+            ValueError: If config.name is unset, or no namespace can be resolved.
         """
-        ns = _resolve_namespace(namespace, self._sdk)
-        cluster_config = ClusterConfiguration(name=name, namespace=ns, **kwargs)
-        return Cluster(cluster_config, api_client=self._sdk.client)
+        if not config.name:
+            raise ValueError(
+                "❌ Configuration Error: ClusterConfiguration.name is required to "
+                "create a cluster."
+            )
+
+        ns = _resolve_namespace(namespace or config.namespace, self._sdk)
+        if ns != config.namespace:
+            # A shallow copy, not dataclasses.replace: ClusterConfiguration's
+            # __post_init__ is not idempotent (it merges the default accelerator
+            # mapping into extended_resource_mapping and then rejects the merged
+            # result), so reconstructing a configured instance raises.
+            config = copy.copy(config)
+            config.namespace = ns
+
+        return Cluster(config, api_client=self._sdk.client)
 
     def get(
         self,
