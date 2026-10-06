@@ -91,10 +91,14 @@ See the Ray documentation for runtime environment options.
 Kueue integration
 -----------------
 
-When Kueue is installed, you can set ``local_queue`` to the name of a
-Kueue LocalQueue and ``priority_class`` to a WorkloadPriorityClass name
-for preemption control. These apply to both new clusters (``cluster_config``)
-and existing clusters (``cluster_name``). For Kueue setup, see :doc:`./setup-kueue`.
+When Kueue is installed and the ``RayJob`` **creates** a new cluster
+(``cluster_config``), set ``local_queue`` to the name of a Kueue
+``LocalQueue`` and ``priority_class`` to a ``WorkloadPriorityClass`` name
+for preemption control. Kueue labels are **not** applied when the job
+targets an existing cluster (``cluster_name``); use ``RayJobClient`` for
+interactive submission to a running cluster. For Kueue setup, see
+:doc:`./setup-kueue`. For clusters with multiple worker groups under Kueue,
+see :doc:`./kueue-heterogeneous-ray-clusters`.
 
 .. note::
 

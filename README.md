@@ -13,6 +13,11 @@ For guided demos and basics walkthroughs, check out the following links:
 
 Full documentation can be found [here](https://project-codeflare.github.io/codeflare-sdk/index.html)
 
+Admin guide for **heterogeneous Ray clusters under Kueue** (multiple worker groups,
+``ResourceFlavor`` / ``ClusterQueue`` prerequisites):
+[docs/sphinx/user-docs/kueue-heterogeneous-ray-clusters.rst](docs/sphinx/user-docs/kueue-heterogeneous-ray-clusters.rst)
+(also in the published docs toctree after the next documentation release).
+
 ## Installation
 
 Can be installed via `pip`: `pip install codeflare-sdk`

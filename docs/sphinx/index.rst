@@ -26,6 +26,7 @@ The CodeFlare SDK is an intuitive, easy-to-use python interface for batch resour
    user-docs/e2e
    user-docs/s3-compatible-storage
    user-docs/setup-kueue
+   user-docs/kueue-heterogeneous-ray-clusters
    user-docs/ui-widgets
 
 Quick Links
