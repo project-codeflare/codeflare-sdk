@@ -4,6 +4,19 @@ Python SDK for simplifying the management of distributed computing resources
 on Kubernetes. Provides interfaces for Ray cluster lifecycle, job submission,
 and Kueue integration. Apache-2.0 licensed, Python ^3.11.
 
+`Codeflare` is the single entrypoint. It authenticates via kube-authkit and
+owns the resulting Kubernetes client; `cf.clusters` and `cf.jobs` create
+objects bound to that client. The lower-level `Cluster` / `RayJob` classes
+remain public and usable directly.
+
+```python
+from codeflare_sdk import Codeflare, SDKConfig
+
+cf = Codeflare(config=SDKConfig(namespace="my-project"))
+cluster = cf.clusters.create(name="my-cluster", num_workers=2)
+cluster.apply()
+```
+
 ## Repository Structure
 
 | Directory | Description |
@@ -21,6 +34,7 @@ and Kueue integration. Apache-2.0 licensed, Python ^3.11.
 
 | Task | Location |
 | --- | --- |
+| Single entrypoint (`Codeflare`, `SDKConfig`, handlers) | `src/codeflare_sdk/codeflare.py` |
 | Cluster config / creation | `src/codeflare_sdk/ray/cluster/` |
 | RayJob lifecycle | `src/codeflare_sdk/ray/rayjobs/` |
 | Ray job client (submission API) | `src/codeflare_sdk/ray/client/` |
@@ -41,6 +55,7 @@ and Kueue integration. Apache-2.0 licensed, Python ^3.11.
 
 ```
 src/codeflare_sdk/
+  codeflare.py             # Codeflare entrypoint, SDKConfig, cluster/job handlers
   common/
     kubernetes_cluster/    # Auth, API client, error handling
     kueue/                 # Local queue listing, default queue resolution
@@ -86,7 +101,17 @@ coverage report -m
 
 # Check patch coverage for specific files
 coverage report -m --include="path/to/changed1.py,path/to/changed2.py"
+
+# Type check (CI job: type-check.yml)
+mypy src/codeflare_sdk/ --config-file pyproject.toml
+
+# Import boundaries (CI job: lint.yml, also a pre-commit hook)
+PYTHONPATH=src lint-imports
 ```
+
+Run `pre-commit run --all-files` before pushing. The CI `precommit` job fails
+with "files were modified by this hook" when a locally installed ruff differs
+from the version pinned in `.pre-commit-config.yaml`.
 
 ### Single-File Commands
 
@@ -135,6 +160,12 @@ The machine-readable registry of all public exports is at `docs/api/public-surfa
 It mirrors `src/codeflare_sdk/__init__.py` and subpackage `__init__.py` exports.
 When adding or removing public symbols, update both the Python `__init__.py` and the JSON registry.
 
+Nothing in CI checks the two against each other, so the registry can drift —
+verify against the code rather than trusting it. Known drift: the `auth` entry
+still lists `Authentication`, `KubeConfiguration`, `TokenAuthentication` and
+`KubeConfigFileAuthentication`, which were removed and now raise `ImportError`
+(tracked in RHOAIENG-98754, pending a decision on restoring compatibility shims).
+
 Design-level architecture: `docs/designs/CodeFlare-SDK-design-doc.md`.
 User-facing Sphinx docs: `docs/sphinx/`.
 
@@ -153,6 +184,39 @@ vendored modules — use the SDK's own wrappers.
 - Use safe access (`.get()`, `try/except`) when parsing Custom Resource dicts
 - Reuse existing enums (e.g., `RayClusterStatus`) — do not introduce new
   string-based status fields for concepts already modeled
+
+#### Client isolation (RHOAIENG-98754)
+
+`Cluster` and `RayJob` are bound to the Kubernetes client they were created
+with. `get_api_client()` resolves, in order: the client bound to the current
+operation, the module-level client set by `set_api_client` (legacy fallback),
+then a fresh default client. Binding is carried by a `ContextVar` in
+`common/kubernetes_cluster/auth.py` rather than a parameter, so the helpers
+that resolve a client themselves (`build_ray_cluster`, the Kueue helpers, cert
+generation) pick it up without threading one through.
+
+When adding a method to `Cluster` or `RayJob` that reaches a Kubernetes API —
+directly or through any helper — decorate it:
+
+```python
+from ...common.kubernetes_cluster.auth import _bound_to_api_client
+
+@_bound_to_api_client
+def my_new_method(self): ...
+
+@property
+@_bound_to_api_client          # decorator goes *under* @property
+def my_new_property(self): ...
+```
+
+Module-level helpers (`get_cluster`, `list_all_clusters`, `list_all_queued`)
+take an additive `api_client: Optional[client.ApiClient] = None` and wrap their
+body in `with _use_api_client(api_client):`.
+
+Missing the decorator is a silent bug, not an error: the method works until a
+second `Codeflare` is constructed, then quietly talks to the wrong cluster.
+Transitive reach counts — audit what a helper calls, not just the method body.
+Regression tests: `src/codeflare_sdk/test_client_isolation.py`.
 
 ### Import Boundaries
 
@@ -199,16 +263,24 @@ Real examples for the most common change types. Follow these patterns, not descr
 ### Adding or modifying ClusterConfiguration
 
 - `ClusterConfiguration` dataclass: `src/codeflare_sdk/ray/cluster/config.py` (line 218)
-- RayJob spec builder (consumes the same dataclass):
-  `src/codeflare_sdk/ray/rayjobs/config.py` (`build_ray_cluster_spec`, line 96)
+- `WorkerGroup` dataclass (multi-worker-group support):
+  `src/codeflare_sdk/ray/cluster/config.py` (line 111)
+- Two builders consume the same dataclass and must stay in parity:
+  - standalone RayCluster: `src/codeflare_sdk/ray/cluster/build_ray_cluster.py`
+  - RayJob-embedded `rayClusterSpec`: `src/codeflare_sdk/ray/rayjobs/config.py`
+    (`build_ray_cluster_spec`, line 96)
+
+  A field added to only one builder is silently dropped by the other path.
 - Tests: `src/codeflare_sdk/ray/cluster/test_config.py` — see `test_config_creation_all_parameters`
   and `test_autoscaling_config_valid` for the pattern.
 
 ### Adding or modifying RayJob methods
 
-- `RayJob` class: `src/codeflare_sdk/ray/rayjobs/rayjob.py` (line 58)
+- `RayJob` class: `src/codeflare_sdk/ray/rayjobs/rayjob.py` (line 64)
 - Tests: `src/codeflare_sdk/ray/rayjobs/test/test_rayjob.py` — uses `auto_mock_setup`
   fixture from `src/codeflare_sdk/ray/rayjobs/test/conftest.py`.
+- Methods reaching the Kubernetes API need `@_bound_to_api_client` — see
+  "Client isolation" above.
 
 ### Adding unit and e2e tests
 
@@ -229,11 +301,21 @@ Real examples for the most common change types. Follow these patterns, not descr
 
 ### Updating example notebooks
 
-- Guided demos: `demo-notebooks/guided-demos/` (8 notebooks: `0_basic_ray` through
-  `7_rayjob_checkpointing_example`)
-- CI workflow: `.github/workflows/guided_notebook_tests.yaml` — runs on KinD via
+- Guided demos: `demo-notebooks/guided-demos/` (9 notebooks: `0_basic_ray` through
+  `7_rayjob_checkpointing_example`, plus `6_single_entrypoint` for the `Codeflare`
+  entrypoint — note two notebooks share the `6_` prefix)
+- CI workflow: `.github/workflows/guided_notebook_tests.yaml` — runs `0_basic_ray`,
+  `4_rayjob_existing_cluster`, `5_submit_rayjob_cr` and `6_autoscaling` on KinD via
   papermill. See `.cursor/rules/03-testing-and-ci.mdc` for KinD adaptations
   (namespace, auth removal, dashboard_check=False).
+- **These jobs only run when the PR carries the `test-guided-notebooks` label**
+  (`test-additional-notebooks` for `additional_demo_notebook_tests.yaml`). Without
+  it they report as skipped, so a broken notebook looks green. Add the label when
+  touching notebooks or the public API they use.
+- The workflow deletes cells with `jq 'del(.cells[] | select(.source[] | ...))'`,
+  which requires each cell's `source` to be a **list of lines**. Some notebook
+  editors collapse it to a single string; `jq` then fails and, under
+  `set -euo pipefail`, takes the whole step down.
 
 ## Context File Maintenance
 
@@ -244,11 +326,14 @@ See the "Maintaining AI Context" section in CONTRIBUTING.md for the update proce
 
 This repository has more detailed AI coding rules in `.cursor/rules/`:
 
-- `.cursor/rules/01-project-context.mdc` — Grounding, personas, hallucination avoidance
-- `.cursor/rules/02-python-standards.mdc` — Python style, canonical examples, common pitfalls
-- `.cursor/rules/03-testing-and-ci.mdc` — CI workflows, demo notebooks, KinD adaptations
-- `.cursor/rules/cluster.mdc` — Ray cluster layer (`src/codeflare_sdk/ray/cluster/`)
-- `.cursor/rules/rayjobs.mdc` — RayJob layer (`src/codeflare_sdk/ray/rayjobs/`)
-- `.cursor/rules/utils.mdc` — Shared utilities (`src/codeflare_sdk/common/utils/`)
+- `01-project-context.mdc` — Grounding, personas, hallucination avoidance
+- `02-python-standards.mdc` — Python style, canonical examples, common pitfalls
+- `03-testing-and-ci.mdc` — CI workflows, demo notebooks, KinD adaptations
+- `04-e2e-byoidc-detection.mdc` through `07-run-tests-sh-contract.mdc` — e2e
+  BYOIDC detection, validation workflow, test-fix checklist, `run-tests.sh` contract
+- `cluster.mdc`, `rayjobs.mdc`, `utils.mdc` — path-scoped layer rules
 
-Claude Code uses equivalent rules in `.claude/rules/` (same body content, different frontmatter).
+Claude Code mirrors the three path-scoped rules in `.claude/rules/`
+(`cluster.md`, `rayjobs.md`, `utils.md`) — same body content, different
+frontmatter. The numbered `01`–`07` rules exist only under `.cursor/rules/`;
+read them from there.
