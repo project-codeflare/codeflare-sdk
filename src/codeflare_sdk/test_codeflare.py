@@ -14,8 +14,10 @@
 
 """Tests for the Codeflare single entrypoint."""
 
+import inspect
 import logging
 import pytest
+from typing import get_overloads, get_type_hints
 from unittest.mock import MagicMock
 from kube_authkit import AuthConfig
 
@@ -180,6 +182,8 @@ class TestClusterHandler:
         mock_get.assert_called_once_with(
             cluster_name="existing-cluster",
             namespace="default-ns",
+            verify_tls=True,
+            write_to_file=False,
             api_client=cf.client,
         )
         assert result is mock_get.return_value
@@ -193,8 +197,31 @@ class TestClusterHandler:
         mock_get.assert_called_once_with(
             cluster_name="existing-cluster",
             namespace="other-ns",
+            verify_tls=True,
+            write_to_file=False,
             api_client=cf.client,
         )
+
+    def test_get_cluster_forwards_explicit_options(self, cf, mocker):
+        """get() no longer takes **kwargs; verify_tls/write_to_file are named."""
+        mock_get = mocker.patch("codeflare_sdk.codeflare.get_cluster")
+
+        cf.clusters.get(name="existing-cluster", verify_tls=False, write_to_file=True)
+
+        mock_get.assert_called_once_with(
+            cluster_name="existing-cluster",
+            namespace="default-ns",
+            verify_tls=False,
+            write_to_file=True,
+            api_client=cf.client,
+        )
+
+    def test_get_cluster_rejects_unknown_option(self, cf, mocker):
+        """RHOAIENG-98954: an unsupported key fails here, not inside get_cluster."""
+        mocker.patch("codeflare_sdk.codeflare.get_cluster")
+
+        with pytest.raises(TypeError, match="bogus"):
+            cf.clusters.get(name="existing-cluster", bogus=True)
 
     def test_list_clusters(self, cf, mocker):
         """list() delegates to list_all_clusters."""
@@ -347,6 +374,112 @@ class TestJobHandler:
         assert mock_rayjob_cls.call_args.kwargs["namespace"] == "detected"
 
 
+class TestFacadeTypeSignatures:
+    """RHOAIENG-98954: the facade's kwargs are typed, and stay in sync.
+
+    The TypedDicts duplicate names and types that live elsewhere, so these
+    tests are the thing that keeps them honest — a new ClusterConfiguration
+    field or JobHandler parameter fails here instead of silently becoming
+    unreachable through the facade.
+    """
+
+    def _cluster_config_hints(self):
+        from codeflare_sdk.ray.cluster.config import ClusterConfiguration
+
+        hints = get_type_hints(ClusterConfiguration)
+        return {k: v for k, v in hints.items() if k not in ("name", "namespace")}
+
+    def test_cluster_kwargs_cover_every_configuration_field(self):
+        """ClusterConfigKwargs exposes every field create() can forward."""
+        from codeflare_sdk.codeflare import ClusterConfigKwargs
+
+        expected = set(self._cluster_config_hints())
+        actual = set(get_type_hints(ClusterConfigKwargs))
+
+        assert actual - expected == set(), "ClusterConfigKwargs has unknown keys"
+        assert expected - actual == set(), "ClusterConfiguration field not exposed"
+
+    def test_cluster_kwargs_types_match_configuration(self):
+        """A field's type cannot drift from the dataclass it forwards to."""
+        from codeflare_sdk.codeflare import ClusterConfigKwargs
+
+        expected = self._cluster_config_hints()
+        actual = get_type_hints(ClusterConfigKwargs)
+
+        mismatched = {
+            key: (expected[key], actual[key])
+            for key in expected
+            if key in actual and expected[key] != actual[key]
+        }
+        assert mismatched == {}
+
+    def test_cluster_kwargs_excludes_handler_owned_fields(self):
+        """name and namespace are the handler's to set, not the caller's."""
+        from codeflare_sdk.codeflare import ClusterConfigKwargs
+
+        keys = get_type_hints(ClusterConfigKwargs)
+        assert "name" not in keys
+        assert "namespace" not in keys
+
+    def test_job_options_match_create_signature(self):
+        """JobOptions holds exactly create()'s non-target keyword arguments."""
+        from codeflare_sdk.codeflare import JobHandler, JobOptions
+
+        params = inspect.signature(JobHandler.create).parameters
+        expected = {
+            name
+            for name, p in params.items()
+            if p.kind is inspect.Parameter.KEYWORD_ONLY
+            and name not in ("cluster_name", "cluster_config")
+        }
+
+        assert set(get_type_hints(JobOptions)) == expected
+
+    def test_job_options_types_match_create_signature(self):
+        """An option's type cannot drift from the parameter it stands in for."""
+        from codeflare_sdk.codeflare import JobHandler, JobOptions
+
+        params = inspect.signature(JobHandler.create).parameters
+        hints = get_type_hints(JobOptions)
+
+        mismatched = {
+            key: (params[key].annotation, hints[key])
+            for key in hints
+            if key in params and params[key].annotation != hints[key]
+        }
+        assert mismatched == {}
+
+    def test_job_overloads_cover_both_execution_targets(self):
+        """create() and submit() each declare the cluster_name/cluster_config pair."""
+        from codeflare_sdk.codeflare import JobHandler
+
+        for method in (JobHandler.create, JobHandler.submit):
+            overloads = get_overloads(method)
+            assert len(overloads) == 2, f"{method.__name__} lost an overload"
+
+            targets = [
+                set(inspect.signature(o).parameters)
+                & {"cluster_name", "cluster_config"}
+                for o in overloads
+            ]
+            assert targets == [{"cluster_name"}, {"cluster_config"}]
+
+    def test_create_still_accepts_every_cluster_kwarg(self, mocker):
+        """The typed keys are real: each one reaches ClusterConfiguration."""
+        from codeflare_sdk.codeflare import ClusterConfigKwargs, Codeflare, SDKConfig
+
+        mocker.patch("codeflare_sdk.codeflare.get_k8s_client")
+        mocker.patch("codeflare_sdk.codeflare.set_api_client")
+        mocker.patch("codeflare_sdk.codeflare.Cluster")
+        mock_config = mocker.patch("codeflare_sdk.codeflare.ClusterConfiguration")
+
+        cf = Codeflare(config=SDKConfig(namespace="ns"))
+        sentinels = {key: MagicMock() for key in get_type_hints(ClusterConfigKwargs)}
+        cf.clusters.create(name="c", **sentinels)
+
+        mock_config.assert_called_once_with(name="c", namespace="ns", **sentinels)
+
+
 class TestLegacyAuthRemoved:
     def test_token_auth_not_importable(self):
         """TokenAuthentication is no longer exported from codeflare_sdk."""
@@ -380,3 +513,7 @@ class TestLegacyAuthRemoved:
     def test_sdk_config_importable(self):
         """SDKConfig is importable from codeflare_sdk."""
         from codeflare_sdk import SDKConfig  # noqa: F401
+
+    def test_facade_kwarg_types_importable(self):
+        """The TypedDicts are exported so callers can annotate their own wrappers."""
+        from codeflare_sdk import ClusterConfigKwargs, JobOptions  # noqa: F401

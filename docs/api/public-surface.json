@@ -18,6 +18,16 @@
         "list_all_clusters"
       ]
     },
+    "codeflare": {
+      "module": "codeflare_sdk.codeflare",
+      "symbols": [
+        "Codeflare",
+        "SDKConfig",
+        "ClusterConfigKwargs",
+        "JobOptions"
+      ],
+      "notes": "Single entrypoint. ClusterConfigKwargs and JobOptions are TypedDicts describing the keyword arguments of cf.clusters.create() and the cf.jobs.create()/submit() overloads; they carry no runtime behaviour."
+    },
     "rayjobs": {
       "module": "codeflare_sdk.ray.rayjobs",
       "symbols": [

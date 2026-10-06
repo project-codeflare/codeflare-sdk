@@ -166,6 +166,10 @@ still lists `Authentication`, `KubeConfiguration`, `TokenAuthentication` and
 `KubeConfigFileAuthentication`, which were removed and now raise `ImportError`
 (tracked in RHOAIENG-98754, pending a decision on restoring compatibility shims).
 
+The `codeflare` entry covers the single entrypoint: `Codeflare`, `SDKConfig`,
+and the `ClusterConfigKwargs` / `JobOptions` TypedDicts that type the handler
+keyword arguments.
+
 Design-level architecture: `docs/designs/CodeFlare-SDK-design-doc.md`.
 User-facing Sphinx docs: `docs/sphinx/`.
 
@@ -271,6 +275,11 @@ Real examples for the most common change types. Follow these patterns, not descr
     (`build_ray_cluster_spec`, line 96)
 
   A field added to only one builder is silently dropped by the other path.
+- A new field must also be added to `ClusterConfigKwargs` in
+  `src/codeflare_sdk/codeflare.py`, the TypedDict that types
+  `cf.clusters.create(**kwargs)`. Otherwise the field is unreachable through the
+  facade for anyone running a type checker. `test_codeflare.py::TestFacadeTypeSignatures`
+  fails when the two drift (RHOAIENG-98954).
 - Tests: `src/codeflare_sdk/ray/cluster/test_config.py` — see `test_config_creation_all_parameters`
   and `test_autoscaling_config_valid` for the pattern.
 
@@ -281,6 +290,13 @@ Real examples for the most common change types. Follow these patterns, not descr
   fixture from `src/codeflare_sdk/ray/rayjobs/test/conftest.py`.
 - Methods reaching the Kubernetes API need `@_bound_to_api_client` — see
   "Client isolation" above.
+- `cf.jobs.create()` / `cf.jobs.submit()` are `@overload`ed so that passing
+  neither or both of `cluster_name` / `cluster_config` is a type error, not just
+  a runtime `ValueError`. A new keyword argument goes in three places: the
+  implementation signature, the `JobOptions` TypedDict, and the docstring. Both
+  methods delegate to `JobHandler._build()`; they cannot call each other,
+  because an overloaded method cannot satisfy its own overloads without
+  re-narrowing the target.
 
 ### Adding unit and e2e tests
 
