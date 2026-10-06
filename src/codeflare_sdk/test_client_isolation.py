@@ -49,10 +49,10 @@ def recorded_clients(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def reset_global_client():
-    """Keep the module-level client from leaking between tests."""
-    original = auth.api_client
+    """Keep the module-level auth state from leaking between tests."""
+    original_client, original_path = auth.api_client, auth.config_path
     yield
-    auth.api_client = original
+    auth.api_client, auth.config_path = original_client, original_path
 
 
 def make_codeflare(mocker, client, namespace="test-ns"):
@@ -246,3 +246,115 @@ class TestNamespaceResolution:
 
         with pytest.raises(ValueError):
             cf.clusters.list()
+
+
+class TestReviewFollowups:
+    """Follow-ups from review of PR #1176."""
+
+    def test_rayjob_uses_its_client_after_second_codeflare(
+        self, mocker, recorded_clients
+    ):
+        """Same post-cf_b API-call assertion the Cluster path already has.
+
+        Asserting job._api_client is not enough: it proves the attribute was
+        stored, not that a later call resolves through it.
+        """
+        from codeflare_sdk import ClusterConfiguration
+        from codeflare_sdk.codeflare import Codeflare, SDKConfig
+
+        client_a = MagicMock(name="client_a")
+        client_b = MagicMock(name="client_b")
+        mocker.patch(
+            "codeflare_sdk.codeflare.get_k8s_client",
+            side_effect=[client_a, client_b],
+        )
+
+        cf_a = Codeflare(SDKConfig(namespace="prod"))
+        job = cf_a.jobs.create(
+            name="train",
+            entrypoint="python train.py",
+            cluster_config=ClusterConfiguration(name="c", namespace="prod"),
+        )
+
+        Codeflare(SDKConfig(namespace="dev"))  # cf_b takes over the global
+
+        recorded_clients.clear()
+        job._build_rayjob_cr()
+
+        assert recorded_clients, "expected a Kubernetes API call"
+        assert all(c is client_a for c in recorded_clients), (
+            f"rayjob used {recorded_clients!r}, expected only client_a"
+        )
+        assert client_b not in recorded_clients
+
+    def test_cluster_config_check_is_scoped(self, mocker):
+        """Cluster.config_check() must run under the instance's client."""
+        client_a = MagicMock(name="client_a")
+        cf_a = make_codeflare(mocker, client_a)
+        cluster = cf_a.clusters.create(name="c", num_workers=1)
+
+        seen = []
+        # cluster.py imports these by name, so patch them there, not on auth.
+        mocker.patch(
+            "codeflare_sdk.ray.cluster.cluster.config_check",
+            side_effect=lambda: seen.append(auth._active_api_client.get()),
+        )
+
+        cluster.config_check()
+
+        assert seen == [client_a]
+
+    def test_cluster_client_headers_is_scoped(self, mocker):
+        """_client_headers resolves a client, so it must be scoped too."""
+        client_a = MagicMock(name="client_a")
+        cf_a = make_codeflare(mocker, client_a)
+        cluster = cf_a.clusters.create(name="c", num_workers=1)
+
+        seen = []
+        mocker.patch(
+            "codeflare_sdk.ray.cluster.cluster.get_api_client",
+            side_effect=lambda: seen.append(auth._active_api_client.get()) or client_a,
+        )
+
+        cluster._client_headers
+
+        assert seen == [client_a]
+
+    def test_config_check_prefers_scoped_client_over_global(self, mocker):
+        """auth.config_check() must honour the scoped client, not just the global.
+
+        Otherwise a scoped operation with no module-level client falls through
+        to auto-detection and overwrites the global as a side effect.
+        """
+        scoped = MagicMock(name="scoped")
+        # Both must be cleared: a stale config_path short-circuits the function
+        # and would make this test pass without exercising the scoped lookup.
+        auth.api_client = None
+        auth.config_path = None
+        detect = mocker.patch.object(auth, "get_k8s_client")
+
+        with auth._use_api_client(scoped):
+            auth.config_check()
+
+        detect.assert_not_called()
+        assert auth.api_client is None, "scoped call must not write the global"
+
+
+class TestFacadePositionalCompat:
+    """Review item: namespace must stay positionally accepted."""
+
+    def test_submit_accepts_positional_namespace(self, mocker):
+        cf = make_codeflare(mocker, MagicMock())
+        mock_rayjob = mocker.patch("codeflare_sdk.codeflare.RayJob")
+
+        cf.jobs.submit("train", "python train.py", "other-ns", cluster_name="c")
+
+        assert mock_rayjob.call_args.kwargs["namespace"] == "other-ns"
+
+    def test_create_accepts_positional_namespace(self, mocker):
+        cf = make_codeflare(mocker, MagicMock())
+        mock_rayjob = mocker.patch("codeflare_sdk.codeflare.RayJob")
+
+        cf.jobs.create("train", "python train.py", "other-ns", cluster_name="c")
+
+        assert mock_rayjob.call_args.kwargs["namespace"] == "other-ns"

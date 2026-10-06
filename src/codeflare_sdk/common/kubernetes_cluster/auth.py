@@ -104,6 +104,12 @@ def config_check() -> Optional[str]:
     global config_path
     global api_client
 
+    # An operation scoped to an explicit client is already configured. Return
+    # before the auto-detection below, which would otherwise overwrite the
+    # module-level client as a side effect of a scoped call.
+    if _active_api_client.get() is not None:
+        return config_path
+
     # If already configured, return early
     if api_client is not None:
         return config_path

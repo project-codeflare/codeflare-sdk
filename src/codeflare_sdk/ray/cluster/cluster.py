@@ -101,10 +101,12 @@ class Cluster:
     def get_dynamic_client(self) -> DynamicClient:  # pragma: no cover
         return DynamicClient(get_api_client())
 
+    @_bound_to_api_client
     def config_check(self) -> str:
         return config_check()
 
     @property
+    @_bound_to_api_client
     def _client_headers(self):
         k8_client = get_api_client()
         return {
