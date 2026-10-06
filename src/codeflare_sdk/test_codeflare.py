@@ -153,7 +153,9 @@ class TestClusterHandler:
         mock_cluster_config_cls.assert_called_once_with(
             name="my-cluster", namespace="default-ns", num_workers=3
         )
-        mock_cluster_cls.assert_called_once_with(mock_cluster_config_cls.return_value)
+        mock_cluster_cls.assert_called_once_with(
+            mock_cluster_config_cls.return_value, api_client=cf.client
+        )
         assert result is mock_cluster_cls.return_value
 
     def test_create_cluster_override_namespace(self, cf, mocker):
@@ -176,7 +178,9 @@ class TestClusterHandler:
         result = cf.clusters.get(name="existing-cluster")
 
         mock_get.assert_called_once_with(
-            cluster_name="existing-cluster", namespace="default-ns"
+            cluster_name="existing-cluster",
+            namespace="default-ns",
+            api_client=cf.client,
         )
         assert result is mock_get.return_value
 
@@ -187,7 +191,9 @@ class TestClusterHandler:
         cf.clusters.get(name="existing-cluster", namespace="other-ns")
 
         mock_get.assert_called_once_with(
-            cluster_name="existing-cluster", namespace="other-ns"
+            cluster_name="existing-cluster",
+            namespace="other-ns",
+            api_client=cf.client,
         )
 
     def test_list_clusters(self, cf, mocker):
@@ -197,7 +203,9 @@ class TestClusterHandler:
 
         result = cf.clusters.list()
 
-        mock_list.assert_called_once_with("default-ns", print_to_console=False)
+        mock_list.assert_called_once_with(
+            "default-ns", print_to_console=False, api_client=cf.client
+        )
         assert result == ["cluster1", "cluster2"]
 
     def test_list_queued(self, cf, mocker):
@@ -207,35 +215,45 @@ class TestClusterHandler:
 
         result = cf.clusters.list_queued()
 
-        mock_list.assert_called_once_with("default-ns", print_to_console=False)
+        mock_list.assert_called_once_with(
+            "default-ns", print_to_console=False, api_client=cf.client
+        )
         assert result == []
 
-    def test_list_no_default_namespace_uses_default(self, mocker):
-        """list() falls back to 'default' when no namespace configured."""
+    def test_list_uses_detected_namespace_when_none_configured(self, mocker):
+        """RHOAIENG-98754 P2-8: fall back to the current context, not 'default'."""
         from codeflare_sdk.codeflare import Codeflare, SDKConfig
 
         mocker.patch("codeflare_sdk.codeflare.get_k8s_client")
         mocker.patch("codeflare_sdk.codeflare.set_api_client")
+        mocker.patch(
+            "codeflare_sdk.codeflare.get_current_namespace", return_value="detected"
+        )
         mock_list = mocker.patch("codeflare_sdk.codeflare.list_all_clusters")
 
         cf = Codeflare(config=SDKConfig(namespace=None))
         cf.clusters.list()
 
-        mock_list.assert_called_once_with("default", print_to_console=False)
+        mock_list.assert_called_once_with(
+            "detected", print_to_console=False, api_client=cf.client
+        )
 
-    def test_create_no_default_namespace_uses_default(self, mocker):
-        """create() falls back to 'default' when no namespace configured."""
+    def test_create_uses_detected_namespace_when_none_configured(self, mocker):
+        """RHOAIENG-98754 P2-8: fall back to the current context, not 'default'."""
         from codeflare_sdk.codeflare import Codeflare, SDKConfig
 
         mocker.patch("codeflare_sdk.codeflare.get_k8s_client")
         mocker.patch("codeflare_sdk.codeflare.set_api_client")
+        mocker.patch(
+            "codeflare_sdk.codeflare.get_current_namespace", return_value="detected"
+        )
         mocker.patch("codeflare_sdk.codeflare.Cluster")
         mock_config = mocker.patch("codeflare_sdk.codeflare.ClusterConfiguration")
 
         cf = Codeflare(config=SDKConfig(namespace=None))
         cf.clusters.create(name="test")
 
-        mock_config.assert_called_once_with(name="test", namespace="default")
+        mock_config.assert_called_once_with(name="test", namespace="detected")
 
 
 class TestJobHandler:
@@ -260,12 +278,12 @@ class TestJobHandler:
             cluster_name="my-cluster",
         )
 
-        mock_rayjob_cls.assert_called_once_with(
-            job_name="train",
-            entrypoint="python train.py",
-            namespace="default-ns",
-            cluster_name="my-cluster",
-        )
+        kwargs = mock_rayjob_cls.call_args.kwargs
+        assert kwargs["job_name"] == "train"
+        assert kwargs["entrypoint"] == "python train.py"
+        assert kwargs["namespace"] == "default-ns"
+        assert kwargs["cluster_name"] == "my-cluster"
+        assert kwargs["api_client"] is cf.client
         mock_job.submit.assert_called_once()
         assert result is mock_job
 
@@ -281,12 +299,12 @@ class TestJobHandler:
             cluster_name="my-cluster",
         )
 
-        mock_rayjob_cls.assert_called_once_with(
-            job_name="train",
-            entrypoint="python train.py",
-            namespace="other-ns",
-            cluster_name="my-cluster",
-        )
+        kwargs = mock_rayjob_cls.call_args.kwargs
+        assert kwargs["job_name"] == "train"
+        assert kwargs["entrypoint"] == "python train.py"
+        assert kwargs["namespace"] == "other-ns"
+        assert kwargs["cluster_name"] == "my-cluster"
+        assert kwargs["api_client"] is cf.client
 
     def test_create_job_without_submit(self, cf, mocker):
         """create() returns a RayJob without submitting."""
@@ -300,30 +318,33 @@ class TestJobHandler:
             cluster_name="my-cluster",
         )
 
-        mock_rayjob_cls.assert_called_once_with(
-            job_name="train",
-            entrypoint="python train.py",
-            namespace="default-ns",
-            cluster_name="my-cluster",
-        )
+        kwargs = mock_rayjob_cls.call_args.kwargs
+        assert kwargs["job_name"] == "train"
+        assert kwargs["entrypoint"] == "python train.py"
+        assert kwargs["namespace"] == "default-ns"
+        assert kwargs["cluster_name"] == "my-cluster"
+        assert kwargs["api_client"] is cf.client
         mock_job.submit.assert_not_called()
         assert result is mock_job
 
-    def test_submit_no_default_namespace_uses_default(self, mocker):
-        """submit() falls back to 'default' when no namespace configured."""
+    def test_submit_uses_detected_namespace_when_none_configured(self, mocker):
+        """RHOAIENG-98754 P2-8: fall back to the current context, not 'default'."""
         from codeflare_sdk.codeflare import Codeflare, SDKConfig
 
         mocker.patch("codeflare_sdk.codeflare.get_k8s_client")
         mocker.patch("codeflare_sdk.codeflare.set_api_client")
+        mocker.patch(
+            "codeflare_sdk.codeflare.get_current_namespace", return_value="detected"
+        )
         mock_rayjob_cls = mocker.patch("codeflare_sdk.codeflare.RayJob")
         mock_rayjob_cls.return_value = MagicMock()
 
         cf = Codeflare(config=SDKConfig(namespace=None))
-        cf.jobs.submit(name="job", entrypoint="python run.py")
-
-        mock_rayjob_cls.assert_called_once_with(
-            job_name="job", entrypoint="python run.py", namespace="default"
+        cf.jobs.submit(
+            name="job", entrypoint="python run.py", cluster_name="my-cluster"
         )
+
+        assert mock_rayjob_cls.call_args.kwargs["namespace"] == "detected"
 
 
 class TestLegacyAuthRemoved:

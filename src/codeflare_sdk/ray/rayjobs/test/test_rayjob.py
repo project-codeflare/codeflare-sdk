@@ -99,7 +99,7 @@ def test_rayjob_init_validation_neither_provided(auto_mock_setup):
     """
     with pytest.raises(
         ValueError,
-        match="❌ Configuration Error: You must provide either 'cluster_name'",
+        match="a RayJob needs an execution target",
     ):
         RayJob(job_name="test-job", entrypoint="python test.py")
 
@@ -991,7 +991,7 @@ def test_rayjob_init_both_none_error(auto_mock_setup):
     """
     with pytest.raises(
         ValueError,
-        match="Configuration Error: You must provide either 'cluster_name' .* or 'cluster_config'",
+        match="(?s)a RayJob needs an execution target.*cluster_name.*cluster_config",
     ):
         RayJob(
             job_name="test-job",
