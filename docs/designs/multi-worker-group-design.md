@@ -1,7 +1,7 @@
 # Multi-Worker Group Support
 
-**Jira:** RHOAIENG-72835
-**Status:** Design
+**Jira:** RHOAIENG-72835 (API), RHOAIENG-72838 (Kueue admin guide)
+**Status:** Implemented (create path / v1)
 **Date:** 2026-10-02
 
 ## Problem
@@ -145,18 +145,37 @@ v1 exposes `gpu_type`/`gpu_count` for the common GPU case. Heterogeneous acceler
 
 volumes, volumeMounts, initContainers, lifecycle, nodeSelector, topologySpreadConstraints. These can be added in future iterations.
 
-## Files Changed
+## Kueue and heterogeneous clusters (RHOAIENG-72838)
+
+Multi-group Ray clusters produce a single Kueue `Workload` with one pod set per
+`workerGroupSpecs` entry plus the head. Queue selection: `ClusterConfiguration.local_queue`
+(or a namespace default `LocalQueue`) for standalone `Cluster`; `RayJob.local_queue`
+for lifecycled `RayJob` with `cluster_config` (not `cluster_name`). Administrators
+must configure `ResourceFlavor` and `ClusterQueue` so **all** pod sets can be admitted
+together—flavors represent scheduling/hardware classes, not a 1:1 mapping to worker groups.
+
+User-facing documentation: `docs/sphinx/user-docs/kueue-heterogeneous-ray-clusters.rst`
+(linked from `setup-kueue.rst`, `cluster-configuration.rst`, and `rayjob.rst`).
+
+## Files changed (v1 — merged)
 
 | File | Change |
 |------|--------|
-| `ray/cluster/config.py` | Add `WorkerGroup` dataclass. Add `additional_worker_groups` field to `ClusterConfiguration`. Validation. |
-| `ray/cluster/build_ray_cluster.py` | Iterate `additional_worker_groups` to append entries to `workerGroupSpecs[]`. Handle inheritance/merge. |
-| `ray/rayjobs/config.py` | Same iteration in `build_ray_cluster_spec()`. |
-| `ray/cluster/cluster.py` | `get_cluster()` reconstructs `additional_worker_groups` from multi-group CRs. `_head_worker_extended_resources_from_rc_dict` handles all groups. |
-| `ray/cluster/status.py` | `RayCluster` dataclass supports multiple worker group display. |
-| `__init__.py` | Export `WorkerGroup`. |
+| `ray/cluster/config.py` | `WorkerGroup` dataclass; `additional_worker_groups` on `ClusterConfiguration`; validation. |
+| `ray/cluster/build_ray_cluster.py` | Append `additional_worker_groups` to `workerGroupSpecs[]`; inheritance/merge. |
+| `ray/rayjobs/config.py` | Same in `build_ray_cluster_spec()`. |
+| `__init__.py` / `ray/cluster/__init__.py` | Export `WorkerGroup`. |
 | `docs/api/public-surface.json` | Register `WorkerGroup`. |
-| Unit tests | Config validation, builder output with multiple groups, get_cluster roundtrip, env/label merge, image inheritance. |
+| Unit tests | Config validation, YAML builder output, RayJob spec builder, env/label merge, image inheritance. |
+| `docs/sphinx/user-docs/kueue-heterogeneous-ray-clusters.rst` | Kueue prerequisites for multi-group clusters (72838). |
+
+## Follow-up (not in v1)
+
+| Area | Notes |
+|------|--------|
+| `ray/cluster/cluster.py` | `get_cluster()` still reads only `workerGroupSpecs[0]`; does not round-trip `additional_worker_groups`. |
+| `ray/cluster/status.py` | Multi-group status display not updated. |
+| Validation (72836) | Centralized rejection of invalid group specs beyond dataclass checks. |
 
 ## Backward Compatibility
 

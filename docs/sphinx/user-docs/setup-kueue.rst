@@ -103,6 +103,10 @@ Conclusion:
 
 By following the steps outlined in this document, the cluster admin can
 successfully create the basic Kueue resources necessary for workload
-management in the cluster. For more advanced configurations and
-features, please refer to the comprehensive `Kueue
-documentation <https://kueue.sigs.k8s.io/docs/concepts/>`__.
+management in the cluster.
+
+For **heterogeneous Ray clusters** (multiple ``workerGroupSpecs`` / SDK
+``additional_worker_groups``), see :doc:`./kueue-heterogeneous-ray-clusters`.
+
+For more advanced configurations and features, please refer to the comprehensive
+`Kueue documentation <https://kueue.sigs.k8s.io/docs/concepts/>`__.

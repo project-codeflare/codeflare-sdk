@@ -102,6 +102,58 @@ Example configuration:
 .. note::
    If you set ``local_queue`` or your namespace has a default Kueue LocalQueue, autoscaling is allowed when Red Hat Build of Kueue (DSC Kueue **Unmanaged**) is version **1.4** or newer. Autoscaling remains blocked when RHOAI **manages** Kueue via the DataScienceCluster, or when the installed kueue-operator is older than 1.4.
 
+Additional worker groups (heterogeneous clusters)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Besides the primary workers defined by ``worker_*`` and ``num_workers``, you can
+append more groups with ``additional_worker_groups``. Each entry is a
+``WorkerGroup`` (exported from ``codeflare_sdk``) and becomes its own
+``workerGroupSpecs[]`` entry (unique ``group_name``). See
+``docs/designs/multi-worker-group-design.md`` for field semantics and inheritance.
+
+.. code:: python
+
+   from codeflare_sdk import Cluster, ClusterConfiguration, WorkerGroup
+
+   cluster = Cluster(ClusterConfiguration(
+       name="heterogeneous-example",
+       namespace="default",
+       num_workers=2,
+       worker_cpu_requests=2,
+       worker_cpu_limits=2,
+       additional_worker_groups=[
+           WorkerGroup(
+               group_name="gpu-workers",
+               replicas=1,
+               cpu_requests=4,
+               cpu_limits=4,
+               memory_requests=16,
+               memory_limits=16,
+               gpu_type="nvidia.com/gpu",
+               gpu_count=1,
+           ),
+       ],
+   ))
+
+.. note::
+
+   ``get_cluster()`` does not yet reconstruct ``additional_worker_groups`` from
+   an existing multi-group RayCluster CR; treat multi-group config as create-path
+   only until read-path support lands.
+
+Multi-worker groups and Kueue
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+With Kueue enabled, each worker group (primary and additional) becomes a
+separate Kueue **pod set** on the Ray cluster ``Workload``. The
+``ClusterQueue`` behind your ``LocalQueue`` must expose eligible
+``ResourceFlavor`` objects and sufficient **available quota** for every pod set
+plus the head (multiple groups can share the same flavor when their scheduling
+class matches). For a standalone ``Cluster``, set ``local_queue`` on
+``ClusterConfiguration`` (or use a namespace default ``LocalQueue``). Lifecycled
+``RayJob`` resources use ``RayJob.local_queue`` instead—see
+:doc:`./kueue-heterogeneous-ray-clusters`.
+
 For a step-by-step example that demonstrates scale-up and scale-down, see the ``6_autoscaling.ipynb`` guided demo in ``demo-notebooks/guided-demos/``.
 
 The ``labels={"exampleLabel": "example"}`` parameter can be used to
