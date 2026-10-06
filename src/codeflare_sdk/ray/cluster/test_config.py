@@ -575,13 +575,89 @@ def test_worker_group_min_max_replicas():
 
 
 def test_worker_group_max_less_than_min():
-    with pytest.raises(ValueError, match="max_replicas must be >= min_replicas"):
+    with pytest.raises(
+        ValueError, match="min_replicas=5 cannot be greater than max_replicas=2"
+    ):
         WorkerGroup(group_name="bad-range", min_replicas=5, max_replicas=2)
 
 
 def test_worker_group_group_name_required():
     with pytest.raises(TypeError):
         WorkerGroup()
+
+
+def test_worker_group_empty_group_name():
+    with pytest.raises(ValueError, match="group_name is required"):
+        WorkerGroup(group_name="")
+
+
+def test_worker_group_whitespace_group_name():
+    with pytest.raises(ValueError, match="group_name is required"):
+        WorkerGroup(group_name="   ")
+
+
+def test_worker_group_negative_replicas():
+    with pytest.raises(ValueError, match="replicas=-1"):
+        WorkerGroup(group_name="bad-replicas", replicas=-1)
+
+
+def test_worker_group_negative_min_replicas():
+    with pytest.raises(ValueError, match="min_replicas=-1"):
+        WorkerGroup(group_name="bad-min", replicas=1, min_replicas=-1, max_replicas=3)
+
+
+def test_worker_group_negative_max_replicas():
+    with pytest.raises(ValueError, match="max_replicas=-1"):
+        WorkerGroup(group_name="bad-max", replicas=1, min_replicas=1, max_replicas=-1)
+
+
+def test_worker_group_negative_int_cpu_requests():
+    with pytest.raises(ValueError, match="cpu_requests=-1"):
+        WorkerGroup(group_name="bad-cpu-int", cpu_requests=-1)
+
+
+def test_worker_group_negative_int_memory_requests():
+    with pytest.raises(ValueError, match="memory_requests=-1"):
+        WorkerGroup(group_name="bad-mem-int", memory_requests=-1)
+
+
+def test_worker_group_invalid_cpu_limits():
+    with pytest.raises(ValueError, match="cpu_limits='bad'"):
+        WorkerGroup(group_name="bad-cpu-lim", cpu_limits="bad")
+
+
+def test_worker_group_invalid_memory_limits():
+    with pytest.raises(ValueError, match="memory_limits='bad'"):
+        WorkerGroup(group_name="bad-mem-lim", memory_limits="bad")
+
+
+def test_worker_group_cpu_requests_must_be_int_or_str():
+    with pytest.raises(ValueError, match="cpu_requests=True"):
+        WorkerGroup(group_name="bad-cpu-type", cpu_requests=True)
+
+
+def test_worker_group_memory_requests_must_be_int_or_str():
+    with pytest.raises(ValueError, match="memory_requests=None"):
+        WorkerGroup(group_name="bad-mem-type", memory_requests=None)
+
+
+def test_worker_group_invalid_cpu_requests():
+    with pytest.raises(ValueError, match="cpu_requests='not-cpu'"):
+        WorkerGroup(group_name="bad-cpu", cpu_requests="not-cpu")
+
+
+def test_worker_group_invalid_memory_requests():
+    with pytest.raises(ValueError, match="memory_requests='lots'"):
+        WorkerGroup(group_name="bad-mem", memory_requests="lots")
+
+
+def test_worker_group_negative_gpu_count():
+    with pytest.raises(ValueError, match="gpu_count=-1"):
+        WorkerGroup(
+            group_name="bad-gpu-count",
+            gpu_type="nvidia.com/gpu",
+            gpu_count=-1,
+        )
 
 
 def test_cluster_config_additional_worker_groups():

@@ -44,6 +44,12 @@ _RFC1123_SUBDOMAIN = re.compile(
     r"^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$"
 )
 
+# CPU quantity: whole cores, millicores (500m), or fractional (0.5)
+_K8S_CPU_QUANTITY = re.compile(r"^(\d+m|\d+(\.\d+)?)$")
+
+# Memory quantity: integer GB suffix added by SDK, or explicit K8s suffix (Gi, Mi, …)
+_K8S_MEMORY_QUANTITY = re.compile(r"^\d+(\.\d+)?(Ki|Mi|Gi|Ti|Pi|Ei|K|M|G|T|P|E)?$")
+
 
 def _validate_cluster_name(name: str):
     """Raise ValueError if name is not a valid Kubernetes metadata.name (RFC 1123 subdomain)."""
@@ -51,6 +57,53 @@ def _validate_cluster_name(name: str):
         raise ValueError(
             "Cluster name must be a valid RFC 1123 subdomain "
             "(lowercase, numbers, hyphens/dots; start and end with letter or number)."
+        )
+
+
+def _validate_worker_group_name(group_name: str) -> None:
+    if not group_name or not str(group_name).strip():
+        raise ValueError(
+            "WorkerGroup group_name is required and cannot be empty or whitespace"
+        )
+
+
+def _validate_cpu_quantity(
+    group_name: str, field_name: str, value: Union[int, str]
+) -> None:
+    if isinstance(value, bool) or not isinstance(value, (int, str)):
+        raise ValueError(
+            f"WorkerGroup '{group_name}': {field_name}={value!r} must be an int or str"
+        )
+    if isinstance(value, int):
+        if value < 0:
+            raise ValueError(
+                f"WorkerGroup '{group_name}': {field_name}={value} must be >= 0"
+            )
+        return
+    if not _K8S_CPU_QUANTITY.match(value):
+        raise ValueError(
+            f"WorkerGroup '{group_name}': {field_name}={value!r} is not a valid "
+            "CPU quantity (examples: 1, 500m, 0.5)"
+        )
+
+
+def _validate_memory_quantity(
+    group_name: str, field_name: str, value: Union[int, str]
+) -> None:
+    if isinstance(value, bool) or not isinstance(value, (int, str)):
+        raise ValueError(
+            f"WorkerGroup '{group_name}': {field_name}={value!r} must be an int or str"
+        )
+    if isinstance(value, int):
+        if value < 0:
+            raise ValueError(
+                f"WorkerGroup '{group_name}': {field_name}={value} must be >= 0"
+            )
+        return
+    if not _K8S_MEMORY_QUANTITY.match(value):
+        raise ValueError(
+            f"WorkerGroup '{group_name}': {field_name}={value!r} is not a valid "
+            "memory quantity (examples: 8, 8G, 8Gi, 512Mi)"
         )
 
 
@@ -110,19 +163,47 @@ class WorkerGroup:
     tolerations: Optional[List[V1Toleration]] = None
 
     def __post_init__(self):
+        _validate_worker_group_name(self.group_name)
+
+        if self.replicas < 0:
+            raise ValueError(
+                f"WorkerGroup '{self.group_name}': replicas={self.replicas} must be >= 0"
+            )
+        if self.min_replicas is not None and self.min_replicas < 0:
+            raise ValueError(
+                f"WorkerGroup '{self.group_name}': min_replicas={self.min_replicas} must be >= 0"
+            )
+        if self.max_replicas is not None and self.max_replicas < 0:
+            raise ValueError(
+                f"WorkerGroup '{self.group_name}': max_replicas={self.max_replicas} must be >= 0"
+            )
+
         if self.gpu_type and self.gpu_count is None:
             raise ValueError(
-                f"WorkerGroup '{self.group_name}': gpu_count is required when gpu_type is set"
+                f"WorkerGroup '{self.group_name}': gpu_count is required when gpu_type={self.gpu_type!r} is set"
             )
         if self.gpu_count is not None and not self.gpu_type:
             raise ValueError(
-                f"WorkerGroup '{self.group_name}': gpu_type is required when gpu_count is set"
+                f"WorkerGroup '{self.group_name}': gpu_type is required when gpu_count={self.gpu_count} is set"
+            )
+        if self.gpu_count is not None and self.gpu_count < 0:
+            raise ValueError(
+                f"WorkerGroup '{self.group_name}': gpu_count={self.gpu_count} must be >= 0"
             )
         if self.min_replicas is not None and self.max_replicas is not None:
             if self.min_replicas > self.max_replicas:
                 raise ValueError(
-                    f"WorkerGroup '{self.group_name}': max_replicas must be >= min_replicas"
+                    f"WorkerGroup '{self.group_name}': min_replicas={self.min_replicas} "
+                    f"cannot be greater than max_replicas={self.max_replicas}"
                 )
+
+        _validate_cpu_quantity(self.group_name, "cpu_requests", self.cpu_requests)
+        _validate_cpu_quantity(self.group_name, "cpu_limits", self.cpu_limits)
+        _validate_memory_quantity(
+            self.group_name, "memory_requests", self.memory_requests
+        )
+        _validate_memory_quantity(self.group_name, "memory_limits", self.memory_limits)
+
         if isinstance(self.memory_requests, int):
             self.memory_requests = f"{self.memory_requests}G"
         if isinstance(self.memory_limits, int):
@@ -323,7 +404,10 @@ class ClusterConfiguration:
                     f"additional_worker_groups entries must be WorkerGroup instances, got {type(wg)}"
                 )
             if wg.group_name in names:
-                raise ValueError(f"Duplicate worker group name: '{wg.group_name}'")
+                raise ValueError(
+                    f"Duplicate worker group name: '{wg.group_name}' "
+                    f"(each additional_worker_groups entry must have a unique group_name)"
+                )
             if default_group_name and wg.group_name == default_group_name:
                 raise ValueError(
                     f"Worker group name '{wg.group_name}' conflicts with the default worker group name"
