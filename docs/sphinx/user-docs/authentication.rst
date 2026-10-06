@@ -5,6 +5,12 @@ The CodeFlare SDK uses `kube-authkit <https://github.com/opendatahub-io/kube-aut
 for Kubernetes authentication. Authenticating with your cluster allows you to perform
 actions such as creating Ray Clusters and submitting jobs.
 
+Authentication goes through ``Codeflare``, the SDK's single entrypoint. The
+``Codeflare`` instance owns the resulting Kubernetes client, and every cluster or job
+created from it keeps using that client — so two instances pointed at two clusters do
+not interfere with each other. Use ``cf.clusters`` and ``cf.jobs`` for all subsequent
+operations.
+
 Method 1: Token-Based Authentication (Recommended for RHOAI Workbenches)
 -------------------------------------------------------------------------
 
@@ -17,16 +23,15 @@ Get your token with ``oc whoami -t``, or from the OpenShift console via
 
 ::
 
-   from kube_authkit import AuthConfig, get_k8s_client
-   from codeflare_sdk import set_api_client
+   from kube_authkit import AuthConfig
+   from codeflare_sdk import Codeflare, SDKConfig
 
    auth_config = AuthConfig(
        method="openshift",
        k8s_api_host="https://api.example.com:6443",
        token="sha256~XXXXX",  # oc whoami -t
    )
-   api_client = get_k8s_client(config=auth_config)
-   set_api_client(api_client)
+   cf = Codeflare(config=SDKConfig(auth=auth_config, namespace="my-project"))
 
 You can also set the environment variable ``CF_SDK_CA_CERT_PATH`` to the path of
 a custom CA certificate for TLS verification.
@@ -37,12 +42,11 @@ Method 2: Auto-Detection
 When running with a kubeconfig at ``~/.kube/config``, kube-authkit can
 auto-detect and use the available credentials::
 
-   from kube_authkit import AuthConfig, get_k8s_client
-   from codeflare_sdk import set_api_client
+   from kube_authkit import AuthConfig
+   from codeflare_sdk import Codeflare, SDKConfig
 
    auth_config = AuthConfig(method="auto")
-   api_client = get_k8s_client(config=auth_config)
-   set_api_client(api_client)
+   cf = Codeflare(config=SDKConfig(auth=auth_config, namespace="my-project"))
 
 .. note::
 
@@ -58,8 +62,8 @@ Method 3: OIDC Authentication (for BYOIDC-enabled clusters)
 For clusters configured with an external OIDC provider (e.g. Red Hat OpenShift AI
 3.4+ with BYOIDC), use the device flow for interactive notebook environments::
 
-   from kube_authkit import AuthConfig, get_k8s_client
-   from codeflare_sdk import set_api_client
+   from kube_authkit import AuthConfig
+   from codeflare_sdk import Codeflare, SDKConfig
 
    auth_config = AuthConfig(
        method="oidc",
@@ -68,20 +72,18 @@ For clusters configured with an external OIDC provider (e.g. Red Hat OpenShift A
        client_id="your-client-id",
        use_device_flow=True,  # Interactive device flow for notebook environments
    )
-   api_client = get_k8s_client(config=auth_config)
-   set_api_client(api_client)
+   cf = Codeflare(config=SDKConfig(auth=auth_config, namespace="my-project"))
 
 Method 4: Kubeconfig File Authentication
 -----------------------------------------
 
 To authenticate using a kubeconfig file::
 
-   from kube_authkit import AuthConfig, get_k8s_client
-   from codeflare_sdk import set_api_client
+   from kube_authkit import AuthConfig
+   from codeflare_sdk import Codeflare, SDKConfig
 
    auth_config = AuthConfig(method="kubeconfig")
-   api_client = get_k8s_client(config=auth_config)
-   set_api_client(api_client)
+   cf = Codeflare(config=SDKConfig(auth=auth_config, namespace="my-project"))
 
 The ``KUBECONFIG`` environment variable is respected if set. Otherwise kube-authkit
 looks for ``~/.kube/config`` by default.
@@ -92,23 +94,21 @@ Method 5: OpenShift OAuth (Interactive)
 For OpenShift clusters using native OAuth with an interactive browser login flow
 (not needed if you already have a token — use Method 1 instead)::
 
-   from kube_authkit import AuthConfig, get_k8s_client
-   from codeflare_sdk import set_api_client
+   from kube_authkit import AuthConfig
+   from codeflare_sdk import Codeflare, SDKConfig
 
    auth_config = AuthConfig(
        method="openshift",
        k8s_api_host="https://api.example.com:6443",
    )
-   api_client = get_k8s_client(config=auth_config)
-   set_api_client(api_client)
+   cf = Codeflare(config=SDKConfig(auth=auth_config, namespace="my-project"))
 
-Deprecated Authentication Methods
+Removed Authentication Methods
 -----------------------------------
 
-The ``TokenAuthentication`` and ``KubeConfigFileAuthentication`` classes are
-**deprecated** as of v0.34.0 and will be removed in a future release. They
-remain functional but will emit deprecation warnings. Please migrate using
-the patterns above.
+The ``TokenAuthentication`` and ``KubeConfigFileAuthentication`` classes were
+deprecated in v0.34.0 and have since been **removed**. Importing them now raises
+``ImportError``. Migrate to one of the patterns above.
 
 See the `Migration Guide <https://github.com/project-codeflare/codeflare-sdk/blob/main/docs/auth_migration_guide.md>`_
 for detailed before/after examples.

@@ -6,12 +6,13 @@ paths:
 # ray/rayjobs (job layer)
 
 Manages RayJob custom resources: submission, status tracking, runtime environment, and managed clusters.
-`ManagedClusterConfig` embeds cluster config for jobs that create their own RayCluster.
+Jobs that create their own RayCluster take a `ClusterConfiguration` (the same dataclass the standalone
+cluster layer uses); `config.py` turns it into the embedded `rayClusterSpec`.
 
 ## Key Abstractions
 
 - **`RayJob`** (`rayjob.py`): primary job lifecycle API
-- **`ManagedClusterConfig`** (`config.py`): cluster spec for jobs with embedded RayCluster
+- **`build_ray_cluster_spec`** (`config.py`): builds the embedded RayCluster spec from a `ClusterConfiguration`
 - **`runtime_env.py`**: Ray runtime environment dict construction
 - **`status.py`**: `RayJobDeploymentStatus`, `CodeflareRayJobStatus`, `RayJobInfo`
 - **`test/`**: subdirectory tests with shared `conftest.py` and `auto_mock_setup` fixture

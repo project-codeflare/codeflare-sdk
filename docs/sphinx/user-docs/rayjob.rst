@@ -11,23 +11,23 @@ Import the following to use RayJob:
 
 ::
 
-   from codeflare_sdk import RayJob, ManagedClusterConfig
+   from codeflare_sdk import RayJob, ClusterConfiguration
 
-Submitting a job with a new cluster (ManagedClusterConfig)
----------------------------------------------------------
+Submitting a job with a new cluster (ClusterConfiguration)
+----------------------------------------------------------
 
 When you provide ``cluster_config``, the KubeRay operator creates a
 Ray cluster for the job and tears it down after the job completes. You
 do not need to manage the cluster lifecycle yourself.
 
-| Required: ``job_name`` (str), ``entrypoint`` (str), ``cluster_config`` (ManagedClusterConfig).
+| Required: ``job_name`` (str), ``entrypoint`` (str), ``cluster_config`` (ClusterConfiguration).
 | Optional: ``namespace``, ``runtime_env``, ``ttl_seconds_after_finished``, ``active_deadline_seconds``, ``local_queue``, ``priority_class``.
 
 .. code:: python
 
-   from codeflare_sdk import RayJob, ManagedClusterConfig
+   from codeflare_sdk import RayJob, ClusterConfiguration
 
-   cluster_config = ManagedClusterConfig(
+   cluster_config = ClusterConfiguration(
        head_memory_requests=6,
        head_memory_limits=8,
        num_workers=2,
@@ -35,8 +35,8 @@ do not need to manage the cluster lifecycle yourself.
        worker_cpu_limits=1,
        worker_memory_requests=4,
        worker_memory_limits=6,
-       head_accelerators={"nvidia.com/gpu": 0},
-       worker_accelerators={"nvidia.com/gpu": 0},
+       head_extended_resource_requests={"nvidia.com/gpu": 0},
+       worker_extended_resource_requests={"nvidia.com/gpu": 0},
    )
 
    job = RayJob(
@@ -48,7 +48,7 @@ do not need to manage the cluster lifecycle yourself.
    job.submit()
 
 Submitting a job to an existing cluster
---------------------------------------
+---------------------------------------
 
 When you provide ``cluster_name``, the job runs on an existing Ray
 cluster. The cluster is not shut down when the job finishes.
