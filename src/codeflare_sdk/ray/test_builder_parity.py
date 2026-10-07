@@ -125,19 +125,12 @@ MARKERS = {
     "max_workers": None,
 }
 
-# Fields the RayJob path drops today. These are bugs, not decisions, so they
-# are xfail(strict=True) rather than exemptions: the unification in
-# RHOAIENG-98942 must delete this dict, and until then a drive-by fix that
-# leaves it in place fails the suite instead of passing silently.
-KNOWN_GAPS = {
-    "redis_address": "RHOAIENG-98943: GCS fault tolerance absent from the RayJob builder",
-    "redis_password_secret": "RHOAIENG-98943: GCS fault tolerance absent from the RayJob builder",
-    "external_storage_namespace": "RHOAIENG-98943: GCS fault tolerance absent from the RayJob builder",
-    "labels": (
-        "RHOAIENG-98942: config.labels reaches additional worker groups only, "
-        "not the head or default worker pod templates"
-    ),
-}
+# Fields the RayJob path drops. Empty since RHOAIENG-98942 closed the last of
+# them; kept as the mechanism, because the next drift is easier to record here
+# than to rediscover. Entries are xfail(strict=True), so a gap that gets fixed
+# without being removed from this dict fails the suite rather than passing
+# quietly.
+KNOWN_GAPS: dict = {}
 
 
 def _configurable():
