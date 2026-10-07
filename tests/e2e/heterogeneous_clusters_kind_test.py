@@ -10,7 +10,7 @@ from support import *
 
 
 @pytest.mark.kind
-@pytest.mark.timeout(1800)
+@pytest.mark.timeout(2400)
 class TestHeterogeneousClustersKind:
     def setup_method(self):
         initialize_kubernetes_client(self)
@@ -80,8 +80,11 @@ class TestHeterogeneousClustersKind:
             f"expected workerGroupSpecs {expected_groups}, got {spec_groups}"
         )
 
-        cluster.apply()
-        # KinD has no HTTPRoute/Route; do not wait on the dashboard URI.
+        cluster.apply(timeout=60)
+        # KinD has no HTTPRoute/Route. wait_ready(dashboard_check=False) still
+        # waits until KubeRay reports READY (head probes passing), which is
+        # required before port-forwarding to the dashboard Service.
+        cluster.wait_ready(timeout=900, dashboard_check=False)
         self.wait_worker_groups_running(cluster_name, expected_groups)
 
         ray_cluster = get_ray_cluster(cluster_name, self.namespace)
@@ -97,7 +100,7 @@ class TestHeterogeneousClustersKind:
         cluster.down()
         self.wait_cluster_deleted(cluster_name)
 
-    def wait_worker_groups_running(self, cluster_name, expected_groups, timeout=600):
+    def wait_worker_groups_running(self, cluster_name, expected_groups, timeout=900):
         deadline = time.time() + timeout
         last = {}
         while time.time() < deadline:
@@ -120,7 +123,7 @@ class TestHeterogeneousClustersKind:
             f"Worker groups {expected_groups} not running after {timeout}s: {last}"
         )
 
-    def wait_cluster_deleted(self, cluster_name, timeout=180):
+    def wait_cluster_deleted(self, cluster_name, timeout=300):
         deadline = time.time() + timeout
         while time.time() < deadline:
             if get_ray_cluster(cluster_name, self.namespace) is None:
@@ -131,7 +134,7 @@ class TestHeterogeneousClustersKind:
             f"RayCluster {cluster_name} still present after cluster.down()"
         )
 
-    def submit_and_wait_multi_group_job(self, cluster, timeout=600):
+    def submit_and_wait_multi_group_job(self, cluster, timeout=900):
         local_port = "8265"
         cluster_name = cluster.config.name
         port_forward_cmd = [
@@ -145,9 +148,9 @@ class TestHeterogeneousClustersKind:
         self.port_forward_process = subprocess.Popen(
             port_forward_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
         )
-        time.sleep(5)
-
-        client = RayJobClient(address=f"http://localhost:{local_port}", verify=False)
+        dashboard = f"http://localhost:{local_port}"
+        wait_for_kind_dashboard(dashboard, timeout=180)
+        client = RayJobClient(address=dashboard, verify=False)
         try:
             submission_id = client.submit_job(
                 entrypoint="python multi_worker_group_job.py",

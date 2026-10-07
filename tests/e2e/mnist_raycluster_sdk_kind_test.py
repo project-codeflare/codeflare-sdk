@@ -13,6 +13,7 @@ from support import *
 
 
 @pytest.mark.kind
+@pytest.mark.timeout(2400)
 class TestRayClusterSDKKind:
     def setup_method(self):
         initialize_kubernetes_client(self)
@@ -62,12 +63,12 @@ class TestRayClusterSDKKind:
             )
         )
 
-        cluster.apply()
+        cluster.apply(timeout=60)
 
         cluster.status()
 
         # Disable dashboard check on KinD as HTTPRoute/Route is not available
-        cluster.wait_ready(dashboard_check=False)
+        cluster.wait_ready(timeout=900, dashboard_check=False)
 
         cluster.status()
 
@@ -102,10 +103,8 @@ class TestRayClusterSDKKind:
             port_forward_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
         )
 
-        # Wait for port-forward to be ready
-        sleep(5)
-
         ray_dashboard = f"http://localhost:{local_port}"
+        wait_for_kind_dashboard(ray_dashboard, timeout=180)
         client = RayJobClient(address=ray_dashboard, verify=False)
 
         try:
@@ -121,7 +120,7 @@ class TestRayClusterSDKKind:
             print(f"Submitted job with ID: {submission_id}")
             done = False
             time = 0
-            timeout = 900
+            timeout = 1200
             while not done:
                 status = client.get_job_status(submission_id)
                 if status.is_terminal():

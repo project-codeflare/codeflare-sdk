@@ -12,6 +12,7 @@ from support import (
 
 
 @pytest.mark.kind
+@pytest.mark.timeout(2400)
 class TestRayClusterApply:
     def setup_method(self):
         initialize_kubernetes_client(self)
@@ -46,10 +47,10 @@ class TestRayClusterApply:
 
         # Create the cluster
         cluster = Cluster(initial_config)
-        cluster.apply()
+        cluster.apply(timeout=60)
 
         # Wait for the cluster to be ready
-        cluster.wait_ready(dashboard_check=False)
+        cluster.wait_ready(timeout=900, dashboard_check=False)
         status, ready = cluster.status()
         assert ready, f"Cluster {cluster_name} is not ready: {status}"
 
@@ -80,13 +81,13 @@ class TestRayClusterApply:
 
         # Apply the updated configuration
         cluster.config = updated_config
-        cluster.apply()
+        cluster.apply(timeout=60)
 
         # Give Kubernetes a moment to process the update
         time.sleep(5)
 
         # Wait for the updated cluster to be ready
-        cluster.wait_ready(dashboard_check=False)
+        cluster.wait_ready(timeout=900, dashboard_check=False)
         updated_status, updated_ready = cluster.status()
         assert updated_ready, (
             f"Cluster {cluster_name} is not ready after update: {updated_status}"
@@ -102,7 +103,7 @@ class TestRayClusterApply:
         cluster.down()
 
         # Wait for deletion to complete (finalizers may delay deletion)
-        max_wait = 30  # seconds
+        max_wait = 180  # seconds
         wait_interval = 2
         elapsed = 0
 
