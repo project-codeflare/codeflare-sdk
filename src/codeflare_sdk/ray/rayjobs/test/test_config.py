@@ -38,7 +38,7 @@ from kubernetes.client import (
 def test_build_spec_basic(mocker):
     """Basic spec generation produces expected CRD structure."""
     mocker.patch(
-        "codeflare_sdk.ray.rayjobs.config.update_image",
+        "codeflare_sdk.ray.cluster.raycluster_spec.update_image",
         return_value="ray:2.58.0-py312",
     )
     config = ClusterConfiguration(num_workers=2)
@@ -60,7 +60,7 @@ def test_build_spec_basic(mocker):
 def test_build_spec_head_ray_params(mocker):
     """Head rayStartParams include num-cpus, num-gpus, resources."""
     mocker.patch(
-        "codeflare_sdk.ray.rayjobs.config.update_image",
+        "codeflare_sdk.ray.cluster.raycluster_spec.update_image",
         return_value="ray:latest",
     )
     config = ClusterConfiguration(head_cpu_limits=4)
@@ -76,7 +76,7 @@ def test_build_spec_head_ray_params(mocker):
 def test_build_spec_worker_container_name(mocker):
     """Worker container name is 'machine-learning'."""
     mocker.patch(
-        "codeflare_sdk.ray.rayjobs.config.update_image",
+        "codeflare_sdk.ray.cluster.raycluster_spec.update_image",
         return_value="ray:latest",
     )
     config = ClusterConfiguration()
@@ -88,7 +88,7 @@ def test_build_spec_worker_container_name(mocker):
 def test_build_spec_restart_policy_never(mocker):
     """Pod specs have restartPolicy: Never for RayJob."""
     mocker.patch(
-        "codeflare_sdk.ray.rayjobs.config.update_image",
+        "codeflare_sdk.ray.cluster.raycluster_spec.update_image",
         return_value="ray:latest",
     )
     config = ClusterConfiguration()
@@ -102,7 +102,7 @@ def test_build_spec_restart_policy_never(mocker):
 def test_build_spec_odh_volumes(mocker):
     """ODH CA cert volumes are always added."""
     mocker.patch(
-        "codeflare_sdk.ray.rayjobs.config.update_image",
+        "codeflare_sdk.ray.cluster.raycluster_spec.update_image",
         return_value="ray:latest",
     )
     config = ClusterConfiguration()
@@ -116,7 +116,7 @@ def test_build_spec_odh_volumes(mocker):
 def test_build_spec_with_gpu(mocker):
     """GPU counts appear in rayStartParams."""
     mocker.patch(
-        "codeflare_sdk.ray.rayjobs.config.update_image",
+        "codeflare_sdk.ray.cluster.raycluster_spec.update_image",
         return_value="ray:latest",
     )
     config = ClusterConfiguration(
@@ -130,7 +130,7 @@ def test_build_spec_with_gpu(mocker):
 def test_build_spec_with_environment_variables(mocker):
     """Environment variables are set in containers."""
     mocker.patch(
-        "codeflare_sdk.ray.rayjobs.config.update_image",
+        "codeflare_sdk.ray.cluster.raycluster_spec.update_image",
         return_value="ray:latest",
     )
     config = ClusterConfiguration(
@@ -151,7 +151,7 @@ def test_build_spec_with_environment_variables(mocker):
 def test_build_spec_with_tolerations(mocker):
     """Tolerations are applied to pod specs."""
     mocker.patch(
-        "codeflare_sdk.ray.rayjobs.config.update_image",
+        "codeflare_sdk.ray.cluster.raycluster_spec.update_image",
         return_value="ray:latest",
     )
     head_toleration = V1Toleration(
@@ -178,7 +178,7 @@ def test_build_spec_with_tolerations(mocker):
 def test_build_spec_with_image_pull_secrets(mocker):
     """Image pull secrets are applied to pod specs."""
     mocker.patch(
-        "codeflare_sdk.ray.rayjobs.config.update_image",
+        "codeflare_sdk.ray.cluster.raycluster_spec.update_image",
         return_value="ray:latest",
     )
     config = ClusterConfiguration(
@@ -197,7 +197,7 @@ def test_build_spec_with_image_pull_secrets(mocker):
 def test_build_spec_with_custom_volumes(mocker):
     """Custom volumes and volume mounts are applied."""
     mocker.patch(
-        "codeflare_sdk.ray.rayjobs.config.update_image",
+        "codeflare_sdk.ray.cluster.raycluster_spec.update_image",
         return_value="ray:latest",
     )
     custom_volume = V1Volume(name="custom-data", empty_dir={})
@@ -218,7 +218,7 @@ def test_build_spec_with_custom_volumes(mocker):
 def test_build_spec_uses_update_image(mocker):
     """Spec generation calls update_image for containers."""
     mock_update_image = mocker.patch(
-        "codeflare_sdk.ray.rayjobs.config.update_image",
+        "codeflare_sdk.ray.cluster.raycluster_spec.update_image",
         return_value="mocked-image:latest",
     )
     config = ClusterConfiguration(image="custom-image:v1")
@@ -234,7 +234,7 @@ def test_build_spec_uses_update_image(mocker):
 def test_build_spec_image_pull_policy_always(mocker):
     """Image pull policy is Always."""
     mocker.patch(
-        "codeflare_sdk.ray.rayjobs.config.update_image",
+        "codeflare_sdk.ray.cluster.raycluster_spec.update_image",
         return_value="ray:latest",
     )
     config = ClusterConfiguration()
@@ -249,7 +249,7 @@ def test_build_spec_image_pull_policy_always(mocker):
 def test_build_spec_autoscaling_disabled_for_kueue(mocker):
     """Autoscaling is disabled and worker replicas are fixed."""
     mocker.patch(
-        "codeflare_sdk.ray.rayjobs.config.update_image",
+        "codeflare_sdk.ray.cluster.raycluster_spec.update_image",
         return_value="ray:latest",
     )
     config = ClusterConfiguration(num_workers=3)
@@ -265,7 +265,7 @@ def test_build_spec_autoscaling_disabled_for_kueue(mocker):
 def test_build_spec_default_image_integration(mocker):
     """Spec generation works with default images."""
     mocker.patch(
-        "codeflare_sdk.ray.rayjobs.config.update_image",
+        "codeflare_sdk.ray.cluster.raycluster_spec.update_image",
         return_value="ray:default",
     )
     config = ClusterConfiguration()
@@ -351,7 +351,7 @@ def test_add_file_volumes_skips_duplicate_mount():
 def test_build_spec_with_additional_worker_groups(mocker):
     """Additional worker groups produce extra workerGroupSpecs entries."""
     mocker.patch(
-        "codeflare_sdk.ray.rayjobs.config.update_image",
+        "codeflare_sdk.ray.cluster.raycluster_spec.update_image",
         return_value="ray:default",
     )
     config = ClusterConfiguration(
