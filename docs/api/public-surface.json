@@ -13,6 +13,7 @@
         "RayClusterStatus",
         "CodeFlareClusterStatus",
         "RayCluster",
+        "WorkerGroupStatus",
         "get_cluster",
         "list_all_queued",
         "list_all_clusters"

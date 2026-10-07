@@ -237,10 +237,13 @@ def test_create_secret_with_owner_reference_basic(mocker, auto_mock_setup, caplo
     """
     mock_api_instance = auto_mock_setup["k8s_api"]
 
-    # Mock client.V1ObjectMeta and V1Secret
+    # Mock Kubernetes model construction; this test focuses on owner references.
     mock_v1_metadata = mocker.patch("kubernetes.client.V1ObjectMeta")
     mock_metadata_instance = MagicMock()
     mock_v1_metadata.return_value = mock_metadata_instance
+    mock_v1_secret = mocker.patch("kubernetes.client.V1Secret")
+    mock_secret_instance = MagicMock()
+    mock_v1_secret.return_value = mock_secret_instance
 
     rayjob = RayJob(
         job_name="test-job",

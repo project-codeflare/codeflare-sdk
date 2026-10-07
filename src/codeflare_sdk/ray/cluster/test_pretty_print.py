@@ -21,6 +21,7 @@ from codeflare_sdk.ray.cluster.status import (
     RayCluster,
     RayClusterStatus,
     CodeFlareClusterStatus,
+    WorkerGroupStatus,
 )
 from codeflare_sdk.ray.cluster.cluster import (
     Cluster,
@@ -28,6 +29,65 @@ from codeflare_sdk.ray.cluster.cluster import (
     _copy_to_ray,
 )
 from codeflare_sdk.common.utils.unit_test_support import get_local_queue
+
+
+def test_print_clusters_multi_worker_group_layout(capsys):
+    cluster = RayCluster(
+        name="multi-worker-group-test",
+        status=RayClusterStatus.READY,
+        num_workers=1,
+        worker_mem_requests="1Gi",
+        worker_mem_limits="6G",
+        worker_cpu_requests="250m",
+        worker_cpu_limits="1",
+        worker_extended_resources={"nvidia.com/gpu": 1},
+        namespace="ns",
+        dashboard="fake-uri",
+        head_cpu_requests=1,
+        head_cpu_limits=2,
+        head_mem_requests=5,
+        head_mem_limits=8,
+        worker_groups=[
+            WorkerGroupStatus(
+                group_name="small-group-multi-worker-group-test",
+                replicas=1,
+                min_replicas=1,
+                max_replicas=1,
+                cpu_requests="250m",
+                cpu_limits="1",
+                memory_requests="1Gi",
+                memory_limits="6G",
+            ),
+            WorkerGroupStatus(
+                group_name="large-workers",
+                replicas=1,
+                min_replicas=1,
+                max_replicas=1,
+                cpu_requests="250m",
+                cpu_limits="1",
+                memory_requests="1Gi",
+                memory_limits="6G",
+                extended_resource_limits={"nvidia.com/gpu": 1},
+            ),
+        ],
+    )
+
+    print_clusters([cluster])
+    output = capsys.readouterr().out
+
+    assert "# Workers" in output
+    assert "  2  " in output
+    assert "Memory" in output
+    assert "CPU" in output
+    assert "GPU" in output
+    assert "Worker groups" in output
+    assert "Replicas" in output
+    assert "Resources" in output
+    assert "small-group-multi-worker-grou" in output
+    assert "p-test" in output
+    assert "…" not in output
+    assert "large-workers" in output
+    assert output.index("Worker groups") > output.index("Cluster Resources")
 
 
 def test_print_no_resources(capsys):
@@ -114,7 +174,7 @@ def test_ray_details(mocker, capsys):
         " │   Dashboard🔗                                                 │ \n"
         " │                                                               │ \n"
         " │                       Cluster Resources                       │ \n"
-        " │   ╭── Workers ──╮  ╭───────── Worker specs(each) ─────────╮   │ \n"
+        " │   ╭── Workers ──╮  ╭───────── Worker group specs ─────────╮   │ \n"
         " │   │  # Workers  │  │  Memory      CPU         GPU         │   │ \n"
         " │   │             │  │                                      │   │ \n"
         " │   │  1          │  │  3G~6G       1~1         0           │   │ \n"
@@ -132,7 +192,7 @@ def test_ray_details(mocker, capsys):
         " │   Dashboard🔗                                                 │ \n"
         " │                                                               │ \n"
         " │                       Cluster Resources                       │ \n"
-        " │   ╭── Workers ──╮  ╭───────── Worker specs(each) ─────────╮   │ \n"
+        " │   ╭── Workers ──╮  ╭───────── Worker group specs ─────────╮   │ \n"
         " │   │  # Workers  │  │  Memory      CPU         GPU         │   │ \n"
         " │   │             │  │                                      │   │ \n"
         " │   │  1          │  │  3G~6G       1~1         0           │   │ \n"
@@ -148,7 +208,7 @@ def test_ray_details(mocker, capsys):
         "│   Dashboard🔗                                                 │\n"
         "│                                                               │\n"
         "│                       Cluster Resources                       │\n"
-        "│   ╭── Workers ──╮  ╭───────── Worker specs(each) ─────────╮   │\n"
+        "│   ╭── Workers ──╮  ╭───────── Worker group specs ─────────╮   │\n"
         "│   │  # Workers  │  │  Memory      CPU         GPU         │   │\n"
         "│   │             │  │                                      │   │\n"
         "│   │  1          │  │  3G~6G       1~1         0           │   │\n"

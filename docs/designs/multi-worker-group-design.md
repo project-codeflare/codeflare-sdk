@@ -67,6 +67,7 @@ All fields on `WorkerGroup` directly — no nested spec object.
 | `memory_limits` | `int \| str` | `6` | Memory limits. Int treated as GB. |
 | `gpu_type` | `str \| None` | `None` | Extended resource key, e.g. `"nvidia.com/gpu"`. |
 | `gpu_count` | `int \| None` | `None` | Number of GPUs. Requires `gpu_type`. |
+| `extended_resource_requests` | `dict[str, int \| str]` | `{}` | Additional Kubernetes extended resources requested by each worker pod. |
 | `image` | `str \| None` | `None` | Container image. `None` inherits cluster-level. |
 | `envs` | `dict[str, str]` | `{}` | Per-group env vars. Merged over cluster-level (group wins). |
 | `labels` | `dict[str, str]` | `{}` | Pod labels. Merged over cluster-level (group wins). |
@@ -139,7 +140,10 @@ Additional worker groups emit `minReplicas`/`maxReplicas` independently of the c
 
 ### Extended resources beyond GPU
 
-v1 exposes `gpu_type`/`gpu_count` for the common GPU case. Heterogeneous accelerator groups (custom extended resources beyond GPU) require using the primary worker group's `worker_extended_resource_requests` dict. This can be extended in a future iteration.
+`gpu_type`/`gpu_count` cover the common GPU case. Additional Kubernetes
+extended resources can be supplied with `WorkerGroup.extended_resource_requests`.
+When reading an existing RayCluster, the SDK preserves all non-CPU and
+non-memory resources in that mapping and in `WorkerGroupStatus`.
 
 ### Fields intentionally excluded from v1
 
@@ -169,14 +173,22 @@ User-facing documentation: `docs/sphinx/user-docs/kueue-heterogeneous-ray-cluste
 | Unit tests | Config validation, YAML builder output, RayJob spec builder, env/label merge, image inheritance. |
 | `docs/sphinx/user-docs/kueue-heterogeneous-ray-clusters.rst` | Kueue prerequisites for multi-group clusters (72838). |
 
-## Follow-up (not in v1)
+## Read-path follow-up
 
 | Area | Notes |
 |------|--------|
-| `ray/cluster/cluster.py` | `get_cluster()` still reads only `workerGroupSpecs[0]`; does not round-trip `additional_worker_groups`. |
-| `ray/cluster/status.py` | Multi-group status display not updated. |
+| `ray/cluster/cluster.py` | `get_cluster()` preserves the legacy primary-group fields and round-trips additional worker groups. `RayCluster.worker_groups` exposes the observed groups. |
+| `ray/cluster/status.py` | Multi-group status is represented by `WorkerGroupStatus` entries and included in the existing status output. |
 | Validation (72836) | Centralized rejection of invalid group specs beyond dataclass checks. |
 
 ## Backward Compatibility
 
 Zero breaking changes. `additional_worker_groups` defaults to an empty list. Existing code that uses flat `worker_*` fields continues to produce a single-group cluster.
+
+## Observed worker-group status
+
+The public `WorkerGroupStatus` model represents the observed state of one
+worker group returned by KubeRay. `RayCluster.worker_groups` contains one
+entry per worker-group specification when reading a live cluster. Its
+`extended_resource_limits` mapping preserves every non-CPU and non-memory
+resource reported by the CR.

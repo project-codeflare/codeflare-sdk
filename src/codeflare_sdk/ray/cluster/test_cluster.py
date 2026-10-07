@@ -26,12 +26,17 @@ from codeflare_sdk.common.utils.unit_test_support import (
     get_local_queue,
     create_cluster_config,
     get_ray_obj,
+    get_multi_worker_group_ray_obj,
+    get_partial_worker_group_ray_obj,
     get_obj_none,
     get_ray_obj_with_status,
     patch_cluster_with_dynamic_client,
     route_list_retrieval,
 )
-from codeflare_sdk.ray.cluster.cluster import _is_openshift_cluster
+from codeflare_sdk.ray.cluster.cluster import (
+    _is_openshift_cluster,
+    _worker_group_from_spec,
+)
 from codeflare_sdk.ray.cluster.status import CodeFlareClusterStatus, RayClusterStatus
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -771,7 +776,7 @@ def test_list_clusters(mocker, capsys):
         " │   Dashboard🔗                                                    │ \n"
         " │                                                                  │ \n"
         " │                       Cluster Resources                          │ \n"
-        " │   ╭── Workers ──╮  ╭───────── Worker specs(each) ─────────╮      │ \n"
+        " │   ╭── Workers ──╮  ╭───────── Worker group specs ─────────╮      │ \n"
         " │   │  # Workers  │  │  Memory      CPU         GPU         │      │ \n"
         " │   │             │  │                                      │      │ \n"
         " │   │  1          │  │  2G~2G       1~1         0           │      │ \n"
@@ -787,7 +792,7 @@ def test_list_clusters(mocker, capsys):
         "│   Dashboard🔗                                                 │\n"
         "│                                                               │\n"
         "│                       Cluster Resources                       │\n"
-        "│   ╭── Workers ──╮  ╭───────── Worker specs(each) ─────────╮   │\n"
+        "│   ╭── Workers ──╮  ╭───────── Worker group specs ─────────╮   │\n"
         "│   │  # Workers  │  │  Memory      CPU         GPU         │   │\n"
         "│   │             │  │                                      │   │\n"
         "│   │  1          │  │  2G~2G       1~1         0           │   │\n"
@@ -2445,6 +2450,7 @@ def test_head_only_cluster_no_workers(mocker):
     assert result.worker_cpu_requests == 0
     assert result.worker_mem_limits == 0
     assert result.worker_mem_requests == 0
+    assert result.worker_groups == []
 
     # Test 3: get_cluster should not crash
     mocker.patch(
@@ -2457,6 +2463,158 @@ def test_head_only_cluster_no_workers(mocker):
     assert cluster.config.worker_cpu_requests == 0
     assert cluster.config.worker_memory_limits == "0G"
     assert cluster.config.worker_memory_requests == "0G"
+    assert cluster.worker_groups == []
+
+
+def test_multi_worker_group_read_path(mocker):
+    """Read all worker groups and aggregate their extended resources."""
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+
+    multi_group_rc = get_multi_worker_group_ray_obj(
+        "ray.io", "v1", "ns", "rayclusters"
+    )["items"][0]
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.get_namespaced_custom_object",
+        return_value=multi_group_rc,
+    )
+
+    from codeflare_sdk.ray.cluster.cluster import Cluster, get_cluster
+
+    (
+        head_resources,
+        worker_resources,
+    ) = Cluster._head_worker_extended_resources_from_rc_dict(multi_group_rc)
+    assert head_resources == {"example.com/head": 2}
+    assert worker_resources == {
+        "example.com/fpga": 1,
+        "nvidia.com/gpu": 2,
+        "example.com/accelerator": 3,
+    }
+
+    cluster = get_cluster("multi-group", "ns")
+    assert [group.group_name for group in cluster.config.additional_worker_groups] == [
+        "gpu-workers"
+    ]
+    assert [group.group_name for group in cluster.worker_groups] == [
+        "cpu-workers",
+        "gpu-workers",
+    ]
+    assert cluster.worker_groups[1].extended_resource_limits == {
+        "nvidia.com/gpu": 2,
+        "example.com/accelerator": 3,
+    }
+    assert cluster.config.worker_extended_resource_requests == {"example.com/fpga": 1}
+    assert cluster.config.head_extended_resource_requests == {"example.com/head": 2}
+    assert cluster.config.additional_worker_groups[0].extended_resource_requests == {
+        "nvidia.com/gpu": 2,
+        "example.com/accelerator": 3,
+    }
+
+
+def test_multi_worker_group_read_path_handles_partial_spec(mocker):
+    """Partial worker-group specs should produce safe defaults rather than fail."""
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+    partial_rc = get_partial_worker_group_ray_obj("ray.io", "v1", "ns", "rayclusters")[
+        "items"
+    ][0]
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.get_namespaced_custom_object",
+        return_value=partial_rc,
+    )
+
+    cluster = get_cluster("partial-group", "ns")
+
+    assert cluster.config.num_workers == 0
+    assert cluster.config.additional_worker_groups == []
+    assert cluster.worker_groups[0].group_name == "partial-workers"
+    assert cluster.worker_groups[0].replicas == 0
+
+
+@pytest.mark.parametrize(
+    "worker_group",
+    [
+        None,
+        {
+            "groupName": "malformed-workers",
+            "replicas": "invalid",
+            "template": "invalid",
+        },
+        {
+            "groupName": "malformed-workers",
+            "replicas": True,
+            "template": {"spec": "invalid"},
+        },
+        {
+            "groupName": "malformed-workers",
+            "template": {"spec": {"containers": [{"resources": "invalid"}]}},
+        },
+        {
+            "groupName": "malformed-workers",
+            "template": {
+                "spec": {"containers": [{"resources": {"limits": [], "requests": []}}]}
+            },
+        },
+    ],
+)
+def test_worker_group_parser_handles_malformed_nested_fields(worker_group):
+    """Malformed nested fields should result in safe defaults."""
+    result = _worker_group_from_spec(worker_group)
+
+    assert result.replicas == 0
+    assert result.cpu_limits == 0
+    assert result.memory_limits == "0G"
+    assert result.extended_resource_requests == {}
+
+
+def test_get_cluster_handles_malformed_worker_group_collection(mocker):
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+    malformed_rc = get_ray_obj("ray.io", "v1", "ns", "rayclusters")["items"][0]
+    malformed_rc["spec"]["workerGroupSpecs"] = "invalid"
+    mocker.patch(
+        "kubernetes.client.CustomObjectsApi.get_namespaced_custom_object",
+        return_value=malformed_rc,
+    )
+
+    cluster = get_cluster("test-rc-a", "ns")
+
+    assert cluster.config.num_workers == 0
+    assert cluster.worker_groups == []
+
+
+def test_map_to_ray_cluster_handles_malformed_worker_group_collection(mocker):
+    from codeflare_sdk.ray.cluster.cluster import _map_to_ray_cluster
+
+    mocker.patch("kubernetes.client.ApisApi.get_api_versions")
+    mocker.patch("kubernetes.config.load_kube_config", return_value="ignore")
+    mocker.patch(
+        "kubernetes.client.NetworkingV1Api.list_namespaced_ingress",
+        return_value=mocker.Mock(items=[]),
+    )
+    malformed_rc = get_ray_obj("ray.io", "v1", "ns", "rayclusters")["items"][0]
+    malformed_rc["spec"]["workerGroupSpecs"] = {"invalid": True}
+
+    result = _map_to_ray_cluster(malformed_rc)
+
+    assert result.worker_groups == []
+
+
+@pytest.mark.parametrize("gpu_resource", ["intel.com/gpu", "amd.com/gpu"])
+def test_worker_group_read_path_preserves_mapped_gpu_resources(gpu_resource):
+    """Known non-NVIDIA GPU resources retain the legacy GPU fields."""
+    worker_group = get_multi_worker_group_ray_obj("ray.io", "v1", "ns", "rayclusters")[
+        "items"
+    ][0]["spec"]["workerGroupSpecs"][1]
+    limits = worker_group["template"]["spec"]["containers"][0]["resources"]["limits"]
+    limits.pop("nvidia.com/gpu")
+    limits[gpu_resource] = 2
+
+    result = _worker_group_from_spec(worker_group)
+
+    assert result.gpu_type == gpu_resource
+    assert result.gpu_count == 2
 
 
 # Make sure to always keep this function last

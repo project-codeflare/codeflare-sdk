@@ -22,7 +22,7 @@ import pathlib
 import re
 import warnings
 from dataclasses import dataclass, field, fields
-from typing import Dict, List, Optional, Union, get_args, get_origin
+from typing import Dict, Iterable, List, Optional, Union, get_args, get_origin
 from kubernetes.client import V1Toleration, V1Volume, V1VolumeMount
 
 dir = pathlib.Path(__file__).parent.parent.resolve()
@@ -38,6 +38,24 @@ DEFAULT_RESOURCE_MAPPING = {
     "huawei.com/Ascend910": "NPU",
     "huawei.com/Ascend310": "NPU",
 }
+
+
+def _mapping_for_observed_resources(resource_names: Iterable[str]) -> Dict[str, str]:
+    """Return custom mappings needed to validate observed resources."""
+    return {
+        name: name for name in resource_names if name not in DEFAULT_RESOURCE_MAPPING
+    }
+
+
+def _gpu_resource_name(
+    resources: Dict[str, Union[str, int]],
+) -> Optional[str]:
+    """Return the first known GPU resource present in a resource mapping."""
+    return next(
+        (name for name in resources if DEFAULT_RESOURCE_MAPPING.get(name) == "GPU"),
+        None,
+    )
+
 
 # Kubernetes metadata.name must be a lowercase RFC 1123 subdomain
 _RFC1123_SUBDOMAIN = re.compile(
@@ -137,6 +155,10 @@ class WorkerGroup:
             Extended resource key, e.g. "nvidia.com/gpu". Requires gpu_count.
         gpu_count:
             Number of GPUs per worker. Requires gpu_type.
+        extended_resource_requests:
+            Additional Kubernetes extended resources requested by each worker pod.
+            GPU resources may also be represented with ``gpu_type`` and
+            ``gpu_count``.
         image:
             Container image. None inherits from ClusterConfiguration.image.
         envs:
@@ -157,6 +179,7 @@ class WorkerGroup:
     memory_limits: Union[int, str] = 6
     gpu_type: Optional[str] = None
     gpu_count: Optional[int] = None
+    extended_resource_requests: Dict[str, Union[str, int]] = field(default_factory=dict)
     image: Optional[str] = None
     envs: Dict[str, str] = field(default_factory=dict)
     labels: Dict[str, str] = field(default_factory=dict)
@@ -203,6 +226,22 @@ class WorkerGroup:
             self.group_name, "memory_requests", self.memory_requests
         )
         _validate_memory_quantity(self.group_name, "memory_limits", self.memory_limits)
+
+        if not isinstance(self.extended_resource_requests, dict):
+            raise ValueError(
+                f"WorkerGroup '{self.group_name}': extended_resource_requests must be a dict"
+            )
+        for resource_name, resource_value in self.extended_resource_requests.items():
+            if not isinstance(resource_name, str) or not resource_name:
+                raise ValueError(
+                    f"WorkerGroup '{self.group_name}': extended resource names must be non-empty strings"
+                )
+            if isinstance(resource_value, bool) or not isinstance(
+                resource_value, (int, str)
+            ):
+                raise ValueError(
+                    f"WorkerGroup '{self.group_name}': extended resource values must be ints or strings"
+                )
 
         if isinstance(self.memory_requests, int):
             self.memory_requests = f"{self.memory_requests}G"

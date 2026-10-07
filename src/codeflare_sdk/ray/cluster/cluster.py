@@ -20,7 +20,7 @@ cluster setup queue, a list of all existing clusters, and the user's working nam
 
 import warnings
 from time import sleep
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, NamedTuple, Optional, Tuple
 
 import requests
 import yaml
@@ -41,10 +41,29 @@ from ...common.widgets.widgets import cluster_apply_down_buttons, is_notebook
 from . import pretty_print
 from .build_ray_cluster import build_ray_cluster, head_worker_gpu_count_from_cluster
 from .build_ray_cluster import write_to_file as write_cluster_to_file
-from .config import ClusterConfiguration
-from .status import CodeFlareClusterStatus, RayCluster, RayClusterStatus
+from .config import (
+    ClusterConfiguration,
+    WorkerGroup,
+    _gpu_resource_name,
+    _mapping_for_observed_resources,
+)
+from .status import (
+    CodeFlareClusterStatus,
+    RayCluster,
+    RayClusterStatus,
+    WorkerGroupStatus,
+)
 
 CF_SDK_FIELD_MANAGER = "codeflare-sdk"
+
+
+class _WorkerGroupSpecDetails(NamedTuple):
+    container: Dict
+    pod_spec: Dict
+    template: Dict
+    limits: Dict
+    requests: Dict
+    extended_resources: Dict
 
 
 class Cluster:
@@ -78,6 +97,9 @@ class Cluster:
 
     def _init(self, config: ClusterConfiguration):
         self.config = config
+        self.worker_groups: List[WorkerGroupStatus] = []
+        self.observed_head_extended_resources: Dict[str, int] = {}
+        self.observed_worker_extended_resources: Dict[str, int] = {}
         self._job_submission_client = None
         if self.config is not None and self.config.name is None:
             raise ValueError(
@@ -737,26 +759,27 @@ class Cluster:
     @staticmethod
     def _head_worker_extended_resources_from_rc_dict(rc: Dict) -> Tuple[dict, dict]:
         head_extended_resources, worker_extended_resources = {}, {}
+        spec = rc.get("spec") or {}
 
-        # Fix for RHOAIENG-54729: Check if workerGroupSpecs exists before accessing [0]
-        if len(rc["spec"].get("workerGroupSpecs", [])) > 0:
-            for resource in rc["spec"]["workerGroupSpecs"][0]["template"]["spec"][
-                "containers"
-            ][0]["resources"]["limits"].keys():
+        for worker_group in spec.get("workerGroupSpecs", []) or []:
+            limits = _worker_group_spec_details(worker_group).limits
+            for resource in limits:
                 if resource in ["memory", "cpu"]:
                     continue
-                worker_extended_resources[resource] = rc["spec"]["workerGroupSpecs"][0][
-                    "template"
-                ]["spec"]["containers"][0]["resources"]["limits"][resource]
+                value = limits[resource]
+                try:
+                    value = int(value)
+                    current = int(worker_extended_resources.get(resource, 0))
+                    worker_extended_resources[resource] = current + value
+                except (TypeError, ValueError):
+                    worker_extended_resources[resource] = value
 
-        for resource in rc["spec"]["headGroupSpec"]["template"]["spec"]["containers"][
-            0
-        ]["resources"]["limits"].keys():
+        head_group = spec.get("headGroupSpec") or {}
+        head_limits = _worker_group_spec_details(head_group).limits
+        for resource in head_limits:
             if resource in ["memory", "cpu"]:
                 continue
-            head_extended_resources[resource] = rc["spec"]["headGroupSpec"]["template"][
-                "spec"
-            ]["containers"][0]["resources"]["limits"][resource]
+            head_extended_resources[resource] = head_limits[resource]
 
         return head_extended_resources, worker_extended_resources
 
@@ -885,6 +908,119 @@ def list_all_queued(
         return queued_clusters
 
 
+def _as_int(value, default=0):
+    """Return an integer value from a CR field without failing on malformed input."""
+    if isinstance(value, bool):
+        return default
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _worker_group_spec_details(worker_group: Dict) -> _WorkerGroupSpecDetails:
+    """Extract safe, shared details from a KubeRay worker-group specification."""
+    if not isinstance(worker_group, dict):
+        worker_group = {}
+    template = worker_group.get("template") or {}
+    if not isinstance(template, dict):
+        template = {}
+    pod_spec = template.get("spec") or {}
+    if not isinstance(pod_spec, dict):
+        pod_spec = {}
+    containers = pod_spec.get("containers") or []
+    container = containers[0] if containers and isinstance(containers[0], dict) else {}
+    resources = container.get("resources") or {}
+    if not isinstance(resources, dict):
+        resources = {}
+    limits = resources.get("limits") or {}
+    requests = resources.get("requests") or {}
+    if not isinstance(limits, dict):
+        limits = {}
+    if not isinstance(requests, dict):
+        requests = {}
+    extended_resources = {
+        name: value for name, value in limits.items() if name not in {"cpu", "memory"}
+    }
+    return _WorkerGroupSpecDetails(
+        container=container,
+        pod_spec=pod_spec,
+        template=template,
+        limits=limits,
+        requests=requests,
+        extended_resources=extended_resources,
+    )
+
+
+def _worker_group_from_spec(worker_group: Dict, group_index: int = 0) -> WorkerGroup:
+    """Convert a possibly partial KubeRay worker-group spec into SDK config."""
+    if not isinstance(worker_group, dict):
+        worker_group = {}
+    details = _worker_group_spec_details(worker_group)
+    container = details.container
+    pod_spec = details.pod_spec
+    template = details.template
+    limits = details.limits
+    requests = details.requests
+    extended_resources = details.extended_resources
+    gpu_type = _gpu_resource_name(extended_resources)
+    group_name = worker_group.get("groupName") or f"worker-group-{group_index}"
+    metadata = template.get("metadata") or {}
+    if not isinstance(metadata, dict):
+        metadata = {}
+    envs = {
+        env.get("name"): env.get("value", "")
+        for env in container.get("env", [])
+        if isinstance(env, dict) and env.get("name")
+    }
+    labels = metadata.get("labels", {})
+    return WorkerGroup(
+        group_name=str(group_name),
+        replicas=_as_int(worker_group.get("replicas", worker_group.get("minReplicas"))),
+        min_replicas=_as_int(worker_group.get("minReplicas"), None)
+        if worker_group.get("minReplicas") is not None
+        else None,
+        max_replicas=_as_int(worker_group.get("maxReplicas"), None)
+        if worker_group.get("maxReplicas") is not None
+        else None,
+        cpu_requests=requests.get("cpu", 0),
+        cpu_limits=limits.get("cpu", 0),
+        memory_requests=requests.get("memory", 0),
+        memory_limits=limits.get("memory", 0),
+        gpu_type=gpu_type,
+        gpu_count=_as_int(extended_resources[gpu_type]) if gpu_type else None,
+        extended_resource_requests=extended_resources,
+        image=container.get("image"),
+        envs=envs,
+        labels=labels if isinstance(labels, dict) else {},
+        tolerations=pod_spec.get("tolerations"),
+    )
+
+
+def _worker_group_status_from_spec(
+    worker_group: Dict, group_index: int = 0
+) -> WorkerGroupStatus:
+    """Convert a possibly partial KubeRay worker-group spec into observed status."""
+    if not isinstance(worker_group, dict):
+        worker_group = {}
+    details = _worker_group_spec_details(worker_group)
+    return WorkerGroupStatus(
+        group_name=str(worker_group.get("groupName") or f"worker-group-{group_index}"),
+        replicas=_as_int(worker_group.get("replicas", worker_group.get("minReplicas"))),
+        min_replicas=_as_int(worker_group.get("minReplicas"), None)
+        if worker_group.get("minReplicas") is not None
+        else None,
+        max_replicas=_as_int(worker_group.get("maxReplicas"), None)
+        if worker_group.get("maxReplicas") is not None
+        else None,
+        cpu_requests=details.requests.get("cpu", 0),
+        cpu_limits=details.limits.get("cpu", 0),
+        memory_requests=details.requests.get("memory", 0),
+        memory_limits=details.limits.get("memory", 0),
+        extended_resource_limits=details.extended_resources,
+    )
+
+
 def get_cluster(
     cluster_name: str,
     namespace: str = "default",
@@ -937,29 +1073,33 @@ def get_cluster(
         ) = Cluster._head_worker_extended_resources_from_rc_dict(resource)
 
         # Fix for RHOAIENG-54729: Handle head-only clusters (no workers)
-        enable_autoscaling = resource["spec"].get("enableInTreeAutoscaling", False)
+        spec = resource.get("spec") or {}
+        enable_autoscaling = spec.get("enableInTreeAutoscaling", False)
         min_workers = None
         max_workers = None
 
-        if len(resource["spec"].get("workerGroupSpecs", [])) > 0:
-            worker_group = resource["spec"]["workerGroupSpecs"][0]
-            num_workers = worker_group["minReplicas"]
-            worker_cpu_limits = worker_group["template"]["spec"]["containers"][0][
-                "resources"
-            ]["limits"]["cpu"]
-            worker_cpu_requests = worker_group["template"]["spec"]["containers"][0][
-                "resources"
-            ]["requests"]["cpu"]
-            worker_memory_limits = worker_group["template"]["spec"]["containers"][0][
-                "resources"
-            ]["limits"]["memory"]
-            worker_memory_requests = worker_group["template"]["spec"]["containers"][0][
-                "resources"
-            ]["requests"]["memory"]
+        worker_group_specs = spec.get("workerGroupSpecs", []) or []
+        if not isinstance(worker_group_specs, list):
+            worker_group_specs = []
+        if worker_group_specs:
+            worker_group = worker_group_specs[0]
+            if not isinstance(worker_group, dict):
+                worker_group = {}
+            details = _worker_group_spec_details(worker_group)
+            limits = details.limits
+            requests = details.requests
+            primary_extended_resources = details.extended_resources
+            num_workers = _as_int(
+                worker_group.get("minReplicas", worker_group.get("replicas"))
+            )
+            worker_cpu_limits = limits.get("cpu", 0)
+            worker_cpu_requests = requests.get("cpu", 0)
+            worker_memory_limits = limits.get("memory", 0)
+            worker_memory_requests = requests.get("memory", 0)
 
             if enable_autoscaling:
-                min_workers = worker_group.get("minReplicas", num_workers)
-                max_workers = worker_group.get("maxReplicas", num_workers)
+                min_workers = _as_int(worker_group.get("minReplicas"), num_workers)
+                max_workers = _as_int(worker_group.get("maxReplicas"), num_workers)
         else:
             # Head-only cluster - use defaults for worker specs
             num_workers = 0
@@ -968,37 +1108,44 @@ def get_cluster(
             worker_memory_limits = 0
             worker_memory_requests = 0
 
-        # Create a Cluster Configuration with just the necessary provided parameters
+        head_details = _worker_group_spec_details(spec.get("headGroupSpec") or {})
+
+        # Create a Cluster Configuration with the primary worker group represented
+        # by the legacy fields and any additional groups represented explicitly.
         cluster_config = ClusterConfiguration(
             name=cluster_name,
             namespace=namespace,
             verify_tls=verify_tls,
             write_to_file=write_to_file,
-            head_cpu_limits=resource["spec"]["headGroupSpec"]["template"]["spec"][
-                "containers"
-            ][0]["resources"]["limits"]["cpu"],
-            head_cpu_requests=resource["spec"]["headGroupSpec"]["template"]["spec"][
-                "containers"
-            ][0]["resources"]["requests"]["cpu"],
-            head_memory_limits=resource["spec"]["headGroupSpec"]["template"]["spec"][
-                "containers"
-            ][0]["resources"]["limits"]["memory"],
-            head_memory_requests=resource["spec"]["headGroupSpec"]["template"]["spec"][
-                "containers"
-            ][0]["resources"]["requests"]["memory"],
+            head_cpu_limits=head_details.limits.get("cpu", 0),
+            head_cpu_requests=head_details.requests.get("cpu", 0),
+            head_memory_limits=head_details.limits.get("memory", 0),
+            head_memory_requests=head_details.requests.get("memory", 0),
             num_workers=num_workers,
             worker_cpu_limits=worker_cpu_limits,
             worker_cpu_requests=worker_cpu_requests,
             worker_memory_limits=worker_memory_limits,
             worker_memory_requests=worker_memory_requests,
             head_extended_resource_requests=head_extended_resources,
-            worker_extended_resource_requests=worker_extended_resources,
+            worker_extended_resource_requests=primary_extended_resources
+            if worker_group_specs
+            else {},
+            extended_resource_mapping=_mapping_for_observed_resources(
+                {
+                    *head_extended_resources,
+                    *(primary_extended_resources if worker_group_specs else set()),
+                }
+            ),
             enable_autoscaling=enable_autoscaling,
             min_workers=min_workers,
             max_workers=max_workers,
+            additional_worker_groups=[
+                _worker_group_from_spec(worker_group, index)
+                for index, worker_group in enumerate(worker_group_specs[1:], start=1)
+            ],
         )
 
-        # Ignore the warning here for the lack of a ClusterConfiguration
+        # Ignore the warning here for the lack of a ClusterConfiguration.
         with warnings.catch_warnings():
             warnings.filterwarnings(
                 "ignore",
@@ -1006,6 +1153,12 @@ def get_cluster(
             )
             cluster = Cluster(None, api_client=api_client)
             cluster.config = cluster_config
+            cluster.worker_groups = [
+                _worker_group_status_from_spec(group, index)
+                for index, group in enumerate(worker_group_specs)
+            ]
+            cluster.observed_head_extended_resources = head_extended_resources
+            cluster.observed_worker_extended_resources = worker_extended_resources
 
             # Remove auto-generated fields like creationTimestamp, uid and etc.
             remove_autogenerated_fields(resource)
@@ -1226,22 +1379,24 @@ def _map_to_ray_cluster(rc) -> Optional[RayCluster]:
         worker_extended_resources,
     ) = Cluster._head_worker_extended_resources_from_rc_dict(rc)
 
+    spec = rc.get("spec") or {}
+    worker_groups = spec.get("workerGroupSpecs", []) or []
+    if not isinstance(worker_groups, list):
+        worker_groups = []
+
+    head_details = _worker_group_spec_details(spec.get("headGroupSpec") or {})
+
     # Fix for RHOAIENG-54729: Handle head-only clusters (no workers)
-    if len(rc["spec"].get("workerGroupSpecs", [])) > 0:
-        worker_group = rc["spec"]["workerGroupSpecs"][0]
-        num_workers = worker_group["replicas"]
-        worker_mem_limits = worker_group["template"]["spec"]["containers"][0][
-            "resources"
-        ]["limits"]["memory"]
-        worker_mem_requests = worker_group["template"]["spec"]["containers"][0][
-            "resources"
-        ]["requests"]["memory"]
-        worker_cpu_requests = worker_group["template"]["spec"]["containers"][0][
-            "resources"
-        ]["requests"]["cpu"]
-        worker_cpu_limits = worker_group["template"]["spec"]["containers"][0][
-            "resources"
-        ]["limits"]["cpu"]
+    if worker_groups:
+        worker_group = worker_groups[0]
+        worker_details = _worker_group_spec_details(worker_group)
+        num_workers = _as_int(
+            worker_group.get("replicas", worker_group.get("minReplicas"))
+        )
+        worker_mem_limits = worker_details.limits.get("memory", 0)
+        worker_mem_requests = worker_details.requests.get("memory", 0)
+        worker_cpu_requests = worker_details.requests.get("cpu", 0)
+        worker_cpu_limits = worker_details.limits.get("cpu", 0)
     else:
         # Head-only cluster - use defaults for worker specs
         num_workers = 0
@@ -1260,20 +1415,16 @@ def _map_to_ray_cluster(rc) -> Optional[RayCluster]:
         worker_cpu_limits=worker_cpu_limits,
         worker_extended_resources=worker_extended_resources,
         namespace=rc["metadata"]["namespace"],
-        head_cpu_requests=rc["spec"]["headGroupSpec"]["template"]["spec"]["containers"][
-            0
-        ]["resources"]["requests"]["cpu"],
-        head_cpu_limits=rc["spec"]["headGroupSpec"]["template"]["spec"]["containers"][
-            0
-        ]["resources"]["limits"]["cpu"],
-        head_mem_requests=rc["spec"]["headGroupSpec"]["template"]["spec"]["containers"][
-            0
-        ]["resources"]["requests"]["memory"],
-        head_mem_limits=rc["spec"]["headGroupSpec"]["template"]["spec"]["containers"][
-            0
-        ]["resources"]["limits"]["memory"],
+        head_cpu_requests=head_details.requests.get("cpu", 0),
+        head_cpu_limits=head_details.limits.get("cpu", 0),
+        head_mem_requests=head_details.requests.get("memory", 0),
+        head_mem_limits=head_details.limits.get("memory", 0),
         head_extended_resources=head_extended_resources,
         dashboard=dashboard_url,
+        worker_groups=[
+            _worker_group_status_from_spec(group, index)
+            for index, group in enumerate(worker_groups)
+        ],
     )
 
 
@@ -1288,8 +1439,53 @@ _CODEFLARE_TO_RAY_STATUS = {
 }
 
 
+def _worker_group_status_from_config(group: WorkerGroup) -> WorkerGroupStatus:
+    """Convert desired worker-group settings into a displayable status."""
+    extended_resource_limits = dict(group.extended_resource_requests)
+    if group.gpu_type and group.gpu_count is not None:
+        extended_resource_limits[group.gpu_type] = group.gpu_count
+    return WorkerGroupStatus(
+        group_name=group.group_name,
+        replicas=group.replicas,
+        min_replicas=group.min_replicas,
+        max_replicas=group.max_replicas,
+        cpu_requests=group.cpu_requests,
+        cpu_limits=group.cpu_limits,
+        memory_requests=group.memory_requests,
+        memory_limits=group.memory_limits,
+        extended_resource_limits=extended_resource_limits,
+    )
+
+
 def _copy_to_ray(cluster: Cluster) -> RayCluster:
     cf_status = cluster.status(print_to_console=False)[0]
+    default_worker_group = WorkerGroup(
+        group_name=f"small-group-{cluster.config.name}",
+        replicas=cluster.config.num_workers,
+        min_replicas=cluster.config.min_workers,
+        max_replicas=cluster.config.max_workers,
+        cpu_requests=cluster.config.worker_cpu_requests,
+        cpu_limits=cluster.config.worker_cpu_limits,
+        memory_requests=cluster.config.worker_memory_requests,
+        memory_limits=cluster.config.worker_memory_limits,
+        gpu_type=next(iter(cluster.config.worker_extended_resource_requests), None),
+        gpu_count=(
+            next(iter(cluster.config.worker_extended_resource_requests.values()))
+            if cluster.config.worker_extended_resource_requests
+            else None
+        ),
+    )
+    worker_groups = list(cluster.worker_groups)
+    if not worker_groups and (
+        cluster.config.num_workers > 0 or cluster.config.additional_worker_groups
+    ):
+        worker_groups = [
+            _worker_group_status_from_config(default_worker_group),
+            *(
+                _worker_group_status_from_config(group)
+                for group in cluster.config.additional_worker_groups
+            ),
+        ]
     return RayCluster(
         name=cluster.config.name,
         status=_CODEFLARE_TO_RAY_STATUS.get(cf_status, RayClusterStatus.UNKNOWN),
@@ -1298,14 +1494,21 @@ def _copy_to_ray(cluster: Cluster) -> RayCluster:
         worker_mem_limits=cluster.config.worker_memory_limits,
         worker_cpu_requests=cluster.config.worker_cpu_requests,
         worker_cpu_limits=cluster.config.worker_cpu_limits,
-        worker_extended_resources=cluster.config.worker_extended_resource_requests,
+        worker_extended_resources=(
+            cluster.observed_worker_extended_resources
+            or cluster.config.worker_extended_resource_requests
+        ),
         namespace=cluster.config.namespace,
         dashboard=cluster.cluster_dashboard_uri(),
         head_mem_requests=cluster.config.head_memory_requests,
         head_mem_limits=cluster.config.head_memory_limits,
         head_cpu_requests=cluster.config.head_cpu_requests,
         head_cpu_limits=cluster.config.head_cpu_limits,
-        head_extended_resources=cluster.config.head_extended_resource_requests,
+        head_extended_resources=(
+            cluster.observed_head_extended_resources
+            or cluster.config.head_extended_resource_requests
+        ),
+        worker_groups=worker_groups,
     )
 
 
