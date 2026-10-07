@@ -16,7 +16,7 @@
 Single entrypoint for the CodeFlare SDK.
 
 Usage:
-    from codeflare_sdk import Codeflare, SDKConfig
+    from codeflare_sdk import ClusterConfiguration, Codeflare, SDKConfig
     from kube_authkit import AuthConfig
 
     cf = Codeflare(config=SDKConfig(
@@ -24,14 +24,17 @@ Usage:
         namespace="my-project",
     ))
 
-    cluster = cf.clusters.create(name="my-cluster", num_workers=4)
+    cluster = cf.clusters.create(
+        ClusterConfiguration(name="my-cluster", num_workers=4)
+    )
     cluster.apply()
 """
 
+import copy
 import logging
 from dataclasses import dataclass, field
 import builtins
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Optional, TypedDict, Union, Unpack, overload
 
 from ray.runtime_env import RuntimeEnv
 
@@ -99,47 +102,99 @@ def _resolve_namespace(namespace: Optional[str], sdk: "Codeflare") -> str:
     )
 
 
+class JobOptions(TypedDict, total=False):
+    """Optional keyword arguments shared by the :class:`JobHandler` overloads.
+
+    Holds every :meth:`JobHandler.create` keyword except the execution target
+    (``cluster_name`` / ``cluster_config``), which the overloads vary. Keeping
+    them here means the overload pair does not restate the full signature.
+
+    ``test_job_options_match_create_signature`` fails if the two drift.
+    """
+
+    runtime_env: Optional[Union[RuntimeEnv, Dict[str, Any]]]
+    ttl_seconds_after_finished: int
+    active_deadline_seconds: Optional[int]
+    local_queue: Optional[str]
+    priority_class: Optional[str]
+
+
 class ClusterHandler:
     """Namespace accessor for Ray cluster operations."""
 
     def __init__(self, sdk: "Codeflare"):
         self._sdk = sdk
 
-    def create(self, name: str, namespace: Optional[str] = None, **kwargs) -> "Cluster":
+    def create(
+        self,
+        config: ClusterConfiguration,
+        namespace: Optional[str] = None,
+    ) -> "Cluster":
         """Create a new Cluster object (does not apply it to K8s yet).
+
+        Takes a :class:`~codeflare_sdk.ray.cluster.config.ClusterConfiguration`,
+        the same object ``cf.jobs.create(cluster_config=...)`` and ``Cluster()``
+        take, so there is one way to describe a cluster across the SDK.
 
         The returned Cluster is bound to this Codeflare instance's Kubernetes
         client, so later operations on it are unaffected by any other Codeflare
         instance created afterwards.
 
         Args:
-            name: Cluster name.
-            namespace: K8s namespace. See namespace resolution precedence in
-                :func:`_resolve_namespace`.
-            **kwargs: Forwarded to ClusterConfiguration.
+            config: Cluster configuration. ``config.name`` is required.
+            namespace: K8s namespace, overriding ``config.namespace``. See
+                namespace resolution precedence in :func:`_resolve_namespace`.
 
         Returns:
             Cluster instance ready for .apply().
-        """
-        ns = _resolve_namespace(namespace, self._sdk)
-        cluster_config = ClusterConfiguration(name=name, namespace=ns, **kwargs)
-        return Cluster(cluster_config, api_client=self._sdk.client)
 
-    def get(self, name: str, namespace: Optional[str] = None, **kwargs) -> "Cluster":
+        Raises:
+            ValueError: If config.name is unset, or no namespace can be resolved.
+        """
+        if not config.name:
+            raise ValueError(
+                "❌ Configuration Error: ClusterConfiguration.name is required to "
+                "create a cluster."
+            )
+
+        ns = _resolve_namespace(namespace or config.namespace, self._sdk)
+        if ns != config.namespace:
+            # A shallow copy, not dataclasses.replace: ClusterConfiguration's
+            # __post_init__ is not idempotent (it merges the default accelerator
+            # mapping into extended_resource_mapping and then rejects the merged
+            # result), so reconstructing a configured instance raises.
+            config = copy.copy(config)
+            config.namespace = ns
+
+        return Cluster(config, api_client=self._sdk.client)
+
+    def get(
+        self,
+        name: str,
+        namespace: Optional[str] = None,
+        *,
+        verify_tls: bool = True,
+        write_to_file: bool = False,
+    ) -> "Cluster":
         """Retrieve an existing cluster by name.
 
         Args:
             name: Cluster name.
             namespace: K8s namespace. See namespace resolution precedence in
                 :func:`_resolve_namespace`.
-            **kwargs: Forwarded to get_cluster.
+            verify_tls: Whether to verify TLS when connecting to the cluster.
+            write_to_file: Whether to write the retrieved resource to a YAML file.
 
         Returns:
             Cluster instance bound to this instance's Kubernetes client.
         """
         ns = _resolve_namespace(namespace, self._sdk)
         return get_cluster(
-            cluster_name=name, namespace=ns, api_client=self._sdk.client, **kwargs
+            cluster_name=name,
+            namespace=ns,
+            verify_tls=verify_tls,
+            write_to_file=write_to_file,
+            api_client=self._sdk.client,
         )
 
     def list(self, namespace: Optional[str] = None) -> builtins.list:
@@ -177,6 +232,61 @@ class JobHandler:
     def __init__(self, sdk: "Codeflare"):
         self._sdk = sdk
 
+    def _build(
+        self,
+        name: str,
+        entrypoint: str,
+        namespace: Optional[str],
+        cluster_name: Optional[str],
+        cluster_config: Optional[ClusterConfiguration],
+        runtime_env: Optional[Union[RuntimeEnv, Dict[str, Any]]],
+        ttl_seconds_after_finished: int,
+        active_deadline_seconds: Optional[int],
+        local_queue: Optional[str],
+        priority_class: Optional[str],
+    ) -> "RayJob":
+        """Construct a RayJob bound to this instance's client.
+
+        Shared by :meth:`create` and :meth:`submit`. Those are overloaded, so
+        they cannot call each other without re-narrowing the execution target.
+        """
+        ns = _resolve_namespace(namespace, self._sdk)
+        return RayJob(
+            job_name=name,
+            entrypoint=entrypoint,
+            cluster_name=cluster_name,
+            cluster_config=cluster_config,
+            namespace=ns,
+            runtime_env=runtime_env,
+            ttl_seconds_after_finished=ttl_seconds_after_finished,
+            active_deadline_seconds=active_deadline_seconds,
+            local_queue=local_queue,
+            priority_class=priority_class,
+            api_client=self._sdk.client,
+        )
+
+    @overload
+    def create(
+        self,
+        name: str,
+        entrypoint: str,
+        namespace: Optional[str] = ...,
+        *,
+        cluster_name: str,
+        **kwargs: Unpack[JobOptions],
+    ) -> "RayJob": ...
+
+    @overload
+    def create(
+        self,
+        name: str,
+        entrypoint: str,
+        namespace: Optional[str] = ...,
+        *,
+        cluster_config: ClusterConfiguration,
+        **kwargs: Unpack[JobOptions],
+    ) -> "RayJob": ...
+
     def create(
         self,
         name: str,
@@ -195,8 +305,8 @@ class JobHandler:
 
         A job needs an execution target: pass exactly one of ``cluster_name``
         (run on an existing cluster) or ``cluster_config`` (the job creates and
-        manages its own cluster). These are named parameters rather than
-        ``**kwargs`` so the requirement is visible to type checkers and IDEs.
+        manages its own cluster). The two overloads make "exactly one" a type
+        error rather than only a runtime one.
 
         Args:
             name: Job name.
@@ -217,20 +327,40 @@ class JobHandler:
         Raises:
             ValueError: If neither or both of cluster_name/cluster_config given.
         """
-        ns = _resolve_namespace(namespace, self._sdk)
-        return RayJob(
-            job_name=name,
-            entrypoint=entrypoint,
-            cluster_name=cluster_name,
-            cluster_config=cluster_config,
-            namespace=ns,
-            runtime_env=runtime_env,
-            ttl_seconds_after_finished=ttl_seconds_after_finished,
-            active_deadline_seconds=active_deadline_seconds,
-            local_queue=local_queue,
-            priority_class=priority_class,
-            api_client=self._sdk.client,
+        return self._build(
+            name,
+            entrypoint,
+            namespace,
+            cluster_name,
+            cluster_config,
+            runtime_env,
+            ttl_seconds_after_finished,
+            active_deadline_seconds,
+            local_queue,
+            priority_class,
         )
+
+    @overload
+    def submit(
+        self,
+        name: str,
+        entrypoint: str,
+        namespace: Optional[str] = ...,
+        *,
+        cluster_name: str,
+        **kwargs: Unpack[JobOptions],
+    ) -> "RayJob": ...
+
+    @overload
+    def submit(
+        self,
+        name: str,
+        entrypoint: str,
+        namespace: Optional[str] = ...,
+        *,
+        cluster_config: ClusterConfiguration,
+        **kwargs: Unpack[JobOptions],
+    ) -> "RayJob": ...
 
     def submit(
         self,
@@ -257,17 +387,17 @@ class JobHandler:
         Raises:
             ValueError: If neither or both of cluster_name/cluster_config given.
         """
-        job = self.create(
-            name=name,
-            entrypoint=entrypoint,
-            cluster_name=cluster_name,
-            cluster_config=cluster_config,
-            namespace=namespace,
-            runtime_env=runtime_env,
-            ttl_seconds_after_finished=ttl_seconds_after_finished,
-            active_deadline_seconds=active_deadline_seconds,
-            local_queue=local_queue,
-            priority_class=priority_class,
+        job = self._build(
+            name,
+            entrypoint,
+            namespace,
+            cluster_name,
+            cluster_config,
+            runtime_env,
+            ttl_seconds_after_finished,
+            active_deadline_seconds,
+            local_queue,
+            priority_class,
         )
         job.submit()
         return job

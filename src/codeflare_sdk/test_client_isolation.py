@@ -22,6 +22,7 @@ resolution (P2-8).
 import pytest
 from unittest.mock import MagicMock
 
+from codeflare_sdk import ClusterConfiguration
 from codeflare_sdk.common.kubernetes_cluster import auth
 
 
@@ -73,7 +74,9 @@ class TestClientIsolation:
         client_a = MagicMock(name="client_a")
         cf_a = make_codeflare(mocker, client_a)
 
-        cluster = cf_a.clusters.create(name="training", num_workers=1)
+        cluster = cf_a.clusters.create(
+            ClusterConfiguration(name="training", num_workers=1)
+        )
 
         assert cluster._api_client is client_a
 
@@ -89,7 +92,9 @@ class TestClientIsolation:
             side_effect=[client_a, client_b],
         )
         cf_a = Codeflare(SDKConfig(namespace="prod"))
-        cluster_a = cf_a.clusters.create(name="training", num_workers=1)
+        cluster_a = cf_a.clusters.create(
+            ClusterConfiguration(name="training", num_workers=1)
+        )
 
         Codeflare(SDKConfig(namespace="dev"))  # cf_b takes over the global
 
@@ -157,7 +162,9 @@ class TestClientIsolation:
         """The context-scoped client must not leak past the call."""
         client_a = MagicMock(name="client_a")
         cf_a = make_codeflare(mocker, client_a)
-        cluster = cf_a.clusters.create(name="training", num_workers=1)
+        cluster = cf_a.clusters.create(
+            ClusterConfiguration(name="training", num_workers=1)
+        )
 
         cluster.status(print_to_console=False)
 
@@ -215,14 +222,16 @@ class TestNamespaceResolution:
     def test_explicit_namespace_wins(self, mocker):
         cf = make_codeflare(mocker, MagicMock(), namespace="from-config")
 
-        cluster = cf.clusters.create(name="c", namespace="explicit", num_workers=1)
+        cluster = cf.clusters.create(
+            ClusterConfiguration(name="c", num_workers=1), namespace="explicit"
+        )
 
         assert cluster.config.namespace == "explicit"
 
     def test_sdk_config_namespace_used_when_no_explicit(self, mocker):
         cf = make_codeflare(mocker, MagicMock(), namespace="from-config")
 
-        cluster = cf.clusters.create(name="c", num_workers=1)
+        cluster = cf.clusters.create(ClusterConfiguration(name="c", num_workers=1))
 
         assert cluster.config.namespace == "from-config"
 
@@ -233,7 +242,7 @@ class TestNamespaceResolution:
         )
         cf = make_codeflare(mocker, MagicMock(), namespace=None)
 
-        cluster = cf.clusters.create(name="c", num_workers=1)
+        cluster = cf.clusters.create(ClusterConfiguration(name="c", num_workers=1))
 
         assert cluster.config.namespace == "detected-ns"
 
@@ -242,7 +251,7 @@ class TestNamespaceResolution:
         cf = make_codeflare(mocker, MagicMock(), namespace=None)
 
         with pytest.raises(ValueError, match="[Nn]amespace"):
-            cf.clusters.create(name="c", num_workers=1)
+            cf.clusters.create(ClusterConfiguration(name="c", num_workers=1))
 
     def test_does_not_silently_use_default_namespace(self, mocker):
         mocker.patch("codeflare_sdk.codeflare.get_current_namespace", return_value=None)
@@ -295,7 +304,7 @@ class TestReviewFollowups:
         """Cluster.config_check() must run under the instance's client."""
         client_a = MagicMock(name="client_a")
         cf_a = make_codeflare(mocker, client_a)
-        cluster = cf_a.clusters.create(name="c", num_workers=1)
+        cluster = cf_a.clusters.create(ClusterConfiguration(name="c", num_workers=1))
 
         seen = []
         # cluster.py imports these by name, so patch them there, not on auth.
@@ -312,7 +321,7 @@ class TestReviewFollowups:
         """_client_headers resolves a client, so it must be scoped too."""
         client_a = MagicMock(name="client_a")
         cf_a = make_codeflare(mocker, client_a)
-        cluster = cf_a.clusters.create(name="c", num_workers=1)
+        cluster = cf_a.clusters.create(ClusterConfiguration(name="c", num_workers=1))
 
         seen = []
         mocker.patch(
@@ -399,7 +408,7 @@ class TestReviewNits:
         client_a = MagicMock(name="client_a")
         client_b = MagicMock(name="client_b")
         cf_a, make_cf_b = two_codeflares(mocker, client_a, client_b)
-        cluster = cf_a.clusters.create(name="c", num_workers=1)
+        cluster = cf_a.clusters.create(ClusterConfiguration(name="c", num_workers=1))
         make_cf_b()
 
         recorded_apis_clients.clear()
@@ -412,7 +421,7 @@ class TestReviewNits:
     def test_cluster_uri_is_scoped(self, mocker):
         client_a = MagicMock(name="client_a")
         cf_a = make_codeflare(mocker, client_a)
-        cluster = cf_a.clusters.create(name="c", num_workers=1)
+        cluster = cf_a.clusters.create(ClusterConfiguration(name="c", num_workers=1))
 
         seen = []
         mocker.patch.object(

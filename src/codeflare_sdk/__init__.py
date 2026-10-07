@@ -14,7 +14,7 @@ from .ray import (
 
 from .common.widgets import view_clusters
 
-from .codeflare import Codeflare, SDKConfig
+from .codeflare import Codeflare, SDKConfig, JobOptions
 
 from .common.kueue import (
     list_local_queues,

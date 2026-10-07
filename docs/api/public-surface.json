@@ -18,6 +18,15 @@
         "list_all_clusters"
       ]
     },
+    "codeflare": {
+      "module": "codeflare_sdk.codeflare",
+      "symbols": [
+        "Codeflare",
+        "SDKConfig",
+        "JobOptions"
+      ],
+      "notes": "Single entrypoint. JobOptions is a TypedDict describing the shared keyword arguments of the cf.jobs.create()/submit() overloads; it carries no runtime behaviour."
+    },
     "rayjobs": {
       "module": "codeflare_sdk.ray.rayjobs",
       "symbols": [
