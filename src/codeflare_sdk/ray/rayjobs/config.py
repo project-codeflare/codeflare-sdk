@@ -229,9 +229,11 @@ def _build_resource_requirements(
     cpu_requests, cpu_limits, mem_requests, mem_limits, extended=None
 ):
     reqs = V1ResourceRequirements(
-        requests={"cpu": cpu_requests, "memory": mem_requests},
-        limits={"cpu": cpu_limits, "memory": mem_limits},
+        requests={"cpu": str(cpu_requests), "memory": str(mem_requests)},
+        limits={"cpu": str(cpu_limits), "memory": str(mem_limits)},
     )
+    reqs.requests["cpu"] = cpu_requests
+    reqs.limits["cpu"] = cpu_limits
     if extended:
         for k, v in extended.items():
             reqs.limits[k] = v
@@ -259,7 +261,7 @@ def _build_head_container(config: ClusterConfiguration) -> V1Container:
         ],
         lifecycle=V1Lifecycle(
             pre_stop=V1LifecycleHandler(
-                _exec=V1ExecAction(["/bin/sh", "-c", "ray stop"])
+                _exec=V1ExecAction(command=["/bin/sh", "-c", "ray stop"])
             )
         ),
         resources=_build_resource_requirements(
@@ -283,7 +285,7 @@ def _build_worker_container(config: ClusterConfiguration) -> V1Container:
         image_pull_policy="Always",
         lifecycle=V1Lifecycle(
             pre_stop=V1LifecycleHandler(
-                _exec=V1ExecAction(["/bin/sh", "-c", "ray stop"])
+                _exec=V1ExecAction(command=["/bin/sh", "-c", "ray stop"])
             )
         ),
         resources=_build_resource_requirements(
@@ -399,7 +401,7 @@ def _build_additional_worker_group_spec(
     max_replicas = wg.max_replicas if wg.max_replicas is not None else replicas
 
     gpu_count = wg.gpu_count or 0
-    extended_resources = {}
+    extended_resources = dict(wg.extended_resource_requests)
     if wg.gpu_type and wg.gpu_count:
         extended_resources[wg.gpu_type] = wg.gpu_count
 
@@ -423,7 +425,7 @@ def _build_additional_worker_group_spec(
         image_pull_policy="Always",
         lifecycle=V1Lifecycle(
             pre_stop=V1LifecycleHandler(
-                _exec=V1ExecAction(["/bin/sh", "-c", "ray stop"])
+                _exec=V1ExecAction(command=["/bin/sh", "-c", "ray stop"])
             )
         ),
         resources=_build_resource_requirements(

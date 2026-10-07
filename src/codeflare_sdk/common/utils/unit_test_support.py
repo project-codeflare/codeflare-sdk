@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import copy
 import string
 from codeflare_sdk.common.utils import constants
 from codeflare_sdk.common.utils.utils import get_ray_image_for_python_version
@@ -138,6 +139,42 @@ def get_ray_obj(group, version, namespace, plural):
 
     rc_list = {"items": [rc_a, rc_b]}
     return rc_list
+
+
+def get_multi_worker_group_ray_obj(group, version, namespace, plural):
+    """Return a fixture RayCluster with two worker groups and extended resources."""
+    rc = copy.deepcopy(get_ray_obj(group, version, namespace, plural)["items"][0])
+    rc["metadata"]["name"] = "multi-group"
+    rc["spec"]["headGroupSpec"]["template"]["spec"]["containers"][0]["resources"][
+        "limits"
+    ]["example.com/head"] = 2
+    primary = rc["spec"]["workerGroupSpecs"][0]
+    primary["groupName"] = "cpu-workers"
+    primary["template"]["spec"]["containers"][0]["resources"]["limits"][
+        "example.com/fpga"
+    ] = 1
+
+    additional = copy.deepcopy(primary)
+    additional["groupName"] = "gpu-workers"
+    additional["template"]["spec"]["containers"][0]["resources"]["limits"].pop(
+        "example.com/fpga"
+    )
+    additional["template"]["spec"]["containers"][0]["resources"]["limits"][
+        "nvidia.com/gpu"
+    ] = 2
+    additional["template"]["spec"]["containers"][0]["resources"]["limits"][
+        "example.com/accelerator"
+    ] = 3
+    rc["spec"]["workerGroupSpecs"].append(additional)
+    return {"items": [rc]}
+
+
+def get_partial_worker_group_ray_obj(group, version, namespace, plural):
+    """Return a fixture RayCluster with a partial worker-group specification."""
+    rc = copy.deepcopy(get_ray_obj(group, version, namespace, plural)["items"][0])
+    rc["metadata"]["name"] = "partial-group"
+    rc["spec"]["workerGroupSpecs"] = [{"groupName": "partial-workers"}]
+    return {"items": [rc]}
 
 
 def get_ray_obj_with_status(group, version, namespace, plural):

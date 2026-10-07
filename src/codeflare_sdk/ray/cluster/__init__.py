@@ -2,6 +2,7 @@ from .status import (
     RayClusterStatus,
     CodeFlareClusterStatus,
     RayCluster,
+    WorkerGroupStatus,
 )
 
 from .cluster import (

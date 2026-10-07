@@ -172,7 +172,7 @@ def build_ray_cluster(cluster: "codeflare_sdk.ray.cluster.Cluster"):
                 },
                 "template": V1PodTemplateSpec(
                     metadata=(
-                        V1ObjectMeta(cluster.config.annotations)
+                        V1ObjectMeta(annotations=cluster.config.annotations)
                         if cluster.config.annotations
                         else None
                     ),
@@ -199,7 +199,7 @@ def build_ray_cluster(cluster: "codeflare_sdk.ray.cluster.Cluster"):
                     },
                     "template": V1PodTemplateSpec(
                         metadata=(
-                            V1ObjectMeta(cluster.config.annotations)
+                            V1ObjectMeta(annotations=cluster.config.annotations)
                             if cluster.config.annotations
                             else None
                         ),
@@ -354,7 +354,7 @@ def get_head_container_spec(
         ],
         lifecycle=V1Lifecycle(
             pre_stop=V1LifecycleHandler(
-                _exec=V1ExecAction(["/bin/sh", "-c", "ray stop"])
+                _exec=V1ExecAction(command=["/bin/sh", "-c", "ray stop"])
             )
         ),
         resources=get_resources(
@@ -398,7 +398,7 @@ def get_worker_container_spec(
         image_pull_policy="Always",
         lifecycle=V1Lifecycle(
             pre_stop=V1LifecycleHandler(
-                _exec=V1ExecAction(["/bin/sh", "-c", "ray stop"])
+                _exec=V1ExecAction(command=["/bin/sh", "-c", "ray stop"])
             )
         ),
         resources=get_resources(
@@ -430,9 +430,11 @@ def get_resources(
     The get_resources() function generates a V1ResourceRequirements object for cpu/memory request/limits and GPU resources
     """
     resource_requirements = V1ResourceRequirements(
-        requests={"cpu": cpu_requests, "memory": memory_requests},
-        limits={"cpu": cpu_limits, "memory": memory_limits},
+        requests={"cpu": str(cpu_requests), "memory": str(memory_requests)},
+        limits={"cpu": str(cpu_limits), "memory": str(memory_limits)},
     )
+    resource_requirements.requests["cpu"] = cpu_requests
+    resource_requirements.limits["cpu"] = cpu_limits
 
     # Append the resource/limit requests with custom extended resources
     if custom_extended_resource_requests is not None:
@@ -619,7 +621,7 @@ def _build_worker_group_spec(
 
     # GPU handling
     gpu_count = wg.gpu_count or 0
-    extended_resources = {}
+    extended_resources = dict(wg.extended_resource_requests)
     if wg.gpu_type and wg.gpu_count:
         extended_resources[wg.gpu_type] = wg.gpu_count
 
@@ -653,7 +655,7 @@ def _build_worker_group_spec(
         image_pull_policy="Always",
         lifecycle=V1Lifecycle(
             pre_stop=V1LifecycleHandler(
-                _exec=V1ExecAction(["/bin/sh", "-c", "ray stop"])
+                _exec=V1ExecAction(command=["/bin/sh", "-c", "ray stop"])
             )
         ),
         resources=get_resources(

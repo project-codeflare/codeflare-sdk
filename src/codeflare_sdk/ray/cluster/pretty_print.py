@@ -113,7 +113,11 @@ def print_clusters(clusters: List[RayCluster]):
         )
         name = cluster.name
         dashboard = cluster.dashboard
-        workers = str(cluster.num_workers)
+        workers = str(
+            sum(group.replicas for group in cluster.worker_groups)
+            if cluster.worker_groups
+            else cluster.num_workers
+        )
         memory = f"{cluster.worker_mem_requests}~{cluster.worker_mem_limits}"
         cpu = f"{cluster.worker_cpu_requests}~{cluster.worker_cpu_limits}"
         gpu = str(cluster.worker_extended_resources.get("nvidia.com/gpu", 0))
@@ -149,9 +153,25 @@ def print_clusters(clusters: List[RayCluster]):
         table2.add_row(memory, cpu, gpu)
         table2.add_row()
 
+        if len(cluster.worker_groups) > 1:
+            group_table = Table(box=None)
+            group_table.add_column(
+                "Group", style="cyan", no_wrap=False, overflow="fold", max_width=30
+            )
+            group_table.add_column("Replicas", style="magenta")
+            group_table.add_column("Resources", style="magenta")
+            for group in cluster.worker_groups:
+                resources = f"cpu={group.cpu_limits}, memory={group.memory_limits}"
+                for name, value in group.extended_resource_limits.items():
+                    resources += f", {name}={value}"
+                group_table.add_row(
+                    group.group_name,
+                    str(group.replicas),
+                    resources,
+                )
         # panels to encompass table1 and table2 into separate cards
         panel_1 = Panel.fit(table1, title="Workers")
-        panel_2 = Panel.fit(table2, title="Worker specs(each)")
+        panel_2 = Panel.fit(table2, title="Worker group specs")
 
         # table3 to display panel_1 and panel_2 side-by-side in a single row
         table3 = Table(box=None, show_header=False, title="Cluster Resources")
@@ -159,8 +179,12 @@ def print_clusters(clusters: List[RayCluster]):
 
         # table4 to display table0 and table3, one below the other
         table4 = Table(box=None, show_header=False)
+        table4.add_column(no_wrap=False, overflow="fold")
         table4.add_row(table0)
         table4.add_row(table3)
+        if len(cluster.worker_groups) > 1:
+            group_table.title = "Worker groups"
+            table4.add_row(group_table)
 
         # Encompass all details of the cluster in a single panel
         if not title_printed:

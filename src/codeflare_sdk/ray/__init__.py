@@ -19,4 +19,5 @@ from .cluster import (
     RayClusterStatus,
     CodeFlareClusterStatus,
     RayCluster,
+    WorkerGroupStatus,
 )

@@ -651,6 +651,22 @@ def test_worker_group_invalid_memory_requests():
         WorkerGroup(group_name="bad-mem", memory_requests="lots")
 
 
+@pytest.mark.parametrize(
+    "extended_resources, error_match",
+    [
+        ([], "must be a dict"),
+        ({"": 1}, "names must be non-empty strings"),
+        ({"example.com/accelerator": True}, "values must be ints or strings"),
+    ],
+)
+def test_worker_group_extended_resource_validation(extended_resources, error_match):
+    with pytest.raises(ValueError, match=error_match):
+        WorkerGroup(
+            group_name="bad-extended-resource",
+            extended_resource_requests=extended_resources,
+        )
+
+
 def test_worker_group_negative_gpu_count():
     with pytest.raises(ValueError, match="gpu_count=-1"):
         WorkerGroup(

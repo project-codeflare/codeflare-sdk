@@ -52,6 +52,23 @@ class CodeFlareClusterStatus(Enum):
 
 
 @dataclass
+class WorkerGroupStatus:
+    """Observed state for a worker group returned by KubeRay."""
+
+    group_name: str
+    replicas: int
+    min_replicas: typing.Optional[int]
+    max_replicas: typing.Optional[int]
+    cpu_requests: typing.Union[int, str]
+    cpu_limits: typing.Union[int, str]
+    memory_requests: typing.Union[int, str]
+    memory_limits: typing.Union[int, str]
+    extended_resource_limits: typing.Dict[str, typing.Union[int, str]] = field(
+        default_factory=dict
+    )
+
+
+@dataclass
 class RayCluster:
     """
     For storing information about a Ray cluster.
@@ -72,3 +89,4 @@ class RayCluster:
     dashboard: str
     worker_extended_resources: typing.Dict[str, int] = field(default_factory=dict)
     head_extended_resources: typing.Dict[str, int] = field(default_factory=dict)
+    worker_groups: typing.List[WorkerGroupStatus] = field(default_factory=list)
