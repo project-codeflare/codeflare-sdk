@@ -274,9 +274,23 @@ Real examples for the most common change types. Follow these patterns, not descr
 - Two builders consume the same dataclass and must stay in parity:
   - standalone RayCluster: `src/codeflare_sdk/ray/cluster/build_ray_cluster.py`
   - RayJob-embedded `rayClusterSpec`: `src/codeflare_sdk/ray/rayjobs/config.py`
-    (`build_ray_cluster_spec`, line 96)
+    (`build_ray_cluster_spec`)
 
-  A field added to only one builder is silently dropped by the other path.
+  Their shared pieces live in `src/codeflare_sdk/ray/cluster/raycluster_spec.py`
+  — put a new field there, not in one builder. A field added to only one path is
+  silently dropped by the other; nothing errors, the cluster just comes up
+  without it.
+
+  `src/codeflare_sdk/ray/test_builder_parity.py` enforces this: a new field must
+  either get a sentinel (and reach both builders) or be classified
+  CONTEXT_ONLY / NOT_APPLICABLE / CONFLICTED with a reason. The full audit is
+  `docs/raycluster_spec_parity.md` (RHOAIENG-98942).
+
+  `raycluster_spec.py` must stay free of Kubernetes API calls. The standalone
+  builder makes three while rendering (`local_queue_exists`,
+  `get_default_local_queue`, `validate_autoscaling_with_kueue`) and the RayJob
+  builder makes none; moving any of them into the shared module would give the
+  RayJob path network calls it does not make today.
 - Nothing to add on the facade side: `cf.clusters.create()` takes a
   `ClusterConfiguration` rather than `**kwargs`, so a new field reaches it for
   free (RHOAIENG-98954).
