@@ -41,7 +41,6 @@ from kubernetes.client import (
 
 import yaml
 import uuid
-import json
 
 # RHOAIENG-98942: the RayCluster spec is rendered from one place, shared with
 # the RayJob-embedded builder. These aliases keep this module's existing call
@@ -377,8 +376,7 @@ def _build_worker_group_spec(
         rtype = mapping.get(wg.gpu_type, "GPU")
         if rtype not in FORBIDDEN_CUSTOM_RESOURCE_TYPES:
             ray_resources[rtype] = wg.gpu_count
-    ray_resources_str = json.dumps(ray_resources).replace('"', '\\"')
-    ray_resources_str = f'"{ray_resources_str}"'
+    ray_resources_str = format_resources_param(ray_resources)
 
     # Image inheritance
     image = wg.image if wg.image else update_image(cluster.config.image)
