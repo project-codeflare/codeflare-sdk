@@ -8,11 +8,13 @@ import pytest
 import ray
 import math
 import subprocess
+import time
 
 from support import *
 
 
 @pytest.mark.kind
+@pytest.mark.timeout(2400)
 class TestRayLocalInteractiveKind:
     def setup_method(self):
         initialize_kubernetes_client(self)
@@ -65,10 +67,10 @@ class TestRayLocalInteractiveKind:
             )
         )
 
-        cluster.apply()
+        cluster.apply(timeout=60)
 
         # Disable dashboard check on KinD as HTTPRoute/Route is not available
-        cluster.wait_ready(dashboard_check=False)
+        cluster.wait_ready(timeout=900, dashboard_check=False)
         cluster.status()
 
         # Try to generate TLS certs, but don't fail if CA secret is not available
@@ -118,7 +120,21 @@ class TestRayLocalInteractiveKind:
             client_url = f"ray://localhost:{local_port}"
             cluster.status()
 
-            ray.init(address=client_url, logging_level="INFO")
+            deadline = time.time() + 180
+            last_error = None
+            while time.time() < deadline:
+                try:
+                    ray.init(address=client_url, logging_level="INFO")
+                    last_error = None
+                    break
+                except Exception as e:
+                    last_error = e
+                    print(f"Waiting for Ray client at {client_url}: {e}")
+                    time.sleep(5)
+            if last_error is not None:
+                raise TimeoutError(
+                    f"Ray client at {client_url} not ready after 180s: {last_error}"
+                ) from last_error
 
             ref = heavy_calculation.remote(3000)
             result = ray.get(ref)

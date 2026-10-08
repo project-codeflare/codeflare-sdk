@@ -1967,6 +1967,32 @@ def detect_stuck_oauth_proxy_serviceaccount(namespace, timeout_minutes=3):
         return False
 
 
+def wait_for_kind_dashboard(address, timeout=180):
+    """Poll until the Ray Jobs API answers on a kubectl port-forward.
+
+    KinD has no Route/HTTPRoute. A short sleep after port-forward is not
+    enough: the Service may have no ready endpoints yet, which shows up as
+    ConnectionError / RemoteDisconnected on GET /api/version.
+    """
+    import requests
+
+    deadline = time.time() + timeout
+    last_error = None
+    while time.time() < deadline:
+        try:
+            response = requests.get(f"{address.rstrip('/')}/api/version", timeout=3)
+            if response.status_code == 200:
+                print(f"KinD dashboard ready at {address}")
+                return
+            last_error = f"HTTP {response.status_code}"
+        except Exception as e:
+            last_error = e
+        time.sleep(2)
+    raise TimeoutError(
+        f"Ray dashboard at {address} not reachable after {timeout}s: {last_error}"
+    )
+
+
 def wait_ready_with_stuck_detection(cluster, timeout=600, dashboard_check=True):
     """
     Enhanced cluster.wait_ready() with stuck oauth-proxy ServiceAccount detection and recovery.
