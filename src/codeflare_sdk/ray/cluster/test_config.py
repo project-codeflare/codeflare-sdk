@@ -890,10 +890,28 @@ def test_additional_worker_groups_empty_by_default(mocker):
     mocker.patch("kubernetes.client.ApisApi.get_api_versions")
     mocker.patch("kubernetes.client.CustomObjectsApi.list_namespaced_custom_object")
 
-    cluster = Cluster(ClusterConfiguration(name="no-extras", namespace="ns"))
+    cluster = Cluster(
+        ClusterConfiguration(name="no-extras", namespace="ns", image="ray:test")
+    )
 
     spec = cluster.resource_yaml["spec"]
-    assert len(spec["workerGroupSpecs"]) == 1
+    worker_groups = spec["workerGroupSpecs"]
+    assert len(worker_groups) == 1
+
+    worker_group = worker_groups[0]
+    assert worker_group["groupName"] == "small-group-no-extras"
+    assert worker_group["replicas"] == 1
+    assert worker_group["minReplicas"] == 1
+    assert worker_group["maxReplicas"] == 1
+    assert worker_group["rayStartParams"]["num-cpus"] == "1"
+    assert worker_group["rayStartParams"]["num-gpus"] == "0"
+
+    container = worker_group["template"]["spec"]["containers"][0]
+    assert container["image"] == "ray:test"
+    assert container["resources"] == {
+        "limits": {"cpu": 1, "memory": "6G"},
+        "requests": {"cpu": 1, "memory": "3G"},
+    }
 
 
 def test_additional_worker_group_with_image_pull_secrets(mocker):
