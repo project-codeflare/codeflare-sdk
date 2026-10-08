@@ -37,6 +37,7 @@ from codeflare_sdk.ray.cluster.cluster import (
     _is_openshift_cluster,
     _worker_group_from_spec,
 )
+from codeflare_sdk.ray.cluster.config import WorkerGroup
 from codeflare_sdk.ray.cluster.status import CodeFlareClusterStatus, RayClusterStatus
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -112,7 +113,13 @@ def test_cluster_apply_down(mocker):
         "codeflare_sdk.ray.cluster.cluster.Cluster._generate_tls_certs_with_wait"
     )
 
-    cluster = create_cluster(mocker)
+    config = create_cluster_config()
+    config.additional_worker_groups.append(
+        WorkerGroup(group_name="gpu-workers", replicas=1)
+    )
+    cluster = Cluster(config)
+    assert len(cluster.resource_yaml["spec"]["workerGroupSpecs"]) == 2
+
     cluster.apply()
     cluster.down()
 
