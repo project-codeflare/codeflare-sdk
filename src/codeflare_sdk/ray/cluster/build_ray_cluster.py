@@ -43,6 +43,23 @@ import yaml
 import uuid
 import json
 
+# RHOAIENG-98942: the RayCluster spec is rendered from one place, shared with
+# the RayJob-embedded builder. These aliases keep this module's existing call
+# sites; the wrappers further down do the same for helpers that take a Cluster
+# rather than a ClusterConfiguration.
+from . import raycluster_spec as _spec
+from .raycluster_spec import (
+    FORBIDDEN_CUSTOM_RESOURCE_TYPES,
+    ODH_VOLUMES as VOLUMES,
+    ODH_VOLUME_MOUNTS as VOLUME_MOUNTS,
+    build_resource_requirements as get_resources,
+    cpu_limit_to_num_cpus as _cpu_limit_to_num_cpus,
+    format_resources_param,
+    gcs_fault_tolerance_options,
+    merge_storage as generate_custom_storage,
+    worker_replica_counts,
+)
+
 
 # RayCluster builder function
 def build_ray_cluster(cluster: "codeflare_sdk.ray.cluster.Cluster"):
@@ -57,12 +74,11 @@ def build_ray_cluster(cluster: "codeflare_sdk.ray.cluster.Cluster"):
     head_resources, worker_resources = head_worker_extended_resources_from_cluster(
         cluster
     )
-    head_resources = json.dumps(head_resources).replace('"', '\\"')
-    head_resources = f'"{head_resources}"'
-    worker_resources = json.dumps(worker_resources).replace('"', '\\"')
-    worker_resources = f'"{worker_resources}"'
+    head_resources = format_resources_param(head_resources)
+    worker_resources = format_resources_param(worker_resources)
 
-    # Determine autoscaling vs fixed-size worker replica settings
+    # Kueue compatibility is a cluster lookup, so it stays here rather than in
+    # the shared renderer, which must remain free of API calls.
     autoscaling_enabled = cluster.config.enable_autoscaling
     if autoscaling_enabled:
         from codeflare_sdk.common.kueue.kueue import validate_autoscaling_with_kueue
@@ -70,13 +86,10 @@ def build_ray_cluster(cluster: "codeflare_sdk.ray.cluster.Cluster"):
         validate_autoscaling_with_kueue(
             cluster.config.namespace, cluster.config.local_queue
         )
-        worker_replicas = cluster.config.min_workers
-        worker_min_replicas = cluster.config.min_workers
-        worker_max_replicas = cluster.config.max_workers
-    else:
-        worker_replicas = cluster.config.num_workers
-        worker_min_replicas = cluster.config.num_workers
-        worker_max_replicas = cluster.config.num_workers
+
+    worker_replicas, worker_min_replicas, worker_max_replicas = worker_replica_counts(
+        cluster.config
+    )
 
     # Create the Ray Cluster using the V1RayCluster Object
     resource = {
@@ -150,29 +163,8 @@ def build_ray_cluster(cluster: "codeflare_sdk.ray.cluster.Cluster"):
             _build_worker_group_spec(cluster, wg)
         )
 
-    if cluster.config.enable_gcs_ft:
-        if not cluster.config.redis_address:
-            raise ValueError(
-                "redis_address must be provided when enable_gcs_ft is True"
-            )
-
-        gcs_ft_options = {"redisAddress": cluster.config.redis_address}
-
-        if cluster.config.external_storage_namespace:
-            gcs_ft_options["externalStorageNamespace"] = (
-                cluster.config.external_storage_namespace
-            )
-
-        if cluster.config.redis_password_secret:
-            gcs_ft_options["redisPassword"] = {
-                "valueFrom": {
-                    "secretKeyRef": {
-                        "name": cluster.config.redis_password_secret["name"],
-                        "key": cluster.config.redis_password_secret["key"],
-                    }
-                }
-            }
-
+    gcs_ft_options = gcs_fault_tolerance_options(cluster.config)
+    if gcs_ft_options is not None:
         resource["spec"]["gcsFaultToleranceOptions"] = gcs_ft_options
 
     config_check()
@@ -476,20 +468,6 @@ def gen_names(name):
         return cluster_name
     else:
         return name
-
-
-# RHOAIENG-98942: the RayCluster spec is rendered from one place, shared with
-# the RayJob-embedded builder. The wrappers below keep this module's existing
-# call sites and signatures while the logic lives in raycluster_spec.
-from .raycluster_spec import (  # noqa: E402
-    FORBIDDEN_CUSTOM_RESOURCE_TYPES,
-    ODH_VOLUMES as VOLUMES,
-    ODH_VOLUME_MOUNTS as VOLUME_MOUNTS,
-    build_resource_requirements as get_resources,
-    cpu_limit_to_num_cpus as _cpu_limit_to_num_cpus,
-    merge_storage as generate_custom_storage,
-)
-from . import raycluster_spec as _spec  # noqa: E402
 
 
 def head_worker_gpu_count_from_cluster(cluster) -> Tuple[int, int]:

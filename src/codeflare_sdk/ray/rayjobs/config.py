@@ -54,12 +54,10 @@ from ..cluster.raycluster_spec import (
     gcs_fault_tolerance_options,
     gpu_counts as _gpu_counts,
     merge_storage as _merge_storage,
+    worker_replica_counts,
 )
 
 logger = logging.getLogger(__name__)
-
-
-# --- ODH CA cert volumes (same as build_ray_cluster.py) ---
 
 
 def build_ray_cluster_spec(
@@ -85,14 +83,9 @@ def build_ray_cluster_spec(
     worker_resources_str = _format_resources_param(worker_resources)
 
     autoscaling_enabled = config.enable_autoscaling
-    if autoscaling_enabled:
-        worker_replicas = config.min_workers
-        worker_min_replicas = config.min_workers
-        worker_max_replicas = config.max_workers
-    else:
-        worker_replicas = config.num_workers
-        worker_min_replicas = config.num_workers
-        worker_max_replicas = config.num_workers
+    worker_replicas, worker_min_replicas, worker_max_replicas = worker_replica_counts(
+        config
+    )
 
     ray_cluster_spec = {
         "rayVersion": RAY_VERSION,

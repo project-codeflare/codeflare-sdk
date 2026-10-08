@@ -32,10 +32,10 @@ from dataclasses import fields
 from unittest.mock import patch
 
 import pytest
-from kubernetes.client import V1Toleration, V1Volume, V1VolumeMount
+from kubernetes.client import ApiClient, V1Toleration, V1Volume, V1VolumeMount
 
 from codeflare_sdk.ray.cluster import build_ray_cluster as brc
-from codeflare_sdk.ray.cluster.config import ClusterConfiguration
+from codeflare_sdk.ray.cluster.config import ClusterConfiguration, WorkerGroup
 from codeflare_sdk.ray.rayjobs.config import build_ray_cluster_spec
 
 # Consumed before a builder ever sees them, so their absence is correct.
@@ -99,7 +99,9 @@ SENTINELS = {
     "enable_autoscaling": True,
     "min_workers": 2,
     "max_workers": 9,
-    "additional_worker_groups": [],
+    "additional_worker_groups": [
+        WorkerGroup(group_name="sentinel-extra-group", replicas=3)
+    ],
 }
 
 # The substring to look for, when it is not the sentinel value itself.
@@ -117,12 +119,23 @@ MARKERS = {
     "volume_mounts": "/sentinel",
     "extended_resource_mapping": "SENTINEL_ACC",
     "redis_password_secret": "sentinel-secret",
-    "enable_gcs_ft": None,  # observable only through the fields below
-    "enable_autoscaling": None,  # observable through min/max replicas
-    "num_workers": None,  # replicas, checked structurally below
-    "additional_worker_groups": None,  # empty by default; covered separately
-    "min_workers": None,
-    "max_workers": None,
+    "additional_worker_groups": "sentinel-extra-group",
+}
+
+# Fields with no distinctive string of their own: a boolean or a count cannot
+# be found by searching a rendered spec, and a substring check for "2" would
+# pass on any spec that happens to contain a 2. Each is asserted against the
+# structured spec instead, by the named test below.
+#
+# They are listed rather than skipped — an earlier version of this module
+# filtered them out of the parametrized test, which quietly meant six fields
+# were never parity-checked at all.
+STRUCTURAL = {
+    "num_workers": "test_replica_counts_match_on_both_paths",
+    "min_workers": "test_replica_counts_match_on_both_paths",
+    "max_workers": "test_replica_counts_match_on_both_paths",
+    "enable_autoscaling": "test_autoscaling_flag_matches_on_both_paths",
+    "enable_gcs_ft": "test_gcs_fault_tolerance_matches_on_both_paths",
 }
 
 # Fields the RayJob path drops. Empty since RHOAIENG-98942 closed the last of
@@ -135,7 +148,7 @@ KNOWN_GAPS: dict = {}
 
 def _configurable():
     for f in fields(ClusterConfiguration):
-        if f.name in EXEMPT or MARKERS.get(f.name, "") is None:
+        if f.name in EXEMPT or f.name in STRUCTURAL:
             continue
         reason = KNOWN_GAPS.get(f.name)
         marks = [pytest.mark.xfail(strict=True, reason=reason)] if reason else []
@@ -160,7 +173,17 @@ def _full_config(**overrides):
     return ClusterConfiguration(name="parity", namespace="parity-ns", **values)
 
 
-def _render_standalone(config) -> str:
+def _as_plain_dict(obj) -> dict:
+    """Render Kubernetes model objects down to plain dicts.
+
+    Both builders return dicts holding V1PodTemplateSpec and friends, so
+    structural assertions need them flattened first. sanitize_for_serialization
+    is pure — it makes no API call — so an unconfigured client is fine here.
+    """
+    return ApiClient().sanitize_for_serialization(obj)
+
+
+def _spec_standalone(config) -> dict:
     # The standalone builder reaches the Kueue API while rendering — both
     # local_queue_exists() and get_default_local_queue() list LocalQueues —
     # which the RayJob builder never does. Lifting that I/O out of spec
@@ -170,19 +193,36 @@ def _render_standalone(config) -> str:
         patch.object(brc, "local_queue_exists", return_value=True),
         patch.object(brc, "get_default_local_queue", return_value=None),
     ):
-        return repr(brc.build_ray_cluster(_FakeCluster(config)))
+        return _as_plain_dict(brc.build_ray_cluster(_FakeCluster(config)))["spec"]
+
+
+def _spec_embedded(config) -> dict:
+    return _as_plain_dict(
+        build_ray_cluster_spec(config=config, cluster_name="parity-cluster")
+    )
+
+
+def _render_standalone(config) -> str:
+    return repr(_spec_standalone(config))
 
 
 def _render_embedded(config) -> str:
-    return repr(build_ray_cluster_spec(config=config, cluster_name="parity-cluster"))
+    return repr(_spec_embedded(config))
 
 
 @pytest.fixture
-def rendered():
+def specs():
+    """Both specs as plain dicts, for structural assertions."""
     # Function-scoped on purpose: the global autouse mock_kubernetes fixture in
     # conftest.py is function-scoped, and a wider scope here would run outside it.
     config = _full_config()
-    return _render_standalone(config), _render_embedded(config)
+    return _spec_standalone(config), _spec_embedded(config)
+
+
+@pytest.fixture
+def rendered(specs):
+    standalone, embedded = specs
+    return repr(standalone), repr(embedded)
 
 
 @pytest.mark.parametrize("field_name", CONFIGURABLE)
@@ -221,23 +261,85 @@ def test_exemptions_each_carry_a_reason():
     assert all(reason for reason in EXEMPT.values())
 
 
-def test_worker_replicas_match_the_configured_count(rendered):
-    """num_workers drives replicas on both paths (min/max under autoscaling)."""
-    standalone, embedded = rendered
-
-    # enable_autoscaling is on in the full config, so min/max_workers win.
-    for spec in (standalone, embedded):
-        assert "'minReplicas': 2" in spec
-        assert "'maxReplicas': 9" in spec
+def test_structural_fields_name_a_real_test():
+    """A field routed to a named test must actually have one."""
+    here = globals()
+    for field_name, test_name in STRUCTURAL.items():
+        assert test_name in here, f"{field_name} points at missing {test_name}"
 
 
-def test_fixed_size_replicas_match_num_workers():
-    """Without autoscaling, replicas come from num_workers on both paths."""
+def _default_group(spec: dict) -> dict:
+    return spec["workerGroupSpecs"][0]
+
+
+def test_replica_counts_match_on_both_paths(specs):
+    """num_workers / min_workers / max_workers, read off the spec."""
+    # Autoscaling is on in the full config, so the min/max range wins.
+    for spec in specs:
+        group = _default_group(spec)
+        assert (group["replicas"], group["minReplicas"], group["maxReplicas"]) == (
+            2,
+            2,
+            9,
+        )
+
+
+def test_fixed_size_replica_counts_match_on_both_paths():
+    """Without autoscaling all three come from num_workers, on both paths."""
     config = _full_config(enable_autoscaling=False, min_workers=None, max_workers=None)
-    standalone = _render_standalone(config)
-    embedded = _render_embedded(config)
 
-    for spec in (standalone, embedded):
-        assert "'replicas': 7" in spec
-        assert "'minReplicas': 7" in spec
-        assert "'maxReplicas': 7" in spec
+    for spec in (_spec_standalone(config), _spec_embedded(config)):
+        group = _default_group(spec)
+        assert (group["replicas"], group["minReplicas"], group["maxReplicas"]) == (
+            7,
+            7,
+            7,
+        )
+
+
+def test_autoscaling_flag_matches_on_both_paths():
+    """enable_autoscaling reaches enableInTreeAutoscaling either way."""
+    for enabled in (True, False):
+        config = _full_config(
+            enable_autoscaling=enabled,
+            min_workers=2 if enabled else None,
+            max_workers=9 if enabled else None,
+        )
+        for spec in (_spec_standalone(config), _spec_embedded(config)):
+            assert spec["enableInTreeAutoscaling"] is enabled
+
+
+def test_gcs_fault_tolerance_matches_on_both_paths():
+    """RHOAIENG-98943: the whole options block, not just its presence."""
+    expected = {
+        "redisAddress": "sentinel-redis:6379",
+        "externalStorageNamespace": "sentinel-storage-namespace",
+        "redisPassword": {
+            "valueFrom": {
+                "secretKeyRef": {"name": "sentinel-secret", "key": "sentinel-key"}
+            }
+        },
+    }
+    config = _full_config()
+    for spec in (_spec_standalone(config), _spec_embedded(config)):
+        assert spec["gcsFaultToleranceOptions"] == expected
+
+    off = _full_config(
+        enable_gcs_ft=False,
+        redis_address=None,
+        redis_password_secret=None,
+        external_storage_namespace=None,
+    )
+    for spec in (_spec_standalone(off), _spec_embedded(off)):
+        assert "gcsFaultToleranceOptions" not in spec
+
+
+def test_additional_worker_groups_reach_both_paths(specs):
+    """A configured extra group becomes a second workerGroupSpec on both sides."""
+    for spec in specs:
+        groups = spec["workerGroupSpecs"]
+        assert len(groups) == 2, "the extra worker group did not reach this path"
+
+        extra = groups[1]
+        assert "sentinel-extra-group" in extra["groupName"]
+        assert extra["replicas"] == 3

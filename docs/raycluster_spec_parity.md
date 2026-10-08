@@ -20,7 +20,7 @@ here fails `test_every_field_is_classified`.
 
 Tracked under RHOAIENG-98942.
 
-## SUPPORTED — reaches both builders (29)
+## SUPPORTED — reaches both builders (28)
 
 Head: `head_cpu_requests`, `head_cpu_limits`, `head_memory_requests`,
 `head_memory_limits`, `head_extended_resource_requests`, `head_tolerations`.
@@ -32,19 +32,29 @@ Workers: `num_workers`, `worker_cpu_requests`, `worker_cpu_limits`,
 
 Autoscaling: `enable_autoscaling`, `min_workers`, `max_workers`.
 
-Pod spec: `image`, `image_pull_secrets`, `envs`, `labels`, `annotations`,
+Pod spec: `image`, `image_pull_secrets`, `envs`, `annotations`,
 `volumes`, `volume_mounts`, `extended_resource_mapping`.
 
 GCS fault tolerance: `enable_gcs_ft`, `redis_address`,
 `redis_password_secret`, `external_storage_namespace`.
 
-### Known asymmetry within SUPPORTED
+## PARTIAL — reaches both builders, but lands differently (1)
 
-`labels` lands in different places by necessity. The standalone path writes
-them onto the `RayCluster` metadata *and* the RayJob path writes them onto the
-head and worker pod templates — the embedded `rayClusterSpec` has no metadata
-block to carry them. Pod templates are also where this path already put them
-for `additional_worker_groups`.
+`labels` is not fully unified:
+
+| Path | Where `labels` land |
+| --- | --- |
+| Standalone | the `RayCluster` CR metadata, plus additional worker **pods** |
+| RayJob | the head and default worker **pods** (the embedded spec has no CR metadata) |
+
+Both paths carry the labels somewhere, so neither silently drops them, but a
+NetworkPolicy selector or a cost-allocation label applied to the default head
+and worker **pods** still behaves differently depending on which path created
+the cluster. Closing this means also applying `config.labels` to the standalone
+head and default worker pod templates, which changes existing standalone
+output and so is deliberately not done here.
+
+Tracked as remaining drift for the follow-up that unifies spec assembly.
 
 ## CONTEXT_ONLY — consumed before a builder sees them (3)
 
@@ -69,6 +79,22 @@ Their absence from both builders is correct.
 | Field | Conflict |
 | --- | --- |
 | `local_queue` | `RayJob` takes its own `local_queue` argument and ignores the config's. Tracked in RHOAIENG-98949. |
+
+## What is shared, and what is still duplicated
+
+Shared in `raycluster_spec.py`, called by both paths: the ODH CA volumes and
+mounts, CPU/memory/extended resource requirements, GPU counting, the
+`rayStartParams` resources string, the head and worker containers, replica
+counts, and the GCS fault tolerance options.
+
+Still assembled independently by each builder, and the subject of the
+follow-up to this work:
+
+- the `headGroupSpec` / `workerGroupSpecs` dicts and their `rayStartParams`
+- `_build_worker_group_spec` and `_build_additional_worker_group_spec`, two
+  copies of additional worker group assembly
+- the standalone path's CR wrapper (`apiVersion`, `kind`, `metadata`),
+  which has no RayJob equivalent
 
 ## Purity, and why the builders are not a single function
 
