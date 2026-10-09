@@ -18,24 +18,19 @@ Cluster spec building and file volume helpers for RayJobs.
 Uses ClusterConfiguration from ray.cluster.config as the single config object.
 """
 
-import json
 import logging
-from typing import Dict, Any, Tuple, Union
+from typing import Dict, Any, Tuple
 
 from kubernetes.client import (
-    V1ConfigMapVolumeSource,
     V1Container,
-    V1ContainerPort,
     V1EnvVar,
     V1ExecAction,
-    V1KeyToPath,
     V1Lifecycle,
     V1LifecycleHandler,
     V1LocalObjectReference,
     V1ObjectMeta,
     V1PodSpec,
     V1PodTemplateSpec,
-    V1ResourceRequirements,
     V1SecretVolumeSource,
     V1Volume,
     V1VolumeMount,
@@ -45,52 +40,23 @@ from ...common.utils.constants import MOUNT_PATH, RAY_VERSION
 from ...common.utils.utils import update_image
 from codeflare_sdk.ray.cluster.config import ClusterConfiguration, WorkerGroup
 
+# RHOAIENG-98942: the pieces below are shared with the standalone
+# RayCluster builder; both paths must render them identically.
+from ..cluster.raycluster_spec import (
+    ODH_VOLUMES as _ODH_VOLUMES,
+    ODH_VOLUME_MOUNTS as _ODH_VOLUME_MOUNTS,
+    build_head_container as _build_head_container,
+    build_resource_requirements as _build_resource_requirements,
+    build_worker_container as _build_worker_container,
+    cpu_limit_to_num_cpus as _cpu_limit_to_num_cpus,
+    extended_resources as _extended_resources,
+    format_resources_param as _format_resources_param,
+    gpu_counts as _gpu_counts,
+    merge_storage as _merge_storage,
+    worker_replica_counts,
+)
+
 logger = logging.getLogger(__name__)
-
-
-# --- ODH CA cert volumes (same as build_ray_cluster.py) ---
-
-_ODH_VOLUME_MOUNTS = [
-    V1VolumeMount(
-        mount_path="/etc/pki/tls/certs/odh-trusted-ca-bundle.crt",
-        name="odh-trusted-ca-cert",
-        sub_path="odh-trusted-ca-bundle.crt",
-    ),
-    V1VolumeMount(
-        mount_path="/etc/ssl/certs/odh-trusted-ca-bundle.crt",
-        name="odh-trusted-ca-cert",
-        sub_path="odh-trusted-ca-bundle.crt",
-    ),
-    V1VolumeMount(
-        mount_path="/etc/pki/tls/certs/odh-ca-bundle.crt",
-        name="odh-ca-cert",
-        sub_path="odh-ca-bundle.crt",
-    ),
-    V1VolumeMount(
-        mount_path="/etc/ssl/certs/odh-ca-bundle.crt",
-        name="odh-ca-cert",
-        sub_path="odh-ca-bundle.crt",
-    ),
-]
-
-_ODH_VOLUMES = [
-    V1Volume(
-        name="odh-trusted-ca-cert",
-        config_map=V1ConfigMapVolumeSource(
-            name="odh-trusted-ca-bundle",
-            items=[V1KeyToPath(key="ca-bundle.crt", path="odh-trusted-ca-bundle.crt")],
-            optional=True,
-        ),
-    ),
-    V1Volume(
-        name="odh-ca-cert",
-        config_map=V1ConfigMapVolumeSource(
-            name="odh-trusted-ca-bundle",
-            items=[V1KeyToPath(key="odh-ca-bundle.crt", path="odh-ca-bundle.crt")],
-            optional=True,
-        ),
-    ),
-]
 
 
 def build_ray_cluster_spec(
@@ -116,14 +82,9 @@ def build_ray_cluster_spec(
     worker_resources_str = _format_resources_param(worker_resources)
 
     autoscaling_enabled = config.enable_autoscaling
-    if autoscaling_enabled:
-        worker_replicas = config.min_workers
-        worker_min_replicas = config.min_workers
-        worker_max_replicas = config.max_workers
-    else:
-        worker_replicas = config.num_workers
-        worker_min_replicas = config.num_workers
-        worker_max_replicas = config.num_workers
+    worker_replicas, worker_min_replicas, worker_max_replicas = worker_replica_counts(
+        config
+    )
 
     ray_cluster_spec = {
         "rayVersion": RAY_VERSION,
@@ -181,127 +142,19 @@ def build_ray_cluster_spec(
             _build_additional_worker_group_spec(config, wg)
         )
 
+    # No gcsFaultToleranceOptions here, deliberately. RHOAIENG-30720 removed
+    # GCS fault tolerance from the lifecycled path in 52a351a because the
+    # feature did not work — head pod restarts lost state — and scoped its fix
+    # to standalone RayCluster only. #1091 then made ClusterConfiguration the
+    # shared config object, so the four GCS FT fields are now accepted and
+    # validated here and silently ignored. Emitting them would re-enable an
+    # unvalidated feature; rejecting them would restore the old contract.
+    # RHOAIENG-98943 owns that decision.
+
     return ray_cluster_spec
 
 
 # --- Private helpers for spec building ---
-
-
-def _cpu_limit_to_num_cpus(cpu_limit: Union[int, str]) -> str:
-    if isinstance(cpu_limit, int):
-        return str(max(cpu_limit, 0))
-    s = str(cpu_limit).strip()
-    if s.endswith("m"):
-        return str(max(int(float(s[:-1]) / 1000), 1))
-    return str(max(int(float(s)), 1))
-
-
-def _gpu_counts(config: ClusterConfiguration) -> Tuple[int, int]:
-    head_gpus = 0
-    worker_gpus = 0
-    for k, v in config.head_extended_resource_requests.items():
-        if config.extended_resource_mapping.get(k) == "GPU":
-            head_gpus += int(v)
-    for k, v in config.worker_extended_resource_requests.items():
-        if config.extended_resource_mapping.get(k) == "GPU":
-            worker_gpus += int(v)
-    return head_gpus, worker_gpus
-
-
-def _extended_resources(config: ClusterConfiguration) -> Tuple[dict, dict]:
-    FORBIDDEN = {"GPU", "CPU", "memory"}
-    head_res, worker_res = {}, {}
-    for k, v in config.head_extended_resource_requests.items():
-        rtype = config.extended_resource_mapping.get(k, k)
-        if rtype not in FORBIDDEN:
-            head_res[rtype] = v + head_res.get(rtype, 0)
-    for k, v in config.worker_extended_resource_requests.items():
-        rtype = config.extended_resource_mapping.get(k, k)
-        if rtype not in FORBIDDEN:
-            worker_res[rtype] = v + worker_res.get(rtype, 0)
-    return head_res, worker_res
-
-
-def _format_resources_param(resources: dict) -> str:
-    s = json.dumps(resources).replace('"', '\\"')
-    return f'"{s}"'
-
-
-def _build_resource_requirements(
-    cpu_requests, cpu_limits, mem_requests, mem_limits, extended=None
-):
-    reqs = V1ResourceRequirements(
-        requests={"cpu": str(cpu_requests), "memory": str(mem_requests)},
-        limits={"cpu": str(cpu_limits), "memory": str(mem_limits)},
-    )
-    reqs.requests["cpu"] = cpu_requests
-    reqs.limits["cpu"] = cpu_limits
-    if extended:
-        for k, v in extended.items():
-            reqs.limits[k] = v
-            reqs.requests[k] = v
-    return reqs
-
-
-def _merge_storage(provided: list, defaults: list) -> list:
-    storage = provided.copy()
-    if not storage:
-        return list(defaults)
-    storage.extend(defaults)
-    return storage
-
-
-def _build_head_container(config: ClusterConfiguration) -> V1Container:
-    container = V1Container(
-        name="ray-head",
-        image=update_image(config.image),
-        image_pull_policy="Always",
-        ports=[
-            V1ContainerPort(name="gcs", container_port=6379),
-            V1ContainerPort(name="dashboard", container_port=8265),
-            V1ContainerPort(name="client", container_port=10001),
-        ],
-        lifecycle=V1Lifecycle(
-            pre_stop=V1LifecycleHandler(
-                _exec=V1ExecAction(command=["/bin/sh", "-c", "ray stop"])
-            )
-        ),
-        resources=_build_resource_requirements(
-            config.head_cpu_requests,
-            config.head_cpu_limits,
-            config.head_memory_requests,
-            config.head_memory_limits,
-            config.head_extended_resource_requests or None,
-        ),
-        volume_mounts=_merge_storage(config.volume_mounts, _ODH_VOLUME_MOUNTS),
-    )
-    if config.envs:
-        container.env = [V1EnvVar(name=k, value=v) for k, v in config.envs.items()]
-    return container
-
-
-def _build_worker_container(config: ClusterConfiguration) -> V1Container:
-    container = V1Container(
-        name="machine-learning",
-        image=update_image(config.image),
-        image_pull_policy="Always",
-        lifecycle=V1Lifecycle(
-            pre_stop=V1LifecycleHandler(
-                _exec=V1ExecAction(command=["/bin/sh", "-c", "ray stop"])
-            )
-        ),
-        resources=_build_resource_requirements(
-            config.worker_cpu_requests,
-            config.worker_cpu_limits,
-            config.worker_memory_requests,
-            config.worker_memory_limits,
-            config.worker_extended_resource_requests or None,
-        ),
-        volume_mounts=_merge_storage(config.volume_mounts, _ODH_VOLUME_MOUNTS),
-    )
-    if config.envs:
-        container.env = [V1EnvVar(name=k, value=v) for k, v in config.envs.items()]
-    return container
 
 
 def _build_pod_template(

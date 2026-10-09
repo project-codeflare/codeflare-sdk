@@ -274,9 +274,39 @@ Real examples for the most common change types. Follow these patterns, not descr
 - Two builders consume the same dataclass and must stay in parity:
   - standalone RayCluster: `src/codeflare_sdk/ray/cluster/build_ray_cluster.py`
   - RayJob-embedded `rayClusterSpec`: `src/codeflare_sdk/ray/rayjobs/config.py`
-    (`build_ray_cluster_spec`, line 96)
+    (`build_ray_cluster_spec`)
 
-  A field added to only one builder is silently dropped by the other path.
+  Their shared pieces live in `src/codeflare_sdk/ray/cluster/raycluster_spec.py`
+  — put a new field there, not in one builder. A field added to only one path is
+  silently dropped by the other; nothing errors, the cluster just comes up
+  without it.
+
+  `src/codeflare_sdk/ray/test_builder_parity.py` enforces this: a new field must
+  either get a sentinel (and reach both builders) or be classified
+  CONTEXT_ONLY / NOT_APPLICABLE / CONFLICTED / PENDING_DECISION / PARTIAL with a
+  reason. `docs/raycluster_spec_parity.md` is the reference for where every
+  field lands and which asymmetries are intentional (RHOAIENG-98942).
+
+  **A new `WorkerGroup` field needs the same treatment**, in
+  `WORKER_GROUP_SENTINELS` (or `WORKER_GROUP_STRUCTURAL`, for a count that a
+  substring search cannot distinguish from any other number in the spec).
+  `additional_worker_groups` is assembled by a *second* pair of duplicated
+  functions — `build_ray_cluster._build_worker_group_spec` and
+  `rayjobs.config._build_additional_worker_group_spec` — so it can drift
+  independently of the main builders. `test_every_worker_group_field_is_classified`
+  fails on an unclassified field.
+
+  When adding a sentinel, give it a value that cannot collide with a default or
+  with another field's: odd CPU/memory numbers, and a `sentinel.io/` prefix on
+  anything that renders as a key. If the value does not survive into the spec as
+  a literal substring — a toleration key, an env name, a resource name — add the
+  substring to the matching `MARKERS` dict instead of weakening the assertion.
+
+  `raycluster_spec.py` must stay free of Kubernetes API calls. The standalone
+  builder makes three while rendering (`local_queue_exists`,
+  `get_default_local_queue`, `validate_autoscaling_with_kueue`) and the RayJob
+  builder makes none; moving any of them into the shared module would give the
+  RayJob path network calls it does not make today.
 - Nothing to add on the facade side: `cf.clusters.create()` takes a
   `ClusterConfiguration` rather than `**kwargs`, so a new field reaches it for
   free (RHOAIENG-98954).

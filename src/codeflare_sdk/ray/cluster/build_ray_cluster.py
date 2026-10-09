@@ -17,7 +17,7 @@ This sub-module exists primarily to be used internally by the Cluster object
     (in the cluster sub-module) for RayCluster generation.
 """
 
-from typing import List, Union, Tuple, Dict
+from typing import List, Tuple
 from ...common import _kube_api_error_handling
 from ...common.kubernetes_cluster import get_api_client, config_check
 from kubernetes.client.exceptions import ApiException
@@ -29,88 +29,35 @@ import os
 from kubernetes import client
 from kubernetes.client import (
     V1ObjectMeta,
-    V1KeyToPath,
-    V1ConfigMapVolumeSource,
-    V1Volume,
-    V1VolumeMount,
-    V1ResourceRequirements,
     V1Container,
-    V1ContainerPort,
     V1Lifecycle,
     V1ExecAction,
     V1LifecycleHandler,
     V1EnvVar,
     V1PodTemplateSpec,
     V1PodSpec,
-    V1LocalObjectReference,
     V1Toleration,
 )
 
 import yaml
 import uuid
-import json
 
-
-FORBIDDEN_CUSTOM_RESOURCE_TYPES = ["GPU", "CPU", "memory"]
-
-
-def _cpu_limit_to_num_cpus(cpu_limit: Union[int, str]) -> str:
-    """Convert a Kubernetes CPU limit to an integer string for Ray's num-cpus.
-
-    Ray auto-detects host CPUs when num-cpus is not set, which can vastly
-    overcount in containerised environments (e.g. KinD on a beefy laptop).
-    Pinning num-cpus to the container CPU limit keeps the autoscaler's view
-    of available resources accurate.
-    """
-    if isinstance(cpu_limit, int):
-        return str(max(cpu_limit, 0))
-    s = str(cpu_limit).strip()
-    if s.endswith("m"):
-        return str(max(int(float(s[:-1]) / 1000), 1))
-    return str(max(int(float(s)), 1))
-
-
-VOLUME_MOUNTS = [
-    V1VolumeMount(
-        mount_path="/etc/pki/tls/certs/odh-trusted-ca-bundle.crt",
-        name="odh-trusted-ca-cert",
-        sub_path="odh-trusted-ca-bundle.crt",
-    ),
-    V1VolumeMount(
-        mount_path="/etc/ssl/certs/odh-trusted-ca-bundle.crt",
-        name="odh-trusted-ca-cert",
-        sub_path="odh-trusted-ca-bundle.crt",
-    ),
-    V1VolumeMount(
-        mount_path="/etc/pki/tls/certs/odh-ca-bundle.crt",
-        name="odh-ca-cert",
-        sub_path="odh-ca-bundle.crt",
-    ),
-    V1VolumeMount(
-        mount_path="/etc/ssl/certs/odh-ca-bundle.crt",
-        name="odh-ca-cert",
-        sub_path="odh-ca-bundle.crt",
-    ),
-]
-
-VOLUMES = [
-    V1Volume(
-        name="odh-trusted-ca-cert",
-        config_map=V1ConfigMapVolumeSource(
-            name="odh-trusted-ca-bundle",
-            items=[V1KeyToPath(key="ca-bundle.crt", path="odh-trusted-ca-bundle.crt")],
-            optional=True,
-        ),
-    ),
-    V1Volume(
-        name="odh-ca-cert",
-        config_map=V1ConfigMapVolumeSource(
-            name="odh-trusted-ca-bundle",
-            items=[V1KeyToPath(key="odh-ca-bundle.crt", path="odh-ca-bundle.crt")],
-            optional=True,
-        ),
-    ),
-]
+# RHOAIENG-98942: the RayCluster spec is rendered from one place, shared with
+# the RayJob-embedded builder. These aliases keep this module's existing call
+# sites; the wrappers further down do the same for helpers that take a Cluster
+# rather than a ClusterConfiguration.
+from . import raycluster_spec as _spec
+from .raycluster_spec import (
+    FORBIDDEN_CUSTOM_RESOURCE_TYPES,
+    ODH_VOLUMES as VOLUMES,
+    ODH_VOLUME_MOUNTS as VOLUME_MOUNTS,
+    build_resource_requirements as get_resources,
+    cpu_limit_to_num_cpus as _cpu_limit_to_num_cpus,
+    format_resources_param,
+    gcs_fault_tolerance_options,
+    merge_storage as generate_custom_storage,
+    worker_replica_counts,
+)
 
 
 # RayCluster builder function
@@ -126,12 +73,11 @@ def build_ray_cluster(cluster: "codeflare_sdk.ray.cluster.Cluster"):
     head_resources, worker_resources = head_worker_extended_resources_from_cluster(
         cluster
     )
-    head_resources = json.dumps(head_resources).replace('"', '\\"')
-    head_resources = f'"{head_resources}"'
-    worker_resources = json.dumps(worker_resources).replace('"', '\\"')
-    worker_resources = f'"{worker_resources}"'
+    head_resources = format_resources_param(head_resources)
+    worker_resources = format_resources_param(worker_resources)
 
-    # Determine autoscaling vs fixed-size worker replica settings
+    # Kueue compatibility is a cluster lookup, so it stays here rather than in
+    # the shared renderer, which must remain free of API calls.
     autoscaling_enabled = cluster.config.enable_autoscaling
     if autoscaling_enabled:
         from codeflare_sdk.common.kueue.kueue import validate_autoscaling_with_kueue
@@ -139,13 +85,10 @@ def build_ray_cluster(cluster: "codeflare_sdk.ray.cluster.Cluster"):
         validate_autoscaling_with_kueue(
             cluster.config.namespace, cluster.config.local_queue
         )
-        worker_replicas = cluster.config.min_workers
-        worker_min_replicas = cluster.config.min_workers
-        worker_max_replicas = cluster.config.max_workers
-    else:
-        worker_replicas = cluster.config.num_workers
-        worker_min_replicas = cluster.config.num_workers
-        worker_max_replicas = cluster.config.num_workers
+
+    worker_replicas, worker_min_replicas, worker_max_replicas = worker_replica_counts(
+        cluster.config
+    )
 
     # Create the Ray Cluster using the V1RayCluster Object
     resource = {
@@ -219,29 +162,8 @@ def build_ray_cluster(cluster: "codeflare_sdk.ray.cluster.Cluster"):
             _build_worker_group_spec(cluster, wg)
         )
 
-    if cluster.config.enable_gcs_ft:
-        if not cluster.config.redis_address:
-            raise ValueError(
-                "redis_address must be provided when enable_gcs_ft is True"
-            )
-
-        gcs_ft_options = {"redisAddress": cluster.config.redis_address}
-
-        if cluster.config.external_storage_namespace:
-            gcs_ft_options["externalStorageNamespace"] = (
-                cluster.config.external_storage_namespace
-            )
-
-        if cluster.config.redis_password_secret:
-            gcs_ft_options["redisPassword"] = {
-                "valueFrom": {
-                    "secretKeyRef": {
-                        "name": cluster.config.redis_password_secret["name"],
-                        "key": cluster.config.redis_password_secret["key"],
-                    }
-                }
-            }
-
+    gcs_ft_options = gcs_fault_tolerance_options(cluster.config)
+    if gcs_ft_options is not None:
         resource["spec"]["gcsFaultToleranceOptions"] = gcs_ft_options
 
     config_check()
@@ -326,171 +248,7 @@ def get_pod_spec(
     return pod_spec
 
 
-def generate_image_pull_secrets(cluster: "codeflare_sdk.ray.cluster.Cluster"):
-    """
-    The generate_image_pull_secrets() methods generates a list of V1LocalObjectReference including each of the specified image pull secrets
-    """
-    pull_secrets = []
-    for pull_secret in cluster.config.image_pull_secrets:
-        pull_secrets.append(V1LocalObjectReference(name=pull_secret))
-
-    return pull_secrets
-
-
-def get_head_container_spec(
-    cluster: "codeflare_sdk.ray.cluster.Cluster",
-):
-    """
-    The get_head_container_spec() function builds and returns a V1Container object including user defined resource requests/limits
-    """
-    head_container = V1Container(
-        name="ray-head",
-        image=update_image(cluster.config.image),
-        image_pull_policy="Always",
-        ports=[
-            V1ContainerPort(name="gcs", container_port=6379),
-            V1ContainerPort(name="dashboard", container_port=8265),
-            V1ContainerPort(name="client", container_port=10001),
-        ],
-        lifecycle=V1Lifecycle(
-            pre_stop=V1LifecycleHandler(
-                _exec=V1ExecAction(command=["/bin/sh", "-c", "ray stop"])
-            )
-        ),
-        resources=get_resources(
-            cluster.config.head_cpu_requests,
-            cluster.config.head_cpu_limits,
-            cluster.config.head_memory_requests,
-            cluster.config.head_memory_limits,
-            cluster.config.head_extended_resource_requests,
-        ),
-        volume_mounts=generate_custom_storage(
-            cluster.config.volume_mounts, VOLUME_MOUNTS
-        ),
-    )
-    if cluster.config.envs != {}:
-        head_container.env = generate_env_vars(cluster)
-
-    return head_container
-
-
-def generate_env_vars(cluster: "codeflare_sdk.ray.cluster.Cluster"):
-    """
-    The generate_env_vars() builds and returns a V1EnvVar object which is populated by user specified environment variables
-    """
-    envs = []
-    for key, value in cluster.config.envs.items():
-        env_var = V1EnvVar(name=key, value=value)
-        envs.append(env_var)
-
-    return envs
-
-
-def get_worker_container_spec(
-    cluster: "codeflare_sdk.ray.cluster.Cluster",
-):
-    """
-    The get_worker_container_spec() function builds and returns a V1Container object including user defined resource requests/limits
-    """
-    worker_container = V1Container(
-        name="machine-learning",
-        image=update_image(cluster.config.image),
-        image_pull_policy="Always",
-        lifecycle=V1Lifecycle(
-            pre_stop=V1LifecycleHandler(
-                _exec=V1ExecAction(command=["/bin/sh", "-c", "ray stop"])
-            )
-        ),
-        resources=get_resources(
-            cluster.config.worker_cpu_requests,
-            cluster.config.worker_cpu_limits,
-            cluster.config.worker_memory_requests,
-            cluster.config.worker_memory_limits,
-            cluster.config.worker_extended_resource_requests,
-        ),
-        volume_mounts=generate_custom_storage(
-            cluster.config.volume_mounts, VOLUME_MOUNTS
-        ),
-    )
-
-    if cluster.config.envs != {}:
-        worker_container.env = generate_env_vars(cluster)
-
-    return worker_container
-
-
-def get_resources(
-    cpu_requests: Union[int, str],
-    cpu_limits: Union[int, str],
-    memory_requests: Union[int, str],
-    memory_limits: Union[int, str],
-    custom_extended_resource_requests: Dict[str, int] = None,
-):
-    """
-    The get_resources() function generates a V1ResourceRequirements object for cpu/memory request/limits and GPU resources
-    """
-    resource_requirements = V1ResourceRequirements(
-        requests={"cpu": str(cpu_requests), "memory": str(memory_requests)},
-        limits={"cpu": str(cpu_limits), "memory": str(memory_limits)},
-    )
-    resource_requirements.requests["cpu"] = cpu_requests
-    resource_requirements.limits["cpu"] = cpu_limits
-
-    # Append the resource/limit requests with custom extended resources
-    if custom_extended_resource_requests is not None:
-        for k in custom_extended_resource_requests.keys():
-            resource_requirements.limits[k] = custom_extended_resource_requests[k]
-            resource_requirements.requests[k] = custom_extended_resource_requests[k]
-
-    return resource_requirements
-
-
 # GPU related functions
-def head_worker_gpu_count_from_cluster(
-    cluster: "codeflare_sdk.ray.cluster.Cluster",
-) -> Tuple[int, int]:
-    """
-    The head_worker_gpu_count_from_cluster() function returns the total number of requested GPUs for the head and worker separately
-    """
-    head_gpus = 0
-    worker_gpus = 0
-    for k in cluster.config.head_extended_resource_requests.keys():
-        resource_type = cluster.config.extended_resource_mapping[k]
-        if resource_type == "GPU":
-            head_gpus += int(cluster.config.head_extended_resource_requests[k])
-    for k in cluster.config.worker_extended_resource_requests.keys():
-        resource_type = cluster.config.extended_resource_mapping[k]
-        if resource_type == "GPU":
-            worker_gpus += int(cluster.config.worker_extended_resource_requests[k])
-
-    return head_gpus, worker_gpus
-
-
-def head_worker_extended_resources_from_cluster(
-    cluster: "codeflare_sdk.ray.cluster.Cluster",
-) -> Tuple[dict, dict]:
-    """
-    The head_worker_extended_resources_from_cluster() function returns 2 dicts for head/worker respectively populated by the GPU type requested by the user
-    """
-    head_worker_extended_resources = {}, {}
-    for k in cluster.config.head_extended_resource_requests.keys():
-        resource_type = cluster.config.extended_resource_mapping[k]
-        if resource_type in FORBIDDEN_CUSTOM_RESOURCE_TYPES:
-            continue
-        head_worker_extended_resources[0][resource_type] = (
-            cluster.config.head_extended_resource_requests[k]
-            + head_worker_extended_resources[0].get(resource_type, 0)
-        )
-
-    for k in cluster.config.worker_extended_resource_requests.keys():
-        resource_type = cluster.config.extended_resource_mapping[k]
-        if resource_type in FORBIDDEN_CUSTOM_RESOURCE_TYPES:
-            continue
-        head_worker_extended_resources[1][resource_type] = (
-            cluster.config.worker_extended_resource_requests[k]
-            + head_worker_extended_resources[1].get(resource_type, 0)
-        )
-    return head_worker_extended_resources
 
 
 # Local Queue related functions
@@ -564,20 +322,6 @@ def get_default_local_queue(cluster: "codeflare_sdk.ray.cluster.Cluster", labels
 
 
 # Etc.
-def generate_custom_storage(provided_storage: list, default_storage: list):
-    """
-    The generate_custom_storage function updates the volumes/volume mounts configs with the default volumes/volume mounts.
-    """
-    storage_list = provided_storage.copy()
-
-    if storage_list == []:
-        storage_list = default_storage
-    else:
-        # We append the list of volumes/volume mounts with the defaults and return the full list
-        for storage in default_storage:
-            storage_list.append(storage)
-
-    return storage_list
 
 
 def write_to_file(cluster: "codeflare_sdk.ray.cluster.Cluster", resource: dict):
@@ -632,8 +376,7 @@ def _build_worker_group_spec(
         rtype = mapping.get(wg.gpu_type, "GPU")
         if rtype not in FORBIDDEN_CUSTOM_RESOURCE_TYPES:
             ray_resources[rtype] = wg.gpu_count
-    ray_resources_str = json.dumps(ray_resources).replace('"', '\\"')
-    ray_resources_str = f'"{ray_resources_str}"'
+    ray_resources_str = format_resources_param(ray_resources)
 
     # Image inheritance
     image = wg.image if wg.image else update_image(cluster.config.image)
@@ -723,3 +466,33 @@ def gen_names(name):
         return cluster_name
     else:
         return name
+
+
+def head_worker_gpu_count_from_cluster(cluster) -> Tuple[int, int]:
+    """Total GPUs requested for the head and for a worker, respectively."""
+    return _spec.gpu_counts(cluster.config)
+
+
+def head_worker_extended_resources_from_cluster(cluster) -> Tuple[dict, dict]:
+    """Non-GPU/CPU/memory resources for the head and worker rayStartParams."""
+    return _spec.extended_resources(cluster.config)
+
+
+def get_head_container_spec(cluster):
+    """The ray-head container."""
+    return _spec.build_head_container(cluster.config)
+
+
+def get_worker_container_spec(cluster):
+    """The machine-learning worker container."""
+    return _spec.build_worker_container(cluster.config)
+
+
+def generate_image_pull_secrets(cluster):
+    """Secret references for pulling the Ray image."""
+    return _spec.image_pull_secrets(cluster.config)
+
+
+def generate_env_vars(cluster):
+    """User-supplied environment variables."""
+    return _spec.env_vars(cluster.config)
