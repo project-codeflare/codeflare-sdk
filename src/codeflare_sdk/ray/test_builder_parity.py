@@ -61,7 +61,40 @@ CONFLICTED = {
     "local_queue": "RayJob takes its own local_queue and ignores the config's",
 }
 
-EXEMPT = {**CONTEXT_ONLY, **NOT_APPLICABLE, **CONFLICTED}
+# Standalone emits these; the RayJob path deliberately does not. 52a351a
+# ("RHOAIENG-30720: Remove GCS FT for Lifecycled RayClusters") stripped them
+# from the lifecycled path because head pod restarts lost state, and scoped the
+# fix to standalone RayCluster only. #1091 then made ClusterConfiguration
+# shared, so they are now accepted and validated here and ignored. Whether to
+# emit or reject them is RHOAIENG-98943; until that is decided, the asymmetry
+# is pinned by test_gcs_fault_tolerance_is_standalone_only rather than treated
+# as drift.
+PENDING_DECISION = {
+    "enable_gcs_ft": "RHOAIENG-98943: GCS FT removed from the RayJob path by RHOAIENG-30720",
+    "redis_address": "RHOAIENG-98943: GCS FT removed from the RayJob path by RHOAIENG-30720",
+    "redis_password_secret": "RHOAIENG-98943: GCS FT removed from the RayJob path by RHOAIENG-30720",
+    "external_storage_namespace": "RHOAIENG-98943: GCS FT removed from the RayJob path by RHOAIENG-30720",
+}
+
+# Reaches both paths, but lands somewhere different on each, so a presence
+# check cannot express it. Pinned by test_labels_land_where_each_path_puts_them.
+PARTIAL = {
+    "labels": (
+        "both paths carry them, to different places. #1184 put them on every "
+        "RayJob pod template; standalone writes them to the RayCluster CR "
+        "metadata and to additional worker group pods, but not to the head or "
+        "default worker pods. Closing that changes existing standalone output, "
+        "so it is RHOAIENG-99560 rather than this PR."
+    ),
+}
+
+EXEMPT = {
+    **CONTEXT_ONLY,
+    **NOT_APPLICABLE,
+    **CONFLICTED,
+    **PENDING_DECISION,
+    **PARTIAL,
+}
 
 # One recognisable value per field, chosen so it survives into the rendered
 # spec as a substring. Memory/CPU values are deliberately odd numbers so they
@@ -135,7 +168,6 @@ STRUCTURAL = {
     "min_workers": "test_replica_counts_match_on_both_paths",
     "max_workers": "test_replica_counts_match_on_both_paths",
     "enable_autoscaling": "test_autoscaling_flag_matches_on_both_paths",
-    "enable_gcs_ft": "test_gcs_fault_tolerance_matches_on_both_paths",
 }
 
 # Fields the RayJob path drops. Empty since RHOAIENG-98942 closed the last of
@@ -309,8 +341,16 @@ def test_autoscaling_flag_matches_on_both_paths():
             assert spec["enableInTreeAutoscaling"] is enabled
 
 
-def test_gcs_fault_tolerance_matches_on_both_paths():
-    """RHOAIENG-98943: the whole options block, not just its presence."""
+def test_gcs_fault_tolerance_is_standalone_only():
+    """The asymmetry is deliberate, so pin it rather than let it drift.
+
+    52a351a removed GCS fault tolerance from the lifecycled path because the
+    feature did not work (RHOAIENG-30720), and that fix was scoped to
+    standalone RayCluster. Emitting it on the RayJob path would re-enable
+    something nobody has validated there; RHOAIENG-98943 owns the decision.
+    This test fails either way round, so whichever way it goes is a conscious
+    change.
+    """
     expected = {
         "redisAddress": "sentinel-redis:6379",
         "externalStorageNamespace": "sentinel-storage-namespace",
@@ -321,8 +361,12 @@ def test_gcs_fault_tolerance_matches_on_both_paths():
         },
     }
     config = _full_config()
-    for spec in (_spec_standalone(config), _spec_embedded(config)):
-        assert spec["gcsFaultToleranceOptions"] == expected
+
+    assert _spec_standalone(config)["gcsFaultToleranceOptions"] == expected
+    assert "gcsFaultToleranceOptions" not in _spec_embedded(config), (
+        "the RayJob path emits GCS FT again — intended only once RHOAIENG-98943 "
+        "decides to re-enable it, with validation on a lifecycled cluster"
+    )
 
     off = _full_config(
         enable_gcs_ft=False,
@@ -330,8 +374,46 @@ def test_gcs_fault_tolerance_matches_on_both_paths():
         redis_password_secret=None,
         external_storage_namespace=None,
     )
-    for spec in (_spec_standalone(off), _spec_embedded(off)):
-        assert "gcsFaultToleranceOptions" not in spec
+    assert "gcsFaultToleranceOptions" not in _spec_standalone(off)
+
+
+def test_labels_land_where_each_path_puts_them(specs):
+    """labels are PARTIAL: both paths carry them, to different places.
+
+    A presence check passes on both, so it cannot express the difference.
+    Since #1184 the RayJob path puts config.labels on every pod template.
+    Standalone puts them on the RayCluster CR metadata and on additional
+    worker group pods, but not on the head or default worker pods — so a
+    NetworkPolicy selector still behaves differently between the two.
+
+    The standalone gap is the remaining one; closing it adds labels to pods
+    that do not have them today, which is a behaviour change and therefore
+    RHOAIENG-99560, not this PR. Asserted in full so that either side moving
+    is a conscious edit.
+    """
+    standalone, embedded = specs
+    SENTINEL = "sentinel.io/label"
+
+    def pod_labels(template):
+        return ((template.get("metadata") or {}).get("labels")) or {}
+
+    # Standalone: CR metadata yes, default pods no, extra group pods yes.
+    assert (
+        SENTINEL in standalone["workerGroupSpecs"][1]["template"]["metadata"]["labels"]
+    )
+    assert SENTINEL not in pod_labels(standalone["headGroupSpec"]["template"]), (
+        "the standalone head pod now carries config.labels — that is the "
+        "RHOAIENG-99560 fix; update docs/raycluster_spec_parity.md with it"
+    )
+    assert SENTINEL not in pod_labels(standalone["workerGroupSpecs"][0]["template"])
+
+    # RayJob: every pod template, since #1184. No CR metadata block exists.
+    for template in (
+        embedded["headGroupSpec"]["template"],
+        embedded["workerGroupSpecs"][0]["template"],
+        embedded["workerGroupSpecs"][1]["template"],
+    ):
+        assert pod_labels(template)[SENTINEL] == "sentinel-label-value"
 
 
 def test_additional_worker_groups_reach_both_paths(specs):

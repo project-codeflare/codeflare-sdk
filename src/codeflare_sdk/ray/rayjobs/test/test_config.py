@@ -611,12 +611,16 @@ def test_build_spec_no_additional_groups(mocker):
     assert len(spec["workerGroupSpecs"]) == 1
 
 
-class TestGcsFaultToleranceInRayJobSpec:
-    """RHOAIENG-98943: a RayJob-managed cluster must honour GCS fault tolerance.
+class TestGcsFaultToleranceIsNotEmittedHere:
+    """RHOAIENG-98943 is undecided, so pin the current behaviour.
 
-    Before this, enable_gcs_ft was accepted and validated by
-    ClusterConfiguration and then dropped on the floor by this builder, so the
-    head node came up with no Redis to recover from and nothing said so.
+    52a351a ("RHOAIENG-30720: Remove GCS FT for Lifecycled RayClusters")
+    stripped GCS fault tolerance from this path because the feature did not
+    work — head pod restarts lost state — and scoped the fix to standalone
+    RayCluster. #1091 then made ClusterConfiguration shared, so the fields are
+    accepted and validated here and ignored. Emitting them again would
+    re-enable something unvalidated on this path, so it must be a conscious
+    change rather than a side effect of a refactor.
     """
 
     def test_options_absent_when_disabled(self, mocker):
@@ -627,18 +631,7 @@ class TestGcsFaultToleranceInRayJobSpec:
         spec = build_ray_cluster_spec(ClusterConfiguration(), "test-job")
         assert "gcsFaultToleranceOptions" not in spec
 
-    def test_redis_address_reaches_the_embedded_spec(self, mocker):
-        mocker.patch(
-            "codeflare_sdk.ray.cluster.raycluster_spec.update_image",
-            return_value="ray:latest",
-        )
-        config = ClusterConfiguration(
-            enable_gcs_ft=True, redis_address="redis-svc:6379"
-        )
-        spec = build_ray_cluster_spec(config, "test-job")
-        assert spec["gcsFaultToleranceOptions"]["redisAddress"] == "redis-svc:6379"
-
-    def test_external_storage_namespace_and_password_reach_the_spec(self, mocker):
+    def test_options_absent_even_when_fully_configured(self, mocker):
         mocker.patch(
             "codeflare_sdk.ray.cluster.raycluster_spec.update_image",
             return_value="ray:latest",
@@ -649,12 +642,12 @@ class TestGcsFaultToleranceInRayJobSpec:
             external_storage_namespace="ft-ns",
             redis_password_secret={"name": "redis-secret", "key": "password"},
         )
-        options = build_ray_cluster_spec(config, "test-job")["gcsFaultToleranceOptions"]
+        spec = build_ray_cluster_spec(config, "test-job")
 
-        assert options["externalStorageNamespace"] == "ft-ns"
-        assert options["redisPassword"] == {
-            "valueFrom": {"secretKeyRef": {"name": "redis-secret", "key": "password"}}
-        }
+        assert "gcsFaultToleranceOptions" not in spec, (
+            "GCS FT is emitted on the RayJob path again — only intended once "
+            "RHOAIENG-98943 decides to re-enable it, with validation"
+        )
 
 
 class TestLabelsReachPodTemplates:

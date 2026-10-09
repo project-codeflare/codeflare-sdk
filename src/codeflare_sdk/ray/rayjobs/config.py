@@ -51,7 +51,6 @@ from ..cluster.raycluster_spec import (
     cpu_limit_to_num_cpus as _cpu_limit_to_num_cpus,
     extended_resources as _extended_resources,
     format_resources_param as _format_resources_param,
-    gcs_fault_tolerance_options,
     gpu_counts as _gpu_counts,
     merge_storage as _merge_storage,
     worker_replica_counts,
@@ -143,12 +142,14 @@ def build_ray_cluster_spec(
             _build_additional_worker_group_spec(config, wg)
         )
 
-    # RHOAIENG-98943: a RayJob-managed cluster honours GCS fault tolerance too.
-    # Without this the config is accepted and validated, the head node has no
-    # Redis to recover from, and nothing reports a problem until it dies.
-    gcs_ft_options = gcs_fault_tolerance_options(config)
-    if gcs_ft_options is not None:
-        ray_cluster_spec["gcsFaultToleranceOptions"] = gcs_ft_options
+    # No gcsFaultToleranceOptions here, deliberately. RHOAIENG-30720 removed
+    # GCS fault tolerance from the lifecycled path in 52a351a because the
+    # feature did not work — head pod restarts lost state — and scoped its fix
+    # to standalone RayCluster only. #1091 then made ClusterConfiguration the
+    # shared config object, so the four GCS FT fields are now accepted and
+    # validated here and silently ignored. Emitting them would re-enable an
+    # unvalidated feature; rejecting them would restore the old contract.
+    # RHOAIENG-98943 owns that decision.
 
     return ray_cluster_spec
 
