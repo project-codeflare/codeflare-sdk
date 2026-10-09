@@ -18,10 +18,12 @@ Two different situations, handled differently:
 
 **Removed with notice.** ``TokenAuthentication`` and
 ``KubeConfigFileAuthentication`` carried a ``DeprecationWarning`` throughout
-v0.39.x, so they are gone. ``ManagedClusterConfig`` was tech preview and is
-gone for the same reason. What they get here is an error that names the
-replacement, because the alternative is a user reading
-``cannot import name 'TokenAuthentication'`` and guessing.
+v0.39.x, so they are gone — earlier than the v1.0.0 that v0.39.1's README and
+migration guide published, which is a deliberate call and one for the release
+notes. ``ManagedClusterConfig`` was tech preview, so it needed no notice at
+all. What they get here is an error that names the replacement, because the
+alternative is a user reading ``cannot import name 'TokenAuthentication'``
+and guessing.
 
 **Removed without notice.** ``set_api_client`` never carried a warning, and
 the v0.39.1 ``2_basic_interactive`` notebook opens with::

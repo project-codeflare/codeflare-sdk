@@ -172,9 +172,16 @@ and the `JobOptions` TypedDict shared by the `cf.jobs` overloads.
 ### Removing a public symbol (RHOAIENG-98947)
 
 A public name may only be removed after it has shipped a `DeprecationWarning`
-in a prior release. `set_api_client` was removed without one, which broke the
-v0.39.1 `2_basic_interactive` notebook at its first line; it is exported again
-and deprecated instead.
+in a prior release, **and** not before any removal version we published for it.
+Check both — they are stored in different places and have disagreed:
+`git show <latest-tag>:<path>` for the warning, and the tag's `README.md` and
+`docs/` for the promised version. `TokenAuthentication` warned throughout
+v0.39.x but was also documented as surviving until v1.0.0, so removing it in
+v0.40.0 is a deliberate break that belongs in the release notes.
+
+`set_api_client` had neither, and its removal broke the v0.39.1
+`2_basic_interactive` notebook at its first line; it is exported again and
+deprecated instead.
 
 When a name does go, add it to `REMOVED` in `src/codeflare_sdk/_compat.py` with
 a message naming the replacement — the package `__getattr__` raises it. Raise
