@@ -103,12 +103,36 @@ For OpenShift clusters using native OAuth with an interactive browser login flow
    )
    cf = Codeflare(config=SDKConfig(auth=auth_config, namespace="my-project"))
 
-Removed Authentication Methods
------------------------------------
+Deprecated Authentication Methods
+------------------------------------
 
-The ``TokenAuthentication`` and ``KubeConfigFileAuthentication`` classes were
-deprecated in v0.34.0 and have since been **removed**. Importing them now raises
-``ImportError``. Migrate to one of the patterns above.
+``TokenAuthentication``, ``KubeConfigFileAuthentication`` and ``set_api_client``
+are **deprecated but still working**. Existing code continues to run, and now
+emits a ``DeprecationWarning``.
 
-See the `Migration Guide <https://github.com/project-codeflare/codeflare-sdk/blob/main/docs/auth_migration_guide.md>`_
-for detailed before/after examples.
+.. warning::
+
+   No removal version is promised. Earlier documentation named v1.0.0; that
+   date is **not** being renewed, and these may be removed sooner. Treat the
+   deprecation warning as the only notice you will get, and migrate when you
+   next touch the code.
+
+Internally each class now delegates to kube-authkit, so behaviour matches the
+equivalent method above rather than a separate code path.
+
+Migrate as follows:
+
+- ``TokenAuthentication`` → **Method 1**. ``server`` becomes ``k8s_api_host``;
+  ``token`` is unchanged; ``skip_tls=True`` becomes ``verify_ssl=False``. A
+  custom CA passed as ``ca_cert_path`` can stay as ``ca_cert``, or move to the
+  ``CF_SDK_CA_CERT_PATH`` environment variable.
+- ``KubeConfigFileAuthentication`` → **Method 4**. A path passed as
+  ``kube_config_path`` becomes ``kubeconfig_path``, or ``KUBECONFIG``.
+- ``set_api_client`` → construct ``Codeflare`` with an ``AuthConfig``. This is
+  the one worth doing first: ``set_api_client`` sets a process-wide global, so
+  the last caller wins, while ``Codeflare`` scopes the client to the clusters
+  and jobs it creates and lets two instances address two clusters.
+
+An earlier version of this page said kube-authkit could not do token
+authentication and advised staying on ``TokenAuthentication``. That is no
+longer true — ``AuthConfig`` handles tokens directly, as Method 1 shows.
