@@ -14,11 +14,17 @@
 
 """The v0.39.x public surface still behaves as promised (RHOAIENG-98947)."""
 
+import re
 import warnings
 
 import pytest
 from kubernetes import client
 
+from codeflare_sdk import (
+    Authentication,
+    KubeConfigFileAuthentication,
+    TokenAuthentication,
+)
 from codeflare_sdk._compat import REMOVED
 from codeflare_sdk.common.kubernetes_cluster import auth
 
@@ -116,7 +122,357 @@ class TestSetApiClientIsDeprecatedNotRemoved:
             Codeflare(config=SDKConfig(namespace="ns"))
 
 
+class TestDeprecatedAuthClassesStillWork:
+    """Restored by team decision (RHOAIENG-98947), not merely importable.
+
+    v0.39.x promised these would survive, and the migration guide told token
+    users to stay on TokenAuthentication. Importing them is not enough — the
+    constructor surface, the return strings and the global they set all have
+    to behave as they did, or a pinned script fails later instead of sooner.
+    """
+
+    def test_the_v0391_import_line_works(self):
+        from codeflare_sdk import (  # noqa: F401
+            Authentication,
+            KubeConfigFileAuthentication,
+            KubeConfiguration,
+            TokenAuthentication,
+        )
+
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "Authentication",
+            "KubeConfiguration",
+            "TokenAuthentication",
+            "KubeConfigFileAuthentication",
+        ],
+    )
+    def test_also_importable_from_the_v0391_subpackages(self, name):
+        import codeflare_sdk.common as common
+        import codeflare_sdk.common.kubernetes_cluster as kc
+
+        assert hasattr(common, name)
+        assert hasattr(kc, name)
+
+    def test_token_auth_keeps_its_constructor_surface(self):
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            auth_obj = TokenAuthentication(
+                token="sha256~tok",
+                server="https://api.example.com:6443",
+                skip_tls=True,
+                ca_cert_path="/tmp/ca.crt",
+            )
+
+        assert isinstance(auth_obj, Authentication)
+        assert (auth_obj.token, auth_obj.server) == (
+            "sha256~tok",
+            "https://api.example.com:6443",
+        )
+        assert auth_obj.skip_tls is True
+        assert auth_obj.ca_cert_path == "/tmp/ca.crt"
+
+    @pytest.mark.parametrize(
+        "cls,kwargs",
+        [
+            (TokenAuthentication, {"token": "t", "server": "https://x:6443"}),
+            (KubeConfigFileAuthentication, {"kube_config_path": "/tmp/kc"}),
+        ],
+    )
+    def test_each_warns_exactly_once(self, cls, kwargs):
+        """v0.39.x stacked @deprecated on a warnings.warn() and warned twice."""
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            cls(**kwargs)
+
+        deprecations = [w for w in caught if w.category is DeprecationWarning]
+        assert len(deprecations) == 1
+        assert cls.__name__ in str(deprecations[0].message)
+
+    @pytest.mark.parametrize(
+        "cls,kwargs",
+        [
+            (TokenAuthentication, {"token": "t", "server": "https://x:6443"}),
+            (KubeConfigFileAuthentication, {"kube_config_path": "/tmp/kc"}),
+        ],
+    )
+    def test_no_removal_version_is_promised(self, cls, kwargs):
+        """The team dropped the v1.0.0 date; removal may come sooner.
+
+        Naming any version here re-makes the promise that was already broken
+        once, so the warning says 'a future release' and nothing more.
+        """
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            cls(**kwargs)
+
+        message = str(caught[0].message)
+        assert "future release" in message
+        assert not re.search(r"v?\d+\.\d+\.\d+", message), (
+            "the deprecation notice names a version again"
+        )
+
+    def test_token_login_delegates_to_kube_authkit(self, mocker):
+        """The AC says no duplicate auth implementation.
+
+        v0.39.x hand-rolled a Configuration here because kube-authkit could
+        not do tokens. It can, so login() must go through it.
+        """
+        fake = client.ApiClient()
+        get_client = mocker.patch(
+            "codeflare_sdk.common.kubernetes_cluster.deprecated_auth.get_k8s_client",
+            return_value=fake,
+        )
+        mocker.patch(
+            "codeflare_sdk.common.kubernetes_cluster.deprecated_auth.client.AuthenticationApi"
+        )
+
+        try:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", DeprecationWarning)
+                result = TokenAuthentication(
+                    token="sha256~tok", server="https://api.example.com:6443"
+                ).login()
+
+            assert result == "Logged into https://api.example.com:6443"
+            cfg = get_client.call_args.kwargs["config"]
+            assert cfg.method == "openshift"
+            assert cfg.k8s_api_host == "https://api.example.com:6443"
+            assert cfg.token == "sha256~tok"
+            assert cfg.verify_ssl is True
+            assert auth.get_api_client() is fake
+        finally:
+            auth.api_client = None
+            auth.config_path = None
+
+    def test_token_login_sets_both_bearer_key_spellings(self, mocker):
+        """Preserves 2eedf55.
+
+        The kubernetes client looks the token up by header name in <=35 and by
+        scheme name in >=36, and pyproject pins only `kubernetes >= 27.2.0`.
+        kube-authkit's OpenShift strategy writes just `authorization`, so
+        delegating without re-applying this would reintroduce the bug.
+        """
+        fake = client.ApiClient()
+        mocker.patch(
+            "codeflare_sdk.common.kubernetes_cluster.deprecated_auth.get_k8s_client",
+            return_value=fake,
+        )
+        mocker.patch(
+            "codeflare_sdk.common.kubernetes_cluster.deprecated_auth.client.AuthenticationApi"
+        )
+
+        try:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", DeprecationWarning)
+                TokenAuthentication(token="sha256~tok", server="https://x:6443").login()
+
+            for key in ("authorization", "BearerToken"):
+                assert fake.configuration.api_key[key] == "sha256~tok"
+                assert fake.configuration.api_key_prefix[key] == "Bearer"
+        finally:
+            auth.api_client = None
+            auth.config_path = None
+
+    def test_token_login_leaves_config_path_none(self, mocker):
+        """Not "custom", which set_api_client() would have written.
+
+        config_check() returns config_path and common/utils/k8s_utils.py hands
+        it to list_kube_config_contexts() as a kubeconfig path, so "custom"
+        would break namespace detection after a token login.
+        """
+        mocker.patch(
+            "codeflare_sdk.common.kubernetes_cluster.deprecated_auth.get_k8s_client",
+            return_value=client.ApiClient(),
+        )
+        mocker.patch(
+            "codeflare_sdk.common.kubernetes_cluster.deprecated_auth.client.AuthenticationApi"
+        )
+
+        try:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", DeprecationWarning)
+                TokenAuthentication(token="t", server="https://x:6443").login()
+
+            assert auth.config_path is None
+        finally:
+            auth.api_client = None
+            auth.config_path = None
+
+    def test_token_skip_tls_turns_verification_off(self, mocker):
+        get_client = mocker.patch(
+            "codeflare_sdk.common.kubernetes_cluster.deprecated_auth.get_k8s_client",
+            return_value=client.ApiClient(),
+        )
+        mocker.patch(
+            "codeflare_sdk.common.kubernetes_cluster.deprecated_auth.client.AuthenticationApi"
+        )
+
+        try:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", DeprecationWarning)
+                TokenAuthentication(
+                    token="t", server="https://x:6443", skip_tls=True
+                ).login()
+
+            cfg = get_client.call_args.kwargs["config"]
+            assert cfg.verify_ssl is False
+            assert cfg.ca_cert is None
+        finally:
+            auth.api_client = None
+            auth.config_path = None
+
+    def test_token_logout_clears_the_global(self, mocker):
+        mocker.patch(
+            "codeflare_sdk.common.kubernetes_cluster.deprecated_auth.get_k8s_client",
+            return_value=client.ApiClient(),
+        )
+        mocker.patch(
+            "codeflare_sdk.common.kubernetes_cluster.deprecated_auth.client.AuthenticationApi"
+        )
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            auth_obj = TokenAuthentication(token="t", server="https://x:6443")
+            auth_obj.login()
+            message = auth_obj.logout()
+
+        assert message == "Successfully logged out of https://x:6443"
+        assert auth.api_client is None
+        assert auth.config_path is None
+
+    def test_token_login_failure_clears_the_global_and_raises(self, mocker):
+        """A failed login must not leave a half-bound client behind.
+
+        2eedf55 added the `api_client = None` and the bare `raise` here: before
+        it, a rejected token left the module-level client set to a client that
+        did not work, and swallowed the exception.
+        """
+        mocker.patch(
+            "codeflare_sdk.common.kubernetes_cluster.deprecated_auth.get_k8s_client",
+            return_value=client.ApiClient(),
+        )
+        mocker.patch(
+            "codeflare_sdk.common.kubernetes_cluster.deprecated_auth.client.AuthenticationApi",
+            side_effect=client.ApiException(status=401, reason="Unauthorized"),
+        )
+        mocker.patch(
+            "codeflare_sdk.common.kubernetes_cluster.deprecated_auth._kube_api_error_handling"
+        )
+        auth.api_client = None
+        auth.config_path = None
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            auth_obj = TokenAuthentication(token="bad", server="https://x:6443")
+            with pytest.raises(client.ApiException):
+                auth_obj.login()
+
+        assert auth.api_client is None
+        assert auth.config_path is None
+
+    def test_kubeconfig_logout_clears_the_global(self, mocker, tmp_path):
+        kubeconfig = tmp_path / "kubeconfig"
+        kubeconfig.write_text("apiVersion: v1\nkind: Config\n")
+        mocker.patch(
+            "codeflare_sdk.common.kubernetes_cluster.deprecated_auth.get_k8s_client",
+            return_value=client.ApiClient(),
+        )
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            loader = KubeConfigFileAuthentication(kube_config_path=str(kubeconfig))
+            loader.load_kube_config()
+            message = loader.logout()
+
+        assert message == f"Successfully logged out of {kubeconfig}"
+        assert auth.api_client is None
+        assert auth.config_path is None
+
+    def test_the_abstract_bases_are_still_subclassable(self):
+        """They are exported, so someone may have subclassed them.
+
+        v0.39.x gave both no-op method bodies rather than @abstractmethod, so
+        a subclass that overrides nothing is legal and must stay legal.
+        """
+        from codeflare_sdk import Authentication, KubeConfiguration
+
+        class MyAuth(Authentication):
+            pass
+
+        class MyConfig(KubeConfiguration):
+            pass
+
+        assert MyAuth().login() is None
+        assert MyAuth().logout() is None
+        assert MyConfig().load_kube_config() is None
+        assert MyConfig().logout() is None
+
+    def test_kubeconfig_without_a_path_says_so(self):
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            loader = KubeConfigFileAuthentication()
+
+        assert loader.load_kube_config() == "Please specify a config file path"
+
+    def test_kubeconfig_passes_the_path_through(self, mocker, tmp_path):
+        """v0.39.x dropped it.
+
+        It built AuthConfig(method="kubeconfig") with no path, so whenever
+        kube-authkit succeeded the kube_config_path argument was ignored and
+        auto-detection won — then reported the path it had not loaded.
+        AuthConfig takes kubeconfig_path now.
+        """
+        kubeconfig = tmp_path / "kubeconfig"
+        kubeconfig.write_text("apiVersion: v1\nkind: Config\n")
+        fake = client.ApiClient()
+        get_client = mocker.patch(
+            "codeflare_sdk.common.kubernetes_cluster.deprecated_auth.get_k8s_client",
+            return_value=fake,
+        )
+
+        try:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", DeprecationWarning)
+                result = KubeConfigFileAuthentication(
+                    kube_config_path=str(kubeconfig)
+                ).load_kube_config()
+
+            assert result == f"Loaded user config file at path {kubeconfig}"
+            cfg = get_client.call_args.kwargs["config"]
+            assert cfg.method == "kubeconfig"
+            assert cfg.kubeconfig_path == str(kubeconfig)
+            assert auth.config_path == str(kubeconfig)
+            assert auth.get_api_client() is fake
+        finally:
+            auth.api_client = None
+            auth.config_path = None
+
+    def test_kubeconfig_rejects_a_path_that_does_not_exist(self, tmp_path):
+        """A behaviour change from v0.39.x, and the better one.
+
+        There, the kube-authkit branch ran AuthConfig(method="kubeconfig")
+        with no path at all, so a bad path fell through to auto-detection and
+        the method returned "Loaded user config file at path <bad path>" —
+        reporting a file it had never opened. AuthConfig validates the path,
+        so the caller now hears about it.
+        """
+        missing = tmp_path / "nope"
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            loader = KubeConfigFileAuthentication(kube_config_path=str(missing))
+
+        with pytest.raises(Exception, match="not found"):
+            loader.load_kube_config()
+
+        assert auth.api_client is None
+
+
 class TestRemovedNamesExplainThemselves:
+    """Only ManagedClusterConfig now. The four auth names came back."""
+
     @pytest.mark.parametrize("name", sorted(REMOVED))
     def test_import_error_carries_the_migration_text(self, name):
         """The message must survive ``from codeflare_sdk import X``.
@@ -133,52 +489,14 @@ class TestRemovedNamesExplainThemselves:
         assert name in message
         assert "cannot import name" not in message
 
-    @pytest.mark.parametrize(
-        "name,expected",
-        [
-            ("TokenAuthentication", 'method="openshift"'),
-            ("KubeConfigFileAuthentication", 'method="kubeconfig"'),
-            ("Authentication", "kube_authkit.AuthConfig"),
-            ("KubeConfiguration", "kube_authkit.AuthConfig"),
-            ("ManagedClusterConfig", "ClusterConfiguration"),
-        ],
-    )
-    def test_each_names_its_replacement(self, name, expected):
-        assert expected in REMOVED[name]
+    def test_only_managed_cluster_config_stays_removed(self):
+        """The restored auth names must not linger in REMOVED.
 
-    @pytest.mark.parametrize(
-        "name,forbidden",
-        [
-            ("TokenAuthentication", ["verify_ssl", "ca_cert="]),
-            ("KubeConfigFileAuthentication", ["kubeconfig_path"]),
-        ],
-    )
-    def test_snippets_keep_to_the_documented_style(self, name, forbidden):
-        """Match docs/sphinx/user-docs/authentication.rst, not just AuthConfig.
-
-        AuthConfig does accept kubeconfig_path, verify_ssl and ca_cert, so a
-        snippet naming them is valid but teaches a second style. That page is
-        where a user sent here by the error reads next; it routes a custom CA
-        through CF_SDK_CA_CERT_PATH and a kubeconfig path through KUBECONFIG.
+        An entry here shadows a working export: __getattr__ is only consulted
+        for names the package does not define, so a stale entry would be dead
+        code that silently disagrees with the module.
         """
-        message = REMOVED[name]
-        for token in forbidden:
-            assert token not in message
-
-    def test_token_auth_points_at_the_env_var_for_a_custom_ca(self):
-        assert "CF_SDK_CA_CERT_PATH" in REMOVED["TokenAuthentication"]
-
-    def test_kubeconfig_auth_points_at_the_env_var_for_a_path(self):
-        assert "KUBECONFIG" in REMOVED["KubeConfigFileAuthentication"]
-
-    def test_removed_auth_classes_admit_the_v1_0_0_promise(self):
-        """v0.39.x README and auth_migration_guide.md said v1.0.0.
-
-        Dropping them in v0.40.0 is earlier than published, so the error
-        should say so rather than imply a routine deprecation ran its course.
-        """
-        for name in ("TokenAuthentication", "KubeConfigFileAuthentication"):
-            assert "v1.0.0" in REMOVED[name]
+        assert set(REMOVED) == {"ManagedClusterConfig"}
 
     def test_managed_cluster_config_lists_the_renamed_fields(self):
         """Three fields were renamed, not just the class. Verified against

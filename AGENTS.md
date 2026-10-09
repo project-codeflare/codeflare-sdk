@@ -177,17 +177,38 @@ Check both — they live in different places and have disagreed. For the last
 tag, check `git show <tag>:<path>` for the warning, the tag's `README.md` and
 `docs/` for the promised version, and `git show <tag>:demo-notebooks/...` for
 whether a guided notebook uses it. Every removal in v0.40.0 failed at least
-one of those:
+one of those, and four of the five were reverted:
 
-| Name | What was missing |
-| --- | --- |
-| `set_api_client` | no warning at all; broke the v0.39.1 `2_basic_interactive` notebook on its first line. Re-exported and deprecated instead. |
-| `TokenAuthentication` | warned, but `docs/auth_migration_guide.md` promised v1.0.0 *and* told token users to stay on it |
-| `KubeConfigFileAuthentication` | same promise; also never carried `@deprecated`, only a `warnings.warn` inside `__init__` |
-| `ManagedClusterConfig` | no warning; used by guided notebooks `5_submit_rayjob_cr` and `7_rayjob_checkpointing` |
+| Name | What was missing | Outcome |
+| --- | --- | --- |
+| `set_api_client` | no warning at all; broke the v0.39.1 `2_basic_interactive` notebook on its first line | restored, deprecated |
+| `TokenAuthentication` | warned, but `docs/auth_migration_guide.md` promised v1.0.0 *and* told token users to stay on it | restored, deprecated |
+| `KubeConfigFileAuthentication` | same promise; also never carried `@deprecated`, only a `warnings.warn` inside `__init__` | restored, deprecated |
+| `Authentication`, `KubeConfiguration` | abstract bases of the two above | restored |
+| `ManagedClusterConfig` | no warning; used by guided notebooks `5_submit_rayjob_cr` and `7_rayjob_checkpointing` | stays removed |
 
 Do not reach for "it was tech preview" as a rationale without checking: v0.39.1
 labels nothing tech preview anywhere in `README.md`, `docs/` or `src/`.
+
+**Do not name a removal version** in a deprecation notice. The v1.0.0 date was
+published, missed, and is not being renewed; a new date would re-make a promise
+we have already broken once. Say "a future release".
+`test_no_removal_version_is_promised` fails on any `X.Y.Z` in the warning text.
+
+The deprecated classes live in
+`src/codeflare_sdk/common/kubernetes_cluster/deprecated_auth.py` and are
+adapters: the client, host and TLS settings all come from kube-authkit, so
+there is no second auth implementation to keep in sync. Two things there are
+load-bearing and easy to undo by accident:
+
+- `_apply_bearer_token_compat()` re-applies `2eedf55`. kube-authkit's OpenShift
+  strategy writes only `api_key["authorization"]`, but the kubernetes client
+  looks the token up by scheme name (`"BearerToken"`) from v36, and
+  `pyproject.toml` pins only `kubernetes >= 27.2.0`.
+- `TokenAuthentication.login()` uses `_bind_api_client(client, None)`, not
+  `set_api_client()`, which would write `config_path = "custom"`.
+  `config_check()` returns `config_path` and `common/utils/k8s_utils.py` hands
+  it to `list_kube_config_contexts()` as a kubeconfig path.
 
 When a name does go, add it to `REMOVED` in `src/codeflare_sdk/_compat.py` with
 a message naming the replacement — the package `__getattr__` raises it. Raise
@@ -196,10 +217,10 @@ a message naming the replacement — the package `__getattr__` raises it. Raise
 `from ... import` is how users write every one of these. The cost is that
 `hasattr()` on a removed name raises rather than returning `False`.
 
-The deprecation wrapper lives on the package re-export only. `set_api_client`
-is still imported unwrapped from `common.kubernetes_cluster.auth` by
-`Codeflare.__init__`; pointing an internal caller at the wrapper would make
-every `Codeflare()` warn about itself.
+The `set_api_client` deprecation wrapper lives on the package re-export only.
+`Codeflare.__init__` imports the unwrapped one from
+`common.kubernetes_cluster.auth`; pointing an internal caller at the wrapper
+would make every `Codeflare()` warn about itself.
 
 `src/codeflare_sdk/test_compat.py` replays the v0.39.1 notebook's cells, so a
 future removal that breaks it fails the suite.

@@ -103,30 +103,36 @@ For OpenShift clusters using native OAuth with an interactive browser login flow
    )
    cf = Codeflare(config=SDKConfig(auth=auth_config, namespace="my-project"))
 
-Removed Authentication Methods
------------------------------------
+Deprecated Authentication Methods
+------------------------------------
 
-The ``TokenAuthentication`` and ``KubeConfigFileAuthentication`` classes were
-deprecated in v0.34.0 and **removed in v0.40.0**.
+``TokenAuthentication``, ``KubeConfigFileAuthentication`` and ``set_api_client``
+are **deprecated but still working**. Existing code continues to run, and now
+emits a ``DeprecationWarning``.
 
-Two caveats, because earlier documentation said otherwise. It said these
-classes would survive until **v1.0.0** — they did not. It also said
-kube-authkit could not do token authentication, and advised token users to
-stay on ``TokenAuthentication`` — that is no longer the case, and
-``AuthConfig`` handles tokens directly.
+.. warning::
+
+   No removal version is promised. Earlier documentation named v1.0.0; that
+   date is **not** being renewed, and these may be removed sooner. Treat the
+   deprecation warning as the only notice you will get, and migrate when you
+   next touch the code.
+
+Internally each class now delegates to kube-authkit, so behaviour matches the
+equivalent method above rather than a separate code path.
 
 Migrate as follows:
 
-- ``TokenAuthentication`` → **Method 1** above. ``server`` becomes
-  ``k8s_api_host`` and ``token`` is unchanged. A custom CA that was passed as
-  ``ca_cert_path`` goes through the ``CF_SDK_CA_CERT_PATH`` environment
-  variable instead.
-- ``KubeConfigFileAuthentication`` → **Method 4** above. A path that was
-  passed as ``kube_config_path`` goes through ``KUBECONFIG`` instead.
+- ``TokenAuthentication`` → **Method 1**. ``server`` becomes ``k8s_api_host``;
+  ``token`` is unchanged; ``skip_tls=True`` becomes ``verify_ssl=False``. A
+  custom CA passed as ``ca_cert_path`` can stay as ``ca_cert``, or move to the
+  ``CF_SDK_CA_CERT_PATH`` environment variable.
+- ``KubeConfigFileAuthentication`` → **Method 4**. A path passed as
+  ``kube_config_path`` becomes ``kubeconfig_path``, or ``KUBECONFIG``.
+- ``set_api_client`` → construct ``Codeflare`` with an ``AuthConfig``. This is
+  the one worth doing first: ``set_api_client`` sets a process-wide global, so
+  the last caller wins, while ``Codeflare`` scopes the client to the clusters
+  and jobs it creates and lets two instances address two clusters.
 
-Importing either class raises an ``ImportError`` carrying the same guidance.
-
-``set_api_client`` is a different case: it was removed in error, having never
-carried a deprecation warning, and has been restored. It still works, now with
-a ``DeprecationWarning``. Prefer ``Codeflare``, which scopes the client to the
-clusters and jobs it creates rather than setting a process-wide global.
+An earlier version of this page said kube-authkit could not do token
+authentication and advised staying on ``TokenAuthentication``. That is no
+longer true — ``AuthConfig`` handles tokens directly, as Method 1 shows.

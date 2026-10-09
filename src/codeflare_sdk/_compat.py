@@ -14,35 +14,30 @@
 
 """Backward compatibility for the v0.39.x public surface (RHOAIENG-98947).
 
-Two different situations, handled differently:
-
-**Removed anyway.** ``TokenAuthentication`` and
-``KubeConfigFileAuthentication`` warned throughout v0.39.x but were also
-documented as surviving until v1.0.0, and the migration guide told token users
-to stay on ``TokenAuthentication`` because ``AuthConfig`` supposedly could not
-do tokens — which it can. ``ManagedClusterConfig`` (RHAIENG-2063) shipped no
-warning at all and was used by two guided notebooks. None of these three is a
-clean removal; keeping them out is a product decision, recorded in
-RHOAIENG-98947. What they get here is an error naming the replacement, because
-the alternative is a user reading ``cannot import name 'TokenAuthentication'``
-and guessing.
-
-**Removed without notice.** ``set_api_client`` never carried a warning, and
-the v0.39.1 ``2_basic_interactive`` notebook opens with::
+**Restored.** ``set_api_client`` never carried a warning, and the v0.39.1
+``2_basic_interactive`` notebook opens with::
 
     from codeflare_sdk import Cluster, ClusterConfiguration, set_api_client
 
-Dropping it broke working notebooks silently, which is not a removal we are
-entitled to make. It is re-exported here and keeps working; the wrapper adds
-the deprecation notice it should have had in the first place, so a later
-release can remove it properly.
+Dropping it broke working notebooks silently. It is re-exported here and keeps
+working; the wrapper adds the deprecation notice it should have had in the
+first place. ``TokenAuthentication``, ``KubeConfigFileAuthentication`` and
+their two abstract bases are restored too, in
+``common/kubernetes_cluster/deprecated_auth.py``.
+
+None of them names a removal version. v0.39.x documentation said v1.0.0; that
+date is not being renewed, and removal may come sooner.
+
+**Still removed.** ``ManagedClusterConfig`` (RHAIENG-2063) only. It gets an
+error naming its replacement, because the alternative is a user reading
+``cannot import name 'ManagedClusterConfig'`` and guessing.
 
 On raising ``ImportError`` rather than ``AttributeError``: ``from pkg import X``
 calls ``getattr`` and, on ``AttributeError``, *discards the message* and raises
-its own ``cannot import name X``. Since ``from ... import`` is how every one of
-these names is actually written, an ``AttributeError`` would mean the migration
-text is never seen. ``ImportError`` propagates intact. The cost is that
-``hasattr(codeflare_sdk, "TokenAuthentication")`` raises instead of returning
+its own ``cannot import name X``. Since ``from ... import`` is how the name is
+actually written, an ``AttributeError`` would mean the migration text is never
+seen. ``ImportError`` propagates intact. The cost is that
+``hasattr(codeflare_sdk, "ManagedClusterConfig")`` raises instead of returning
 ``False``; that applies only to the names in ``REMOVED``, and losing the
 message is the worse trade.
 """
@@ -80,53 +75,6 @@ def set_api_client(new_client: "client.ApiClient") -> None:
     _set_api_client(new_client)
 
 
-# The snippets below must stay in step with the numbered methods in
-# docs/sphinx/user-docs/authentication.rst, which is where a user sent here by
-# the error will read next. That page uses method="openshift" with
-# k8s_api_host and token, and a bare method="kubeconfig"; a custom CA goes
-# through the CF_SDK_CA_CERT_PATH environment variable, not an AuthConfig
-# field. AuthConfig does also accept kubeconfig_path, verify_ssl and ca_cert,
-# but naming them here would teach a second style for no gain.
-
-_TOKEN_AUTH = """\
-TokenAuthentication was removed in v0.40.0. Note that v0.39.x documentation \
-said it would survive until v1.0.0, and the auth migration guide told \
-token users to stay on it; that is no longer true. kube-authkit does now \
-support token auth directly (see authentication.rst, Method 1):
-
-    from codeflare_sdk import Codeflare, SDKConfig
-    from kube_authkit import AuthConfig
-
-    cf = Codeflare(config=SDKConfig(auth=AuthConfig(
-        method="openshift",
-        k8s_api_host=<server>,
-        token=<token>,
-    )))
-
-cf.clusters.create(...) returns clusters bound to that client. For a custom \
-CA bundle, set the CF_SDK_CA_CERT_PATH environment variable.\
-"""
-
-_KUBECONFIG_AUTH = """\
-KubeConfigFileAuthentication was removed in v0.40.0. Note that v0.39.x \
-documentation said it would survive until v1.0.0; that is no longer true. \
-Use kube-authkit (see authentication.rst, Method 4):
-
-    from codeflare_sdk import Codeflare, SDKConfig
-    from kube_authkit import AuthConfig
-
-    cf = Codeflare(config=SDKConfig(auth=AuthConfig(method="kubeconfig")))
-
-KUBECONFIG is respected if set, otherwise ~/.kube/config is used.\
-"""
-
-_AUTH_BASE = """\
-{name} was removed in v0.40.0 along with TokenAuthentication and \
-KubeConfigFileAuthentication, the only classes that implemented it. \
-Authentication is handled by kube_authkit.AuthConfig, which is a dataclass \
-rather than a base class to subclass.\
-"""
-
 _MANAGED_CLUSTER_CONFIG = """\
 ManagedClusterConfig was removed in v0.40.0 (RHAIENG-2063), without a \
 deprecation warning having been shipped first. Use ClusterConfiguration, \
@@ -147,9 +95,5 @@ See docs/rayjob_config_migration_guide.md.\
 #: Names that are gone for good, mapped to the message explaining what replaced
 #: them. Consumed by ``codeflare_sdk.__getattr__``.
 REMOVED = {
-    "TokenAuthentication": _TOKEN_AUTH,
-    "KubeConfigFileAuthentication": _KUBECONFIG_AUTH,
-    "Authentication": _AUTH_BASE.format(name="Authentication"),
-    "KubeConfiguration": _AUTH_BASE.format(name="KubeConfiguration"),
     "ManagedClusterConfig": _MANAGED_CLUSTER_CONFIG,
 }

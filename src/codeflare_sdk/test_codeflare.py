@@ -527,29 +527,13 @@ class TestFacadeTypeSignatures:
 
 
 class TestLegacyAuthRemoved:
-    def test_token_auth_not_importable(self):
-        """TokenAuthentication is no longer exported from codeflare_sdk."""
-        with pytest.raises(ImportError):
-            from codeflare_sdk import TokenAuthentication  # noqa: F401
-
-    def test_kubeconfig_auth_not_importable(self):
-        """KubeConfigFileAuthentication is no longer exported from codeflare_sdk."""
-        with pytest.raises(ImportError):
-            from codeflare_sdk import KubeConfigFileAuthentication  # noqa: F401
-
-    def test_authentication_not_importable(self):
-        """Authentication base class is no longer exported from codeflare_sdk."""
-        with pytest.raises(ImportError):
-            from codeflare_sdk import Authentication  # noqa: F401
-
-    def test_kube_configuration_not_importable(self):
-        """KubeConfiguration base class is no longer exported from codeflare_sdk."""
-        with pytest.raises(ImportError):
-            from codeflare_sdk import KubeConfiguration  # noqa: F401
-
-    # set_api_client is deliberately *not* in this class: it never carried a
-    # deprecation warning, so removing it was not ours to do. It is exported
-    # again and deprecated instead — see test_compat.py (RHOAIENG-98947).
+    # The legacy auth classes are no longer removed. RHOAIENG-98947: the team
+    # decided to restore TokenAuthentication, KubeConfigFileAuthentication and
+    # their two abstract bases with deprecation warnings, because v0.39.x
+    # documentation promised they would survive and told token users to stay
+    # on TokenAuthentication. set_api_client came back for the same reason —
+    # it never warned at all. All five are covered by test_compat.py; what
+    # remains here is the entrypoint surface that replaces them.
 
     def test_codeflare_importable(self):
         """Codeflare is importable from codeflare_sdk."""
