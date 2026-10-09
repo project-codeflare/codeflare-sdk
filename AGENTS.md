@@ -164,13 +164,32 @@ It mirrors `src/codeflare_sdk/__init__.py` and subpackage `__init__.py` exports.
 When adding or removing public symbols, update both the Python `__init__.py` and the JSON registry.
 
 Nothing in CI checks the two against each other, so the registry can drift —
-verify against the code rather than trusting it. Known drift: the `auth` entry
-still lists `Authentication`, `KubeConfiguration`, `TokenAuthentication` and
-`KubeConfigFileAuthentication`, which were removed and now raise `ImportError`
-(tracked in RHOAIENG-98754, pending a decision on restoring compatibility shims).
+verify against the code rather than trusting it.
 
 The `codeflare` entry covers the single entrypoint: `Codeflare`, `SDKConfig`,
 and the `JobOptions` TypedDict shared by the `cf.jobs` overloads.
+
+### Removing a public symbol (RHOAIENG-98947)
+
+A public name may only be removed after it has shipped a `DeprecationWarning`
+in a prior release. `set_api_client` was removed without one, which broke the
+v0.39.1 `2_basic_interactive` notebook at its first line; it is exported again
+and deprecated instead.
+
+When a name does go, add it to `REMOVED` in `src/codeflare_sdk/_compat.py` with
+a message naming the replacement — the package `__getattr__` raises it. Raise
+`ImportError`, not `AttributeError`: `from codeflare_sdk import X` discards an
+`AttributeError`'s message and substitutes its own `cannot import name X`, and
+`from ... import` is how users write every one of these. The cost is that
+`hasattr()` on a removed name raises rather than returning `False`.
+
+The deprecation wrapper lives on the package re-export only. `set_api_client`
+is still imported unwrapped from `common.kubernetes_cluster.auth` by
+`Codeflare.__init__`; pointing an internal caller at the wrapper would make
+every `Codeflare()` warn about itself.
+
+`src/codeflare_sdk/test_compat.py` replays the v0.39.1 notebook's cells, so a
+future removal that breaks it fails the suite.
 
 Design-level architecture: `docs/designs/CodeFlare-SDK-design-doc.md`.
 User-facing Sphinx docs: `docs/sphinx/`.

@@ -547,10 +547,9 @@ class TestLegacyAuthRemoved:
         with pytest.raises(ImportError):
             from codeflare_sdk import KubeConfiguration  # noqa: F401
 
-    def test_set_api_client_not_importable(self):
-        """set_api_client is no longer exported from codeflare_sdk top-level."""
-        with pytest.raises(ImportError):
-            from codeflare_sdk import set_api_client  # noqa: F401
+    # set_api_client is deliberately *not* in this class: it never carried a
+    # deprecation warning, so removing it was not ours to do. It is exported
+    # again and deprecated instead — see test_compat.py (RHOAIENG-98947).
 
     def test_codeflare_importable(self):
         """Codeflare is importable from codeflare_sdk."""
