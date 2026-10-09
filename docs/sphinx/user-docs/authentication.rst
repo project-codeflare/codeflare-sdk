@@ -107,8 +107,29 @@ Removed Authentication Methods
 -----------------------------------
 
 The ``TokenAuthentication`` and ``KubeConfigFileAuthentication`` classes were
-deprecated in v0.34.0 and have since been **removed**. Importing them now raises
-``ImportError``. Migrate to one of the patterns above.
+deprecated in v0.34.0 and **removed in v0.40.0**. Earlier documentation said
+they would survive until v1.0.0; they did not. Importing either one raises an
+``ImportError`` naming its replacement:
 
-See the `Migration Guide <https://github.com/project-codeflare/codeflare-sdk/blob/main/docs/auth_migration_guide.md>`_
-for detailed before/after examples.
+.. code-block:: text
+
+   TokenAuthentication was removed in v0.40.0, after being deprecated
+   throughout v0.39.x. Use kube-authkit:
+
+       from codeflare_sdk import Codeflare, SDKConfig
+       from kube_authkit import AuthConfig
+
+       cf = Codeflare(config=SDKConfig(auth=AuthConfig(
+           method="openshift",
+           k8s_api_host=<server>,
+           token=<token>,
+           verify_ssl=not <skip_tls>,   # ca_cert=<ca_cert_path>
+       )))
+
+``TokenAuthentication`` maps onto Method 1 above, and
+``KubeConfigFileAuthentication`` onto Method 4.
+
+``set_api_client`` is a different case: it was removed in error, having never
+carried a deprecation warning, and has been restored. It still works, now with
+a ``DeprecationWarning``. Prefer ``Codeflare``, which scopes the client to the
+clusters and jobs it creates rather than setting a process-wide global.
