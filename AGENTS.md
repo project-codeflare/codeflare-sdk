@@ -284,7 +284,8 @@ Real examples for the most common change types. Follow these patterns, not descr
   `src/codeflare_sdk/ray/test_builder_parity.py` enforces this: a new field must
   either get a sentinel (and reach both builders) or be classified
   CONTEXT_ONLY / NOT_APPLICABLE / CONFLICTED / PENDING_DECISION / PARTIAL with a
-  reason. The full audit is `docs/raycluster_spec_parity.md` (RHOAIENG-98942).
+  reason. `docs/raycluster_spec_parity.md` is the reference for where every
+  field lands and which asymmetries are intentional (RHOAIENG-98942).
 
   **A new `WorkerGroup` field needs the same treatment**, in
   `WORKER_GROUP_SENTINELS` (or `WORKER_GROUP_STRUCTURAL`, for a count that a

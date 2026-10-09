@@ -1,4 +1,4 @@
-# RayCluster spec parity audit
+# RayCluster spec parity
 
 `ClusterConfiguration` feeds two spec builders:
 
@@ -7,23 +7,21 @@
 | Standalone `Cluster` | `ray/cluster/build_ray_cluster.py` | a whole `RayCluster` resource |
 | `RayJob(cluster_config=...)` | `ray/rayjobs/config.py` | the `rayClusterSpec` embedded in a RayJob |
 
-They were written separately and drifted. A field wired into one and forgotten
-in the other raises nothing — the cluster simply comes up without it. This page
-records where every field lands and why.
+A field wired into one builder and not the other raises nothing — the cluster
+comes up without it. This page is the reference for where every field lands,
+and which asymmetries are intentional.
 
-The shared, side-effect-free pieces now live in
-`ray/cluster/raycluster_spec.py`, and
-`src/codeflare_sdk/ray/test_builder_parity.py` enforces the table below: it
+**Read this before adding a field to `ClusterConfiguration` or `WorkerGroup`.**
+
+Shared, side-effect-free rendering lives in `ray/cluster/raycluster_spec.py`.
+`src/codeflare_sdk/ray/test_builder_parity.py` enforces the tables below: it
 sets each field to a sentinel, renders both specs, and fails if a sentinel
-reaches only one. A new field that is neither given a sentinel nor classified
-here fails `test_every_field_is_classified`.
+reaches only one. A field that is neither given a sentinel nor classified here
+fails `test_every_field_is_classified`.
 
-`WorkerGroup` — the dataclass carried in `additional_worker_groups` — gets the
-same treatment, because it is assembled by a *second* pair of duplicated
-functions that can drift independently. See
-[WorkerGroup parity](#workergroup-parity-15) below.
-
-Tracked under RHOAIENG-98942.
+`WorkerGroup` — carried in `additional_worker_groups` — is covered the same
+way, because each builder assembles it separately. See
+[WorkerGroup parity](#workergroup-parity-15).
 
 ## SUPPORTED — reaches both builders (24)
 
@@ -107,11 +105,11 @@ Their absence from both builders is correct.
 Shared in `raycluster_spec.py`, called by both paths: the ODH CA volumes and
 mounts, CPU/memory/extended resource requirements, GPU counting, the
 `rayStartParams` resources string, the head and worker containers, and replica
-counts. `gcs_fault_tolerance_options()` also lives there but is called by the
+counts. `gcs_fault_tolerance_options()` lives there too but is called by the
 standalone path only — see PENDING DECISION above.
 
-Still assembled independently by each builder, and the subject of the
-follow-up to this work:
+Assembled independently by each builder, so a change to one needs the same
+change to the other (RHOAIENG-99560):
 
 - the `headGroupSpec` / `workerGroupSpecs` dicts and their `rayStartParams`
 - `_build_worker_group_spec` and `_build_additional_worker_group_spec`, two
@@ -153,9 +151,7 @@ with the cluster one:
 | `tolerations` | **replaces** `config.worker_tolerations`; absent, inherits |
 
 Each rule is pinned by a named test, and the inherit case is asserted
-separately from the override case. Reviewed by @chipspeak, whose point was
-that a sentinel setting only `group_name` and `replicas` would let the other
-thirteen fields diverge while the suite stayed green.
+separately from the override case.
 
 A new `WorkerGroup` field must be added to `WORKER_GROUP_SENTINELS`, or routed
 to a named test via `WORKER_GROUP_STRUCTURAL` when it is a count that a
