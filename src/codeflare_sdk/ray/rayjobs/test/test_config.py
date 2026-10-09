@@ -609,3 +609,60 @@ def test_build_spec_no_additional_groups(mocker):
     config = ClusterConfiguration()
     spec = build_ray_cluster_spec(config, "test-job")
     assert len(spec["workerGroupSpecs"]) == 1
+
+
+class TestLabelsReachPodTemplates:
+    """RHOAIENG-98942: config.labels reached additional worker groups only.
+
+    _build_additional_worker_group_spec merged config.labels into its pod
+    template, while the head and default worker templates passed annotations
+    and nothing else — so ClusterConfiguration(labels=...) landed on extra
+    worker groups and nowhere else, with no error.
+    """
+
+    def _templates(self, mocker, **kwargs):
+        mocker.patch(
+            "codeflare_sdk.ray.rayjobs.config.update_image",
+            return_value="ray:latest",
+        )
+        spec = build_ray_cluster_spec(ClusterConfiguration(**kwargs), "test-job")
+        return (
+            spec["headGroupSpec"]["template"],
+            spec["workerGroupSpecs"][0]["template"],
+        )
+
+    def test_labels_land_on_head_and_default_worker(self, mocker):
+        head, worker = self._templates(mocker, labels={"team": "ml"})
+
+        assert head.metadata.labels == {"team": "ml"}
+        assert worker.metadata.labels == {"team": "ml"}
+
+    def test_labels_coexist_with_annotations(self, mocker):
+        head, _ = self._templates(
+            mocker, labels={"team": "ml"}, annotations={"example.com/a": "b"}
+        )
+
+        assert head.metadata.labels == {"team": "ml"}
+        assert head.metadata.annotations == {"example.com/a": "b"}
+
+    def test_no_labels_leaves_metadata_untouched(self, mocker):
+        head, worker = self._templates(mocker)
+
+        assert head.metadata is None
+        assert worker.metadata is None
+
+    def test_additional_worker_groups_still_merge_group_labels(self, mocker):
+        mocker.patch(
+            "codeflare_sdk.ray.rayjobs.config.update_image",
+            return_value="ray:latest",
+        )
+        config = ClusterConfiguration(
+            labels={"team": "ml"},
+            additional_worker_groups=[
+                WorkerGroup(group_name="extra", labels={"tier": "gpu"})
+            ],
+        )
+        spec = build_ray_cluster_spec(config, "test-job")
+
+        extra = spec["workerGroupSpecs"][1]["template"]
+        assert extra.metadata.labels == {"team": "ml", "tier": "gpu"}
