@@ -222,8 +222,12 @@ The `set_api_client` deprecation wrapper lives on the package re-export only.
 `common.kubernetes_cluster.auth`; pointing an internal caller at the wrapper
 would make every `Codeflare()` warn about itself.
 
-`src/codeflare_sdk/test_compat.py` replays the v0.39.1 notebook's cells, so a
-future removal that breaks it fails the suite.
+`src/codeflare_sdk/test_compat.py` replays `2_basic_interactive`'s import line,
+auth cell (a real `AuthConfig` → `get_k8s_client` → `set_api_client`, unmocked,
+because the token path makes no network call) and `ClusterConfiguration` kwargs,
+so a future removal that breaks that notebook fails the suite. It does not cover
+notebooks `5_submit_rayjob_cr` or `7_rayjob_checkpointing`, whose v0.39.1 copies
+still fail at `ManagedClusterConfig` by design.
 
 Design-level architecture: `docs/designs/CodeFlare-SDK-design-doc.md`.
 User-facing Sphinx docs: `docs/sphinx/`.

@@ -12,7 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""The v0.39.x public surface still behaves as promised (RHOAIENG-98947)."""
+"""What of the v0.39.x public surface still works, and what does not.
+
+RHOAIENG-98947. ``set_api_client``, the legacy auth classes and the
+``2_basic_interactive`` notebook all work again. ``ManagedClusterConfig`` does
+not and is not coming back, so v0.39.1 copies of ``5_submit_rayjob_cr`` and
+``7_rayjob_checkpointing`` still fail at import; what is tested there is that
+the error explains itself.
+"""
 
 import re
 import warnings
@@ -45,15 +52,32 @@ class TestNotebookFromV0391StillRuns:
         from kube_authkit import AuthConfig, get_k8s_client  # noqa: F401
 
     def test_auth_cell_binds_the_client(self):
-        api_client = client.ApiClient()
-        from codeflare_sdk import set_api_client
+        """The notebook's cell 2 run for real, not a paraphrase.
+
+        It builds an AuthConfig, passes it to get_k8s_client, and hands the
+        result to set_api_client. Calling set_api_client(ApiClient()) directly
+        would skip the two steps that actually have to keep working.
+
+        Nothing is mocked because nothing needs to be: with an explicit token
+        the OpenShift strategy skips OAuth discovery entirely, which
+        test_token_auth_makes_no_network_call pins separately.
+        """
+        from codeflare_sdk import AuthConfig, get_k8s_client, set_api_client
 
         try:
+            auth_config = AuthConfig(
+                method="openshift",
+                k8s_api_host="https://api.example.com:6443",
+                token="sha256~XXXXX",
+            )
+            api_client = get_k8s_client(config=auth_config)
+
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", DeprecationWarning)
                 set_api_client(api_client)
 
             assert auth.get_api_client() is api_client
+            assert api_client.configuration.host == "https://api.example.com:6443"
         finally:
             auth.api_client = None
             auth.config_path = None
@@ -110,16 +134,35 @@ class TestSetApiClientIsDeprecatedNotRemoved:
             auth.config_path = None
 
     def test_codeflare_does_not_warn(self, mocker):
+        """Codeflare() must not emit the set_api_client deprecation.
+
+        Deliberately does *not* patch codeflare_sdk.codeflare.set_api_client.
+        Codeflare.__init__ binds that name at import, so patching it replaces
+        the call outright and the test passes even if __init__ were switched
+        to the deprecated _compat wrapper — which is the regression it exists
+        to catch. The real auth.set_api_client runs instead.
+        """
         from codeflare_sdk import Codeflare, SDKConfig
 
         mocker.patch(
             "codeflare_sdk.codeflare.get_k8s_client", return_value=client.ApiClient()
         )
-        mocker.patch("codeflare_sdk.codeflare.set_api_client")
 
-        with warnings.catch_warnings():
-            warnings.simplefilter("error", DeprecationWarning)
-            Codeflare(config=SDKConfig(namespace="ns"))
+        try:
+            with warnings.catch_warnings():
+                warnings.simplefilter("error", DeprecationWarning)
+                Codeflare(config=SDKConfig(namespace="ns"))
+        finally:
+            auth.api_client = None
+            auth.config_path = None
+
+    def test_codeflare_uses_the_unwrapped_set_api_client(self, mocker):
+        """Pins the import that makes the test above meaningful."""
+        import codeflare_sdk.codeflare as facade
+        from codeflare_sdk._compat import set_api_client as wrapper
+
+        assert facade.set_api_client is auth.set_api_client
+        assert facade.set_api_client is not wrapper
 
 
 class TestDeprecatedAuthClassesStillWork:
@@ -245,6 +288,46 @@ class TestDeprecatedAuthClassesStillWork:
         finally:
             auth.api_client = None
             auth.config_path = None
+
+    def test_token_login_makes_no_network_call(self, monkeypatch):
+        """v0.39.1 built a raw Configuration(host=server) + bearer token.
+
+        Routing through AuthConfig(method="openshift") must stay equivalent:
+        the OpenShift strategy can do interactive OAuth discovery, and if it
+        did so here, vanilla Kubernetes token logins — which have no OpenShift
+        OAuth server to discover — would break. Raised by @pawelpaszki.
+
+        Blocks sockets and requests rather than asserting on a mock, so this
+        fails if any layer underneath starts reaching out.
+        """
+        import socket
+
+        import requests
+
+        class Blocked(Exception):
+            pass
+
+        def deny(*args, **kwargs):
+            raise Blocked("network call attempted during token login")
+
+        monkeypatch.setattr(socket.socket, "connect", deny)
+        monkeypatch.setattr(socket, "create_connection", deny)
+        monkeypatch.setattr(requests, "get", deny)
+        monkeypatch.setattr(requests, "post", deny)
+        monkeypatch.setattr(requests.Session, "request", deny)
+
+        from kube_authkit import AuthConfig, get_k8s_client
+
+        api_client = get_k8s_client(
+            config=AuthConfig(
+                method="openshift",
+                k8s_api_host="https://api.example.com:6443",
+                token="sha256~tok",
+            )
+        )
+
+        assert api_client.configuration.host == "https://api.example.com:6443"
+        assert api_client.configuration.api_key["authorization"] == "Bearer sha256~tok"
 
     def test_token_login_sets_both_bearer_key_spellings(self, mocker):
         """Preserves 2eedf55.
@@ -390,6 +473,33 @@ class TestDeprecatedAuthClassesStillWork:
         assert auth.api_client is None
         assert auth.config_path is None
 
+    def test_kubeconfig_failure_propagates_rather_than_falling_back(self, mocker):
+        """Deliberate divergence from v0.39.x. Raised by @pawelpaszki.
+
+        v0.39.x caught any kube-authkit failure and silently retried with
+        kubernetes.config.load_kube_config(). That is not restored, for two
+        reasons: kube-authkit's kubeconfig strategy *is* load_kube_config, so
+        the fallback could only ever paper over a real error, and the ticket
+        asks for no duplicate auth implementation. A failure is now reported.
+        """
+        from kube_authkit.exceptions import AuthenticationError
+
+        mocker.patch(
+            "codeflare_sdk.common.kubernetes_cluster.deprecated_auth.get_k8s_client",
+            side_effect=AuthenticationError("boom"),
+        )
+        load = mocker.patch("kubernetes.config.load_kube_config")
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            loader = KubeConfigFileAuthentication(kube_config_path="/tmp/kc")
+
+        with pytest.raises(AuthenticationError):
+            loader.load_kube_config()
+
+        load.assert_not_called()
+        assert auth.api_client is None
+
     def test_the_abstract_bases_are_still_subclassable(self):
         """They are exported, so someone may have subclassed them.
 
@@ -475,19 +585,34 @@ class TestRemovedNamesExplainThemselves:
 
     @pytest.mark.parametrize("name", sorted(REMOVED))
     def test_import_error_carries_the_migration_text(self, name):
-        """The message must survive ``from codeflare_sdk import X``.
+        """Via a real ``from codeflare_sdk import X``, not getattr.
 
-        An AttributeError would be swallowed and replaced with "cannot import
-        name", which is the behaviour this exists to avoid.
+        getattr would not prove the point: the whole reason __getattr__ raises
+        ImportError rather than AttributeError is that the from-import
+        machinery discards an AttributeError's message and substitutes its own
+        "cannot import name X". Only the statement form exercises that.
         """
-        import codeflare_sdk
-
         with pytest.raises(ImportError) as excinfo:
-            getattr(codeflare_sdk, name)
+            exec(f"from codeflare_sdk import {name}", {})
 
         message = str(excinfo.value)
         assert name in message
         assert "cannot import name" not in message
+        assert "ClusterConfiguration" in message
+
+    @pytest.mark.parametrize("name", sorted(REMOVED))
+    def test_hasattr_raises_which_is_the_documented_cost(self, name):
+        """The stated trade-off, asserted rather than only written down.
+
+        Raising ImportError from __getattr__ buys a readable message on
+        from-import and costs feature detection: hasattr() propagates instead
+        of returning False. If that ever becomes intolerable, this test is
+        what has to change, so it should be visible.
+        """
+        import codeflare_sdk
+
+        with pytest.raises(ImportError):
+            hasattr(codeflare_sdk, name)
 
     def test_only_managed_cluster_config_stays_removed(self):
         """The restored auth names must not linger in REMOVED.

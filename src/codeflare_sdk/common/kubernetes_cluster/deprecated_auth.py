@@ -206,10 +206,19 @@ class KubeConfigFileAuthentication(KubeConfiguration):
         if self.kube_config_path is None:
             return "Please specify a config file path"
 
-        # v0.39.x built AuthConfig(method="kubeconfig") with no path, so
+        # Two deliberate differences from v0.39.x.
+        #
+        # It built AuthConfig(method="kubeconfig") with no path, so
         # kube-authkit auto-detected and kube_config_path was ignored whenever
-        # that call succeeded. AuthConfig takes kubeconfig_path now, so honour
-        # the argument the caller actually passed.
+        # that call succeeded — while still returning "Loaded user config file
+        # at path <that path>". AuthConfig takes kubeconfig_path now, so the
+        # argument the caller passed is honoured.
+        #
+        # There is also no fallback to kubernetes.config.load_kube_config() on
+        # failure. v0.39.x caught any kube-authkit error and retried that way,
+        # but kube-authkit's kubeconfig strategy *is* load_kube_config, so the
+        # retry could only mask a real error; the ticket also asks for no
+        # duplicate auth implementation. Failures propagate.
         api_client = get_k8s_client(
             config=AuthConfig(
                 method="kubeconfig", kubeconfig_path=self.kube_config_path
