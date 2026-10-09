@@ -96,6 +96,53 @@ EXEMPT = {
     **PARTIAL,
 }
 
+# WorkerGroup travels inside ClusterConfiguration.additional_worker_groups and
+# is assembled by a *second* pair of duplicated functions —
+# build_ray_cluster._build_worker_group_spec and
+# rayjobs.config._build_additional_worker_group_spec. Those can drift exactly
+# as the main builders can, so every field gets a sentinel here too. An
+# earlier version set only group_name and replicas, which meant envs, labels,
+# tolerations, image, the GPU settings and extended resources could diverge
+# between the two and this suite would still pass.
+WORKER_GROUP_SENTINELS = {
+    "group_name": "sentinel-extra-group",
+    "replicas": 3,
+    "min_replicas": 2,
+    "max_replicas": 8,
+    "cpu_requests": "555m",
+    "cpu_limits": "666m",
+    "memory_requests": "29G",
+    "memory_limits": "31G",
+    "gpu_type": "sentinel.io/wg-acc",
+    "gpu_count": 13,
+    "extended_resource_requests": {"sentinel.io/wg-ext": 11},
+    "image": "sentinel.io/wg-image:sentinel-wg-tag",
+    "envs": {"SENTINEL_WG_ENV": "sentinel-wg-env-value"},
+    "labels": {"sentinel.io/wg-label": "sentinel-wg-label-value"},
+    "tolerations": [V1Toleration(key="sentinel-wg-toleration")],
+}
+
+# The substring to look for, when it is not the sentinel value itself.
+WORKER_GROUP_MARKERS = {
+    "extended_resource_requests": "sentinel.io/wg-ext",
+    "envs": "SENTINEL_WG_ENV",
+    "labels": "sentinel.io/wg-label",
+    "tolerations": "sentinel-wg-toleration",
+    # Rendered as a resource name on the container, not as the bare string.
+    "gpu_type": "sentinel.io/wg-acc",
+}
+
+# Counts, which a substring search cannot distinguish from any other number
+# in the spec. Asserted structurally by the named test instead.
+WORKER_GROUP_STRUCTURAL = {
+    "replicas": "test_worker_group_replica_counts_match_on_both_paths",
+    "min_replicas": "test_worker_group_replica_counts_match_on_both_paths",
+    "max_replicas": "test_worker_group_replica_counts_match_on_both_paths",
+    "gpu_count": "test_worker_group_gpu_count_matches_on_both_paths",
+}
+
+WORKER_GROUP = WorkerGroup(**WORKER_GROUP_SENTINELS)
+
 # One recognisable value per field, chosen so it survives into the rendered
 # spec as a substring. Memory/CPU values are deliberately odd numbers so they
 # cannot collide with a default.
@@ -124,6 +171,9 @@ SENTINELS = {
     "extended_resource_mapping": {
         "sentinel.io/head-acc": "SENTINEL_ACC",
         "sentinel.io/worker-acc": "SENTINEL_WORKER_ACC",
+        # WorkerGroup.gpu_type is mapped through this same dict; without an
+        # entry it defaults to "GPU" and never reaches rayStartParams.
+        "sentinel.io/wg-acc": "SENTINEL_WG_ACC",
     },
     "enable_gcs_ft": True,
     "redis_address": "sentinel-redis:6379",
@@ -132,9 +182,7 @@ SENTINELS = {
     "enable_autoscaling": True,
     "min_workers": 2,
     "max_workers": 9,
-    "additional_worker_groups": [
-        WorkerGroup(group_name="sentinel-extra-group", replicas=3)
-    ],
+    "additional_worker_groups": [WORKER_GROUP],
 }
 
 # The substring to look for, when it is not the sentinel value itself.
@@ -425,3 +473,160 @@ def test_additional_worker_groups_reach_both_paths(specs):
         extra = groups[1]
         assert "sentinel-extra-group" in extra["groupName"]
         assert extra["replicas"] == 3
+
+
+# --- WorkerGroup parity (RHOAIENG-98942) ---------------------------------
+#
+# additional_worker_groups is assembled by a second pair of duplicated
+# functions, so it needs its own guard. Reviewed by @chipspeak: a sentinel
+# that set only group_name and replicas let every other WorkerGroup field
+# drift between the two builders while this suite stayed green.
+
+
+def _worker_group_configurable():
+    for f in fields(WorkerGroup):
+        if f.name in WORKER_GROUP_STRUCTURAL:
+            continue
+        yield pytest.param(f.name, id=f.name)
+
+
+WORKER_GROUP_CONFIGURABLE = list(_worker_group_configurable())
+
+
+def _extra_group(spec: dict) -> dict:
+    """The workerGroupSpec built from additional_worker_groups[0]."""
+    return spec["workerGroupSpecs"][1]
+
+
+@pytest.mark.parametrize("field_name", WORKER_GROUP_CONFIGURABLE)
+def test_worker_group_field_reaches_both_builders(field_name, specs):
+    """Every WorkerGroup field must appear in both rendered extra groups."""
+    marker = WORKER_GROUP_MARKERS.get(field_name) or str(
+        WORKER_GROUP_SENTINELS[field_name]
+    )
+
+    for spec, path in zip(specs, ("standalone RayCluster", "RayJob rayClusterSpec")):
+        assert marker in repr(_extra_group(spec)), (
+            f"WorkerGroup.{field_name} missing from the {path}"
+        )
+
+
+def test_every_worker_group_field_is_classified():
+    """A new WorkerGroup field must be given a parity decision too.
+
+    The same gate as test_every_field_is_classified, for the dataclass one
+    level down. Without this, adding a field to WorkerGroup silently escapes
+    the parity guard.
+    """
+    known = set(WORKER_GROUP_SENTINELS) | set(WORKER_GROUP_STRUCTURAL)
+    actual = {f.name for f in fields(WorkerGroup)}
+
+    unclassified = actual - known
+    assert unclassified == set(), (
+        f"New WorkerGroup field(s) {sorted(unclassified)}: add a sentinel to "
+        "WORKER_GROUP_SENTINELS so parity is checked, or route it to a named "
+        "test via WORKER_GROUP_STRUCTURAL."
+    )
+    assert known - actual == set(), "stale entry for a field that no longer exists"
+
+
+def test_worker_group_structural_fields_name_a_real_test():
+    here = globals()
+    for field_name, test_name in WORKER_GROUP_STRUCTURAL.items():
+        assert test_name in here, f"{field_name} points at missing {test_name}"
+
+
+def test_worker_group_replica_counts_match_on_both_paths(specs):
+    """replicas / min_replicas / max_replicas, read off the spec.
+
+    The group carries its own explicit range, so neither builder may
+    substitute the cluster-level autoscaling numbers.
+    """
+    for spec in specs:
+        group = _extra_group(spec)
+        assert (group["replicas"], group["minReplicas"], group["maxReplicas"]) == (
+            3,
+            2,
+            8,
+        )
+
+
+def test_worker_group_replica_counts_default_to_replicas_on_both_paths():
+    """min/max omitted means all three equal replicas, on both paths."""
+    group = WorkerGroup(group_name="defaults-group", replicas=4)
+    config = _full_config(additional_worker_groups=[group])
+
+    for spec in (_spec_standalone(config), _spec_embedded(config)):
+        built = _extra_group(spec)
+        assert (built["replicas"], built["minReplicas"], built["maxReplicas"]) == (
+            4,
+            4,
+            4,
+        )
+
+
+def test_worker_group_gpu_count_matches_on_both_paths(specs):
+    """gpu_count reaches rayStartParams and the container resources alike."""
+    for spec in specs:
+        group = _extra_group(spec)
+        assert group["rayStartParams"]["num-gpus"] == "13"
+
+        resources = group["template"]["spec"]["containers"][0]["resources"]
+        assert resources["limits"]["sentinel.io/wg-acc"] == 13
+        assert resources["requests"]["sentinel.io/wg-acc"] == 13
+
+
+def test_worker_group_image_overrides_the_cluster_image_on_both_paths(specs):
+    """wg.image wins over config.image; omitting it inherits.
+
+    A substring check cannot tell "the group image is used" from "the cluster
+    image leaked in", because both are present elsewhere in the spec.
+    """
+    for spec in specs:
+        container = _extra_group(spec)["template"]["spec"]["containers"][0]
+        assert container["image"] == "sentinel.io/wg-image:sentinel-wg-tag"
+
+
+def test_worker_group_without_an_image_inherits_the_cluster_one():
+    group = WorkerGroup(group_name="inherit-group", replicas=1)
+    config = _full_config(additional_worker_groups=[group])
+
+    for spec in (_spec_standalone(config), _spec_embedded(config)):
+        container = _extra_group(spec)["template"]["spec"]["containers"][0]
+        assert container["image"] == SENTINELS["image"]
+
+
+def test_worker_group_envs_merge_over_cluster_envs_on_both_paths(specs):
+    """Group envs are added to the cluster's, not substituted for them."""
+    for spec in specs:
+        container = _extra_group(spec)["template"]["spec"]["containers"][0]
+        names = {e["name"]: e["value"] for e in container["env"]}
+
+        assert names["SENTINEL_WG_ENV"] == "sentinel-wg-env-value"
+        assert names["SENTINEL_ENV"] == "sentinel-env-value"
+
+
+def test_worker_group_labels_merge_over_cluster_labels_on_both_paths(specs):
+    """Both paths merge config.labels under wg.labels for the extra group."""
+    for spec in specs:
+        labels = _extra_group(spec)["template"]["metadata"]["labels"]
+
+        assert labels["sentinel.io/wg-label"] == "sentinel-wg-label-value"
+        assert labels["sentinel.io/label"] == "sentinel-label-value"
+
+
+def test_worker_group_tolerations_replace_the_cluster_ones_on_both_paths(specs):
+    """wg.tolerations is an override, not a merge — pin that on both sides."""
+    for spec in specs:
+        tolerations = _extra_group(spec)["template"]["spec"]["tolerations"]
+
+        assert [t["key"] for t in tolerations] == ["sentinel-wg-toleration"]
+
+
+def test_worker_group_without_tolerations_inherits_the_worker_ones():
+    group = WorkerGroup(group_name="inherit-tolerations", replicas=1)
+    config = _full_config(additional_worker_groups=[group])
+
+    for spec in (_spec_standalone(config), _spec_embedded(config)):
+        tolerations = _extra_group(spec)["template"]["spec"]["tolerations"]
+        assert [t["key"] for t in tolerations] == ["sentinel-worker-toleration"]

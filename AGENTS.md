@@ -283,8 +283,23 @@ Real examples for the most common change types. Follow these patterns, not descr
 
   `src/codeflare_sdk/ray/test_builder_parity.py` enforces this: a new field must
   either get a sentinel (and reach both builders) or be classified
-  CONTEXT_ONLY / NOT_APPLICABLE / CONFLICTED with a reason. The full audit is
-  `docs/raycluster_spec_parity.md` (RHOAIENG-98942).
+  CONTEXT_ONLY / NOT_APPLICABLE / CONFLICTED / PENDING_DECISION / PARTIAL with a
+  reason. The full audit is `docs/raycluster_spec_parity.md` (RHOAIENG-98942).
+
+  **A new `WorkerGroup` field needs the same treatment**, in
+  `WORKER_GROUP_SENTINELS` (or `WORKER_GROUP_STRUCTURAL`, for a count that a
+  substring search cannot distinguish from any other number in the spec).
+  `additional_worker_groups` is assembled by a *second* pair of duplicated
+  functions — `build_ray_cluster._build_worker_group_spec` and
+  `rayjobs.config._build_additional_worker_group_spec` — so it can drift
+  independently of the main builders. `test_every_worker_group_field_is_classified`
+  fails on an unclassified field.
+
+  When adding a sentinel, give it a value that cannot collide with a default or
+  with another field's: odd CPU/memory numbers, and a `sentinel.io/` prefix on
+  anything that renders as a key. If the value does not survive into the spec as
+  a literal substring — a toleration key, an env name, a resource name — add the
+  substring to the matching `MARKERS` dict instead of weakening the assertion.
 
   `raycluster_spec.py` must stay free of Kubernetes API calls. The standalone
   builder makes three while rendering (`local_queue_exists`,

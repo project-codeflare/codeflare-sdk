@@ -18,6 +18,11 @@ sets each field to a sentinel, renders both specs, and fails if a sentinel
 reaches only one. A new field that is neither given a sentinel nor classified
 here fails `test_every_field_is_classified`.
 
+`WorkerGroup` — the dataclass carried in `additional_worker_groups` — gets the
+same treatment, because it is assembled by a *second* pair of duplicated
+functions that can drift independently. See
+[WorkerGroup parity](#workergroup-parity-15) below.
+
 Tracked under RHOAIENG-98942.
 
 ## SUPPORTED — reaches both builders (24)
@@ -113,6 +118,49 @@ follow-up to this work:
   copies of additional worker group assembly
 - the standalone path's CR wrapper (`apiVersion`, `kind`, `metadata`),
   which has no RayJob equivalent
+
+## WorkerGroup parity (15)
+
+`additional_worker_groups: List[WorkerGroup]` reaches both builders, but each
+assembles the group itself:
+
+| Path | Function |
+| --- | --- |
+| Standalone | `build_ray_cluster._build_worker_group_spec` |
+| RayJob | `rayjobs.config._build_additional_worker_group_spec` |
+
+These are two copies of the same logic and are **not** shared yet
+(RHOAIENG-99560), so every `WorkerGroup` field is its own drift risk. All 15
+are covered:
+
+| Group | Fields |
+| --- | --- |
+| Identity | `group_name` |
+| Counts | `replicas`, `min_replicas`, `max_replicas` |
+| Resources | `cpu_requests`, `cpu_limits`, `memory_requests`, `memory_limits` |
+| Accelerators | `gpu_type`, `gpu_count`, `extended_resource_requests` |
+| Inherited-or-overridden | `image`, `envs`, `labels`, `tolerations` |
+
+The last row is where the interesting behaviour is, and a presence check does
+not express it — both builders must agree on *how* the group value combines
+with the cluster one:
+
+| Field | Rule |
+| --- | --- |
+| `image` | group wins; absent, inherits `config.image` |
+| `envs` | merged, group wins on a key collision |
+| `labels` | merged, group wins on a key collision |
+| `tolerations` | **replaces** `config.worker_tolerations`; absent, inherits |
+
+Each rule is pinned by a named test, and the inherit case is asserted
+separately from the override case. Reviewed by @chipspeak, whose point was
+that a sentinel setting only `group_name` and `replicas` would let the other
+thirteen fields diverge while the suite stayed green.
+
+A new `WorkerGroup` field must be added to `WORKER_GROUP_SENTINELS`, or routed
+to a named test via `WORKER_GROUP_STRUCTURAL` when it is a count that a
+substring search cannot tell apart from any other number in the spec.
+`test_every_worker_group_field_is_classified` fails otherwise.
 
 ## Purity, and why the builders are not a single function
 
