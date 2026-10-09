@@ -107,27 +107,24 @@ Removed Authentication Methods
 -----------------------------------
 
 The ``TokenAuthentication`` and ``KubeConfigFileAuthentication`` classes were
-deprecated in v0.34.0 and **removed in v0.40.0**. Earlier documentation said
-they would survive until v1.0.0; they did not. Importing either one raises an
-``ImportError`` naming its replacement:
+deprecated in v0.34.0 and **removed in v0.40.0**.
 
-.. code-block:: text
+Two caveats, because earlier documentation said otherwise. It said these
+classes would survive until **v1.0.0** — they did not. It also said
+kube-authkit could not do token authentication, and advised token users to
+stay on ``TokenAuthentication`` — that is no longer the case, and
+``AuthConfig`` handles tokens directly.
 
-   TokenAuthentication was removed in v0.40.0, after being deprecated
-   throughout v0.39.x. Use kube-authkit:
+Migrate as follows:
 
-       from codeflare_sdk import Codeflare, SDKConfig
-       from kube_authkit import AuthConfig
+- ``TokenAuthentication`` → **Method 1** above. ``server`` becomes
+  ``k8s_api_host`` and ``token`` is unchanged. A custom CA that was passed as
+  ``ca_cert_path`` goes through the ``CF_SDK_CA_CERT_PATH`` environment
+  variable instead.
+- ``KubeConfigFileAuthentication`` → **Method 4** above. A path that was
+  passed as ``kube_config_path`` goes through ``KUBECONFIG`` instead.
 
-       cf = Codeflare(config=SDKConfig(auth=AuthConfig(
-           method="openshift",
-           k8s_api_host=<server>,
-           token=<token>,
-           verify_ssl=not <skip_tls>,   # ca_cert=<ca_cert_path>
-       )))
-
-``TokenAuthentication`` maps onto Method 1 above, and
-``KubeConfigFileAuthentication`` onto Method 4.
+Importing either class raises an ``ImportError`` carrying the same guidance.
 
 ``set_api_client`` is a different case: it was removed in error, having never
 carried a deprecation warning, and has been restored. It still works, now with

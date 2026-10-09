@@ -16,13 +16,15 @@
 
 Two different situations, handled differently:
 
-**Removed with notice.** ``TokenAuthentication`` and
-``KubeConfigFileAuthentication`` carried a ``DeprecationWarning`` throughout
-v0.39.x, so they are gone — earlier than the v1.0.0 that v0.39.1's README and
-migration guide published, which is a deliberate call and one for the release
-notes. ``ManagedClusterConfig`` was tech preview, so it needed no notice at
-all. What they get here is an error that names the replacement, because the
-alternative is a user reading ``cannot import name 'TokenAuthentication'``
+**Removed anyway.** ``TokenAuthentication`` and
+``KubeConfigFileAuthentication`` warned throughout v0.39.x but were also
+documented as surviving until v1.0.0, and the migration guide told token users
+to stay on ``TokenAuthentication`` because ``AuthConfig`` supposedly could not
+do tokens — which it can. ``ManagedClusterConfig`` (RHAIENG-2063) shipped no
+warning at all and was used by two guided notebooks. None of these three is a
+clean removal; keeping them out is a product decision, recorded in
+RHOAIENG-98947. What they get here is an error naming the replacement, because
+the alternative is a user reading ``cannot import name 'TokenAuthentication'``
 and guessing.
 
 **Removed without notice.** ``set_api_client`` never carried a warning, and
@@ -78,9 +80,19 @@ def set_api_client(new_client: "client.ApiClient") -> None:
     _set_api_client(new_client)
 
 
+# The snippets below must stay in step with the numbered methods in
+# docs/sphinx/user-docs/authentication.rst, which is where a user sent here by
+# the error will read next. That page uses method="openshift" with
+# k8s_api_host and token, and a bare method="kubeconfig"; a custom CA goes
+# through the CF_SDK_CA_CERT_PATH environment variable, not an AuthConfig
+# field. AuthConfig does also accept kubeconfig_path, verify_ssl and ca_cert,
+# but naming them here would teach a second style for no gain.
+
 _TOKEN_AUTH = """\
-TokenAuthentication was removed in v0.40.0, after being deprecated \
-throughout v0.39.x. Use kube-authkit:
+TokenAuthentication was removed in v0.40.0. Note that v0.39.x documentation \
+said it would survive until v1.0.0, and the auth migration guide told \
+token users to stay on it; that is no longer true. kube-authkit does now \
+support token auth directly (see authentication.rst, Method 1):
 
     from codeflare_sdk import Codeflare, SDKConfig
     from kube_authkit import AuthConfig
@@ -89,22 +101,23 @@ throughout v0.39.x. Use kube-authkit:
         method="openshift",
         k8s_api_host=<server>,
         token=<token>,
-        verify_ssl=not <skip_tls>,   # ca_cert=<ca_cert_path>
     )))
 
-cf.clusters.create(...) returns clusters bound to that client.\
+cf.clusters.create(...) returns clusters bound to that client. For a custom \
+CA bundle, set the CF_SDK_CA_CERT_PATH environment variable.\
 """
 
 _KUBECONFIG_AUTH = """\
-KubeConfigFileAuthentication was removed in v0.40.0, after being deprecated \
-throughout v0.39.x. Use kube-authkit:
+KubeConfigFileAuthentication was removed in v0.40.0. Note that v0.39.x \
+documentation said it would survive until v1.0.0; that is no longer true. \
+Use kube-authkit (see authentication.rst, Method 4):
 
     from codeflare_sdk import Codeflare, SDKConfig
     from kube_authkit import AuthConfig
 
-    cf = Codeflare(config=SDKConfig(auth=AuthConfig(
-        method="kubeconfig", kubeconfig_path=<kube_config_path>,
-    )))\
+    cf = Codeflare(config=SDKConfig(auth=AuthConfig(method="kubeconfig")))
+
+KUBECONFIG is respected if set, otherwise ~/.kube/config is used.\
 """
 
 _AUTH_BASE = """\
@@ -115,12 +128,20 @@ rather than a base class to subclass.\
 """
 
 _MANAGED_CLUSTER_CONFIG = """\
-ManagedClusterConfig was removed in v0.40.0. It was tech preview. Use \
-ClusterConfiguration, which both cf.clusters.create() and \
-cf.jobs.create(cluster_config=...) now accept. Three fields were renamed:
+ManagedClusterConfig was removed in v0.40.0 (RHAIENG-2063), without a \
+deprecation warning having been shipped first. Use ClusterConfiguration, \
+which both cf.clusters.create() and cf.jobs.create(cluster_config=...) now \
+accept. Three fields were renamed:
     head_accelerators    -> head_extended_resource_requests
     worker_accelerators  -> worker_extended_resource_requests
-    accelerator_configs  -> extended_resource_mapping\
+    accelerator_configs  -> extended_resource_mapping
+Renaming is not sufficient. Four resource defaults differ, so a call site \
+that only renames can produce a differently sized cluster:
+    head_cpu_requests      2 -> 1
+    head_memory_requests   8 -> 5
+    worker_memory_requests 2 -> 3
+    worker_memory_limits   2 -> 6
+See docs/rayjob_config_migration_guide.md.\
 """
 
 #: Names that are gone for good, mapped to the message explaining what replaced

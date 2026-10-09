@@ -173,15 +173,21 @@ and the `JobOptions` TypedDict shared by the `cf.jobs` overloads.
 
 A public name may only be removed after it has shipped a `DeprecationWarning`
 in a prior release, **and** not before any removal version we published for it.
-Check both — they are stored in different places and have disagreed:
-`git show <latest-tag>:<path>` for the warning, and the tag's `README.md` and
-`docs/` for the promised version. `TokenAuthentication` warned throughout
-v0.39.x but was also documented as surviving until v1.0.0, so removing it in
-v0.40.0 is a deliberate break that belongs in the release notes.
+Check both — they live in different places and have disagreed. For the last
+tag, check `git show <tag>:<path>` for the warning, the tag's `README.md` and
+`docs/` for the promised version, and `git show <tag>:demo-notebooks/...` for
+whether a guided notebook uses it. Every removal in v0.40.0 failed at least
+one of those:
 
-`set_api_client` had neither, and its removal broke the v0.39.1
-`2_basic_interactive` notebook at its first line; it is exported again and
-deprecated instead.
+| Name | What was missing |
+| --- | --- |
+| `set_api_client` | no warning at all; broke the v0.39.1 `2_basic_interactive` notebook on its first line. Re-exported and deprecated instead. |
+| `TokenAuthentication` | warned, but `docs/auth_migration_guide.md` promised v1.0.0 *and* told token users to stay on it |
+| `KubeConfigFileAuthentication` | same promise; also never carried `@deprecated`, only a `warnings.warn` inside `__init__` |
+| `ManagedClusterConfig` | no warning; used by guided notebooks `5_submit_rayjob_cr` and `7_rayjob_checkpointing` |
+
+Do not reach for "it was tech preview" as a rationale without checking: v0.39.1
+labels nothing tech preview anywhere in `README.md`, `docs/` or `src/`.
 
 When a name does go, add it to `REMOVED` in `src/codeflare_sdk/_compat.py` with
 a message naming the replacement — the package `__getattr__` raises it. Raise

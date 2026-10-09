@@ -136,8 +136,8 @@ class TestRemovedNamesExplainThemselves:
     @pytest.mark.parametrize(
         "name,expected",
         [
-            ("TokenAuthentication", "AuthConfig"),
-            ("KubeConfigFileAuthentication", "kubeconfig_path"),
+            ("TokenAuthentication", 'method="openshift"'),
+            ("KubeConfigFileAuthentication", 'method="kubeconfig"'),
             ("Authentication", "kube_authkit.AuthConfig"),
             ("KubeConfiguration", "kube_authkit.AuthConfig"),
             ("ManagedClusterConfig", "ClusterConfiguration"),
@@ -145,6 +145,40 @@ class TestRemovedNamesExplainThemselves:
     )
     def test_each_names_its_replacement(self, name, expected):
         assert expected in REMOVED[name]
+
+    @pytest.mark.parametrize(
+        "name,forbidden",
+        [
+            ("TokenAuthentication", ["verify_ssl", "ca_cert="]),
+            ("KubeConfigFileAuthentication", ["kubeconfig_path"]),
+        ],
+    )
+    def test_snippets_keep_to_the_documented_style(self, name, forbidden):
+        """Match docs/sphinx/user-docs/authentication.rst, not just AuthConfig.
+
+        AuthConfig does accept kubeconfig_path, verify_ssl and ca_cert, so a
+        snippet naming them is valid but teaches a second style. That page is
+        where a user sent here by the error reads next; it routes a custom CA
+        through CF_SDK_CA_CERT_PATH and a kubeconfig path through KUBECONFIG.
+        """
+        message = REMOVED[name]
+        for token in forbidden:
+            assert token not in message
+
+    def test_token_auth_points_at_the_env_var_for_a_custom_ca(self):
+        assert "CF_SDK_CA_CERT_PATH" in REMOVED["TokenAuthentication"]
+
+    def test_kubeconfig_auth_points_at_the_env_var_for_a_path(self):
+        assert "KUBECONFIG" in REMOVED["KubeConfigFileAuthentication"]
+
+    def test_removed_auth_classes_admit_the_v1_0_0_promise(self):
+        """v0.39.x README and auth_migration_guide.md said v1.0.0.
+
+        Dropping them in v0.40.0 is earlier than published, so the error
+        should say so rather than imply a routine deprecation ran its course.
+        """
+        for name in ("TokenAuthentication", "KubeConfigFileAuthentication"):
+            assert "v1.0.0" in REMOVED[name]
 
     def test_managed_cluster_config_lists_the_renamed_fields(self):
         """Three fields were renamed, not just the class. Verified against
@@ -156,6 +190,31 @@ class TestRemovedNamesExplainThemselves:
             ("accelerator_configs", "extended_resource_mapping"),
         ):
             assert old in message and new in message
+
+    def test_managed_cluster_config_warns_that_defaults_moved(self):
+        """A rename-only migration silently resizes the cluster.
+
+        Four scalar defaults differ between v0.39.1's ManagedClusterConfig and
+        today's ClusterConfiguration. (The migration guide's table lists six
+        rows, but head_cpu_limits and head_memory_limits are unchanged.)
+        """
+        message = REMOVED["ManagedClusterConfig"]
+        for field_name in (
+            "head_cpu_requests",
+            "head_memory_requests",
+            "worker_memory_requests",
+            "worker_memory_limits",
+        ):
+            assert field_name in message
+        assert "rayjob_config_migration_guide" in message
+
+    def test_managed_cluster_config_does_not_claim_tech_preview(self):
+        """It was a documented public export used by two guided notebooks.
+
+        v0.39.1 never labelled anything tech preview, and ManagedClusterConfig
+        shipped no DeprecationWarning, so that rationale does not hold.
+        """
+        assert "tech preview" not in REMOVED["ManagedClusterConfig"].lower()
 
     def test_an_unknown_name_is_still_an_attribute_error(self):
         import codeflare_sdk
