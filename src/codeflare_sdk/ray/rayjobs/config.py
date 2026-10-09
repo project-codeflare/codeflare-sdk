@@ -149,6 +149,7 @@ def build_ray_cluster_spec(
                 image_pull_secrets=config.image_pull_secrets,
                 volumes=config.volumes,
                 annotations=config.annotations,
+                labels=config.labels,
             ),
         },
         "workerGroupSpecs": [
@@ -169,6 +170,7 @@ def build_ray_cluster_spec(
                     image_pull_secrets=config.image_pull_secrets,
                     volumes=config.volumes,
                     annotations=config.annotations,
+                    labels=config.labels,
                 ),
             }
         ],
