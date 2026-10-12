@@ -21,3 +21,8 @@ docs/sphinx/modules.rst
 .cursor/plans/
 .cursor/commands/
 /results
+
+# Claude Code agent worktrees — local scratch checkouts, never committed.
+# They register as gitlinks (mode 160000), so committing them makes the repo
+# look like it has broken submodules with no .gitmodules.
+.claude/worktrees/
