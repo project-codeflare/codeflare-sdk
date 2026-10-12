@@ -164,13 +164,70 @@ It mirrors `src/codeflare_sdk/__init__.py` and subpackage `__init__.py` exports.
 When adding or removing public symbols, update both the Python `__init__.py` and the JSON registry.
 
 Nothing in CI checks the two against each other, so the registry can drift —
-verify against the code rather than trusting it. Known drift: the `auth` entry
-still lists `Authentication`, `KubeConfiguration`, `TokenAuthentication` and
-`KubeConfigFileAuthentication`, which were removed and now raise `ImportError`
-(tracked in RHOAIENG-98754, pending a decision on restoring compatibility shims).
+verify against the code rather than trusting it.
 
 The `codeflare` entry covers the single entrypoint: `Codeflare`, `SDKConfig`,
 and the `JobOptions` TypedDict shared by the `cf.jobs` overloads.
+
+### Removing a public symbol (RHOAIENG-98947)
+
+A public name may only be removed after it has shipped a `DeprecationWarning`
+in a prior release, **and** not before any removal version we published for it.
+Check both — they live in different places and have disagreed. For the last
+tag, check `git show <tag>:<path>` for the warning, the tag's `README.md` and
+`docs/` for the promised version, and `git show <tag>:demo-notebooks/...` for
+whether a guided notebook uses it. Every removal in v0.40.0 failed at least
+one of those, and four of the five were reverted:
+
+| Name | What was missing | Outcome |
+| --- | --- | --- |
+| `set_api_client` | no warning at all; broke the v0.39.1 `2_basic_interactive` notebook on its first line | restored, deprecated |
+| `TokenAuthentication` | warned, but `docs/auth_migration_guide.md` promised v1.0.0 *and* told token users to stay on it | restored, deprecated |
+| `KubeConfigFileAuthentication` | same promise; also never carried `@deprecated`, only a `warnings.warn` inside `__init__` | restored, deprecated |
+| `Authentication`, `KubeConfiguration` | abstract bases of the two above | restored |
+| `ManagedClusterConfig` | no warning; used by guided notebooks `5_submit_rayjob_cr` and `7_rayjob_checkpointing` | stays removed |
+
+Do not reach for "it was tech preview" as a rationale without checking: v0.39.1
+labels nothing tech preview anywhere in `README.md`, `docs/` or `src/`.
+
+**Do not name a removal version** in a deprecation notice. The v1.0.0 date was
+published, missed, and is not being renewed; a new date would re-make a promise
+we have already broken once. Say "a future release".
+`test_no_removal_version_is_promised` fails on any `X.Y.Z` in the warning text.
+
+The deprecated classes live in
+`src/codeflare_sdk/common/kubernetes_cluster/deprecated_auth.py` and are
+adapters: the client, host and TLS settings all come from kube-authkit, so
+there is no second auth implementation to keep in sync. Two things there are
+load-bearing and easy to undo by accident:
+
+- `_apply_bearer_token_compat()` re-applies `2eedf55`. kube-authkit's OpenShift
+  strategy writes only `api_key["authorization"]`, but the kubernetes client
+  looks the token up by scheme name (`"BearerToken"`) from v36, and
+  `pyproject.toml` pins only `kubernetes >= 27.2.0`.
+- `TokenAuthentication.login()` uses `_bind_api_client(client, None)`, not
+  `set_api_client()`, which would write `config_path = "custom"`.
+  `config_check()` returns `config_path` and `common/utils/k8s_utils.py` hands
+  it to `list_kube_config_contexts()` as a kubeconfig path.
+
+When a name does go, add it to `REMOVED` in `src/codeflare_sdk/_compat.py` with
+a message naming the replacement — the package `__getattr__` raises it. Raise
+`ImportError`, not `AttributeError`: `from codeflare_sdk import X` discards an
+`AttributeError`'s message and substitutes its own `cannot import name X`, and
+`from ... import` is how users write every one of these. The cost is that
+`hasattr()` on a removed name raises rather than returning `False`.
+
+The `set_api_client` deprecation wrapper lives on the package re-export only.
+`Codeflare.__init__` imports the unwrapped one from
+`common.kubernetes_cluster.auth`; pointing an internal caller at the wrapper
+would make every `Codeflare()` warn about itself.
+
+`src/codeflare_sdk/test_compat.py` replays `2_basic_interactive`'s import line,
+auth cell (a real `AuthConfig` → `get_k8s_client` → `set_api_client`, unmocked,
+because the token path makes no network call) and `ClusterConfiguration` kwargs,
+so a future removal that breaks that notebook fails the suite. It does not cover
+notebooks `5_submit_rayjob_cr` or `7_rayjob_checkpointing`, whose v0.39.1 copies
+still fail at `ManagedClusterConfig` by design.
 
 Design-level architecture: `docs/designs/CodeFlare-SDK-design-doc.md`.
 User-facing Sphinx docs: `docs/sphinx/`.

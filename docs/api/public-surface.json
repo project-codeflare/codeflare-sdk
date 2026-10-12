@@ -57,7 +57,7 @@
         "AuthConfig",
         "get_k8s_client"
       ],
-      "notes": "AuthConfig and get_k8s_client are optional (kube-authkit); exported when available."
+      "notes": "AuthConfig and get_k8s_client are re-exported from kube-authkit and are the current authentication interface. Authentication, KubeConfiguration, TokenAuthentication and KubeConfigFileAuthentication live in kubernetes_cluster/deprecated_auth.py: deprecated, still working, and adapters over kube-authkit rather than separate implementations. set_api_client is likewise deprecated. All seven are also exported at the package root. No removal version is promised for the deprecated five \u2014 v0.39.x docs said v1.0.0 and that date is not being renewed (RHOAIENG-98947). ManagedClusterConfig remains removed; codeflare_sdk.__getattr__ raises an ImportError naming ClusterConfiguration."
     },
     "kueue": {
       "module": "codeflare_sdk.common.kueue",
