@@ -233,3 +233,28 @@ def set_api_client(new_client: client.ApiClient) -> None:
     global api_client, config_path
     api_client = new_client
     config_path = "custom"
+
+
+def _bind_api_client(new_client: client.ApiClient, path: Optional[str]) -> None:
+    """Set the module-level client and ``config_path`` together.
+
+    ``set_api_client`` always writes ``config_path = "custom"``, which is wrong
+    for the deprecated auth adapters: ``config_check()`` returns ``config_path``
+    and ``common/utils/k8s_utils.py`` hands that straight to
+    ``list_kube_config_contexts()`` as a kubeconfig path. Token login must
+    leave it ``None`` so namespace detection still falls back to the default
+    kubeconfig, while ``KubeConfigFileAuthentication`` must set the real path.
+    """
+    global api_client, config_path
+    api_client = new_client
+    config_path = path
+
+
+def _clear_api_client() -> None:
+    """Discard the module-level client, so the next call re-resolves one.
+
+    Used by the deprecated ``logout()`` adapters in ``deprecated_auth``.
+    """
+    global api_client, config_path
+    api_client = None
+    config_path = None
