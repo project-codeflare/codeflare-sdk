@@ -1,0 +1,500 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>codeflare_sdk package &mdash; CodeFlare SDK 0.40.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=7fc06d28"></script>
+      <script src="_static/doctools.js?v=9a2dae69"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="codeflare_sdk.common package" href="codeflare_sdk.common.html" />
+    <link rel="prev" title="codeflare_sdk" href="modules.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            CodeFlare SDK
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Code Documentation:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">codeflare_sdk</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">codeflare_sdk package</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#subpackages">Subpackages</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.common.html">codeflare_sdk.common package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.html">codeflare_sdk.ray package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.vendored.html">codeflare_sdk.vendored package</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#submodules">Submodules</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#module-codeflare_sdk.codeflare">codeflare_sdk.codeflare module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#codeflare_sdk.codeflare.ClusterHandler"><code class="docutils literal notranslate"><span class="pre">ClusterHandler</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#codeflare_sdk.codeflare.Codeflare"><code class="docutils literal notranslate"><span class="pre">Codeflare</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#codeflare_sdk.codeflare.JobHandler"><code class="docutils literal notranslate"><span class="pre">JobHandler</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#codeflare_sdk.codeflare.JobOptions"><code class="docutils literal notranslate"><span class="pre">JobOptions</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#codeflare_sdk.codeflare.SDKConfig"><code class="docutils literal notranslate"><span class="pre">SDKConfig</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#codeflare-sdk-conftest-module">codeflare_sdk.conftest module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#module-codeflare_sdk">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">User Documentation:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/authentication.html">Authentication via the CodeFlare SDK</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/cluster-configuration.html">Ray Cluster Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/ray-cluster-interaction.html">Ray Cluster Interaction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/rayjob.html">Submitting RayJobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/e2e.html">Running e2e tests locally</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/s3-compatible-storage.html">S3 compatible storage with Ray Train examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/setup-kueue.html">Basic Kueue Resources configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/kueue-heterogeneous-ray-clusters.html">Heterogeneous Ray clusters with Kueue</a></li>
+<li class="toctree-l1"><a class="reference internal" href="user-docs/ui-widgets.html">Jupyter UI Widgets</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">CodeFlare SDK</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="modules.html">codeflare_sdk</a></li>
+      <li class="breadcrumb-item active">codeflare_sdk package</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/codeflare_sdk.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="codeflare-sdk-package">
+<h1>codeflare_sdk package<a class="headerlink" href="#codeflare-sdk-package" title="Link to this heading"></a></h1>
+<section id="subpackages">
+<h2>Subpackages<a class="headerlink" href="#subpackages" title="Link to this heading"></a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="codeflare_sdk.common.html">codeflare_sdk.common package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="codeflare_sdk.common.html#subpackages">Subpackages</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.common.kubernetes_cluster.html">codeflare_sdk.common.kubernetes_cluster package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.common.kubernetes_cluster.html#submodules">Submodules</a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.common.kubernetes_cluster.html#module-codeflare_sdk.common.kubernetes_cluster.auth">codeflare_sdk.common.kubernetes_cluster.auth module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.common.kubernetes_cluster.html#module-codeflare_sdk.common.kubernetes_cluster.deprecated_auth">codeflare_sdk.common.kubernetes_cluster.deprecated_auth module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.common.kubernetes_cluster.html#module-codeflare_sdk.common.kubernetes_cluster.kube_api_helpers">codeflare_sdk.common.kubernetes_cluster.kube_api_helpers module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.common.kubernetes_cluster.html#module-codeflare_sdk.common.kubernetes_cluster">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.common.kueue.html">codeflare_sdk.common.kueue package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.common.kueue.html#submodules">Submodules</a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.common.kueue.html#module-codeflare_sdk.common.kueue.kueue">codeflare_sdk.common.kueue.kueue module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.common.kueue.html#module-codeflare_sdk.common.kueue">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.common.utils.html">codeflare_sdk.common.utils package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.common.utils.html#submodules">Submodules</a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.common.utils.html#module-codeflare_sdk.common.utils.constants">codeflare_sdk.common.utils.constants module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.common.utils.html#module-codeflare_sdk.common.utils.demos">codeflare_sdk.common.utils.demos module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.common.utils.html#module-codeflare_sdk.common.utils.generate_cert">codeflare_sdk.common.utils.generate_cert module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.common.utils.html#module-codeflare_sdk.common.utils.k8s_utils">codeflare_sdk.common.utils.k8s_utils module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.common.utils.html#module-codeflare_sdk.common.utils.utils">codeflare_sdk.common.utils.utils module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.common.utils.html#module-codeflare_sdk.common.utils.validation">codeflare_sdk.common.utils.validation module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.common.utils.html#module-codeflare_sdk.common.utils">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.common.widgets.html">codeflare_sdk.common.widgets package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.common.widgets.html#submodules">Submodules</a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.common.widgets.html#module-codeflare_sdk.common.widgets.widgets">codeflare_sdk.common.widgets.widgets module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.common.widgets.html#module-codeflare_sdk.common.widgets">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="codeflare_sdk.common.html#module-codeflare_sdk.common">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="codeflare_sdk.ray.html">codeflare_sdk.ray package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="codeflare_sdk.ray.html#subpackages">Subpackages</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.ray.client.html">codeflare_sdk.ray.client package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.client.html#submodules">Submodules</a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.client.html#module-codeflare_sdk.ray.client.ray_jobs">codeflare_sdk.ray.client.ray_jobs module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.client.html#module-codeflare_sdk.ray.client">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.ray.cluster.html">codeflare_sdk.ray.cluster package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#submodules">Submodules</a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#module-codeflare_sdk.ray.cluster.build_ray_cluster">codeflare_sdk.ray.cluster.build_ray_cluster module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#module-codeflare_sdk.ray.cluster.cluster">codeflare_sdk.ray.cluster.cluster module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#module-codeflare_sdk.ray.cluster.config">codeflare_sdk.ray.cluster.config module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#module-codeflare_sdk.ray.cluster.pretty_print">codeflare_sdk.ray.cluster.pretty_print module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#module-codeflare_sdk.ray.cluster.raycluster_spec">codeflare_sdk.ray.cluster.raycluster_spec module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#module-codeflare_sdk.ray.cluster.status">codeflare_sdk.ray.cluster.status module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#module-codeflare_sdk.ray.cluster">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html">codeflare_sdk.ray.rayjobs package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#submodules">Submodules</a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#module-codeflare_sdk.ray.rayjobs.config">codeflare_sdk.ray.rayjobs.config module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#module-codeflare_sdk.ray.rayjobs.pretty_print">codeflare_sdk.ray.rayjobs.pretty_print module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#module-codeflare_sdk.ray.rayjobs.rayjob">codeflare_sdk.ray.rayjobs.rayjob module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#module-codeflare_sdk.ray.rayjobs.runtime_env">codeflare_sdk.ray.rayjobs.runtime_env module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#module-codeflare_sdk.ray.rayjobs.status">codeflare_sdk.ray.rayjobs.status module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#module-codeflare_sdk.ray.rayjobs">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="codeflare_sdk.ray.html#module-codeflare_sdk.ray">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="codeflare_sdk.vendored.html">codeflare_sdk.vendored package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="codeflare_sdk.vendored.html#subpackages">Subpackages</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="codeflare_sdk.vendored.python_client.html">codeflare_sdk.vendored.python_client package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.vendored.python_client.html#subpackages">Subpackages</a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.vendored.python_client.html#submodules">Submodules</a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.vendored.python_client.html#module-codeflare_sdk.vendored.python_client.constants">codeflare_sdk.vendored.python_client.constants module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.vendored.python_client.html#module-codeflare_sdk.vendored.python_client.kuberay_cluster_api">codeflare_sdk.vendored.python_client.kuberay_cluster_api module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.vendored.python_client.html#module-codeflare_sdk.vendored.python_client.kuberay_job_api">codeflare_sdk.vendored.python_client.kuberay_job_api module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="codeflare_sdk.vendored.python_client.html#module-codeflare_sdk.vendored.python_client">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="codeflare_sdk.vendored.html#module-codeflare_sdk.vendored">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</section>
+<section id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Link to this heading"></a></h2>
+</section>
+<section id="module-codeflare_sdk.codeflare">
+<span id="codeflare-sdk-codeflare-module"></span><h2>codeflare_sdk.codeflare module<a class="headerlink" href="#module-codeflare_sdk.codeflare" title="Link to this heading"></a></h2>
+<p>Single entrypoint for the CodeFlare SDK.</p>
+<dl>
+<dt>Usage:</dt><dd><p>from codeflare_sdk import ClusterConfiguration, Codeflare, SDKConfig
+from kube_authkit import AuthConfig</p>
+<dl class="simple">
+<dt>cf = Codeflare(config=SDKConfig(</dt><dd><p>auth=AuthConfig(method=”auto”),
+namespace=”my-project”,</p>
+</dd>
+</dl>
+<p>))</p>
+<dl class="simple">
+<dt>cluster = cf.clusters.create(</dt><dd><p>ClusterConfiguration(name=”my-cluster”, num_workers=4)</p>
+</dd>
+</dl>
+<p>)
+cluster.apply()</p>
+</dd>
+</dl>
+<dl class="py class">
+<dt class="sig sig-object py" id="codeflare_sdk.codeflare.ClusterHandler">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">codeflare_sdk.codeflare.</span></span><span class="sig-name descname"><span class="pre">ClusterHandler</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sdk</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#codeflare_sdk.codeflare.Codeflare" title="codeflare_sdk.codeflare.Codeflare"><span class="pre">Codeflare</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/codeflare.html#ClusterHandler"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.codeflare.ClusterHandler" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Namespace accessor for Ray cluster operations.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.codeflare.ClusterHandler.create">
+<span class="sig-name descname"><span class="pre">create</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.config.ClusterConfiguration" title="codeflare_sdk.ray.cluster.config.ClusterConfiguration"><span class="pre">ClusterConfiguration</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">namespace</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.cluster.Cluster" title="codeflare_sdk.ray.cluster.cluster.Cluster"><span class="pre">Cluster</span></a></span></span><a class="reference internal" href="_modules/codeflare_sdk/codeflare.html#ClusterHandler.create"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.codeflare.ClusterHandler.create" title="Link to this definition"></a></dt>
+<dd><p>Create a new Cluster object (does not apply it to K8s yet).</p>
+<p>Takes a <a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.config.ClusterConfiguration" title="codeflare_sdk.ray.cluster.config.ClusterConfiguration"><code class="xref py py-class docutils literal notranslate"><span class="pre">ClusterConfiguration</span></code></a>,
+the same object <code class="docutils literal notranslate"><span class="pre">cf.jobs.create(cluster_config=...)</span></code> and <code class="docutils literal notranslate"><span class="pre">Cluster()</span></code>
+take, so there is one way to describe a cluster across the SDK.</p>
+<p>The returned Cluster is bound to this Codeflare instance’s Kubernetes
+client, so later operations on it are unaffected by any other Codeflare
+instance created afterwards.</p>
+<dl>
+<dt>Args:</dt><dd><p>config: Cluster configuration. <code class="docutils literal notranslate"><span class="pre">config.name</span></code> is required.
+namespace: K8s namespace, overriding <code class="docutils literal notranslate"><span class="pre">config.namespace</span></code>. See</p>
+<blockquote>
+<div><p>namespace resolution precedence in <code class="xref py py-func docutils literal notranslate"><span class="pre">_resolve_namespace()</span></code>.</p>
+</div></blockquote>
+</dd>
+<dt>Returns:</dt><dd><p>Cluster instance ready for .apply().</p>
+</dd>
+<dt>Raises:</dt><dd><p>ValueError: If config.name is unset, or no namespace can be resolved.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.codeflare.ClusterHandler.get">
+<span class="sig-name descname"><span class="pre">get</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">namespace</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verify_tls</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">write_to_file</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.cluster.Cluster" title="codeflare_sdk.ray.cluster.cluster.Cluster"><span class="pre">Cluster</span></a></span></span><a class="reference internal" href="_modules/codeflare_sdk/codeflare.html#ClusterHandler.get"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.codeflare.ClusterHandler.get" title="Link to this definition"></a></dt>
+<dd><p>Retrieve an existing cluster by name.</p>
+<dl>
+<dt>Args:</dt><dd><p>name: Cluster name.
+namespace: K8s namespace. See namespace resolution precedence in</p>
+<blockquote>
+<div><p><code class="xref py py-func docutils literal notranslate"><span class="pre">_resolve_namespace()</span></code>.</p>
+</div></blockquote>
+<p>verify_tls: Whether to verify TLS when connecting to the cluster.
+write_to_file: Whether to write the retrieved resource to a YAML file.</p>
+</dd>
+<dt>Returns:</dt><dd><p>Cluster instance bound to this instance’s Kubernetes client.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.codeflare.ClusterHandler.list">
+<span class="sig-name descname"><span class="pre">list</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">namespace</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">list</span></span></span><a class="reference internal" href="_modules/codeflare_sdk/codeflare.html#ClusterHandler.list"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.codeflare.ClusterHandler.list" title="Link to this definition"></a></dt>
+<dd><p>List all Ray clusters in a namespace.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><dl class="simple">
+<dt>namespace: K8s namespace. See namespace resolution precedence in</dt><dd><p><code class="xref py py-func docutils literal notranslate"><span class="pre">_resolve_namespace()</span></code>.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><p>List of RayCluster objects.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.codeflare.ClusterHandler.list_queued">
+<span class="sig-name descname"><span class="pre">list_queued</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">namespace</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">list</span></span></span><a class="reference internal" href="_modules/codeflare_sdk/codeflare.html#ClusterHandler.list_queued"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.codeflare.ClusterHandler.list_queued" title="Link to this definition"></a></dt>
+<dd><p>List all queued Ray clusters in a namespace.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><dl class="simple">
+<dt>namespace: K8s namespace. See namespace resolution precedence in</dt><dd><p><code class="xref py py-func docutils literal notranslate"><span class="pre">_resolve_namespace()</span></code>.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><p>List of queued RayCluster objects.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="codeflare_sdk.codeflare.Codeflare">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">codeflare_sdk.codeflare.</span></span><span class="sig-name descname"><span class="pre">Codeflare</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#codeflare_sdk.codeflare.SDKConfig" title="codeflare_sdk.codeflare.SDKConfig"><span class="pre">SDKConfig</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/codeflare.html#Codeflare"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.codeflare.Codeflare" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Single entrypoint for the CodeFlare SDK.</p>
+<p>Authenticates to Kubernetes via kube-authkit and provides
+namespace-accessor handlers for clusters and jobs.</p>
+<p>Each instance owns its Kubernetes client, and every object created through
+it (<code class="docutils literal notranslate"><span class="pre">cf.clusters.create()</span></code>, <code class="docutils literal notranslate"><span class="pre">cf.jobs.submit()</span></code>, …) is bound to that
+client. Creating a second Codeflare instance therefore does not change which
+cluster the first instance’s objects talk to.</p>
+<p>The module-level client is still set for backward compatibility, so direct
+APIs such as <code class="docutils literal notranslate"><span class="pre">Cluster(config)</span></code> that were not given an explicit client keep
+resolving the most recently created instance’s client as before.</p>
+<p>Note: constructing a Codeflare instance means a client was created
+successfully; it does not prove the API server is reachable or the
+credentials are still valid.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><p>config: SDK configuration. Defaults to auto-detection.</p>
+</dd>
+</dl>
+<dl class="py property">
+<dt class="sig sig-object py" id="codeflare_sdk.codeflare.Codeflare.client">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">client</span></span><a class="headerlink" href="#codeflare_sdk.codeflare.Codeflare.client" title="Link to this definition"></a></dt>
+<dd><p>The Kubernetes API client owned by this instance.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="codeflare_sdk.codeflare.JobHandler">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">codeflare_sdk.codeflare.</span></span><span class="sig-name descname"><span class="pre">JobHandler</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sdk</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#codeflare_sdk.codeflare.Codeflare" title="codeflare_sdk.codeflare.Codeflare"><span class="pre">Codeflare</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/codeflare.html#JobHandler"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.codeflare.JobHandler" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Namespace accessor for RayJob operations.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.codeflare.JobHandler.create">
+<span class="sig-name descname"><span class="pre">create</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">entrypoint</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">namespace</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cluster_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Unpack</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#codeflare_sdk.codeflare.JobOptions" title="codeflare_sdk.codeflare.JobOptions"><span class="pre">JobOptions</span></a><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.rayjob.RayJob" title="codeflare_sdk.ray.rayjobs.rayjob.RayJob"><span class="pre">RayJob</span></a></span></span><a class="reference internal" href="_modules/codeflare_sdk/codeflare.html#JobHandler.create"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.codeflare.JobHandler.create" title="Link to this definition"></a></dt>
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">create</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">entrypoint</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">namespace</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cluster_config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.config.ClusterConfiguration" title="codeflare_sdk.ray.cluster.config.ClusterConfiguration"><span class="pre">ClusterConfiguration</span></a></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Unpack</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#codeflare_sdk.codeflare.JobOptions" title="codeflare_sdk.codeflare.JobOptions"><span class="pre">JobOptions</span></a><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.rayjob.RayJob" title="codeflare_sdk.ray.rayjobs.rayjob.RayJob"><span class="pre">RayJob</span></a></span></span></dt>
+<dd><p>Create a RayJob without submitting it.</p>
+<p>A job needs an execution target: pass exactly one of <code class="docutils literal notranslate"><span class="pre">cluster_name</span></code>
+(run on an existing cluster) or <code class="docutils literal notranslate"><span class="pre">cluster_config</span></code> (the job creates and
+manages its own cluster). The two overloads make “exactly one” a type
+error rather than only a runtime one.</p>
+<dl>
+<dt>Args:</dt><dd><p>name: Job name.
+entrypoint: Python script or command to run.
+cluster_name: Name of an existing Ray cluster to run on.
+cluster_config: Configuration for a cluster the job will manage.
+namespace: K8s namespace. See namespace resolution precedence in</p>
+<blockquote>
+<div><p><code class="xref py py-func docutils literal notranslate"><span class="pre">_resolve_namespace()</span></code>.</p>
+</div></blockquote>
+<p>runtime_env: Ray runtime environment, as a RuntimeEnv or dict.
+ttl_seconds_after_finished: Cleanup delay for managed clusters.
+active_deadline_seconds: Maximum job runtime before termination.
+local_queue: Kueue LocalQueue to submit to.
+priority_class: Kueue WorkloadPriorityClass name.</p>
+</dd>
+<dt>Returns:</dt><dd><p>RayJob instance (not yet submitted), bound to this instance’s client.</p>
+</dd>
+<dt>Raises:</dt><dd><p>ValueError: If neither or both of cluster_name/cluster_config given.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="codeflare_sdk.codeflare.JobHandler.submit">
+<span class="sig-name descname"><span class="pre">submit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">entrypoint</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">namespace</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cluster_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Unpack</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#codeflare_sdk.codeflare.JobOptions" title="codeflare_sdk.codeflare.JobOptions"><span class="pre">JobOptions</span></a><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.rayjob.RayJob" title="codeflare_sdk.ray.rayjobs.rayjob.RayJob"><span class="pre">RayJob</span></a></span></span><a class="reference internal" href="_modules/codeflare_sdk/codeflare.html#JobHandler.submit"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.codeflare.JobHandler.submit" title="Link to this definition"></a></dt>
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">submit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">entrypoint</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">namespace</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cluster_config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="codeflare_sdk.ray.cluster.html#codeflare_sdk.ray.cluster.config.ClusterConfiguration" title="codeflare_sdk.ray.cluster.config.ClusterConfiguration"><span class="pre">ClusterConfiguration</span></a></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Unpack</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#codeflare_sdk.codeflare.JobOptions" title="codeflare_sdk.codeflare.JobOptions"><span class="pre">JobOptions</span></a><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="codeflare_sdk.ray.rayjobs.html#codeflare_sdk.ray.rayjobs.rayjob.RayJob" title="codeflare_sdk.ray.rayjobs.rayjob.RayJob"><span class="pre">RayJob</span></a></span></span></dt>
+<dd><p>Create and immediately submit a RayJob.</p>
+<p>Takes the same arguments as <a class="reference internal" href="#codeflare_sdk.codeflare.JobHandler.create" title="codeflare_sdk.codeflare.JobHandler.create"><code class="xref py py-meth docutils literal notranslate"><span class="pre">create()</span></code></a>; see there for the execution
+target requirement.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>Submitted RayJob instance, bound to this instance’s client.</p>
+</dd>
+<dt>Raises:</dt><dd><p>ValueError: If neither or both of cluster_name/cluster_config given.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="codeflare_sdk.codeflare.JobOptions">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">codeflare_sdk.codeflare.</span></span><span class="sig-name descname"><span class="pre">JobOptions</span></span><a class="reference internal" href="_modules/codeflare_sdk/codeflare.html#JobOptions"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.codeflare.JobOptions" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">TypedDict</span></code></p>
+<p>Optional keyword arguments shared by the <a class="reference internal" href="#codeflare_sdk.codeflare.JobHandler" title="codeflare_sdk.codeflare.JobHandler"><code class="xref py py-class docutils literal notranslate"><span class="pre">JobHandler</span></code></a> overloads.</p>
+<p>Holds every <a class="reference internal" href="#codeflare_sdk.codeflare.JobHandler.create" title="codeflare_sdk.codeflare.JobHandler.create"><code class="xref py py-meth docutils literal notranslate"><span class="pre">JobHandler.create()</span></code></a> keyword except the execution target
+(<code class="docutils literal notranslate"><span class="pre">cluster_name</span></code> / <code class="docutils literal notranslate"><span class="pre">cluster_config</span></code>), which the overloads vary. Keeping
+them here means the overload pair does not restate the full signature.</p>
+<p><code class="docutils literal notranslate"><span class="pre">test_job_options_match_create_signature</span></code> fails if the two drift.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.codeflare.JobOptions.active_deadline_seconds">
+<span class="sig-name descname"><span class="pre">active_deadline_seconds</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#codeflare_sdk.codeflare.JobOptions.active_deadline_seconds" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.codeflare.JobOptions.local_queue">
+<span class="sig-name descname"><span class="pre">local_queue</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#codeflare_sdk.codeflare.JobOptions.local_queue" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.codeflare.JobOptions.priority_class">
+<span class="sig-name descname"><span class="pre">priority_class</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#codeflare_sdk.codeflare.JobOptions.priority_class" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.codeflare.JobOptions.runtime_env">
+<span class="sig-name descname"><span class="pre">runtime_env</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">RuntimeEnv</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#codeflare_sdk.codeflare.JobOptions.runtime_env" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.codeflare.JobOptions.ttl_seconds_after_finished">
+<span class="sig-name descname"><span class="pre">ttl_seconds_after_finished</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#codeflare_sdk.codeflare.JobOptions.ttl_seconds_after_finished" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="codeflare_sdk.codeflare.SDKConfig">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">codeflare_sdk.codeflare.</span></span><span class="sig-name descname"><span class="pre">SDKConfig</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">auth:</span> <span class="pre">~kube_authkit.config.AuthConfig</span> <span class="pre">=</span> <span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">namespace:</span> <span class="pre">str</span> <span class="pre">|</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log_level:</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">'WARNING'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/codeflare_sdk/codeflare.html#SDKConfig"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#codeflare_sdk.codeflare.SDKConfig" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Configuration for the CodeFlare SDK.</p>
+<dl>
+<dt>Args:</dt><dd><p>auth: kube-authkit AuthConfig for Kubernetes authentication.
+namespace: Default namespace for all operations. When unset, operations</p>
+<blockquote>
+<div><p>fall back to the namespace of the current Kubernetes context, and
+raise if none can be determined. See _resolve_namespace.</p>
+</div></blockquote>
+<p>log_level: Logging level for the codeflare_sdk logger.</p>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.codeflare.SDKConfig.auth">
+<span class="sig-name descname"><span class="pre">auth</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="codeflare_sdk.common.kubernetes_cluster.html#codeflare_sdk.common.kubernetes_cluster.AuthConfig" title="kube_authkit.config.AuthConfig"><span class="pre">AuthConfig</span></a></em><a class="headerlink" href="#codeflare_sdk.codeflare.SDKConfig.auth" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.codeflare.SDKConfig.log_level">
+<span class="sig-name descname"><span class="pre">log_level</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'WARNING'</span></em><a class="headerlink" href="#codeflare_sdk.codeflare.SDKConfig.log_level" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="codeflare_sdk.codeflare.SDKConfig.namespace">
+<span class="sig-name descname"><span class="pre">namespace</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#codeflare_sdk.codeflare.SDKConfig.namespace" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="codeflare-sdk-conftest-module">
+<h2>codeflare_sdk.conftest module<a class="headerlink" href="#codeflare-sdk-conftest-module" title="Link to this heading"></a></h2>
+</section>
+<section id="module-codeflare_sdk">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-codeflare_sdk" title="Link to this heading"></a></h2>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="modules.html" class="btn btn-neutral float-left" title="codeflare_sdk" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="codeflare_sdk.common.html" class="btn btn-neutral float-right" title="codeflare_sdk.common package" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Project CodeFlare.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

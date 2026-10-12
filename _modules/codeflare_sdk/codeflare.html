@@ -1,0 +1,591 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>codeflare_sdk.codeflare &mdash; CodeFlare SDK 0.40.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=7fc06d28"></script>
+      <script src="../../_static/doctools.js?v=9a2dae69"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            CodeFlare SDK
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Code Documentation:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../modules.html">codeflare_sdk</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">User Documentation:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../user-docs/authentication.html">Authentication via the CodeFlare SDK</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../user-docs/cluster-configuration.html">Ray Cluster Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../user-docs/ray-cluster-interaction.html">Ray Cluster Interaction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../user-docs/rayjob.html">Submitting RayJobs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../user-docs/e2e.html">Running e2e tests locally</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../user-docs/s3-compatible-storage.html">S3 compatible storage with Ray Train examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../user-docs/setup-kueue.html">Basic Kueue Resources configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../user-docs/kueue-heterogeneous-ray-clusters.html">Heterogeneous Ray clusters with Kueue</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../user-docs/ui-widgets.html">Jupyter UI Widgets</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">CodeFlare SDK</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">codeflare_sdk.codeflare</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for codeflare_sdk.codeflare</h1><div class="highlight"><pre>
+<span></span><span class="c1"># Copyright 2026 IBM, Red Hat</span>
+<span class="c1">#</span>
+<span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="c1"># you may not use this file except in compliance with the License.</span>
+<span class="c1"># You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#      http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Single entrypoint for the CodeFlare SDK.</span>
+
+<span class="sd">Usage:</span>
+<span class="sd">    from codeflare_sdk import ClusterConfiguration, Codeflare, SDKConfig</span>
+<span class="sd">    from kube_authkit import AuthConfig</span>
+
+<span class="sd">    cf = Codeflare(config=SDKConfig(</span>
+<span class="sd">        auth=AuthConfig(method=&quot;auto&quot;),</span>
+<span class="sd">        namespace=&quot;my-project&quot;,</span>
+<span class="sd">    ))</span>
+
+<span class="sd">    cluster = cf.clusters.create(</span>
+<span class="sd">        ClusterConfiguration(name=&quot;my-cluster&quot;, num_workers=4)</span>
+<span class="sd">    )</span>
+<span class="sd">    cluster.apply()</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">copy</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span><span class="p">,</span> <span class="n">field</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">builtins</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">TypedDict</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Unpack</span><span class="p">,</span> <span class="n">overload</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">ray.runtime_env</span><span class="w"> </span><span class="kn">import</span> <span class="n">RuntimeEnv</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">kube_authkit</span><span class="w"> </span><span class="kn">import</span> <span class="n">AuthConfig</span><span class="p">,</span> <span class="n">get_k8s_client</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.common.kubernetes_cluster.auth</span><span class="w"> </span><span class="kn">import</span> <span class="n">set_api_client</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.common.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_current_namespace</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.ray.cluster.cluster</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">Cluster</span><span class="p">,</span>
+    <span class="n">get_cluster</span><span class="p">,</span>
+    <span class="n">list_all_clusters</span><span class="p">,</span>
+    <span class="n">list_all_queued</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.ray.cluster.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">ClusterConfiguration</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.ray.rayjobs.rayjob</span><span class="w"> </span><span class="kn">import</span> <span class="n">RayJob</span>
+
+<span class="n">_VALID_LOG_LEVELS</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;CRITICAL&quot;</span><span class="p">,</span> <span class="s2">&quot;DEBUG&quot;</span><span class="p">,</span> <span class="s2">&quot;ERROR&quot;</span><span class="p">,</span> <span class="s2">&quot;INFO&quot;</span><span class="p">,</span> <span class="s2">&quot;WARNING&quot;</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="SDKConfig">
+<a class="viewcode-back" href="../../codeflare_sdk.html#codeflare_sdk.codeflare.SDKConfig">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">SDKConfig</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Configuration for the CodeFlare SDK.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        auth: kube-authkit AuthConfig for Kubernetes authentication.</span>
+<span class="sd">        namespace: Default namespace for all operations. When unset, operations</span>
+<span class="sd">            fall back to the namespace of the current Kubernetes context, and</span>
+<span class="sd">            raise if none can be determined. See _resolve_namespace.</span>
+<span class="sd">        log_level: Logging level for the codeflare_sdk logger.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">auth</span><span class="p">:</span> <span class="n">AuthConfig</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">AuthConfig</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s2">&quot;auto&quot;</span><span class="p">))</span>
+    <span class="n">namespace</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">log_level</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;WARNING&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">log_level</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">_VALID_LOG_LEVELS</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;log_level must be one of </span><span class="si">{</span><span class="n">_VALID_LOG_LEVELS</span><span class="si">}</span><span class="s2">, got &#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">log_level</span><span class="si">}</span><span class="s2">&#39;&quot;</span>
+            <span class="p">)</span></div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_resolve_namespace</span><span class="p">(</span><span class="n">namespace</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">sdk</span><span class="p">:</span> <span class="s2">&quot;Codeflare&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Resolve the namespace for a facade operation.</span>
+
+<span class="sd">    Precedence:</span>
+<span class="sd">    1. The namespace passed to the operation.</span>
+<span class="sd">    2. ``SDKConfig.namespace``.</span>
+<span class="sd">    3. The namespace of the current Kubernetes/OpenShift context.</span>
+<span class="sd">    4. Otherwise raise — the facade does not silently fall back to ``default``.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        ValueError: If no namespace can be determined.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">namespace</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">namespace</span>
+    <span class="k">if</span> <span class="n">sdk</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">namespace</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">sdk</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">namespace</span>
+    <span class="n">detected</span> <span class="o">=</span> <span class="n">get_current_namespace</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">detected</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">detected</span>
+    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+        <span class="s2">&quot;❌ Configuration Error: could not determine a Kubernetes namespace. &quot;</span>
+        <span class="s2">&quot;Pass &#39;namespace&#39; to this call, set SDKConfig(namespace=...), or select a &quot;</span>
+        <span class="s2">&quot;namespace in your current Kubernetes context.&quot;</span>
+    <span class="p">)</span>
+
+
+<div class="viewcode-block" id="JobOptions">
+<a class="viewcode-back" href="../../codeflare_sdk.html#codeflare_sdk.codeflare.JobOptions">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">JobOptions</span><span class="p">(</span><span class="n">TypedDict</span><span class="p">,</span> <span class="n">total</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Optional keyword arguments shared by the :class:`JobHandler` overloads.</span>
+
+<span class="sd">    Holds every :meth:`JobHandler.create` keyword except the execution target</span>
+<span class="sd">    (``cluster_name`` / ``cluster_config``), which the overloads vary. Keeping</span>
+<span class="sd">    them here means the overload pair does not restate the full signature.</span>
+
+<span class="sd">    ``test_job_options_match_create_signature`` fails if the two drift.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">runtime_env</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">RuntimeEnv</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]]</span>
+    <span class="n">ttl_seconds_after_finished</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">active_deadline_seconds</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span>
+    <span class="n">local_queue</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
+    <span class="n">priority_class</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span></div>
+
+
+
+<div class="viewcode-block" id="ClusterHandler">
+<a class="viewcode-back" href="../../codeflare_sdk.html#codeflare_sdk.codeflare.ClusterHandler">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">ClusterHandler</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Namespace accessor for Ray cluster operations.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sdk</span><span class="p">:</span> <span class="s2">&quot;Codeflare&quot;</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_sdk</span> <span class="o">=</span> <span class="n">sdk</span>
+
+<div class="viewcode-block" id="ClusterHandler.create">
+<a class="viewcode-back" href="../../codeflare_sdk.html#codeflare_sdk.codeflare.ClusterHandler.create">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">create</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">config</span><span class="p">:</span> <span class="n">ClusterConfiguration</span><span class="p">,</span>
+        <span class="n">namespace</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Cluster&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create a new Cluster object (does not apply it to K8s yet).</span>
+
+<span class="sd">        Takes a :class:`~codeflare_sdk.ray.cluster.config.ClusterConfiguration`,</span>
+<span class="sd">        the same object ``cf.jobs.create(cluster_config=...)`` and ``Cluster()``</span>
+<span class="sd">        take, so there is one way to describe a cluster across the SDK.</span>
+
+<span class="sd">        The returned Cluster is bound to this Codeflare instance&#39;s Kubernetes</span>
+<span class="sd">        client, so later operations on it are unaffected by any other Codeflare</span>
+<span class="sd">        instance created afterwards.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            config: Cluster configuration. ``config.name`` is required.</span>
+<span class="sd">            namespace: K8s namespace, overriding ``config.namespace``. See</span>
+<span class="sd">                namespace resolution precedence in :func:`_resolve_namespace`.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Cluster instance ready for .apply().</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            ValueError: If config.name is unset, or no namespace can be resolved.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">config</span><span class="o">.</span><span class="n">name</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;❌ Configuration Error: ClusterConfiguration.name is required to &quot;</span>
+                <span class="s2">&quot;create a cluster.&quot;</span>
+            <span class="p">)</span>
+
+        <span class="n">ns</span> <span class="o">=</span> <span class="n">_resolve_namespace</span><span class="p">(</span><span class="n">namespace</span> <span class="ow">or</span> <span class="n">config</span><span class="o">.</span><span class="n">namespace</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sdk</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">ns</span> <span class="o">!=</span> <span class="n">config</span><span class="o">.</span><span class="n">namespace</span><span class="p">:</span>
+            <span class="c1"># A shallow copy, not dataclasses.replace: ClusterConfiguration&#39;s</span>
+            <span class="c1"># __post_init__ is not idempotent (it merges the default accelerator</span>
+            <span class="c1"># mapping into extended_resource_mapping and then rejects the merged</span>
+            <span class="c1"># result), so reconstructing a configured instance raises.</span>
+            <span class="n">config</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+            <span class="n">config</span><span class="o">.</span><span class="n">namespace</span> <span class="o">=</span> <span class="n">ns</span>
+
+        <span class="k">return</span> <span class="n">Cluster</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">api_client</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_sdk</span><span class="o">.</span><span class="n">client</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="ClusterHandler.get">
+<a class="viewcode-back" href="../../codeflare_sdk.html#codeflare_sdk.codeflare.ClusterHandler.get">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">namespace</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">verify_tls</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">write_to_file</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Cluster&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Retrieve an existing cluster by name.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            name: Cluster name.</span>
+<span class="sd">            namespace: K8s namespace. See namespace resolution precedence in</span>
+<span class="sd">                :func:`_resolve_namespace`.</span>
+<span class="sd">            verify_tls: Whether to verify TLS when connecting to the cluster.</span>
+<span class="sd">            write_to_file: Whether to write the retrieved resource to a YAML file.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Cluster instance bound to this instance&#39;s Kubernetes client.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">ns</span> <span class="o">=</span> <span class="n">_resolve_namespace</span><span class="p">(</span><span class="n">namespace</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sdk</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">get_cluster</span><span class="p">(</span>
+            <span class="n">cluster_name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span>
+            <span class="n">namespace</span><span class="o">=</span><span class="n">ns</span><span class="p">,</span>
+            <span class="n">verify_tls</span><span class="o">=</span><span class="n">verify_tls</span><span class="p">,</span>
+            <span class="n">write_to_file</span><span class="o">=</span><span class="n">write_to_file</span><span class="p">,</span>
+            <span class="n">api_client</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_sdk</span><span class="o">.</span><span class="n">client</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="ClusterHandler.list">
+<a class="viewcode-back" href="../../codeflare_sdk.html#codeflare_sdk.codeflare.ClusterHandler.list">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">list</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">namespace</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">builtins</span><span class="o">.</span><span class="n">list</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;List all Ray clusters in a namespace.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            namespace: K8s namespace. See namespace resolution precedence in</span>
+<span class="sd">                :func:`_resolve_namespace`.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            List of RayCluster objects.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">ns</span> <span class="o">=</span> <span class="n">_resolve_namespace</span><span class="p">(</span><span class="n">namespace</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sdk</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">list_all_clusters</span><span class="p">(</span>
+            <span class="n">ns</span><span class="p">,</span> <span class="n">print_to_console</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">api_client</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_sdk</span><span class="o">.</span><span class="n">client</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="ClusterHandler.list_queued">
+<a class="viewcode-back" href="../../codeflare_sdk.html#codeflare_sdk.codeflare.ClusterHandler.list_queued">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">list_queued</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">namespace</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">builtins</span><span class="o">.</span><span class="n">list</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;List all queued Ray clusters in a namespace.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            namespace: K8s namespace. See namespace resolution precedence in</span>
+<span class="sd">                :func:`_resolve_namespace`.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            List of queued RayCluster objects.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">ns</span> <span class="o">=</span> <span class="n">_resolve_namespace</span><span class="p">(</span><span class="n">namespace</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sdk</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">list_all_queued</span><span class="p">(</span><span class="n">ns</span><span class="p">,</span> <span class="n">print_to_console</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">api_client</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_sdk</span><span class="o">.</span><span class="n">client</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="JobHandler">
+<a class="viewcode-back" href="../../codeflare_sdk.html#codeflare_sdk.codeflare.JobHandler">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">JobHandler</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Namespace accessor for RayJob operations.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sdk</span><span class="p">:</span> <span class="s2">&quot;Codeflare&quot;</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_sdk</span> <span class="o">=</span> <span class="n">sdk</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_build</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">entrypoint</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">namespace</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+        <span class="n">cluster_name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+        <span class="n">cluster_config</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ClusterConfiguration</span><span class="p">],</span>
+        <span class="n">runtime_env</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">RuntimeEnv</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]],</span>
+        <span class="n">ttl_seconds_after_finished</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">active_deadline_seconds</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span>
+        <span class="n">local_queue</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+        <span class="n">priority_class</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;RayJob&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Construct a RayJob bound to this instance&#39;s client.</span>
+
+<span class="sd">        Shared by :meth:`create` and :meth:`submit`. Those are overloaded, so</span>
+<span class="sd">        they cannot call each other without re-narrowing the execution target.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">ns</span> <span class="o">=</span> <span class="n">_resolve_namespace</span><span class="p">(</span><span class="n">namespace</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sdk</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">RayJob</span><span class="p">(</span>
+            <span class="n">job_name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span>
+            <span class="n">entrypoint</span><span class="o">=</span><span class="n">entrypoint</span><span class="p">,</span>
+            <span class="n">cluster_name</span><span class="o">=</span><span class="n">cluster_name</span><span class="p">,</span>
+            <span class="n">cluster_config</span><span class="o">=</span><span class="n">cluster_config</span><span class="p">,</span>
+            <span class="n">namespace</span><span class="o">=</span><span class="n">ns</span><span class="p">,</span>
+            <span class="n">runtime_env</span><span class="o">=</span><span class="n">runtime_env</span><span class="p">,</span>
+            <span class="n">ttl_seconds_after_finished</span><span class="o">=</span><span class="n">ttl_seconds_after_finished</span><span class="p">,</span>
+            <span class="n">active_deadline_seconds</span><span class="o">=</span><span class="n">active_deadline_seconds</span><span class="p">,</span>
+            <span class="n">local_queue</span><span class="o">=</span><span class="n">local_queue</span><span class="p">,</span>
+            <span class="n">priority_class</span><span class="o">=</span><span class="n">priority_class</span><span class="p">,</span>
+            <span class="n">api_client</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_sdk</span><span class="o">.</span><span class="n">client</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="nd">@overload</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">create</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">entrypoint</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">namespace</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="o">...</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">cluster_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">Unpack</span><span class="p">[</span><span class="n">JobOptions</span><span class="p">],</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;RayJob&quot;</span><span class="p">:</span> <span class="o">...</span>
+
+    <span class="nd">@overload</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">create</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">entrypoint</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">namespace</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="o">...</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">cluster_config</span><span class="p">:</span> <span class="n">ClusterConfiguration</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">Unpack</span><span class="p">[</span><span class="n">JobOptions</span><span class="p">],</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;RayJob&quot;</span><span class="p">:</span> <span class="o">...</span>
+
+<div class="viewcode-block" id="JobHandler.create">
+<a class="viewcode-back" href="../../codeflare_sdk.html#codeflare_sdk.codeflare.JobHandler.create">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">create</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">entrypoint</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">namespace</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">cluster_name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">cluster_config</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ClusterConfiguration</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">runtime_env</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">RuntimeEnv</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">ttl_seconds_after_finished</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="n">active_deadline_seconds</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">local_queue</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">priority_class</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;RayJob&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create a RayJob without submitting it.</span>
+
+<span class="sd">        A job needs an execution target: pass exactly one of ``cluster_name``</span>
+<span class="sd">        (run on an existing cluster) or ``cluster_config`` (the job creates and</span>
+<span class="sd">        manages its own cluster). The two overloads make &quot;exactly one&quot; a type</span>
+<span class="sd">        error rather than only a runtime one.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            name: Job name.</span>
+<span class="sd">            entrypoint: Python script or command to run.</span>
+<span class="sd">            cluster_name: Name of an existing Ray cluster to run on.</span>
+<span class="sd">            cluster_config: Configuration for a cluster the job will manage.</span>
+<span class="sd">            namespace: K8s namespace. See namespace resolution precedence in</span>
+<span class="sd">                :func:`_resolve_namespace`.</span>
+<span class="sd">            runtime_env: Ray runtime environment, as a RuntimeEnv or dict.</span>
+<span class="sd">            ttl_seconds_after_finished: Cleanup delay for managed clusters.</span>
+<span class="sd">            active_deadline_seconds: Maximum job runtime before termination.</span>
+<span class="sd">            local_queue: Kueue LocalQueue to submit to.</span>
+<span class="sd">            priority_class: Kueue WorkloadPriorityClass name.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            RayJob instance (not yet submitted), bound to this instance&#39;s client.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            ValueError: If neither or both of cluster_name/cluster_config given.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build</span><span class="p">(</span>
+            <span class="n">name</span><span class="p">,</span>
+            <span class="n">entrypoint</span><span class="p">,</span>
+            <span class="n">namespace</span><span class="p">,</span>
+            <span class="n">cluster_name</span><span class="p">,</span>
+            <span class="n">cluster_config</span><span class="p">,</span>
+            <span class="n">runtime_env</span><span class="p">,</span>
+            <span class="n">ttl_seconds_after_finished</span><span class="p">,</span>
+            <span class="n">active_deadline_seconds</span><span class="p">,</span>
+            <span class="n">local_queue</span><span class="p">,</span>
+            <span class="n">priority_class</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+    <span class="nd">@overload</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">submit</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">entrypoint</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">namespace</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="o">...</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">cluster_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">Unpack</span><span class="p">[</span><span class="n">JobOptions</span><span class="p">],</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;RayJob&quot;</span><span class="p">:</span> <span class="o">...</span>
+
+    <span class="nd">@overload</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">submit</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">entrypoint</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">namespace</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="o">...</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">cluster_config</span><span class="p">:</span> <span class="n">ClusterConfiguration</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">Unpack</span><span class="p">[</span><span class="n">JobOptions</span><span class="p">],</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;RayJob&quot;</span><span class="p">:</span> <span class="o">...</span>
+
+<div class="viewcode-block" id="JobHandler.submit">
+<a class="viewcode-back" href="../../codeflare_sdk.html#codeflare_sdk.codeflare.JobHandler.submit">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">submit</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">entrypoint</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">namespace</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">cluster_name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">cluster_config</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ClusterConfiguration</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">runtime_env</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">RuntimeEnv</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">ttl_seconds_after_finished</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="n">active_deadline_seconds</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">local_queue</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">priority_class</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;RayJob&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create and immediately submit a RayJob.</span>
+
+<span class="sd">        Takes the same arguments as :meth:`create`; see there for the execution</span>
+<span class="sd">        target requirement.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Submitted RayJob instance, bound to this instance&#39;s client.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            ValueError: If neither or both of cluster_name/cluster_config given.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build</span><span class="p">(</span>
+            <span class="n">name</span><span class="p">,</span>
+            <span class="n">entrypoint</span><span class="p">,</span>
+            <span class="n">namespace</span><span class="p">,</span>
+            <span class="n">cluster_name</span><span class="p">,</span>
+            <span class="n">cluster_config</span><span class="p">,</span>
+            <span class="n">runtime_env</span><span class="p">,</span>
+            <span class="n">ttl_seconds_after_finished</span><span class="p">,</span>
+            <span class="n">active_deadline_seconds</span><span class="p">,</span>
+            <span class="n">local_queue</span><span class="p">,</span>
+            <span class="n">priority_class</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">job</span><span class="o">.</span><span class="n">submit</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">job</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="Codeflare">
+<a class="viewcode-back" href="../../codeflare_sdk.html#codeflare_sdk.codeflare.Codeflare">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">Codeflare</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Single entrypoint for the CodeFlare SDK.</span>
+
+<span class="sd">    Authenticates to Kubernetes via kube-authkit and provides</span>
+<span class="sd">    namespace-accessor handlers for clusters and jobs.</span>
+
+<span class="sd">    Each instance owns its Kubernetes client, and every object created through</span>
+<span class="sd">    it (``cf.clusters.create()``, ``cf.jobs.submit()``, ...) is bound to that</span>
+<span class="sd">    client. Creating a second Codeflare instance therefore does not change which</span>
+<span class="sd">    cluster the first instance&#39;s objects talk to.</span>
+
+<span class="sd">    The module-level client is still set for backward compatibility, so direct</span>
+<span class="sd">    APIs such as ``Cluster(config)`` that were not given an explicit client keep</span>
+<span class="sd">    resolving the most recently created instance&#39;s client as before.</span>
+
+<span class="sd">    Note: constructing a Codeflare instance means a client was created</span>
+<span class="sd">    successfully; it does not prove the API server is reachable or the</span>
+<span class="sd">    credentials are still valid.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        config: SDK configuration. Defaults to auto-detection.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">SDKConfig</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">config</span> <span class="o">=</span> <span class="n">config</span> <span class="ow">or</span> <span class="n">SDKConfig</span><span class="p">()</span>
+
+        <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s2">&quot;codeflare_sdk&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">log_level</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_client</span> <span class="o">=</span> <span class="n">get_k8s_client</span><span class="p">(</span><span class="n">config</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">auth</span><span class="p">)</span>
+        <span class="c1"># Legacy fallback only: direct APIs with no explicit client still read</span>
+        <span class="c1"># this. Facade-created objects never rely on it.</span>
+        <span class="n">set_api_client</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_client</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">clusters</span> <span class="o">=</span> <span class="n">ClusterHandler</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">jobs</span> <span class="o">=</span> <span class="n">JobHandler</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">client</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;The Kubernetes API client owned by this instance.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_client</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Project CodeFlare.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
