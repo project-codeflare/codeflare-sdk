@@ -31,6 +31,49 @@ parent = Path(__file__).resolve().parents[4]  # project directory
 cluster_dir = os.path.expanduser("~/.codeflare/resources/")
 
 
+def create_rayjob_resource(
+    name: str = "train", namespace: str = "default-ns", managed_cluster: bool = False
+) -> dict:
+    """Build a remote RayJob fixture for facade lifecycle tests."""
+    resource = {
+        "apiVersion": "ray.io/v1",
+        "kind": "RayJob",
+        "metadata": {
+            "name": name,
+            "namespace": namespace,
+            "uid": "server-generated-uid",
+            "resourceVersion": "123",
+            "labels": {"kueue.x-k8s.io/queue-name": "training-queue"},
+            "annotations": {"example.com/team": "training"},
+        },
+        "spec": {
+            "entrypoint": "python train.py",
+            "runtimeEnvYAML": "env_vars:\n  TRAINING: 'true'\n",
+            "activeDeadlineSeconds": 300,
+            "ttlSecondsAfterFinished": 60 if managed_cluster else 0,
+            "shutdownAfterJobFinishes": managed_cluster,
+        },
+        "status": {
+            "rayClusterName": "observed-cluster" if managed_cluster else "existing",
+            "jobDeploymentStatus": "Running",
+        },
+    }
+    if managed_cluster:
+        from codeflare_sdk.ray.rayjobs.config import build_ray_cluster_spec
+
+        resource["spec"]["rayClusterSpec"] = build_ray_cluster_spec(
+            ClusterConfiguration(name=f"{name}-cluster"), f"{name}-cluster"
+        )
+    else:
+        resource["spec"]["clusterSelector"] = {"ray.io/cluster": "existing"}
+    return resource
+
+
+def create_rayjob_list_response(items=None) -> dict:
+    """Build a RayJob list response without reusing a single-resource fixture."""
+    return {"apiVersion": "ray.io/v1", "kind": "RayJobList", "items": items or []}
+
+
 def create_cluster_config(num_workers=2, write_to_file=False):
     config = ClusterConfiguration(
         name="unit-test-cluster",

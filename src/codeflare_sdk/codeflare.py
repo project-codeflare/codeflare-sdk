@@ -43,11 +43,13 @@ from .common.kubernetes_cluster.auth import set_api_client
 from .common.utils import get_current_namespace
 from .ray.cluster.cluster import (
     Cluster,
-    get_cluster,
+    _get_cluster_strict,
     list_all_clusters,
+    _delete_cluster,
     list_all_queued,
 )
 from .ray.cluster.config import ClusterConfiguration
+from .ray.cluster.status import RayCluster
 from .ray.rayjobs.rayjob import RayJob
 
 _VALID_LOG_LEVELS = ("CRITICAL", "DEBUG", "ERROR", "INFO", "WARNING")
@@ -178,6 +180,15 @@ class ClusterHandler:
     ) -> "Cluster":
         """Retrieve an existing cluster by name.
 
+        The returned handle supports ``status()`` and ``down()`` but **not**
+        ``apply()`` — the reconstructed configuration may not match the live
+        spec.
+
+        Unlike the standalone :func:`get_cluster` (which returns ``None`` on
+        API errors for backward compatibility), this method calls the strict
+        retrieval path and propagates the original Kubernetes API exception
+        so callers can distinguish a 404 from a 403 or 500.
+
         Args:
             name: Cluster name.
             namespace: K8s namespace. See namespace resolution precedence in
@@ -187,9 +198,13 @@ class ClusterHandler:
 
         Returns:
             Cluster instance bound to this instance's Kubernetes client.
+
+        Raises:
+            ApiException: If the Kubernetes API call fails (404, 403, 500, …).
+            ValueError: If no namespace can be resolved.
         """
         ns = _resolve_namespace(namespace, self._sdk)
-        return get_cluster(
+        return _get_cluster_strict(
             cluster_name=name,
             namespace=ns,
             verify_tls=verify_tls,
@@ -197,20 +212,65 @@ class ClusterHandler:
             api_client=self._sdk.client,
         )
 
-    def list(self, namespace: Optional[str] = None) -> builtins.list:
+    def list(self, namespace: Optional[str] = None) -> builtins.list[RayCluster]:
         """List all Ray clusters in a namespace.
+
+        Returns ``RayCluster`` status snapshots — the same type
+        :func:`list_all_clusters` has always returned.  For a ``Cluster``
+        lifecycle handle (``status()``, ``down()``, etc.), use
+        :meth:`get`.
 
         Args:
             namespace: K8s namespace. See namespace resolution precedence in
                 :func:`_resolve_namespace`.
 
         Returns:
-            List of RayCluster objects.
+            RayCluster status snapshots.
+
+        Raises:
+            ApiException: If the Kubernetes API fails.
+            ValueError: If no namespace can be resolved.
         """
         ns = _resolve_namespace(namespace, self._sdk)
         return list_all_clusters(
             ns, print_to_console=False, api_client=self._sdk.client
         )
+
+    def delete(self, name: str, namespace: Optional[str] = None) -> bool:
+        """Delete a Ray cluster and its associated resources, including TLS certificates.
+
+        .. note:: **TLS isolation limitation**
+
+            Kubernetes client isolation is fully supported: each ``Codeflare``
+            instance owns its own API client, and objects created through it
+            talk only to that client's API server.
+
+            TLS certificate storage is **not** isolated. Local certificate
+            directories are keyed by ``{name}-{namespace}`` with no API-server
+            component, so two instances targeting different API servers that
+            contain identically named clusters in the same namespace share (and
+            can delete) each other's certificates. The ``RAY_TLS_*``
+            environment variables are also process-wide, so simultaneous mTLS
+            connections to different API servers within a single process are
+            not supported.
+
+        Args:
+            name: Cluster name.
+            namespace: K8s namespace. See namespace resolution precedence in
+                :func:`_resolve_namespace`.
+
+        Returns:
+            True if the cluster was deleted or already absent.
+
+        Raises:
+            ApiException: If deletion fails for a reason other than a missing
+                cluster or a missing RayCluster CRD.
+            RuntimeError: If the RayCluster CRD is not installed.
+            OSError: If local TLS certificate cleanup fails.
+            ValueError: If no namespace can be resolved.
+        """
+        ns = _resolve_namespace(namespace, self._sdk)
+        return _delete_cluster(name, ns, api_client=self._sdk.client)
 
     def list_queued(self, namespace: Optional[str] = None) -> builtins.list:
         """List all queued Ray clusters in a namespace.
@@ -402,6 +462,59 @@ class JobHandler:
         job.submit()
         return job
 
+    def get(self, name: str, namespace: Optional[str] = None) -> "RayJob":
+        """Retrieve an existing RayJob for status, stop, resubmit, or delete operations.
+
+        Args:
+            name: Job name.
+            namespace: K8s namespace. See namespace resolution precedence in
+                :func:`_resolve_namespace`.
+
+        Returns:
+            RayJob instance bound to this instance's Kubernetes client.
+
+        Raises:
+            ApiException: If the job is missing or the Kubernetes API fails.
+            ValueError: If no namespace can be resolved.
+        """
+        ns = _resolve_namespace(namespace, self._sdk)
+        return RayJob._get(name, ns, api_client=self._sdk.client)
+
+    def list(self, namespace: Optional[str] = None) -> builtins.list["RayJob"]:
+        """List existing RayJobs in a namespace.
+
+        Args:
+            namespace: K8s namespace. See namespace resolution precedence in
+                :func:`_resolve_namespace`.
+
+        Returns:
+            RayJob instances bound to this instance's Kubernetes client.
+
+        Raises:
+            ApiException: If the Kubernetes API fails.
+            ValueError: If no namespace can be resolved.
+        """
+        ns = _resolve_namespace(namespace, self._sdk)
+        return RayJob._list(ns, api_client=self._sdk.client)
+
+    def delete(self, name: str, namespace: Optional[str] = None) -> bool:
+        """Delete a RayJob by name.
+
+        Args:
+            name: Job name.
+            namespace: K8s namespace. See namespace resolution precedence in
+                :func:`_resolve_namespace`.
+
+        Returns:
+            True if the job was deleted or already absent.
+
+        Raises:
+            ApiException: If deletion fails for a reason other than a missing job.
+            ValueError: If no namespace can be resolved.
+        """
+        ns = _resolve_namespace(namespace, self._sdk)
+        return RayJob._delete(name, ns, api_client=self._sdk.client)
+
 
 class Codeflare:
     """Single entrypoint for the CodeFlare SDK.
@@ -417,6 +530,17 @@ class Codeflare:
     The module-level client is still set for backward compatibility, so direct
     APIs such as ``Cluster(config)`` that were not given an explicit client keep
     resolving the most recently created instance's client as before.
+
+    .. note:: **Isolation scope**
+
+        Kubernetes API client isolation is fully supported — each instance
+        talks only to the API server it authenticated against.
+
+        TLS certificate storage is **not** isolated: certificates are keyed
+        by ``{cluster_name}-{namespace}`` without an API-server component,
+        and ``RAY_TLS_*`` environment variables are process-wide. Running
+        simultaneous mTLS connections to identically named clusters on
+        different API servers within one process is not supported.
 
     Note: constructing a Codeflare instance means a client was created
     successfully; it does not prove the API server is reachable or the

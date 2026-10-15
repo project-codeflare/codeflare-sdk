@@ -11,6 +11,41 @@ created from it keeps using that client — so two instances pointed at two clus
 not interfere with each other. Use ``cf.clusters`` and ``cf.jobs`` for all subsequent
 operations.
 
+Working with existing resources
+-------------------------------
+
+Both handlers provide ``list()``, ``get()`` and ``delete()``. ``get()`` returns an
+object you can use for further operations. All calls accept a ``namespace``
+override and otherwise use the namespace configured on ``Codeflare``::
+
+   clusters = cf.clusters.list()           # RayCluster status snapshots
+   cluster = cf.clusters.get("my-cluster") # Cluster lifecycle handle
+   cluster.status()
+   cf.clusters.delete("my-cluster")
+
+   jobs = cf.jobs.list()
+   job = cf.jobs.get("train")
+   job.status()
+   job.stop()
+   job.resubmit()
+   cf.jobs.delete("train")
+
+   jobs = cf.jobs.list(namespace="another-project")
+
+``cf.clusters.list()`` returns ``RayCluster`` status snapshots — the same type
+as ``list_all_clusters()``. To get a ``Cluster`` lifecycle handle (with
+``status()``, ``down()``, etc.), use ``cf.clusters.get("name")``.
+
+``cf.jobs.list()`` returns usable ``RayJob`` objects. Retrieved jobs support the
+same status, stop, resubmit and delete operations as jobs created by the facade.
+Their ``submit()`` method raises: use ``resubmit()`` to resume a suspended job,
+or configure a new job with ``cf.jobs.create()`` or ``cf.jobs.submit()``.
+``cf.clusters.delete()`` also cleans up the cluster's TLS certificates.
+
+Both ``get()`` methods raise if the resource is missing. Both ``delete()`` methods
+return ``True`` if the resource was deleted or already absent; other API errors
+raise.
+
 Method 1: Token-Based Authentication (Recommended for RHOAI Workbenches)
 -------------------------------------------------------------------------
 
