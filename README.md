@@ -72,6 +72,36 @@ cluster = cf.clusters.create(ClusterConfiguration(name='my-cluster', num_workers
 cluster.apply()
 ```
 
+Both handlers support listing, retrieving an object to work with, and deleting
+by name. `list()` returns status snapshots, `get()` retrieves a single cluster
+as a lifecycle handle (raises if missing), and `delete()` returns `True` when
+deletion succeeds or the resource is already absent. Other API errors raise.
+Operations use the namespace from `SDKConfig` unless overridden:
+
+```python
+clusters = cf.clusters.list()          # RayCluster status snapshots
+cluster = cf.clusters.get("my-cluster") # Cluster lifecycle handle
+cluster.status()
+cf.clusters.delete("my-cluster")
+
+jobs = cf.jobs.list()
+job = cf.jobs.get("train")
+job.status()
+job.stop()
+job.resubmit()
+cf.jobs.delete("train")
+
+# Query another namespace using the same authenticated client.
+jobs = cf.jobs.list(namespace="another-project")
+```
+
+Retrieved jobs support `status()`, `stop()`, `resubmit()` and `delete()`.
+Use `resubmit()` to resume a suspended job; create a new job with `cf.jobs.create()`
+or `cf.jobs.submit()`. Retrieved handles reject `submit()`.
+
+Cluster listing skips resources whose specifications fail validation and logs a
+warning. Each listed handle's `status()` call queries Kubernetes separately.
+
 ## Development
 
 Please see our [CONTRIBUTING.md](./CONTRIBUTING.md) for detailed instructions.

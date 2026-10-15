@@ -416,6 +416,11 @@ def cleanup_tls_cert(cluster_name: str, namespace: str) -> bool:
 
     This should be called when a cluster is deleted to clean up sensitive key material.
 
+    The directory is keyed by ``{cluster_name}-{namespace}`` without an
+    API-server component.  If two ``Codeflare`` instances target different
+    API servers containing identically named clusters in the same namespace,
+    cleanup from one will remove certificates used by the other.
+
     Args:
         cluster_name (str):
             The name of the Ray cluster.

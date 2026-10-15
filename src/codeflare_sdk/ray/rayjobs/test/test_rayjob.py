@@ -936,33 +936,35 @@ def test_rayjob_resubmit_failure(auto_mock_setup):
     )
 
 
-def test_rayjob_delete_success(auto_mock_setup):
+def test_rayjob_delete_success(auto_mock_setup, mocker):
     """
     Test successful RayJob deletion.
     """
-    mock_api_instance = auto_mock_setup["rayjob_api"]
-
     rayjob = RayJob(
         job_name="test-rayjob",
         entrypoint="python -c 'print()'",
         cluster_name="test-cluster",
     )
 
-    mock_api_instance.delete_job.return_value = True
+    mock_api = mocker.patch.object(rayjob, "_api")
 
     result = rayjob.delete()
 
     assert result is True
-    mock_api_instance.delete_job.assert_called_once_with(
-        name="test-rayjob", k8s_namespace="test-namespace"
+    mock_api.api.delete_namespaced_custom_object.assert_called_once_with(
+        group="ray.io",
+        version="v1",
+        plural="rayjobs",
+        namespace="test-namespace",
+        name="test-rayjob",
     )
 
 
-def test_rayjob_delete_already_deleted(auto_mock_setup, caplog):
+def test_rayjob_delete_already_deleted(auto_mock_setup, mocker, caplog):
     """
     Test RayJob deletion when already deleted (should succeed gracefully).
     """
-    mock_api_instance = auto_mock_setup["rayjob_api"]
+    from kubernetes.client.exceptions import ApiException
 
     rayjob = RayJob(
         job_name="test-rayjob",
@@ -970,19 +972,33 @@ def test_rayjob_delete_already_deleted(auto_mock_setup, caplog):
         cluster_name="test-cluster",
     )
 
-    # Python client returns False when job doesn't exist/already deleted
-    mock_api_instance.delete_job.return_value = False
+    mock_api = mocker.patch.object(rayjob, "_api")
+    mock_api.api.delete_namespaced_custom_object.side_effect = ApiException(status=404)
+    mock_api.api.list_namespaced_custom_object.return_value = {"items": []}
 
     with caplog.at_level("INFO"):
         result = rayjob.delete()
 
-    # Should succeed (not raise error) when already deleted
     assert result is True
     assert "already deleted or does not exist" in caplog.text
 
-    mock_api_instance.delete_job.assert_called_once_with(
-        name="test-rayjob", k8s_namespace="test-namespace"
+
+def test_rayjob_delete_raises_on_non_404(auto_mock_setup, mocker):
+    """Instance delete() propagates 403/500 instead of swallowing them."""
+    from kubernetes.client.exceptions import ApiException
+
+    rayjob = RayJob(
+        job_name="test-rayjob",
+        entrypoint="python -c 'print()'",
+        cluster_name="test-cluster",
     )
+
+    mock_api = mocker.patch.object(rayjob, "_api")
+    mock_api.api.delete_namespaced_custom_object.side_effect = ApiException(status=403)
+
+    with pytest.raises(ApiException) as error:
+        rayjob.delete()
+    assert error.value.status == 403
 
 
 def test_rayjob_init_both_none_error(auto_mock_setup):
