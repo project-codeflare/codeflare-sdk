@@ -18,6 +18,8 @@ the resources requested by the user. It also contains functions for checking the
 cluster setup queue, a list of all existing clusters, and the user's working namespace.
 """
 
+import copy
+import logging
 import warnings
 from time import sleep
 from typing import Dict, List, NamedTuple, Optional, Tuple
@@ -55,6 +57,7 @@ from .status import (
 )
 
 CF_SDK_FIELD_MANAGER = "codeflare-sdk"
+logger = logging.getLogger(__name__)
 
 
 class _WorkerGroupSpecDetails(NamedTuple):
@@ -92,6 +95,7 @@ class Cluster:
                 client at call time, which preserves legacy behaviour.
         """
         self._api_client = api_client
+        self._retrieved = False
         with _use_api_client(api_client):
             self._init(config)
 
@@ -184,13 +188,18 @@ class Cluster:
         Applies the Cluster yaml, pushing the resource request onto
         the Kueue localqueue.
         """
-        # Fix for RHOAIENG-54731: Use warnings.warn() instead of print() for deprecation
+        if self._retrieved:
+            raise RuntimeError(
+                "Cannot apply() a cluster retrieved via get() or list(). "
+                "The reconstructed configuration may not match the live spec. "
+                "Use Cluster(ClusterConfiguration(...)) to create a new cluster, "
+                "or use status() and down() for lifecycle management."
+            )
         warnings.warn(
             "up() is deprecated and will be removed in a future version. Use apply() instead.",
             DeprecationWarning,
             stacklevel=2,
         )
-        # check if RayCluster CustomResourceDefinition exists if not throw RuntimeError
         self._throw_for_no_raycluster()
         namespace = self.config.namespace
 
@@ -229,7 +238,18 @@ class Cluster:
             timeout (int):
                 Maximum time in seconds to wait for post-apply operations such as
                 TLS certificate generation. Default is 300 seconds (5 minutes).
+
+        Raises:
+            RuntimeError: If this cluster was retrieved via ``get()`` or ``list()``
+                rather than created from a ``ClusterConfiguration``.
         """
+        if self._retrieved:
+            raise RuntimeError(
+                "Cannot apply() a cluster retrieved via get() or list(). "
+                "The reconstructed configuration may not match the live spec. "
+                "Use Cluster(ClusterConfiguration(...)) to create a new cluster, "
+                "or use status() and down() for lifecycle management."
+            )
         # check if RayCluster CustomResourceDefinition exists if not throw RuntimeError
         self._throw_for_no_raycluster()
         namespace = self.config.namespace
@@ -1021,18 +1041,51 @@ def _worker_group_status_from_spec(
     )
 
 
-def get_cluster(
+def _get_cluster_strict(
     cluster_name: str,
     namespace: str = "default",
     verify_tls: bool = True,
     write_to_file: bool = False,
     api_client: Optional[client.ApiClient] = None,
 ) -> "Cluster":
+    """Retrieve a Ray Cluster, propagating any Kubernetes API error.
+
+    Unlike :func:`get_cluster`, this raises ``ApiException`` on 404, 403,
+    500, etc. instead of swallowing errors and returning ``None``.
+    """
+    with _use_api_client(api_client):
+        config_check()
+        api_instance = client.CustomObjectsApi(get_api_client())
+        resource = api_instance.get_namespaced_custom_object(
+            group="ray.io",
+            version="v1",
+            namespace=namespace,
+            plural="rayclusters",
+            name=cluster_name,
+        )
+        return _cluster_from_resource(
+            resource, cluster_name, namespace, verify_tls, write_to_file, api_client
+        )
+
+
+def get_cluster(
+    cluster_name: str,
+    namespace: str = "default",
+    verify_tls: bool = True,
+    write_to_file: bool = False,
+    api_client: Optional[client.ApiClient] = None,
+) -> Optional["Cluster"]:
     """
     Retrieves an existing Ray Cluster as a Cluster object.
 
     This function fetches an existing Ray Cluster from the Kubernetes cluster and returns
-    it as a `Cluster` object, including its YAML configuration under `Cluster.resource_yaml`.
+    it as a ``Cluster`` object, including its YAML configuration under
+    ``Cluster.resource_yaml``.  The returned cluster is marked as retrieved
+    and does not support ``apply()`` — use it for ``status()`` and ``down()``.
+
+    Returns ``None`` when the Kubernetes API call fails (e.g. 404 not found).
+    The facade method :meth:`ClusterHandler.get` calls :func:`_get_cluster_strict`
+    instead, which raises.
 
     Args:
         cluster_name (str):
@@ -1043,30 +1096,84 @@ def get_cluster(
             Whether to verify TLS when connecting to the cluster. Default is True.
         write_to_file (bool, optional):
             If True, writes the resource configuration to a YAML file. Default is False.
+        api_client:
+            Kubernetes API client to use. ``None`` resolves the process-wide
+            client, preserving legacy behaviour.
 
     Returns:
         Cluster:
-            A Cluster object representing the retrieved Ray Cluster.
+            A Cluster object representing the retrieved Ray Cluster, or
+            ``None`` if the API call fails.
+    """
+    try:
+        return _get_cluster_strict(
+            cluster_name, namespace, verify_tls, write_to_file, api_client
+        )
+    except Exception as e:
+        return _kube_api_error_handling(e)
+
+
+def _delete_cluster(
+    name: str, namespace: str, api_client: Optional[client.ApiClient] = None
+) -> bool:
+    """Delete the CR directly, then clean up its local TLS certificates.
 
     Raises:
-        Exception:
-            If the Ray Cluster cannot be found or does not exist.
+        RuntimeError: If the RayCluster CRD is not installed.
+        ApiException: On non-404 API errors.
     """
+    from ...common.utils.generate_cert import cleanup_tls_cert
+
     with _use_api_client(api_client):
         config_check()
-        api_instance = client.CustomObjectsApi(get_api_client())
-        # Get the Ray Cluster
+        api = client.CustomObjectsApi(get_api_client())
         try:
-            resource = api_instance.get_namespaced_custom_object(
-                group="ray.io",
-                version="v1",
-                namespace=namespace,
-                plural="rayclusters",
-                name=cluster_name,
-            )
-        except Exception as e:
-            return _kube_api_error_handling(e)
+            _delete_resources(name, namespace, api)
+        except ApiException as e:
+            if e.status == 404:
+                _raise_if_crd_missing(api, namespace, "rayclusters", "RayCluster")
+            else:
+                _kube_api_error_handling(e)
+                raise
+        cleanup_tls_cert(name, namespace)
+        return True
 
+
+def _raise_if_crd_missing(
+    api: client.CustomObjectsApi,
+    namespace: str,
+    plural: str,
+    kind: str,
+) -> None:
+    """Probe whether a 404 came from a missing CRD rather than a missing object."""
+    try:
+        api.list_namespaced_custom_object(
+            group="ray.io", version="v1", namespace=namespace, plural=plural
+        )
+    except ApiException as probe:
+        if probe.status == 404:
+            raise RuntimeError(
+                f"{kind} CustomResourceDefinition unavailable. "
+                "Contact your administrator."
+            )
+        raise
+
+
+def _cluster_from_resource(
+    resource: Dict,
+    cluster_name: str,
+    namespace: str,
+    verify_tls: bool = True,
+    write_to_file: bool = False,
+    api_client: Optional[client.ApiClient] = None,
+    *,
+    print_to_console: bool = True,
+) -> "Cluster":
+    """Build a usable Cluster from a retrieved resource without another API call."""
+    with _use_api_client(api_client):
+        resource = copy.deepcopy(resource)
+        if not isinstance(resource.get("spec"), dict):
+            resource["spec"] = {}
         (
             head_extended_resources,
             worker_extended_resources,
@@ -1152,6 +1259,7 @@ def get_cluster(
                 message="Please provide a ClusterConfiguration to initialise the Cluster object",
             )
             cluster = Cluster(None, api_client=api_client)
+            cluster._retrieved = True
             cluster.config = cluster_config
             cluster.worker_groups = [
                 _worker_group_status_from_spec(group, index)
@@ -1168,7 +1276,8 @@ def get_cluster(
             else:
                 # Update the Cluster's resource_yaml to reflect the retrieved Ray Cluster
                 cluster.resource_yaml = resource
-                print(f"Yaml resources loaded for {cluster.config.name}")
+                if print_to_console:
+                    print(f"Yaml resources loaded for {cluster.config.name}")
 
             return cluster
 

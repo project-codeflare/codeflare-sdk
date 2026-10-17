@@ -20,9 +20,10 @@ import logging
 import os
 import re
 import warnings
-from typing import Dict, Any, Optional, Tuple, Union
+from typing import Dict, Any, List, Optional, Tuple, Union
 
 from kubernetes import client
+from kubernetes.client.exceptions import ApiException
 from ray.runtime_env import RuntimeEnv
 from codeflare_sdk.common.kueue.kueue import (
     get_default_kueue_name,
@@ -41,6 +42,7 @@ from codeflare_sdk.ray.rayjobs.runtime_env import (
     process_runtime_env,
 )
 
+from ...common import _kube_api_error_handling
 from ...common.kubernetes_cluster.auth import (
     _bound_to_api_client,
     _use_api_client,
@@ -195,6 +197,111 @@ class RayJob:
 
         logger.info(f"Initialized RayJob: {self.name} in namespace: {self.namespace}")
 
+    @classmethod
+    def _from_resource(
+        cls,
+        resource: Dict[str, Any],
+        namespace: str,
+        api: client.CustomObjectsApi,
+        api_client: Optional[client.ApiClient] = None,
+    ) -> "RayJob":
+        """Attach a lightweight lifecycle handle to a bound, shared API."""
+        return _RayJobHandle(resource, namespace, api, api_client)
+
+    @classmethod
+    def _get(
+        cls,
+        name: str,
+        namespace: str,
+        api_client: Optional[client.ApiClient] = None,
+    ) -> "RayJob":
+        """Retrieve a job with the SDK's error handling and client binding."""
+        with _use_api_client(api_client):
+            config_check()
+            api = client.CustomObjectsApi(get_api_client())
+            try:
+                resource = api.get_namespaced_custom_object(
+                    group="ray.io",
+                    version="v1",
+                    plural="rayjobs",
+                    namespace=namespace,
+                    name=name,
+                )
+            except ApiException as e:
+                _kube_api_error_handling(e)
+                raise
+            return cls._from_resource(resource, namespace, api, api_client)
+
+    @classmethod
+    def _list(
+        cls,
+        namespace: str,
+        api_client: Optional[client.ApiClient] = None,
+    ) -> List["RayJob"]:
+        """Return usable handles for named jobs, tolerating partial list responses."""
+        with _use_api_client(api_client):
+            config_check()
+            api = client.CustomObjectsApi(get_api_client())
+            try:
+                response = api.list_namespaced_custom_object(
+                    group="ray.io",
+                    version="v1",
+                    plural="rayjobs",
+                    namespace=namespace,
+                )
+            except ApiException as e:
+                _kube_api_error_handling(e)
+                raise
+            items = response.get("items") if isinstance(response, dict) else None
+            if not isinstance(items, list):
+                return []
+            jobs = []
+            for resource in items:
+                if not isinstance(resource, dict):
+                    continue
+                metadata = resource.get("metadata")
+                if not isinstance(metadata, dict):
+                    continue
+                name = metadata.get("name")
+                if isinstance(name, str) and name:
+                    jobs.append(
+                        cls._from_resource(resource, namespace, api, api_client)
+                    )
+            return jobs
+
+    @staticmethod
+    def _delete(
+        name: str,
+        namespace: str,
+        api_client: Optional[client.ApiClient] = None,
+    ) -> bool:
+        """Delete by name without a preceding get; only 404 is a successful no-op.
+
+        Raises:
+            RuntimeError: If the RayJob CRD is not installed.
+            ApiException: On non-404 API errors.
+        """
+        from ..cluster.cluster import _raise_if_crd_missing
+
+        with _use_api_client(api_client):
+            config_check()
+            api = client.CustomObjectsApi(get_api_client())
+            try:
+                api.delete_namespaced_custom_object(
+                    group="ray.io",
+                    version="v1",
+                    plural="rayjobs",
+                    namespace=namespace,
+                    name=name,
+                )
+            except ApiException as e:
+                if e.status == 404:
+                    _raise_if_crd_missing(api, namespace, "rayjobs", "RayJob")
+                else:
+                    _kube_api_error_handling(e)
+                    raise
+            return True
+
     @_bound_to_api_client
     def submit(self) -> str:
         if not self.entrypoint:
@@ -249,20 +356,34 @@ class RayJob:
 
     @_bound_to_api_client
     def delete(self) -> bool:
+        """Delete the Ray job.
+
+        Returns True if deleted successfully or already absent.
+
+        Raises:
+            ApiException: On non-404 API errors (403, 500, etc.).
+            RuntimeError: If the RayJob CRD is not installed.
         """
-        Delete the Ray job.
-        Returns True if deleted successfully or if already deleted.
-        """
-        deleted = self._api.delete_job(name=self.name, k8s_namespace=self.namespace)
-        if deleted:
+        from ..cluster.cluster import _raise_if_crd_missing
+
+        api = self._api.api
+        try:
+            api.delete_namespaced_custom_object(
+                group="ray.io",
+                version="v1",
+                plural="rayjobs",
+                namespace=self.namespace,
+                name=self.name,
+            )
             logger.info(f"Successfully deleted the RayJob {self.name}")
-            return True
-        else:
-            # The python client logs "rayjob custom resource already deleted"
-            # and returns False when the job doesn't exist.
-            # This is not an error - treat it as successful deletion.
-            logger.info(f"RayJob {self.name} already deleted or does not exist")
-            return True
+        except ApiException as e:
+            if e.status == 404:
+                _raise_if_crd_missing(api, self.namespace, "rayjobs", "RayJob")
+                logger.info(f"RayJob {self.name} already deleted or does not exist")
+            else:
+                _kube_api_error_handling(e)
+                raise
+        return True
 
     @_bound_to_api_client
     def _build_rayjob_cr(self) -> Dict[str, Any]:
@@ -703,4 +824,70 @@ class RayJob:
 
         return status_mapping.get(
             deployment_status, (CodeflareRayJobStatus.UNKNOWN, False)
+        )
+
+
+class _RayJobLifecycleApi(RayjobApi):
+    """Reuse existing lifecycle behavior with an already-authenticated API."""
+
+    def __init__(self, api: client.CustomObjectsApi) -> None:
+        # Skip the vendored constructor's kubeconfig loading and API creation.
+        # Inherited methods retain the same errors and status polling behavior.
+        self.api = api
+        self.kube_config = None
+
+
+class _RayJobHandle(RayJob):
+    """A retrieved job supports remote lifecycle operations, not new submission."""
+
+    def __init__(
+        self,
+        resource: Dict[str, Any],
+        namespace: str,
+        api: client.CustomObjectsApi,
+        api_client: Optional[client.ApiClient],
+    ) -> None:
+        if not isinstance(resource, dict):
+            raise ValueError("Expected a RayJob resource dictionary")
+        metadata = resource.get("metadata")
+        metadata = metadata if isinstance(metadata, dict) else {}
+        name = metadata.get("name")
+        if not isinstance(name, str) or not name:
+            raise ValueError("RayJob resource is missing metadata.name")
+        spec = resource.get("spec")
+        spec = spec if isinstance(spec, dict) else {}
+        status = resource.get("status")
+        status = status if isinstance(status, dict) else {}
+        selector = spec.get("clusterSelector")
+        selector = selector if isinstance(selector, dict) else {}
+        self.name = name
+        self.namespace = namespace
+        # Use only an observed or selected cluster name, not an invented target.
+        self.cluster_name = (
+            status.get("rayClusterName") or selector.get("ray.io/cluster") or ""
+        )
+        self.entrypoint = spec.get("entrypoint")
+        self.ttl_seconds_after_finished = spec.get("ttlSecondsAfterFinished", 0)
+        self.active_deadline_seconds = spec.get("activeDeadlineSeconds")
+        labels = metadata.get("labels")
+        labels = labels if isinstance(labels, dict) else {}
+        self.local_queue = labels.get("kueue.x-k8s.io/queue-name")
+        self.priority_class = labels.get("kueue.x-k8s.io/priority-class")
+        self.runtime_env = None
+        self._cluster_config = None
+        self._cluster_name = None
+        self._cluster_api = None
+        self._api_client = api_client
+        self._api = _RayJobLifecycleApi(api)
+
+    def submit(self) -> str:
+        """Reject new submission of a retrieved lifecycle handle.
+
+        Raises:
+            RuntimeError: Use resubmit() for a suspended job, or cf.jobs.create()
+                to configure and submit a new job.
+        """
+        raise RuntimeError(
+            "Retrieved RayJobs support lifecycle operations only. Use resubmit() "
+            "for a suspended job, or cf.jobs.create() to configure a new job."
         )

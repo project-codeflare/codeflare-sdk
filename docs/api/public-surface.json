@@ -26,7 +26,7 @@
         "SDKConfig",
         "JobOptions"
       ],
-      "notes": "Single entrypoint. JobOptions is a TypedDict describing the shared keyword arguments of the cf.jobs.create()/submit() overloads; it carries no runtime behaviour."
+      "notes": "Single entrypoint. Both cf.clusters and cf.jobs provide list(), get() and delete() with instance-bound clients and namespace resolution. cf.clusters.list() returns RayCluster status snapshots; cf.clusters.get() returns a Cluster lifecycle handle. cf.jobs.list() returns RayJob handles. get() raises for missing resources; delete() returns bool, treating 404 as success and raising other API errors. Retrieved RayJob handles support status/stop/resubmit/delete and reject submit(). JobOptions is a TypedDict describing the shared keyword arguments of the cf.jobs.create()/submit() overloads; it carries no runtime behaviour."
     },
     "rayjobs": {
       "module": "codeflare_sdk.ray.rayjobs",
