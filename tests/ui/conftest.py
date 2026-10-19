@@ -453,8 +453,14 @@ def handle_openshift_oauth_login(driver, test_credentials):
                         f"Multiple IDPs found but couldn't determine which to use. Available: {[text for _, text, _ in all_idp_buttons]}"
                     )
 
-                    # Smart fallback: prefer cluster-admin, htpasswd, or admin over redhat-sso
-                    preferred_idps = ["cluster-admin", "htpasswd", "admin", "kube"]
+                    # TEST_USER on QE clusters is typically LDAP; prefer that over htpasswd.
+                    preferred_idps = [
+                        "ldap",
+                        "cluster-admin",
+                        "htpasswd",
+                        "admin",
+                        "kube",
+                    ]
                     for preferred in preferred_idps:
                         for elem, text, href in all_idp_buttons:
                             if preferred in text.lower():
