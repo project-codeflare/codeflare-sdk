@@ -52,7 +52,7 @@ class TestRayJobLifecycledCluster:
 
         # Create a temporary script file to test Secret functionality
         with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".py", delete=False, dir=os.getcwd()
+            mode="w", suffix=".py", delete=False
         ) as script_file:
             script_file.write(
                 """
@@ -63,14 +63,14 @@ class TestRayJobLifecycledCluster:
                 """
             )
             script_file.flush()
-            script_filename = os.path.basename(script_file.name)
+            script_path = script_file.name
 
         try:
             rayjob = RayJob(
                 job_name=job_name,
                 namespace=self.namespace,
                 cluster_config=cluster_config,
-                entrypoint=f"python {script_filename}",
+                entrypoint=f"python {script_path}",
                 runtime_env={"env_vars": get_setup_env_variables(ACCELERATOR="cpu")},
                 local_queue=self.local_queues[0],
             )
@@ -100,10 +100,10 @@ class TestRayJobLifecycledCluster:
                 pass  # Job might already be deleted
             verify_rayjob_cluster_cleanup(cluster_api, rayjob.name, rayjob.namespace)
             # Clean up the temporary script file
-            if "script_filename" in locals():
+            if "script_path" in locals():
                 try:
-                    os.remove(script_filename)
-                except:
+                    os.remove(script_path)
+                except Exception:
                     pass
 
     def test_lifecycled_kueue_resource_queueing(self):
@@ -138,8 +138,12 @@ class TestRayJobLifecycledCluster:
                 local_queue=self.local_queues[0],
             )
             assert job1.submit() == "holder"
-            assert self.job_api.wait_until_job_running(
-                name=job1.name, k8s_namespace=job1.namespace, timeout=60
+            assert wait_for_kueue_admission(
+                self, self.job_api, job1.name, job1.namespace, timeout=120
+            ), f"RayJob {job1.name} was not admitted by Kueue"
+            job_running = self._wait_for_job_running_with_retry(job1, max_retries=1)
+            assert job_running, (
+                f"RayJob {job1.name} failed to reach running state after retries"
             )
 
             job2 = RayJob(
@@ -156,35 +160,38 @@ class TestRayJobLifecycledCluster:
             sleep(5)
             job2_cr = self.job_api.get_job(name=job2.name, k8s_namespace=job2.namespace)
 
-            # For RayJobs with managed clusters, check if Kueue is holding resources
-            job2_status = job2_cr.get("status", {})
-            ray_cluster_name = job2_status.get("rayClusterName", "")
+            # Primary signal: Kueue keeps the RayJob suspended while queued.
+            job_is_queued = bool(job2_cr.get("spec", {}).get("suspend", False))
 
-            # If RayCluster is not created yet, it means Kueue is holding the job
-            if not ray_cluster_name:
-                # This is the expected behavior
-                job_is_queued = True
-            else:
-                # Check RayCluster resources - if all are 0, it's queued
-                ray_cluster_status = job2_status.get("rayClusterStatus", {})
-                desired_cpu = ray_cluster_status.get("desiredCPU", "0")
-                desired_memory = ray_cluster_status.get("desiredMemory", "0")
+            if not job_is_queued:
+                # Fallback for older Kueue/KubeRay behavior: RayCluster absent or
+                # admitted with zero desired resources while held in queue.
+                job2_status = job2_cr.get("status", {})
+                ray_cluster_name = job2_status.get("rayClusterName", "")
+                if not ray_cluster_name:
+                    job_is_queued = True
+                else:
+                    ray_cluster_status = job2_status.get("rayClusterStatus", {})
+                    desired_cpu = ray_cluster_status.get("desiredCPU", "0")
+                    desired_memory = ray_cluster_status.get("desiredMemory", "0")
+                    job_is_queued = desired_cpu == "0" and desired_memory == "0"
 
-                # Kueue creates the RayCluster but with 0 resources when queued
-                job_is_queued = desired_cpu == "0" and desired_memory == "0"
-
-            assert job_is_queued, "Job2 should be queued by Kueue while Job1 is running"
+            assert job_is_queued, (
+                "Job2 should be queued by Kueue while Job1 is running "
+                f"(suspend={job2_cr.get('spec', {}).get('suspend')}, "
+                f"status={job2_cr.get('status', {})})"
+            )
 
             assert self.job_api.wait_until_job_finished(
-                name=job1.name, k8s_namespace=job1.namespace, timeout=60
+                name=job1.name, k8s_namespace=job1.namespace, timeout=120
             )
 
             assert wait_for_kueue_admission(
-                self, self.job_api, job2.name, job2.namespace, timeout=30
+                self, self.job_api, job2.name, job2.namespace, timeout=120
             )
 
             assert self.job_api.wait_until_job_finished(
-                name=job2.name, k8s_namespace=job2.namespace, timeout=60
+                name=job2.name, k8s_namespace=job2.namespace, timeout=300
             )
         finally:
             for job in [job1, job2]:

@@ -251,8 +251,13 @@ def ensure_nodes_labeled_for_flavors(self, num_flavors, with_labels):
 def create_namespace(self):
     try:
         self.namespace = f"test-ns-{random_choice()}"
+        # RHBoK/OpenShift Kueue only manages namespaces with this label
+        # (see kueue-manager-config managedJobsNamespaceSelector).
         namespace_body = client.V1Namespace(
-            metadata=client.V1ObjectMeta(name=self.namespace)
+            metadata=client.V1ObjectMeta(
+                name=self.namespace,
+                labels={"kueue.openshift.io/managed": "true"},
+            )
         )
         self.api_instance.create_namespace(namespace_body)
     except Exception as e:
@@ -650,6 +655,19 @@ def is_byoidc_cluster_detected():
         return False
 
 
+def assert_submitted_job_listed(client, submission_id):
+    """Assert list_jobs() includes exactly one entry for the given submission."""
+    job_list = client.list_jobs()
+    print(f"List of Jobs: {job_list}")
+    matching = [job for job in job_list if job.submission_id == submission_id]
+    assert len(matching) == 1, (
+        f"Expected exactly one job with submission_id {submission_id!r}, "
+        f"found {len(matching)} matching among {len(job_list)} total job(s). "
+        "Ray may retain prior submissions (e.g. after delete_job) in the job list."
+    )
+    return matching[0]
+
+
 def assert_get_cluster_and_jobsubmit(
     self, cluster_name, accelerator=None, number_of_gpus=None
 ):
@@ -694,15 +712,7 @@ def assert_get_cluster_and_jobsubmit(
     )
     print(f"Submitted job with ID: {submission_id}")
 
-    # Fetch the list of jobs and validate
-    job_list = client.list_jobs()
-    print(f"List of Jobs: {job_list}")
-
-    # Validate the number of jobs in the list
-    assert len(job_list) == 1
-
-    # Validate the submission ID matches
-    assert job_list[0].submission_id == submission_id
+    assert_submitted_job_listed(client, submission_id)
 
     cluster.down()
 
@@ -766,16 +776,12 @@ def create_limited_kueue_resources(self):
     )
     self.resource_flavors = [resource_flavor]
 
-    # Create a cluster queue with very limited resources
-    # Adjust quota based on platform - OpenShift needs more memory
-    if is_openshift():
-        # MODH images need more memory, so higher quota but still limited to allow only 1 job
-        cpu_quota = 3
-        memory_quota = "15Gi"  # One job needs ~8Gi head, allow some buffer
-    else:
-        # Standard Ray images - one job needs ~8G head + 500m submitter
-        cpu_quota = 3
-        memory_quota = "10Gi"  # Enough for one job (8G head + submitter), but not two
+    # Create a cluster queue with very limited resources.
+    # Jobs use head_memory_requests=7 (see get_platform_appropriate_resources) and
+    # num_workers=0, so quota must fit one job (~7Gi) but not two (~14Gi).
+    # 15Gi previously allowed both jobs (7+7=14 < 15) and broke queueing assertions.
+    cpu_quota = 3
+    memory_quota = "10Gi"
 
     cluster_queue_name = f"limited-cq-{random_choice()}"
     cluster_queue_json = {
