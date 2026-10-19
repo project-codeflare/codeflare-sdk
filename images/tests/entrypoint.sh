@@ -6,6 +6,7 @@
 # The tree under /codeflare-sdk is root-owned; SDK writes ~/.codeflare and pytest uses a cache dir.
 export HOME="${CODEFLARE_TEST_HOME:-/tmp/codeflare-test-home}"
 export PYTEST_CACHE_DIR="${PYTEST_CACHE_DIR:-/tmp/pytest-cache}"
-mkdir -p "${HOME}/.codeflare/resources" "${PYTEST_CACHE_DIR}"
+export TMPDIR="${TMPDIR:-${HOME}/tmp}"
+mkdir -p "${HOME}/.codeflare/resources" "${PYTEST_CACHE_DIR}" "${TMPDIR}"
 
 exec /codeflare-sdk/run-tests.sh "$@"
