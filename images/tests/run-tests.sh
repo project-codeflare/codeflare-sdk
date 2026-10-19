@@ -954,9 +954,13 @@ cd /codeflare-sdk || {
     exit 1
 }
 
+# JUnit output (Jenkins also passes --junit-xml=results/xunit_report.xml relative to cwd)
+CODEFLARE_JUNIT_XML="${CODEFLARE_JUNIT_XML:-/codeflare-sdk/tests/results/results_xunit.xml}"
+mkdir -p "$(dirname "${CODEFLARE_JUNIT_XML}")" /codeflare-sdk/results 2>/dev/null || true
+
 # Default pytest options
 DEFAULT_PYTEST_OPTS=(
-    "--junitxml=/codeflare-sdk/tests/results/results_xunit.xml"
+    "--junitxml=${CODEFLARE_JUNIT_XML}"
     "-o"
     "junit_suite_name=codeflare-sdk"
     "-v"

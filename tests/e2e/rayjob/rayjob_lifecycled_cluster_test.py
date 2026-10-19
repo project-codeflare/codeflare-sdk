@@ -52,7 +52,7 @@ class TestRayJobLifecycledCluster:
 
         # Create a temporary script file to test Secret functionality
         with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".py", delete=False, dir=os.getcwd()
+            mode="w", suffix=".py", delete=False
         ) as script_file:
             script_file.write(
                 """
@@ -63,14 +63,14 @@ class TestRayJobLifecycledCluster:
                 """
             )
             script_file.flush()
-            script_filename = os.path.basename(script_file.name)
+            script_path = script_file.name
 
         try:
             rayjob = RayJob(
                 job_name=job_name,
                 namespace=self.namespace,
                 cluster_config=cluster_config,
-                entrypoint=f"python {script_filename}",
+                entrypoint=f"python {script_path}",
                 runtime_env={"env_vars": get_setup_env_variables(ACCELERATOR="cpu")},
                 local_queue=self.local_queues[0],
             )
@@ -100,10 +100,10 @@ class TestRayJobLifecycledCluster:
                 pass  # Job might already be deleted
             verify_rayjob_cluster_cleanup(cluster_api, rayjob.name, rayjob.namespace)
             # Clean up the temporary script file
-            if "script_filename" in locals():
+            if "script_path" in locals():
                 try:
-                    os.remove(script_filename)
-                except:
+                    os.remove(script_path)
+                except Exception:
                     pass
 
     def test_lifecycled_kueue_resource_queueing(self):
