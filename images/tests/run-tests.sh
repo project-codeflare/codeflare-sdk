@@ -184,11 +184,17 @@ if [ "$CLUSTER_IS_BYOIDC" = "false" ]; then
     fi
 fi
 
-# Method 4: Check OAuth resource for openID identity provider (legacy OIDC setup)
+# Method 4: Classic OAuth OpenID (e.g. redhat-sso) is NOT BYOIDC when HTPasswd/LDAP
+# IDPs are also present. True BYOIDC is Authentication spec.type=OIDC (methods 0-3).
 if [ "$CLUSTER_IS_BYOIDC" = "false" ]; then
-    if timeout 10 oc get oauth cluster -o jsonpath='{.spec.identityProviders[*].type}' 2>/dev/null | grep -qi "OpenID"; then
-        echo "Detected BYOIDC cluster: OAuth has OpenID identity provider"
-        CLUSTER_IS_BYOIDC=true
+    OAUTH_IDP_TYPES=$(timeout 10 oc get oauth cluster -o jsonpath='{.spec.identityProviders[*].type}' 2>/dev/null) || true
+    if echo "$OAUTH_IDP_TYPES" | grep -qi "OpenID"; then
+        if echo "$OAUTH_IDP_TYPES" | grep -Eqi "HTPasswd|LDAP|BasicAuth|GitHub|GitLab|Google|Keystone|RequestHeader"; then
+            echo "OAuth has OpenID plus other IDPs ($OAUTH_IDP_TYPES); treating as standard OpenShift OAuth, not BYOIDC"
+        else
+            echo "Detected BYOIDC cluster: OAuth identity providers are OpenID-only ($OAUTH_IDP_TYPES)"
+            CLUSTER_IS_BYOIDC=true
+        fi
     fi
 fi
 

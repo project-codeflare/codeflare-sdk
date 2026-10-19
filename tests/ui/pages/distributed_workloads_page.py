@@ -27,6 +27,10 @@ class DistributedWorkloadsPage:
         (By.XPATH, "//nav//a[contains(., 'Observe & monitor')]"),
         (
             By.XPATH,
+            "//button[contains(@class, 'pf-v6-c-nav__link') and contains(., 'Observe')]",
+        ),
+        (
+            By.XPATH,
             "//button[contains(@class, 'pf-v5-c-nav__link') and contains(., 'Observe')]",
         ),
     ]
@@ -122,6 +126,70 @@ class DistributedWorkloadsPage:
         self.driver = driver
         self.wait = WebDriverWait(driver, timeout)
 
+    def _dismiss_blocking_overlays(self):
+        """Dismiss PatternFly modals/overlays that intercept nav clicks (pf-v6-l-bullseye)."""
+        from selenium.webdriver.common.keys import Keys
+
+        try:
+            overlays = self.driver.find_elements(
+                By.CSS_SELECTOR,
+                ".pf-v6-c-modal-box, .pf-v5-c-modal-box, [role='dialog'], .pf-v6-l-bullseye",
+            )
+            visible = [el for el in overlays if el.is_displayed()]
+            if not visible:
+                return
+
+            print(f"Dismissing {len(visible)} blocking overlay(s) before navigation...")
+            # Prefer explicit close buttons inside modals
+            close_selectors = [
+                "button[aria-label='Close']",
+                "button[aria-label='close']",
+                ".pf-v6-c-modal-box button.pf-v6-c-button.pf-m-plain",
+                ".pf-v5-c-modal-box button.pf-v5-c-button.pf-m-plain",
+                "[role='dialog'] button[aria-label='Close']",
+            ]
+            for selector in close_selectors:
+                try:
+                    for btn in self.driver.find_elements(By.CSS_SELECTOR, selector):
+                        if btn.is_displayed():
+                            btn.click()
+                            break
+                except Exception:
+                    continue
+
+            # Escape is a reliable fallback for PatternFly modals
+            try:
+                self.driver.find_element(By.TAG_NAME, "body").send_keys(Keys.ESCAPE)
+            except Exception:
+                pass
+        except Exception as e:
+            print(f"Warning: could not dismiss overlays: {e}")
+
+    def _safe_click(self, element):
+        """Click an element, falling back to JS click when overlays intercept."""
+        try:
+            element.click()
+        except Exception as e:
+            print(f"Normal click failed ({type(e).__name__}), trying JS click...")
+            self.driver.execute_script("arguments[0].click();", element)
+
+    def _dashboard_base_url(self) -> str:
+        current_url = self.driver.current_url
+        for marker in (
+            "/observe-monitor/",
+            "/applications/",
+            "/projects/",
+            "/modelServing/",
+            "/resources/",
+        ):
+            if marker in current_url:
+                return current_url.split(marker)[0]
+        # Strip path, keep origin
+        from urllib.parse import urlsplit, urlunsplit
+
+        parts = urlsplit(current_url)
+        return urlunsplit((parts.scheme, parts.netloc, "", "", "")).rstrip("/")
+
     def navigate(self):
         """Navigate to Workload Metrics page (nested under Observe & monitor)"""
         import time
@@ -140,6 +208,7 @@ class DistributedWorkloadsPage:
                 pass
 
         time.sleep(2)  # Extra wait for animations/transitions
+        self._dismiss_blocking_overlays()
 
         # Check if we're already on the Workload Metrics page (or a subpage)
         current_url = self.driver.current_url
@@ -152,28 +221,28 @@ class DistributedWorkloadsPage:
             "/observe-monitor/workload-metrics" in current_url
             and "/workload-status/" not in current_url
         )
-        is_on_workload_subpage = (
-            "/observe-monitor/workload-metrics" in current_url
-            and "/workload-status/" in current_url
-        )
 
         if is_on_main_workload_page:
             print("Already on main Workload Metrics page, no navigation needed")
             return
-        elif is_on_workload_subpage:
-            print(
-                "Currently on workload-status subpage, navigating to main workload-metrics page..."
-            )
-            # Extract base URL and navigate to main workload metrics page
-            if "/observe-monitor/" in current_url:
-                base_url = current_url.split("/observe-monitor/")[0]
-                target_url = f"{base_url}/observe-monitor/workload-metrics"
-                print(f"Navigating to: {target_url}")
-                self.driver.get(target_url)
-                time.sleep(3)  # Wait for page to load
-                return
 
-        print("Not on Workload Metrics page, proceeding with navigation...")
+        # Prefer direct URL navigation — side-nav clicks are flaky when dashboards
+        # show first-login / what's-new modals (pf-v6-l-bullseye overlays).
+        base_url = self._dashboard_base_url()
+        target_url = f"{base_url}/observe-monitor/workload-metrics"
+        print(f"Navigating directly to Workload Metrics: {target_url}")
+        self.driver.get(target_url)
+        time.sleep(3)
+        self._dismiss_blocking_overlays()
+
+        if "/observe-monitor/workload-metrics" in self.driver.current_url:
+            print("Successfully reached Workload Metrics via direct URL")
+            return
+
+        print(
+            "Direct URL navigation did not land on Workload Metrics; "
+            "falling back to side-nav clicks..."
+        )
 
         try:
             # Step 1: Find and click "Observe & monitor" in the side nav
@@ -206,7 +275,7 @@ class DistributedWorkloadsPage:
 
                     if not is_expanded:
                         print("Clicking 'Observe & monitor' to expand submenu...")
-                        observe_monitor_element.click()
+                        self._safe_click(observe_monitor_element)
                         time.sleep(2)  # Wait for submenu to expand and render
                         print(
                             "Submenu should now be expanded, waiting for links to be available..."
@@ -215,7 +284,7 @@ class DistributedWorkloadsPage:
                         print("'Observe & monitor' section is already expanded")
                 except Exception as e:
                     print(f"Could not check expansion status, clicking anyway: {e}")
-                    observe_monitor_element.click()
+                    self._safe_click(observe_monitor_element)
                     time.sleep(1)
             else:
                 print("Warning: Could not find 'Observe & monitor' navigation item")
@@ -378,7 +447,7 @@ class DistributedWorkloadsPage:
             else:
                 # Click the link
                 print("Clicking 'Workload metrics' link...")
-                workload_metrics_link.click()
+                self._safe_click(workload_metrics_link)
 
                 # Wait for page to load
                 print("Waiting for Workload Metrics page to load...")

@@ -453,8 +453,14 @@ def handle_openshift_oauth_login(driver, test_credentials):
                         f"Multiple IDPs found but couldn't determine which to use. Available: {[text for _, text, _ in all_idp_buttons]}"
                     )
 
-                    # Smart fallback: prefer cluster-admin, htpasswd, or admin over redhat-sso
-                    preferred_idps = ["cluster-admin", "htpasswd", "admin", "kube"]
+                    # TEST_USER on QE clusters is typically LDAP; prefer that over htpasswd.
+                    preferred_idps = [
+                        "ldap",
+                        "cluster-admin",
+                        "htpasswd",
+                        "admin",
+                        "kube",
+                    ]
                     for preferred in preferred_idps:
                         for elem, text, href in all_idp_buttons:
                             if preferred in text.lower():
@@ -464,12 +470,12 @@ def handle_openshift_oauth_login(driver, test_credentials):
                         if selected_idp:
                             break
 
-                    # If still no match, skip IDP selection
                     if not selected_idp:
                         print(
                             "No preferred IDP found, skipping IDP selection, will try direct login form"
                         )
-                else:
+
+                if selected_idp:
                     print(f"Clicking identity provider button: {selected_idp[1]}")
                     selected_idp[0].click()
 
@@ -791,9 +797,18 @@ def login_to_dashboard(selenium_driver, dashboard_url, test_credentials):
             print(f"Attempt {i + 1}/8 - Current URL: {driver.current_url}")
             print(f"Attempt {i + 1}/8 - Page title: {driver.title}")
 
-            # Check if page title indicates we're on the dashboard
-            if "Red Hat OpenShift AI" in driver.title or "OpenShift" in driver.title:
-                print(f"Dashboard loaded successfully (title: {driver.title})")
+            # Login pages also contain "OpenShift" in the title; require dashboard, not OAuth.
+            title = driver.title or ""
+            url = driver.current_url or ""
+            on_login_page = (
+                "login" in title.lower()
+                or "oauth-openshift" in url
+                or "reason=access_denied" in url
+            )
+            if not on_login_page and (
+                "Red Hat OpenShift AI" in title or "OpenShift AI" in title
+            ):
+                print(f"Dashboard loaded successfully (title: {title})")
                 dashboard_loaded = True
                 break
 
@@ -819,6 +834,29 @@ def login_to_dashboard(selenium_driver, dashboard_url, test_credentials):
             )
 
         print(f"Successfully logged in to RHOAI Dashboard using {login_page_type} flow")
+
+        # Dismiss first-login / what's-new modals that block side-nav clicks
+        try:
+            from selenium.webdriver.common.keys import Keys
+
+            close_selectors = [
+                "button[aria-label='Close']",
+                ".pf-v6-c-modal-box button.pf-v6-c-button.pf-m-plain",
+                ".pf-v5-c-modal-box button.pf-v5-c-button.pf-m-plain",
+                "[role='dialog'] button[aria-label='Close']",
+            ]
+            for selector in close_selectors:
+                for btn in driver.find_elements(By.CSS_SELECTOR, selector):
+                    try:
+                        if btn.is_displayed():
+                            print(f"Dismissing dashboard modal via {selector}")
+                            btn.click()
+                            time.sleep(0.5)
+                    except Exception:
+                        continue
+            driver.find_element(By.TAG_NAME, "body").send_keys(Keys.ESCAPE)
+        except Exception as dismiss_err:
+            print(f"Note: no dashboard modal dismissed after login: {dismiss_err}")
 
     except Exception as e:
         print(f"Login failed: {e}")
