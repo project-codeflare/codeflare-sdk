@@ -423,24 +423,37 @@ def _wait_for_no_ray_owned_routes(
     namespaces: List[str],
     timeout_seconds: int = 120,
     poll_interval: int = 3,
+    min_settle_polls: int = 0,
 ) -> bool:
     """
     Poll until no Ray-owned OpenShift Routes remain in the given namespaces.
     Re-deletes routes if the operator recreates them while enableIngress settles.
+
+    When routes were just deleted, require several consecutive empty polls so
+    KubeRay cannot pass the check and immediately recreate a Route before pytest
+    asserts (seen on repeated pre_upgrade runs on the same cluster).
 
     Returns:
         True if no Ray-owned routes remain, False on timeout.
     """
     elapsed = 0
     logged_waiting = False
+    consecutive_empty = 0
+    required_empty = max(1, min_settle_polls)
 
     while elapsed < timeout_seconds:
         remaining = _collect_ray_owned_routes(api_instance, namespaces)
         if not remaining:
-            if logged_waiting:
-                print("  Ray-owned Routes removed.")
-            return True
+            consecutive_empty += 1
+            if consecutive_empty >= required_empty:
+                if logged_waiting or min_settle_polls > 0:
+                    print("  Ray-owned Routes removed.")
+                return True
+            time.sleep(poll_interval)
+            elapsed += poll_interval
+            continue
 
+        consecutive_empty = 0
         if not logged_waiting:
             print("Pre-upgrade step: Waiting for Ray-owned Routes to be removed...")
             logged_waiting = True
@@ -1806,6 +1819,7 @@ def pre_upgrade(
 
     # Remove OpenShift Routes owned by RayClusters (from enableIngress);
     # post-upgrade uses Gateway API instead.
+    n_removed = 0
     try:
         n_removed, removed_routes = _delete_routes_owned_by_ray_clusters(
             api_instance, namespaces_with_ray
@@ -1819,7 +1833,11 @@ def pre_upgrade(
         print(f"  Warning: could not remove Routes owned by RayClusters: {e}")
         print()
 
-    _wait_for_no_ray_owned_routes(api_instance, namespaces_with_ray)
+    _wait_for_no_ray_owned_routes(
+        api_instance,
+        namespaces_with_ray,
+        min_settle_polls=3 if n_removed else 0,
+    )
     print()
 
     print(f"Backup files will be saved to: {output_dir}")

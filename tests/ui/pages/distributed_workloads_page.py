@@ -125,6 +125,53 @@ class DistributedWorkloadsPage:
         self.driver = driver
         self.wait = WebDriverWait(driver, timeout)
 
+    def _dismiss_blocking_overlays(self):
+        """Dismiss PatternFly modals/overlays that intercept nav clicks."""
+        from selenium.webdriver.common.keys import Keys
+
+        try:
+            overlays = self.driver.find_elements(
+                By.CSS_SELECTOR,
+                ".pf-v6-c-modal-box, .pf-v5-c-modal-box, [role='dialog'], .pf-v6-l-bullseye",
+            )
+            visible = [el for el in overlays if el.is_displayed()]
+            if not visible:
+                return
+            print(f"Dismissing {len(visible)} blocking overlay(s) before navigation...")
+            for selector in (
+                "button[aria-label='Close']",
+                "button[aria-label='close']",
+                ".pf-v6-c-modal-box button.pf-v6-c-button.pf-m-plain",
+                ".pf-v5-c-modal-box button.pf-v5-c-button.pf-m-plain",
+            ):
+                for btn in self.driver.find_elements(By.CSS_SELECTOR, selector):
+                    try:
+                        if btn.is_displayed():
+                            btn.click()
+                            break
+                    except Exception:
+                        continue
+            self.driver.find_element(By.TAG_NAME, "body").send_keys(Keys.ESCAPE)
+        except Exception as e:
+            print(f"Warning: could not dismiss overlays: {e}")
+
+    def _dashboard_base_url(self) -> str:
+        current_url = self.driver.current_url
+        for marker in (
+            "/distributedWorkloads/",
+            "/observe-monitor/",
+            "/applications/",
+            "/projects/",
+            "/modelServing/",
+            "/resources/",
+        ):
+            if marker in current_url:
+                return current_url.split(marker)[0]
+        from urllib.parse import urlsplit, urlunsplit
+
+        parts = urlsplit(current_url)
+        return urlunsplit((parts.scheme, parts.netloc, "", "", "")).rstrip("/")
+
     def navigate(self):
         """Navigate to Workload Metrics page (nested under Observe & monitor)"""
         import time
@@ -143,6 +190,7 @@ class DistributedWorkloadsPage:
                 pass
 
         time.sleep(2)  # Extra wait for animations/transitions
+        self._dismiss_blocking_overlays()
 
         # Check if we're already on the Workload Metrics page (or a subpage)
         current_url = self.driver.current_url
@@ -475,6 +523,28 @@ class DistributedWorkloadsPage:
         current_url = self.driver.current_url
         print(f"Attempting to select project via URL navigation")
         print(f"Current URL: {current_url}")
+
+        if "distributedWorkloads" in current_url:
+            base_url = self._dashboard_base_url()
+            candidate_urls = [
+                f"{base_url}/distributedWorkloads/workloadStatus/{project_name}",
+                f"{base_url}/distributedWorkloads/workload-metrics/workload-status/{project_name}",
+                f"{base_url}/observe-monitor/workload-metrics/workload-status/{project_name}",
+            ]
+            for new_url in candidate_urls:
+                print(f"Trying distributed workloads project URL: {new_url}")
+                self.driver.get(new_url)
+                time.sleep(3)
+                final_url = self.driver.current_url
+                if project_name in final_url or self._verify_project_selected(
+                    project_name
+                ):
+                    print(f"Successfully navigated to project: {project_name}")
+                    return
+            raise RuntimeError(
+                f"Could not select project '{project_name}' via distributedWorkloads URLs. "
+                f"Last URL: {self.driver.current_url}"
+            )
 
         # URL pattern: .../observe-monitor/workload-metrics/workload-status/{project_name}
         # Replace the last path segment with the project name

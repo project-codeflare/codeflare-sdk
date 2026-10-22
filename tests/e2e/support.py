@@ -159,13 +159,78 @@ def initialize_kubernetes_client(self):
 
 def detect_authentication_method():
     """Detect cluster auth type for UI/e2e helpers (legacy htpasswd vs BYOIDC)."""
-    if os.getenv("CLUSTER_AUTH", "").lower() == "oidc":
+    if os.getenv("CLUSTER_AUTH", "").lower() in ("oidc", "byoidc"):
         return "byoidc"
+    try:
+        exec_args = run_oc_command(
+            [
+                "config",
+                "view",
+                "--minify",
+                "-o",
+                "jsonpath={.users[0].user.exec.args}",
+            ]
+        )
+        if exec_args and ("oc-cli" in exec_args or "realms/openshift" in exec_args):
+            return "byoidc"
+    except Exception:
+        pass
     try:
         auth_type = run_oc_command(
             ["get", "authentication", "cluster", "-o", "jsonpath={.spec.type}"]
         )
         if auth_type == "OIDC":
+            return "byoidc"
+        oidc_issuer = run_oc_command(
+            [
+                "get",
+                "authentication",
+                "cluster",
+                "-o",
+                "jsonpath={.spec.oidcProviders[*].issuer.issuerURL}",
+            ]
+        )
+        if oidc_issuer:
+            return "byoidc"
+        oidc_clients = run_oc_command(
+            [
+                "get",
+                "authentication",
+                "cluster",
+                "-o",
+                "jsonpath={.status.oidcClients}",
+            ]
+        )
+        if oidc_clients and "oc-cli" in oidc_clients:
+            return "byoidc"
+    except Exception:
+        pass
+    try:
+        idp_types = run_oc_command(
+            [
+                "get",
+                "oauth",
+                "cluster",
+                "-o",
+                "jsonpath={.spec.identityProviders[*].type}",
+            ]
+        )
+        if idp_types and "openid" in idp_types.lower():
+            types_lower = idp_types.lower()
+            if any(
+                t in types_lower
+                for t in (
+                    "htpasswd",
+                    "ldap",
+                    "basicauth",
+                    "github",
+                    "gitlab",
+                    "google",
+                    "keystone",
+                    "requestheader",
+                )
+            ):
+                return "legacy"
             return "byoidc"
     except Exception:
         pass

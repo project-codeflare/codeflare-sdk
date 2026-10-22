@@ -103,11 +103,12 @@ WORKDIR /codeflare-sdk
 ENV KUBECONFIG=/codeflare-sdk/tests/.kube/config
 
 # ============================================================================
-# Test Results Directory: /codeflare-sdk/tests/results
-# This directory will contain pytest output files (JUnit XML, coverage, etc.)
-# Mount this as a volume when running the container to access test results
+# Test Results Directory: /codeflare-sdk/tests/results and /codeflare-sdk/results
+# Jenkins shift-left runs the container as a non-root uid; these dirs must be
+# world-writable so pytest can emit JUnit XML (see codeflare-sdk main.yaml resultsDir).
 # ============================================================================
-RUN mkdir -p /codeflare-sdk/tests/results
+RUN mkdir -p /codeflare-sdk/tests/results /codeflare-sdk/results && \
+    chmod -R a+rwx /codeflare-sdk/tests/results /codeflare-sdk/results
 
 # ============================================================================
 # Environment File Setup
