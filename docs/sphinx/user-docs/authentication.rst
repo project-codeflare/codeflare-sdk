@@ -50,8 +50,9 @@ Method 1: Token-Based Authentication (Recommended for RHOAI Workbenches)
 -------------------------------------------------------------------------
 
 Authenticate using an OpenShift or Kubernetes bearer token. This is the recommended
-approach when running inside an RHOAI Workbench, as the workbench service account
-may not have sufficient RBAC permissions to manage Ray resources.
+approach when running inside an RHOAI Workbench. A project **edit** or **admin**
+token can create RayJobs and RayClusters (``kuberay-edit-role`` aggregates into
+those roles). Do not grant ``admin`` to the workbench service account for this.
 
 Get your token with ``oc whoami -t``, or from the OpenShift console via
 **username → Copy login command → Display Token**.
@@ -86,10 +87,8 @@ auto-detect and use the available credentials::
 .. note::
 
    In RHOAI Workbenches, ``method="auto"`` picks up the workbench service account
-   (in-cluster). This will fail with a permissions error unless the service account
-   has been granted Ray RBAC by an admin (see `RHOAIENG-46748
-   <https://redhat.atlassian.net/browse/RHOAIENG-46748>`_).
-   Use Method 1 (token) instead.
+   (in-cluster). That SA cannot create RayJobs unless Workbenches has bound
+   ClusterRole ``ray``. Use Method 1 (token) instead.
 
 Method 3: OIDC Authentication (for BYOIDC-enabled clusters)
 ------------------------------------------------------------

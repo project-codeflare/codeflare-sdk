@@ -87,3 +87,4 @@ cluster.wait_ready()
 | It accepts the following parameters:
 | ``timeout: Optional[int] # Default: None`` -> Allows the user to define a timeout for the ``wait_ready()`` function.
 | ``dashboard_check: bool # Default: True`` -> If enabled the ``wait_ready()`` function will wait until the Ray Dashboard is ready too.
+| On Red Hat OpenShift AI with Gateway HTTPRoutes, the dashboard probe can hang. Use ``cluster.wait_ready(dashboard_check=False)`` and open the dashboard from the OpenShift AI UI.
